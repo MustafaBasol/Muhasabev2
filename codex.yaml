@@ -1,0 +1,9 @@
+version: 1
+language: node
+setup:
+  - npm ci
+run:
+  # Next dev varsayılan 3000'dir; host'u dışa açmak için HOST değişkeni veriyoruz
+  - HOST=0.0.0.0 npm run dev -- -p 3000
+test:
+  - npm test -- --watchAll=false

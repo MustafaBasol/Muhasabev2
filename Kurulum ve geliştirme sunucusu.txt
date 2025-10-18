@@ -1,0 +1,9 @@
+Kurulum ve geliştirme sunucusu
+Depoyu klonladıktan sonra kök klasöre girip bağımlılıkları yükleyin:
+
+npm install
+(CI ortamları için npm ci de kullanılabilir.)
+
+Vite geliştirme sunucusunu başlatın:
+
+npm run dev

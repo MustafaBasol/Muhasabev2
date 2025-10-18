@@ -1,0 +1,124 @@
+﻿
+> vite-react-typescript-starter@0.0.0 lint
+> eslint .
+
+
+E:\Ek Gelir\Muhasabe-main\src\App.tsx
+    3:3   warning  'BarChart3' is defined but never used. Allowed unused vars must match /^_/u                             @typescript-eslint/no-unused-vars
+    8:3   warning  'DollarSign' is defined but never used. Allowed unused vars must match /^_/u                            @typescript-eslint/no-unused-vars
+    9:3   warning  'Plus' is defined but never used. Allowed unused vars must match /^_/u                                  @typescript-eslint/no-unused-vars
+   10:3   warning  'Search' is defined but never used. Allowed unused vars must match /^_/u                                @typescript-eslint/no-unused-vars
+   11:3   warning  'Bell' is defined but never used. Allowed unused vars must match /^_/u                                  @typescript-eslint/no-unused-vars
+   12:15  warning  'SettingsIcon' is defined but never used. Allowed unused vars must match /^_/u                          @typescript-eslint/no-unused-vars
+   13:3   warning  'LogOut' is defined but never used. Allowed unused vars must match /^_/u                                @typescript-eslint/no-unused-vars
+   14:3   warning  'Eye' is defined but never used. Allowed unused vars must match /^_/u                                   @typescript-eslint/no-unused-vars
+   15:3   warning  'Edit' is defined but never used. Allowed unused vars must match /^_/u                                  @typescript-eslint/no-unused-vars
+   16:3   warning  'Download' is defined but never used. Allowed unused vars must match /^_/u                              @typescript-eslint/no-unused-vars
+   17:3   warning  'Trash2' is defined but never used. Allowed unused vars must match /^_/u                                @typescript-eslint/no-unused-vars
+   18:3   warning  'Calendar' is defined but never used. Allowed unused vars must match /^_/u                              @typescript-eslint/no-unused-vars
+   19:3   warning  'Filter' is defined but never used. Allowed unused vars must match /^_/u                                @typescript-eslint/no-unused-vars
+  608:9   warning  'deleteSale' is assigned a value but never used. Allowed unused vars must match /^_/u                   @typescript-eslint/no-unused-vars
+  715:9   warning  'handleCreateInvoiceFromSale' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\ArchivePage.tsx
+  6:3  warning  'Filter' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\ChartOfAccountsPage.tsx
+    2:26  warning  'Edit' is defined but never used. Allowed unused vars must match /^_/u                                                                                    @typescript-eslint/no-unused-vars
+    2:48  warning  'Eye' is defined but never used. Allowed unused vars must match /^_/u                                                                                     @typescript-eslint/no-unused-vars
+    2:73  warning  'Save' is defined but never used. Allowed unused vars must match /^_/u                                                                                    @typescript-eslint/no-unused-vars
+   34:10  warning  'showAccountModal' is assigned a value but never used. Allowed unused vars must match /^_/u                                                               @typescript-eslint/no-unused-vars
+   34:28  warning  'setShowAccountModal' is assigned a value but never used. Allowed unused vars must match /^_/u                                                            @typescript-eslint/no-unused-vars
+   35:10  warning  'editingAccount' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                 @typescript-eslint/no-unused-vars
+   35:26  warning  'setEditingAccount' is assigned a value but never used. Allowed unused vars must match /^_/u                                                              @typescript-eslint/no-unused-vars
+   80:11  warning  'accountType' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                    @typescript-eslint/no-unused-vars
+  148:6   warning  React Hook React.useEffect has missing dependencies: 'calculateDynamicBalance' and 'currentAccounts'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\Ek Gelir\Muhasabe-main\src\components\CustomerHistoryModal.tsx
+  2:33  warning  'DollarSign' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\DashboardAlerts.tsx
+  2:45  warning  'TrendingUp' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\ExpenseList.tsx
+    2:72  warning  'DollarSign' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  341:29  error    Expected an assignment or function call and instead saw an expression         @typescript-eslint/no-unused-expressions
+
+E:\Ek Gelir\Muhasabe-main\src\components\ExpenseModal.tsx
+  2:13  warning  'Plus' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\GeneralLedger.tsx
+   2:10  warning  'Search' is defined but never used. Allowed unused vars must match /^_/u                                                        @typescript-eslint/no-unused-vars
+   2:18  warning  'Calendar' is defined but never used. Allowed unused vars must match /^_/u                                                      @typescript-eslint/no-unused-vars
+   2:28  warning  'Filter' is defined but never used. Allowed unused vars must match /^_/u                                                        @typescript-eslint/no-unused-vars
+   2:36  warning  'Eye' is defined but never used. Allowed unused vars must match /^_/u                                                           @typescript-eslint/no-unused-vars
+   2:41  warning  'Edit' is defined but never used. Allowed unused vars must match /^_/u                                                          @typescript-eslint/no-unused-vars
+   2:47  warning  'Trash2' is defined but never used. Allowed unused vars must match /^_/u                                                        @typescript-eslint/no-unused-vars
+   2:55  warning  'BookOpen' is defined but never used. Allowed unused vars must match /^_/u                                                      @typescript-eslint/no-unused-vars
+   2:65  warning  'TrendingUp' is defined but never used. Allowed unused vars must match /^_/u                                                    @typescript-eslint/no-unused-vars
+   2:77  warning  'TrendingDown' is defined but never used. Allowed unused vars must match /^_/u                                                  @typescript-eslint/no-unused-vars
+   2:91  warning  'X' is defined but never used. Allowed unused vars must match /^_/u                                                             @typescript-eslint/no-unused-vars
+   9:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  60:22  warning  'setSearchTerm' is assigned a value but never used. Allowed unused vars must match /^_/u                                        @typescript-eslint/no-unused-vars
+  61:21  warning  'setStartDate' is assigned a value but never used. Allowed unused vars must match /^_/u                                         @typescript-eslint/no-unused-vars
+  62:19  warning  'setEndDate' is assigned a value but never used. Allowed unused vars must match /^_/u                                           @typescript-eslint/no-unused-vars
+  63:26  warning  'setCustomerSearch' is assigned a value but never used. Allowed unused vars must match /^_/u                                    @typescript-eslint/no-unused-vars
+  64:26  warning  'setCategoryFilter' is assigned a value but never used. Allowed unused vars must match /^_/u                                    @typescript-eslint/no-unused-vars
+  65:22  warning  'setTypeFilter' is assigned a value but never used. Allowed unused vars must match /^_/u                                        @typescript-eslint/no-unused-vars
+  66:10  warning  'showInvoiceModal' is assigned a value but never used. Allowed unused vars must match /^_/u                                     @typescript-eslint/no-unused-vars
+  66:28  warning  'setShowInvoiceModal' is assigned a value but never used. Allowed unused vars must match /^_/u                                  @typescript-eslint/no-unused-vars
+  67:10  warning  'showExpenseModal' is assigned a value but never used. Allowed unused vars must match /^_/u                                     @typescript-eslint/no-unused-vars
+  67:28  warning  'setShowExpenseModal' is assigned a value but never used. Allowed unused vars must match /^_/u                                  @typescript-eslint/no-unused-vars
+  68:10  warning  'showSaleModal' is assigned a value but never used. Allowed unused vars must match /^_/u                                        @typescript-eslint/no-unused-vars
+  68:25  warning  'setShowSaleModal' is assigned a value but never used. Allowed unused vars must match /^_/u                                     @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\InvoiceList.tsx
+    2:73  warning  'DollarSign' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  337:29  error    Expected an assignment or function call and instead saw an expression         @typescript-eslint/no-unused-expressions
+
+E:\Ek Gelir\Muhasabe-main\src\components\InvoiceViewModal.tsx
+  2:45  warning  'Phone' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\QuickActions.tsx
+  2:10  warning  'Plus' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  2:54  warning  'Building2' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  2:65  warning  'CreditCard' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\RecentTransactions.tsx
+    1:17  warning  'useState' is defined but never used. Allowed unused vars must match /^_/u                 @typescript-eslint/no-unused-vars
+    2:10  warning  'Eye' is defined but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+    2:15  warning  'Edit' is defined but never used. Allowed unused vars must match /^_/u                     @typescript-eslint/no-unused-vars
+    2:21  warning  'Download' is defined but never used. Allowed unused vars must match /^_/u                 @typescript-eslint/no-unused-vars
+  155:9   warning  'handleEdit' is assigned a value but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+  167:9   warning  'handleDownload' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\ReportsPage.tsx
+    10:3   warning  'FileText' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+    12:3   warning  'Calendar' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+    16:3   warning  'PieChart' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+    19:3   warning  'Wallet' is defined but never used. Allowed unused vars must match /^_/u                  @typescript-eslint/no-unused-vars
+   115:11  warning  'currentMonth' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   116:11  warning  'currentYear' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+   217:9   warning  'maxValue' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   441:9   warning  'netCashFlow' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  1216:29  warning  'avgPerExpense' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\SaleViewModal.tsx
+  2:44  warning  'DollarSign' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\components\SimpleSalesPage.tsx
+    2:135  warning  'AlertTriangle' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  211:9    warning  'updatedSale' is never reassigned. Use 'const' instead                           prefer-const
+
+E:\Ek Gelir\Muhasabe-main\src\components\SupplierList.tsx
+  2:62  warning  'MapPin' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\Ek Gelir\Muhasabe-main\src\utils\pdfGenerator.ts
+   67:7   warning  'mm' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  169:95  warning  Empty block statement                                                          no-empty
+  184:64  warning  Empty block statement                                                          no-empty
+  189:45  warning  Empty block statement                                                          no-empty
+
+Ô£û 82 problems (2 errors, 80 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+
