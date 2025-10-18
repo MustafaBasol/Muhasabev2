@@ -91,12 +91,17 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
     }
   }, [isOpen, initialBankData]);
 
-  const handleSave = () => {
-    const newBank: Bank = {
-      id: initialBankData?.id || Date.now().toString(),
+    const handleSave = () => {
+    const newBank: any = {
       ...bankData,
-      createdAt: initialBankData?.createdAt || new Date().toISOString()
     };
+    
+    // Only include ID if editing
+    if (initialBankData?.id) {
+      newBank.id = initialBankData.id;
+      newBank.createdAt = initialBankData.createdAt;
+    }
+    
     onSave(newBank);
     onClose();
   };

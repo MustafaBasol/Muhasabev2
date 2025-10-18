@@ -126,8 +126,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
     const reorderLevel = Number(formState.reorderLevel) || 0;
     const selectedCategory = formState.category.trim() || categoryOptions[0] || 'Genel';
 
-    const nextProduct: Product = {
-      id: product?.id || Date.now().toString(),
+    const nextProduct: any = {
       name: formState.name.trim(),
       sku: formState.sku.trim(),
       category: selectedCategory,
@@ -137,9 +136,14 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       reorderLevel,
       unit: formState.unit.trim() || 'adet',
       description: formState.description.trim(),
-      createdAt: product?.createdAt || new Date().toISOString(),
       status: stockQuantity === 0 ? 'out-of-stock' : stockQuantity <= reorderLevel ? 'low' : 'active',
     };
+    
+    // Only include ID if editing existing product
+    if (product?.id) {
+      nextProduct.id = product.id;
+      nextProduct.createdAt = product.createdAt;
+    }
 
     onSave(nextProduct);
     onClose();

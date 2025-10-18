@@ -136,18 +136,11 @@ const formatAmount = (amount?: number | string) => {
 
   // Simple click handlers
   const handleRowClick = (transaction: any) => {
-    console.log('Row clicked:', transaction);
-    console.log('Transaction type:', transaction.type);
-    console.log('Original data:', transaction.originalData);
-    
     if (transaction.type === 'invoice') {
-      console.log('Opening invoice view');
       onViewInvoice?.(transaction.originalData);
     } else if (transaction.type === 'expense') {
-      console.log('Opening expense view');
       onViewExpense?.(transaction.originalData);
     } else if (transaction.type === 'sale') {
-      console.log('Opening sale view');
       onViewSale?.(transaction.originalData);
     }
   };

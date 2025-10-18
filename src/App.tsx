@@ -1,7 +1,20 @@
-﻿import React, { useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { Users, FileText, CreditCard, TrendingUp } from "lucide-react";
+import { useAuth } from "./contexts/AuthContext";
 
 import type { CompanyProfile } from "./utils/pdfGenerator";
+import type { 
+  Customer, 
+  User,
+} from "./types";
+import { secureStorage } from "./utils/storage";
+
+// API imports
+import * as customersApi from "./api/customers";
+import * as productsApi from "./api/products";
+import * as invoicesApi from "./api/invoices";
+import * as expensesApi from "./api/expenses";
+import * as suppliersApi from "./api/suppliers";
 
 // components
 import Header, { HeaderNotification } from "./components/Header";
@@ -49,8 +62,7 @@ import ArchivePage from "./components/ArchivePage";
 import GeneralLedger from "./components/GeneralLedger";
 import SimpleSalesPage from "./components/SimpleSalesPage";
 import LoginPage from "./components/LoginPage";
-
-import * as XLSX from "xlsx";
+import * as ExcelJS from 'exceljs';
 
 const defaultCompany: CompanyProfile = {
   name: "MoneyFlow Muhasebe",
@@ -317,22 +329,13 @@ const formatPercentage = (value: number) =>
 
 
 const App: React.FC = () => {
+  const { isAuthenticated, user: authUser, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState("dashboard");
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('isLoggedIn') === 'true';
-  }
-  return false;
-});
-  const [user, setUser] = useState({ name: "Demo User", email: "demo@moneyflow.com" });
+  const [user, setUser] = useState<User>({ name: authUser?.firstName || "User", email: authUser?.email || "" });
   const [accounts, setAccounts] = useState<any[]>([]);
   const [company, setCompany] = useState<CompanyProfile>(() => {
-    try {
-      const raw = localStorage.getItem("companyProfile");
-      return raw ? { ...defaultCompany, ...JSON.parse(raw) } : defaultCompany;
-    } catch {
-      return defaultCompany;
-    }
+    const stored = secureStorage.getJSON<CompanyProfile>("companyProfile");
+    return stored ? { ...defaultCompany, ...stored } : defaultCompany;
   });
   const [notifications, setNotifications] = useState<HeaderNotification[]>(initialNotifications);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -366,15 +369,95 @@ const App: React.FC = () => {
   const [selectedBank, setSelectedBank] = useState<any>(null);
   const [supplierForExpense, setSupplierForExpense] = useState<any>(null);
 
-  const [customers, setCustomers] = useState<any[]>(() => initialCustomers.map(customer => ({ ...customer, id: String(customer.id) })));
-  const [suppliers, setSuppliers] = useState<any[]>(() => initialSuppliers.map(supplier => ({ ...supplier, id: String(supplier.id) })));
-  const [invoices, setInvoices] = useState<any[]>(() => initialInvoices.map(invoice => ({ ...invoice, id: String(invoice.id) })));
-  const [expenses, setExpenses] = useState<any[]>(() => initialExpenses.map(expense => ({ ...expense, id: String(expense.id) })));
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>(() => initialSales.map(sale => ({ ...sale, id: String(sale.id) })));
-  const [products, setProducts] = useState<Product[]>(() => initialProducts.map(product => ({ ...product, id: String(product.id) })));
+  const [products, setProducts] = useState<Product[]>([]);
   const [productCategories, setProductCategories] = useState<string[]>(() => initialProductCategories);
   const [bankAccounts, setBankAccounts] = useState<any[]>(() => initialBankAccounts.map(account => ({ ...account, id: String(account.id) })));
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Load data from backend on mount
+  useEffect(() => {
+    const loadData = async () => {
+      if (!isAuthenticated) return;
+      
+      try {
+        setIsLoadingData(true);
+        
+        const [customersData, suppliersData, productsData, invoicesData, expensesData] = await Promise.all([
+          customersApi.getCustomers(),
+          suppliersApi.getSuppliers(),
+          productsApi.getProducts(),
+          invoicesApi.getInvoices(),
+          expensesApi.getExpenses(),
+        ]);
+
+        setCustomers(customersData);
+        setSuppliers(suppliersData);
+        
+        // Map backend product fields to frontend format
+        const mappedProducts = productsData.map((p: any) => ({
+          ...p,
+          sku: p.code,
+          unitPrice: p.price,
+          costPrice: p.cost || 0,
+          stockQuantity: p.stock,
+          reorderLevel: p.minStock,
+          status: p.stock === 0 ? 'out-of-stock' : p.stock <= p.minStock ? 'low' : 'active'
+        }));
+        setProducts(mappedProducts);
+        
+        setInvoices(invoicesData);
+        setExpenses(expensesData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        showToast('Veriler yüklenirken hata oluştu', 'error');
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadData();
+  }, [isAuthenticated]);
+
+  // Save Bank and Sales to localStorage (no backend module)
+  useEffect(() => {
+    if (bankAccounts.length > 0) {
+      localStorage.setItem('bankAccounts', JSON.stringify(bankAccounts));
+    }
+  }, [bankAccounts]);
+
+  useEffect(() => {
+    if (sales.length > 0) {
+      localStorage.setItem('sales', JSON.stringify(sales));
+    }
+  }, [sales]);
+
+  // Load Bank and Sales from localStorage on mount
+  useEffect(() => {
+    const savedBanks = localStorage.getItem('bankAccounts');
+    const savedSales = localStorage.getItem('sales');
+    
+    if (savedBanks) {
+      try {
+        setBankAccounts(JSON.parse(savedBanks));
+      } catch (e) {
+        console.error('Error loading banks:', e);
+      }
+    }
+    
+    if (savedSales) {
+      try {
+        setSales(JSON.parse(savedSales));
+      } catch (e) {
+        console.error('Error loading sales:', e);
+      }
+    }
+  }, []);
 
   const unreadNotificationCount = useMemo(
     () => notifications.filter(notification => !notification.read).length,
@@ -408,11 +491,7 @@ const App: React.FC = () => {
 
   const handleCompanyUpdate = (updated: CompanyProfile) => {
     setCompany(updated);
-    try {
-      localStorage.setItem("companyProfile", JSON.stringify(updated));
-    } catch (error) {
-      console.error(error);
-    }
+    secureStorage.setJSON("companyProfile", updated);
   };
 
   const handleToggleNotifications = () => {
@@ -441,73 +520,87 @@ const App: React.FC = () => {
   };
 
   const handleLogin = (email: string, password: string) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedPassword = password.trim();
-    const isValid = normalizedEmail === 'demo@moneyflow.com' && normalizedPassword === 'demo123';
-    if (isValid) {
-      setIsLoggedIn(true);
-      try {
-        localStorage.setItem('isLoggedIn', 'true');
-      } catch (error) {
-        console.warn('Unable to persist login state', error);
-      }
-    }
-    return isValid;
+    // This is now handled by AuthContext in LoginPage
+    // Keep for compatibility
+    return true;
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
     setCurrentPage('dashboard');
     handleCloseNotifications();
-    try {
-      localStorage.removeItem('isLoggedIn');
-    } catch (error) {
-      console.warn('Unable to clear login state', error);
-    }
+    logout();
   };
 
   const handleToggleSidebar = () => setIsSidebarOpen(prev => !prev);
   const handleCloseSidebar = () => setIsSidebarOpen(false);
 
-  const upsertCustomer = (customerData: any) => {
-    const id = normalizeId(customerData?.id);
-    const normalized = {
-      ...customerData,
-      id,
-      balance: customerData?.balance ?? 0,
-      createdAt: customerData?.createdAt || new Date().toISOString().split("T")[0],
-    };
-    setCustomers(prev => {
-      const exists = prev.some(customer => String(customer.id) === id);
-      return exists
-        ? prev.map(customer => (String(customer.id) === id ? { ...customer, ...normalized } : customer))
-        : [...prev, normalized];
-    });
+  const upsertCustomer = async (customerData: Partial<Customer>) => {
+    try {
+      // Clean data - remove empty strings
+      const cleanData = {
+        name: customerData.name || '',
+        email: customerData.email?.trim() || undefined,
+        phone: customerData.phone?.trim() || undefined,
+        address: customerData.address?.trim() || undefined,
+        taxNumber: customerData.taxNumber?.trim() || undefined,
+      };
+      
+      if (customerData.id) {
+        // Update existing
+        const updated = await customersApi.updateCustomer(String(customerData.id), cleanData);
+        setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c));
+        showToast('Müşteri güncellendi', 'success');
+      } else {
+        // Create new
+        const created = await customersApi.createCustomer(cleanData);
+        setCustomers(prev => [...prev, created]);
+        showToast('Müşteri eklendi', 'success');
+      }
+    } catch (error: any) {
+      console.error('Customer upsert error:', error);
+      console.error('Error details:', error.response?.data);
+      const errorMsg = error.response?.data?.message || error.message || 'Müşteri kaydedilemedi';
+      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+    }
   };
 
-  const deleteCustomer = (customerId: string | number) => {
-    if (typeof window !== "undefined" && !window.confirm("Bu müsteriyi silmek istediginizden emin misiniz?")) {
+  const deleteCustomer = async (customerId: string | number) => {
+    if (typeof window !== "undefined" && !window.confirm("Bu müşteriyi silmek istediğinizden emin misiniz?")) {
       return;
     }
-    const id = String(customerId);
-    setCustomers(prev => prev.filter(customer => String(customer.id) !== id));
+    try {
+      await customersApi.deleteCustomer(String(customerId));
+      setCustomers(prev => prev.filter(customer => String(customer.id) !== String(customerId)));
+      showToast('Müşteri silindi', 'success');
+    } catch (error: any) {
+      console.error('Customer delete error:', error);
+      showToast(error.response?.data?.message || 'Müşteri silinemedi', 'error');
+    }
   };
 
   const handleImportCustomers = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      if (!sheetName) {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
+      
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
         if (typeof window !== "undefined") {
           window.alert("Dosyada veri bulunamadi.");
         }
         return;
       }
-      const worksheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
-        defval: "",
-        raw: false,
+      
+      const rows: Record<string, unknown>[] = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header
+        const rowData: Record<string, unknown> = {};
+        row.eachCell((cell, colNumber) => {
+          const header = worksheet.getRow(1).getCell(colNumber).value?.toString() || `col${colNumber}`;
+          rowData[header] = cell.value;
+        });
+        rows.push(rowData);
       });
 
       const normalizeKey = (value: unknown) =>
@@ -525,12 +618,10 @@ const App: React.FC = () => {
           return value.toISOString().split("T")[0];
         }
         if (typeof value === "number") {
-          try {
-            return XLSX.SSF.format("yyyy-mm-dd", value);
-          } catch (dateError) {
-            console.warn("Unable to normalise Excel date", dateError);
-            return undefined;
-          }
+          // Excel date serial number to Date
+          const excelEpoch = new Date(1899, 11, 30);
+          const excelDate = new Date(excelEpoch.getTime() + value * 86400000);
+          return excelDate.toISOString().split("T")[0];
         }
         const str = String(value).trim();
         if (!str) {
@@ -648,70 +739,128 @@ const App: React.FC = () => {
     }
   };
 
-  const upsertSupplier = (supplierData: any) => {
-    const id = normalizeId(supplierData?.id);
-    const normalized = {
-      ...supplierData,
-      id,
-      balance: supplierData?.balance ?? 0,
-      createdAt: supplierData?.createdAt || new Date().toISOString().split("T")[0],
-    };
-    setSuppliers(prev => {
-      const exists = prev.some(supplier => String(supplier.id) === id);
-      return exists
-        ? prev.map(supplier => (String(supplier.id) === id ? { ...supplier, ...normalized } : supplier))
-        : [...prev, normalized];
-    });
+  const upsertSupplier = async (supplierData: any) => {
+    try {
+      const cleanData = {
+        name: supplierData.name || '',
+        email: supplierData.email?.trim() || undefined,
+        phone: supplierData.phone?.trim() || undefined,
+        address: supplierData.address?.trim() || undefined,
+        taxNumber: supplierData.taxNumber?.trim() || undefined,
+      };
+      
+      if (supplierData.id) {
+        const updated = await suppliersApi.updateSupplier(String(supplierData.id), cleanData);
+        setSuppliers(prev => prev.map(s => s.id === updated.id ? updated : s));
+        showToast('Tedarikçi güncellendi', 'success');
+      } else {
+        const created = await suppliersApi.createSupplier(cleanData);
+        setSuppliers(prev => [...prev, created]);
+        showToast('Tedarikçi eklendi', 'success');
+      }
+    } catch (error: any) {
+      console.error('Supplier upsert error:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Tedarikçi kaydedilemedi';
+      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+    }
   };
 
-  const deleteSupplier = (supplierId: string | number) => {
-    if (typeof window !== "undefined" && !window.confirm("Bu tedarikçiyi silmek istediginizden emin misiniz?")) {
+  const deleteSupplier = async (supplierId: string | number) => {
+    if (typeof window !== "undefined" && !window.confirm("Bu tedarikçiyi silmek istediğinizden emin misiniz?")) {
       return;
     }
-    const id = String(supplierId);
-    setSuppliers(prev => prev.filter(supplier => String(supplier.id) !== id));
+    try {
+      await suppliersApi.deleteSupplier(String(supplierId));
+      setSuppliers(prev => prev.filter(supplier => String(supplier.id) !== String(supplierId)));
+      showToast('Tedarikçi silindi', 'success');
+    } catch (error: any) {
+      console.error('Supplier delete error:', error);
+      showToast(error.response?.data?.message || 'Tedarikçi silinemedi', 'error');
+    }
   };
 
-  const upsertInvoice = (invoiceData: any) => {
-    const id = normalizeId(invoiceData?.id);
-    const nextSequence = String(invoices.length + 1).padStart(3, "0");
-    const invoiceNumber = invoiceData?.invoiceNumber || "INV-" + new Date().getFullYear() + "-" + nextSequence;
-    const normalized = {
-      ...invoiceData,
-      id,
-      invoiceNumber,
-      issueDate: invoiceData?.issueDate || new Date().toISOString().split("T")[0],
-    };
-    setInvoices(prev => {
-      const exists = prev.some(invoice => String(invoice.id) === id);
-      return exists
-        ? prev.map(invoice => (String(invoice.id) === id ? { ...invoice, ...normalized } : invoice))
-        : [...prev, normalized];
-    });
+  const upsertInvoice = async (invoiceData: any) => {
+    try {
+      const cleanData: any = {
+        customerId: invoiceData.customerId,
+        issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
+        dueDate: invoiceData.dueDate,
+        lineItems: invoiceData.items || invoiceData.lineItems || [],
+        taxAmount: Number(invoiceData.taxAmount || 0),
+        notes: invoiceData.notes,
+      };
+      
+      if (invoiceData.status) {
+        cleanData.status = invoiceData.status;
+      }
+      
+      if (invoiceData.id) {
+        const updated = await invoicesApi.updateInvoice(String(invoiceData.id), cleanData);
+        setInvoices(prev => prev.map(i => i.id === updated.id ? updated : i));
+        showToast('Fatura güncellendi', 'success');
+      } else {
+        const created = await invoicesApi.createInvoice(cleanData);
+        setInvoices(prev => [...prev, created]);
+        showToast('Fatura eklendi', 'success');
+      }
+    } catch (error: any) {
+      console.error('Invoice upsert error:', error);
+      console.error('Error details:', error.response?.data);
+      const errorMsg = error.response?.data?.message || error.message || 'Fatura kaydedilemedi';
+      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+    }
   };
 
-  const deleteInvoice = (invoiceId: string | number) => {
-    setInvoices(prev => prev.filter(invoice => String(invoice.id) !== String(invoiceId)));
+  const deleteInvoice = async (invoiceId: string | number) => {
+    if (!confirmAction("Bu faturayı silmek istediğinizden emin misiniz?")) return;
+    try {
+      await invoicesApi.deleteInvoice(String(invoiceId));
+      setInvoices(prev => prev.filter(invoice => String(invoice.id) !== String(invoiceId)));
+      showToast('Fatura silindi', 'success');
+    } catch (error: any) {
+      console.error('Invoice delete error:', error);
+      showToast(error.response?.data?.message || 'Fatura silinemedi', 'error');
+    }
   };
 
-  const upsertExpense = (expenseData: any) => {
-    const id = normalizeId(expenseData?.id);
-    const normalized = {
-      ...expenseData,
-      id,
-      expenseNumber: expenseData?.expenseNumber || "EXP-" + new Date().getFullYear() + "-" + String(expenses.length + 1).padStart(3, "0"),
-      expenseDate: expenseData?.expenseDate || new Date().toISOString().split("T")[0],
-    };
-    setExpenses(prev => {
-      const exists = prev.some(expense => String(expense.id) === id);
-      return exists
-        ? prev.map(expense => (String(expense.id) === id ? { ...expense, ...normalized } : expense))
-        : [...prev, normalized];
-    });
+  const upsertExpense = async (expenseData: any) => {
+    try {
+      const cleanData = {
+        description: expenseData.description || '',
+        amount: Number(expenseData.amount || 0),
+        category: expenseData.category || 'Genel',
+        date: expenseData.date || expenseData.expenseDate || new Date().toISOString().split('T')[0],
+        supplierId: expenseData.supplierId || undefined,
+        notes: expenseData.notes,
+      };
+      
+      if (expenseData.id) {
+        const updated = await expensesApi.updateExpense(String(expenseData.id), cleanData);
+        setExpenses(prev => prev.map(e => e.id === updated.id ? updated : e));
+        showToast('Gider güncellendi', 'success');
+      } else {
+        const created = await expensesApi.createExpense(cleanData);
+        setExpenses(prev => [...prev, created]);
+        showToast('Gider eklendi', 'success');
+      }
+    } catch (error: any) {
+      console.error('Expense upsert error:', error);
+      console.error('Error details:', error.response?.data);
+      const errorMsg = error.response?.data?.message || error.message || 'Gider kaydedilemedi';
+      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+    }
   };
 
-  const deleteExpense = (expenseId: string | number) => {
-    setExpenses(prev => prev.filter(expense => String(expense.id) !== String(expenseId)));
+  const deleteExpense = async (expenseId: string | number) => {
+    if (!confirmAction("Bu gideri silmek istediğinizden emin misiniz?")) return;
+    try {
+      await expensesApi.deleteExpense(String(expenseId));
+      setExpenses(prev => prev.filter(expense => String(expense.id) !== String(expenseId)));
+      showToast('Gider silindi', 'success');
+    } catch (error: any) {
+      console.error('Expense delete error:', error);
+      showToast(error.response?.data?.message || 'Gider silinemedi', 'error');
+    }
   };
 
   const upsertSale = (saleData: any) => {
@@ -730,48 +879,71 @@ const App: React.FC = () => {
     });
   };
 
-  const upsertProduct = (productData: Partial<Product>) => {
-    const id = normalizeId(productData?.id);
-    const unitPrice = Number(productData?.unitPrice ?? 0);
-    const costPrice = Number(productData?.costPrice ?? 0);
-    const stockQuantity = Number(productData?.stockQuantity ?? 0);
-    const reorderLevel = Number(productData?.reorderLevel ?? 0);
-    const categoryName = (productData?.category ? String(productData.category) : "").trim() || "Genel";
-    const normalized: Product = {
-      ...(productData as Product),
-      id,
-      category: categoryName,
-      unitPrice,
-      costPrice,
-      stockQuantity,
-      reorderLevel,
-      createdAt: productData?.createdAt || new Date().toISOString().split("T")[0],
-      status:
-        productData?.status || (stockQuantity === 0 ? "out-of-stock" : stockQuantity <= reorderLevel ? "low" : "active"),
-    };
-    addProductCategory(categoryName);
-    setProducts(prev => {
-      const exists = prev.some(product => product.id === id);
-      const next = exists
-        ? prev.map(product => (product.id === id ? { ...product, ...normalized } : product))
-        : [...prev, normalized];
-      showToast(exists ? "Urun guncellendi" : "Yeni urun kaydedildi", "success");
-      return next;
-    });
+  const upsertProduct = async (productData: Partial<Product>) => {
+    try {
+      const categoryName = (productData?.category ? String(productData.category) : "").trim() || "Genel";
+      addProductCategory(categoryName);
+
+      // Map frontend fields to backend fields
+      const backendData = {
+        name: productData.name || '',
+        code: productData.sku || `PROD-${Date.now()}`,
+        description: productData.description || undefined,
+        price: Number(productData.unitPrice ?? 0),
+        cost: Number(productData.costPrice ?? 0),
+        stock: Number(productData.stockQuantity ?? 0),
+        minStock: Number(productData.reorderLevel ?? 0),
+        unit: productData.unit || 'adet',
+        category: categoryName,
+      };
+
+      if (productData?.id) {
+        // Update existing
+        const updated = await productsApi.updateProduct(String(productData.id), backendData);
+        setProducts(prev => prev.map(p => p.id === updated.id ? { 
+          ...updated,
+          sku: updated.code,
+          unitPrice: updated.price,
+          costPrice: updated.cost,
+          stockQuantity: updated.stock,
+          reorderLevel: updated.minStock,
+          status: updated.stock === 0 ? 'out-of-stock' : updated.stock <= updated.minStock ? 'low' : 'active'
+        } as Product : p));
+        showToast('Ürün güncellendi', 'success');
+      } else {
+        // Create new
+        const created = await productsApi.createProduct(backendData);
+        setProducts(prev => [...prev, { 
+          ...created,
+          sku: created.code,
+          unitPrice: created.price,
+          costPrice: created.cost,
+          stockQuantity: created.stock,
+          reorderLevel: created.minStock,
+          status: created.stock === 0 ? 'out-of-stock' : created.stock <= created.minStock ? 'low' : 'active'
+        } as Product]);
+        showToast('Ürün eklendi', 'success');
+      }
+    } catch (error: any) {
+      console.error('Product upsert error:', error);
+      console.error('Error details:', error.response?.data);
+      const errorMsg = error.response?.data?.message || error.message || 'Ürün kaydedilemedi';
+      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+    }
   };
 
-  const deleteProduct = (productId: string | number) => {
-    if (!confirmAction("Bu urunu silmek istediginizden emin misiniz?")) {
+  const deleteProduct = async (productId: string | number) => {
+    if (!confirmAction("Bu ürünü silmek istediğinizden emin misiniz?")) {
       return;
     }
-    const id = String(productId);
-    setProducts(prev => {
-      const next = prev.filter(product => product.id !== id);
-      if (next.length !== prev.length) {
-        showToast("Urun silindi", "success");
-      }
-      return next;
-    });
+    try {
+      await productsApi.deleteProduct(String(productId));
+      setProducts(prev => prev.filter(product => product.id !== String(productId)));
+      showToast('Ürün silindi', 'success');
+    } catch (error: any) {
+      console.error('Product delete error:', error);
+      showToast(error.response?.data?.message || 'Ürün silinemedi', 'error');
+    }
   };
 
   const categoriesEqual = (left: string, right: string) =>
@@ -917,23 +1089,29 @@ const App: React.FC = () => {
   };
 
   const upsertBank = (bankData: any) => {
-    const id = normalizeId(bankData?.id);
-    const normalized = {
-      ...bankData,
-      id,
-      balance: Number(bankData?.balance ?? 0),
-      createdAt: bankData?.createdAt || new Date().toISOString().split("T")[0],
-    };
-    setBankAccounts(prev => {
-      const exists = prev.some(bank => String(bank.id) === id);
-      return exists
-        ? prev.map(bank => (String(bank.id) === id ? { ...bank, ...normalized } : bank))
-        : [...prev, normalized];
-    });
+    if (bankData.id) {
+      // Update existing
+      setBankAccounts(prev => prev.map(bank => 
+        String(bank.id) === String(bankData.id) ? { ...bank, ...bankData } : bank
+      ));
+      showToast('Banka hesabı güncellendi', 'success');
+    } else {
+      // Create new
+      const newBank = {
+        ...bankData,
+        id: Date.now().toString(),
+        balance: Number(bankData.balance ?? 0),
+        createdAt: new Date().toISOString().split("T")[0],
+      };
+      setBankAccounts(prev => [...prev, newBank]);
+      showToast('Banka hesabı eklendi', 'success');
+    }
   };
 
   const deleteBank = (bankId: string | number) => {
+    if (!confirmAction("Bu banka hesabını silmek istediğinizden emin misiniz?")) return;
     setBankAccounts(prev => prev.filter(bank => String(bank.id) !== String(bankId)));
+    showToast('Banka hesabı silindi', 'success');
   };
 
   const openCustomerModal = (customer?: any) => {
@@ -1718,7 +1896,7 @@ const App: React.FC = () => {
     </>
   );
 
-  if (!isLoggedIn) {
+  if (!isAuthenticated) {
     return <LoginPage onLogin={handleLogin} />;
   }
 

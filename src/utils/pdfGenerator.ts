@@ -1,6 +1,7 @@
 // src/utils/pdfGenerator.ts
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import DOMPurify from 'dompurify';
 
 // ——— Tipler ——————————————————————————————————————
 interface Invoice {
@@ -91,7 +92,8 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
     background: '#ffffff',
     fontFamily: 'Arial, sans-serif',
   } as CSSStyleDeclaration);
-  tempDiv.innerHTML = html;
+  // XSS koruması: HTML içeriğini sanitize et
+  tempDiv.innerHTML = DOMPurify.sanitize(html);
   document.body.appendChild(tempDiv);
 
   try {

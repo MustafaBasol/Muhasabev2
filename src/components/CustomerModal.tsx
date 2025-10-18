@@ -55,11 +55,16 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
   }, [isOpen, customer]);
 
   const handleSave = () => {
-    const newCustomer: Customer = {
-      id: customer?.id || Date.now().toString(),
+    const newCustomer: any = {
       ...customerData,
-      createdAt: customer?.createdAt || new Date().toISOString()
     };
+    
+    // Only include ID if editing existing customer
+    if (customer?.id) {
+      newCustomer.id = customer.id;
+      newCustomer.createdAt = customer.createdAt;
+    }
+    
     onSave(newCustomer);
     onClose();
     setCustomerData({

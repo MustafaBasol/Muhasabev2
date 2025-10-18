@@ -23,7 +23,7 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
@@ -32,8 +32,10 @@ export default tseslint.config(
           varsIgnorePattern: '^_',
         },
       ],
+      '@typescript-eslint/no-unused-expressions': 'off',
       'no-empty': 'warn',
       'prefer-const': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   }
 );

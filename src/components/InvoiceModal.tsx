@@ -218,16 +218,40 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   };
 
   const handleSave = () => {
-    const invoiceToSave = {
-      id: invoice?.id || Date.now().toString(),
-      ...invoiceData,
+    // Validation
+    if (!invoiceData.customerId) {
+      alert('Lütfen müşteri seçin');
+      return;
+    }
+    if (items.length === 0) {
+      alert('Lütfen en az bir ürün ekleyin');
+      return;
+    }
+    
+    // Calculate totals from items
+    const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
+    const taxAmount = Number(invoiceData.taxAmount || 0);
+    const total = subtotal + taxAmount;
+    
+    const newInvoice: any = {
+      customerId: invoiceData.customerId,
+      issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
+      dueDate: invoiceData.dueDate || new Date().toISOString().split('T')[0],
       items,
       subtotal,
       taxAmount,
       total,
-      createdAt: invoice?.createdAt || new Date().toISOString(),
+      notes: invoiceData.notes || '',
+      status: invoiceData.status || 'draft',
     };
-    onSave(invoiceToSave);
+    
+    // Only include ID if editing
+    if (invoice?.id) {
+      newInvoice.id = invoice.id;
+      newInvoice.createdAt = invoice.createdAt;
+    }
+    
+    onSave(newInvoice);
     onClose();
   };
 

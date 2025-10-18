@@ -61,11 +61,16 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
   }, [isOpen, supplier]);
 
   const handleSave = () => {
-    const newSupplier: Supplier = {
-      id: supplier?.id || Date.now().toString(),
+    const newSupplier: any = {
       ...supplierData,
-      createdAt: supplier?.createdAt || new Date().toISOString()
     };
+    
+    // Only include ID if editing existing supplier
+    if (supplier?.id) {
+      newSupplier.id = supplier.id;
+      newSupplier.createdAt = supplier.createdAt;
+    }
+    
     onSave(newSupplier);
     onClose();
     setSupplierData({

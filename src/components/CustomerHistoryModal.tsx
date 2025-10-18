@@ -21,21 +21,13 @@ export default function CustomerHistoryModal({
   onCreateInvoice
 }: CustomerHistoryModalProps) {
   if (!isOpen || !customer) return null;
-
-  console.log('CustomerHistoryModal - customer:', customer);
-  console.log('CustomerHistoryModal - sales:', sales);
-  console.log('CustomerHistoryModal - invoices:', invoices);
   
   // Filter sales for this customer
   const customerSales = sales.filter(sale => {
     const nameMatch = sale.customerName === customer.name;
     const emailMatch = sale.customerEmail === customer.email;
-    console.log(`Sale ${sale.id}: customerName="${sale.customerName}", customer.name="${customer.name}", nameMatch=${nameMatch}`);
-    console.log(`Sale ${sale.id}: customerEmail="${sale.customerEmail}", customer.email="${customer.email}", emailMatch=${emailMatch}`);
     return nameMatch || emailMatch;
   });
-  
-  console.log('Filtered customer sales:', customerSales);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR');

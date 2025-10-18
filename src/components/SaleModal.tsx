@@ -278,14 +278,18 @@ export default function SaleModal({
 
     const amount = safeTotal;
 
-    const saleToSave: Sale = {
-      id: sale?.id || Date.now().toString(),
+    const saleToSave: any = {
       ...saleData,
       amount,
       total: amount,
       createInvoice,
-      createdAt: sale?.createdAt || new Date().toISOString(),
     };
+    
+    // Only include ID if editing
+    if (sale?.id) {
+      saleToSave.id = sale.id;
+      saleToSave.createdAt = sale.createdAt;
+    }
 
     onSave(saleToSave);
     onClose();

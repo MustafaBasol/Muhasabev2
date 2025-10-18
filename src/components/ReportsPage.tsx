@@ -88,15 +88,6 @@ export default function ReportsPage({
 }: ReportsPageProps) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
-  // Debug: Log all data to see what we have
-  console.log('=== REPORTS DEBUG ===');
-  console.log('All invoices:', invoices);
-  console.log('All expenses:', expenses);
-  console.log('All sales:', sales);
-  console.log('Paid invoices:', invoices.filter(inv => inv.status === 'paid'));
-  console.log('Paid expenses:', expenses.filter(exp => exp.status === 'paid'));
-  console.log('Completed sales:', sales.filter(sale => sale.status === 'completed'));
-
   const toggleSection = (sectionId: string) => {
     const newCollapsed = new Set(collapsedSections);
     if (newCollapsed.has(sectionId)) {

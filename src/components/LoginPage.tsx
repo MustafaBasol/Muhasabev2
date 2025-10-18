@@ -1,11 +1,13 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { Calculator, Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LoginPageProps {
-  onLogin: (email: string, password: string) => boolean;
+  onLogin?: (email: string, password: string) => boolean; // Optional for compatibility
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,45 +16,45 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const savedEmail = localStorage.getItem('rememberedEmail');
-      if (savedEmail) {
-        setEmail(savedEmail);
-        setRememberMe(true);
-      }
-    } catch (storageError) {
-      console.warn('Unable to read remembered email', storageError);
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
     }
   }, []);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
 
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
-    const success = onLogin(trimmedEmail.toLowerCase(), trimmedPassword);
 
-    if (success) {
+    try {
+      await login(trimmedEmail, trimmedPassword);
+      
+      // Save email if remember me is checked
       if (rememberMe) {
-        try {
-          localStorage.setItem('rememberedEmail', trimmedEmail);
-        } catch (storageError) {
-          console.warn('Unable to store remembered email', storageError);
-        }
+        localStorage.setItem('rememberedEmail', trimmedEmail);
       } else {
-        try {
-          localStorage.removeItem('rememberedEmail');
-        } catch (storageError) {
-          console.warn('Unable to clear remembered email', storageError);
-        }
+        localStorage.removeItem('rememberedEmail');
       }
-    } else {
-      setError('E-posta veya şifre hatalı. Demo hesap için demo@moneyflow.com / demo123 bilgilerini kullanabilirsiniz.');
-    }
 
-    setIsLoading(false);
+      // If old onLogin callback exists, call it for compatibility
+      if (onLogin) {
+        onLogin(trimmedEmail, trimmedPassword);
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(
+        err.response?.data?.message || 
+        err.message || 
+        'Giriş başarısız. E-posta veya şifre hatalı.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -163,8 +165,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <p className="text-sm font-medium text-gray-700 mb-2">Demo Hesap Bilgileri:</p>
             <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>E-posta:</strong> demo@moneyflow.com</p>
-              <p><strong>Şifre:</strong> demo123</p>
+              <p><strong>E-posta:</strong> admin@test.com</p>
+              <p><strong>Şifre:</strong> Test123456</p>
             </div>
           </div>
         </div>

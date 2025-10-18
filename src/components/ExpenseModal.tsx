@@ -87,13 +87,37 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
   }, [isOpen, expense, supplierInfo]);
 
   const handleSave = () => {
-    const expenseToSave: Expense = {
-      id: expense?.id || Date.now().toString(),
-      ...expenseData,
-      createdAt: expense?.createdAt || new Date().toISOString()
-    } as any;
+    // Validation
+    if (!expenseData.description?.trim()) {
+      alert('Lütfen açıklama girin');
+      return;
+    }
+    if (!expenseData.amount || parseFloat(expenseData.amount) <= 0) {
+      alert('Lütfen geçerli bir tutar girin');
+      return;
+    }
+    if (!expenseData.category) {
+      alert('Lütfen kategori seçin');
+      return;
+    }
     
-    onSave(expenseToSave);
+    const newExpense: any = {
+      description: expenseData.description.trim(),
+      amount: parseFloat(expenseData.amount),
+      category: expenseData.category,
+      date: expenseData.date || expenseData.expenseDate || new Date().toISOString().split('T')[0],
+      supplierId: expenseData.supplierId || undefined,
+      status: expenseData.status || 'pending',
+      notes: expenseData.notes?.trim() || '',
+    };
+    
+    // Only include ID if editing
+    if (expense?.id) {
+      newExpense.id = expense.id;
+      newExpense.createdAt = expense.createdAt;
+    }
+    
+    onSave(newExpense);
     onClose();
   };
 
