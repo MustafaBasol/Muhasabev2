@@ -7,10 +7,14 @@ const ARCHIVE_THRESHOLD_DAYS = 365; // 1 year
 interface Invoice {
   id: string;
   invoiceNumber: string;
-  customerName: string;
-  customerEmail: string;
+  customerId: string;
+  customer?: {
+    id: string;
+    name: string;
+    email: string;
+  };
   total: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
   issueDate: string;
   dueDate: string;
   items: any[];
@@ -50,11 +54,10 @@ export default function InvoiceList({
   });
 
   const filteredInvoices = invoices.filter(invoice => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    const matchesSearch =
-      !normalizedSearch ||
+    const normalizedSearch = searchTerm.toLowerCase();
+    const matchesSearch = 
       invoice.invoiceNumber.toLowerCase().includes(normalizedSearch) ||
-      (invoice.customerName ? invoice.customerName.toLowerCase().includes(normalizedSearch) : false);
+      (invoice.customer?.name ? invoice.customer.name.toLowerCase().includes(normalizedSearch) : false);
     
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
     
@@ -72,7 +75,8 @@ export default function InvoiceList({
       draft: { label: 'Taslak', class: 'bg-gray-100 text-gray-800' },
       sent: { label: 'Gönderildi', class: 'bg-blue-100 text-blue-800' },
       paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' },
-      overdue: { label: 'Gecikmiş', class: 'bg-red-100 text-red-800' }
+      overdue: { label: 'Gecikmiş', class: 'bg-red-100 text-red-800' },
+      cancelled: { label: 'İptal', class: 'bg-red-100 text-red-800' }
     };
     
     const config = statusConfig[status as keyof typeof statusConfig];
@@ -156,6 +160,7 @@ export default function InvoiceList({
             <option value="sent">Gönderildi</option>
             <option value="paid">Ödendi</option>
             <option value="overdue">Gecikmiş</option>
+            <option value="cancelled">İptal</option>
           </select>
         </div>
       </div>
@@ -238,10 +243,10 @@ export default function InvoiceList({
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {invoice.customerName}
+                          {invoice.customer?.name || 'Müşteri Yok'}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {invoice.customerEmail}
+                          {invoice.customer?.email || ''}
                         </div>
                       </div>
                     </td>

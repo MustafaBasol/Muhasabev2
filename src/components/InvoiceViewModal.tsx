@@ -4,9 +4,15 @@ import { X, Download, Edit, Calendar, Mail, Phone, MapPin } from 'lucide-react';
 interface Invoice {
   id: string;
   invoiceNumber: string;
-  customerName: string;
-  customerEmail: string;
-  customerAddress: string;
+  customer?: {
+    id: string;
+    name: string;
+    email: string;
+    address?: string;
+  };
+  customerName?: string;
+  customerEmail?: string;
+  customerAddress?: string;
   total: number;
   subtotal: number;
   taxAmount: number;
@@ -15,7 +21,7 @@ interface Invoice {
   dueDate: string;
   items: any[];
   notes?: string;
-  type: 'product' | 'service';
+  type?: 'product' | 'service';
 }
 
 interface InvoiceViewModalProps {
@@ -127,17 +133,17 @@ export default function InvoiceViewModal({
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Müşteri Bilgileri</h3>
               <div className="space-y-2">
-                <div className="font-medium text-gray-900">{invoice.customerName}</div>
-                {invoice.customerEmail && (
+                <div className="font-medium text-gray-900">{invoice.customer?.name || invoice.customerName || 'Müşteri Yok'}</div>
+                {(invoice.customer?.email || invoice.customerEmail) && (
                   <div className="flex items-center text-sm text-gray-600">
                     <Mail className="w-4 h-4 mr-2" />
-                    {invoice.customerEmail}
+                    {invoice.customer?.email || invoice.customerEmail}
                   </div>
                 )}
-                {invoice.customerAddress && (
+                {(invoice.customer?.address || invoice.customerAddress) && (
                   <div className="flex items-start text-sm text-gray-600">
                     <MapPin className="w-4 h-4 mr-2 mt-0.5" />
-                    <span>{invoice.customerAddress}</span>
+                    <span>{invoice.customer?.address || invoice.customerAddress}</span>
                   </div>
                 )}
               </div>

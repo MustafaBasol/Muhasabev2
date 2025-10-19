@@ -39,6 +39,7 @@ const defaultItems: InvoiceItem[] = [
 export default function InvoiceModal({ onClose, onSave, invoice, customers = [], products = [] }: InvoiceModalProps) {
   const [invoiceData, setInvoiceData] = useState({
     invoiceNumber: '',
+    customerId: '',
     customerName: '',
     customerEmail: '',
     customerAddress: '',
@@ -54,11 +55,13 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [activeProductDropdown, setActiveProductDropdown] = useState<string | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>(defaultItems);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (!invoice) {
       setInvoiceData({
         invoiceNumber: `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
+        customerId: '',
         customerName: '',
         customerEmail: '',
         customerAddress: '',
@@ -73,14 +76,16 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       setSelectedCustomer(null);
       setShowCustomerDropdown(false);
       setActiveProductDropdown(null);
+      setValidationError(null);
       return;
     }
 
     setInvoiceData({
       invoiceNumber: invoice.invoiceNumber || `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
-      customerName: invoice.customerName || '',
-      customerEmail: invoice.customerEmail || '',
-      customerAddress: invoice.customerAddress || '',
+      customerId: invoice.customerId || '',
+      customerName: invoice.customer?.name || invoice.customerName || '',
+      customerEmail: invoice.customer?.email || invoice.customerEmail || '',
+      customerAddress: invoice.customer?.address || invoice.customerAddress || '',
       issueDate: invoice.issueDate || new Date().toISOString().split('T')[0],
       dueDate: invoice.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       notes: invoice.notes || '',
@@ -104,10 +109,18 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     });
 
     setItems(normalisedItems.length ? normalisedItems : defaultItems);
-    setCustomerSearch(invoice.customerName || '');
-    setSelectedCustomer(null);
+    setCustomerSearch(invoice.customer?.name || invoice.customerName || '');
+    
+    // Set selected customer if available
+    if (invoice.customer) {
+      setSelectedCustomer(invoice.customer as Customer);
+    } else {
+      setSelectedCustomer(null);
+    }
+    
     setShowCustomerDropdown(false);
     setActiveProductDropdown(null);
+    setValidationError(null);
   }, [invoice]);
 
   const addItem = () => {
@@ -161,12 +174,14 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     setSelectedCustomer(customer);
     setInvoiceData(current => ({
       ...current,
+      customerId: customer.id,
       customerName: customer.name,
       customerEmail: customer.email,
       customerAddress: customer.address || current.customerAddress,
     }));
     setCustomerSearch(customer.name);
     setShowCustomerDropdown(false);
+    setValidationError(null);
   };
 
   const handleCustomerSearchChange = (value: string) => {
@@ -220,20 +235,25 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   const handleSave = () => {
     // Validation
     if (!invoiceData.customerId) {
-      alert('Lütfen müşteri seçin');
+      setValidationError('Lütfen müşteri seçin');
       return;
     }
     if (items.length === 0) {
-      alert('Lütfen en az bir ürün ekleyin');
+      setValidationError('Lütfen en az bir ürün ekleyin');
+      return;
+    }
+    if (items.some(item => !item.description || item.quantity <= 0 || item.unitPrice <= 0)) {
+      setValidationError('Lütfen tüm ürün bilgilerini eksiksiz doldurun');
       return;
     }
     
     // Calculate totals from items
     const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
-    const taxAmount = Number(invoiceData.taxAmount || 0);
+    const taxAmount = subtotal * TAX_RATE;
     const total = subtotal + taxAmount;
     
     const newInvoice: any = {
+      invoiceNumber: invoiceData.invoiceNumber,
       customerId: invoiceData.customerId,
       issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
       dueDate: invoiceData.dueDate || new Date().toISOString().split('T')[0],
@@ -256,7 +276,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
@@ -280,7 +300,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Fatura Numarasi</label>
               <input
@@ -307,6 +327,20 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                 onChange={(event) => setInvoiceData({ ...invoiceData, dueDate: event.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Fatura Durumu</label>
+              <select
+                value={invoiceData.status}
+                onChange={(event) => setInvoiceData({ ...invoiceData, status: event.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="draft">Taslak</option>
+                <option value="sent">Gonderildi</option>
+                <option value="paid">Odendi</option>
+                <option value="overdue">Vadesi Gecti</option>
+                <option value="cancelled">Iptal Edildi</option>
+              </select>
             </div>
           </div>
 
@@ -382,18 +416,18 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
               </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full border border-gray-200 rounded-lg">
+            <div style={{ overflow: 'visible' }}>
+              <table className="w-full border border-gray-200 rounded-lg table-fixed" style={{ position: 'relative' }}>
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Aciklama</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Miktar</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Birim Fiyat</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Toplam</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Islem</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '40%' }}>Aciklama</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '12%' }}>Miktar</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '18%' }}>Birim Fiyat</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '18%' }}>Toplam</th>
+                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-700" style={{ width: '12%' }}>Islem</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200" style={{ position: 'relative' }}>
                   {items.map((item) => {
                     const productMatches = getProductMatches(item.description);
                     const selectedProduct = item.productId
@@ -402,30 +436,35 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
 
                     return (
                       <tr key={item.id}>
-                        <td className="px-4 py-3">
-                          <div className="relative">
-                            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <td className="px-4 py-3" style={{ position: 'static' }}>
+                          <div className="relative" style={{ position: 'static' }}>
                             <input
                               type="text"
                               value={item.description}
                               onChange={(event) => {
                                 updateItem(item.id, 'description', event.target.value);
-                                setActiveProductDropdown(item.id);
+                                if (event.target.value.length > 0) {
+                                  setActiveProductDropdown(item.id);
+                                }
                               }}
-                              onFocus={() => setActiveProductDropdown(item.id)}
+                              onClick={() => {
+                                if (item.description.length > 0) {
+                                  setActiveProductDropdown(item.id);
+                                }
+                              }}
                               onBlur={() => setTimeout(() => {
                                 setActiveProductDropdown((current) => (current === item.id ? null : current));
-                              }, 120)}
-                              className="w-full pl-8 pr-8 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              }, 200)}
+                              className="w-full px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                               placeholder="Urun veya hizmet aciklamasi"
                             />
-                            {selectedProduct && (
-                              <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500 w-4 h-4" />
-                            )}
                             {activeProductDropdown === item.id && productMatches.length > 0 && (
-                              <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto">
-                                <div className="p-2 text-xs text-gray-500 border-b">
-                                  {productMatches.length} urun bulundu
+                              <div className="absolute z-[100] mt-1 w-[450px] left-0 rounded-lg border-2 border-gray-300 bg-white shadow-2xl max-h-[500px] overflow-y-auto">
+                                <div className="sticky top-0 bg-blue-50 p-3 text-xs font-medium text-blue-700 border-b border-blue-200">
+                                  <span className="flex items-center">
+                                    <Search className="w-3 h-3 mr-1" />
+                                    {productMatches.length} ürün bulundu
+                                  </span>
                                 </div>
                                 {productMatches.map(product => (
                                   <button
@@ -433,14 +472,26 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                                     type="button"
                                     onMouseDown={(event) => event.preventDefault()}
                                     onClick={() => handleSelectProduct(item.id, product)}
-                                    className="w-full p-3 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                    className="w-full p-4 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
                                   >
-                                    <div className="font-medium text-gray-900">{product.name}</div>
-                                    <div className="text-xs text-gray-500">
-                                      {(product.sku ? `SKU: ${product.sku}` : '')}{product.sku && product.category ? ' • ' : ''}{product.category || ''}
+                                    <div className="font-semibold text-gray-900 mb-1">{product.name}</div>
+                                    <div className="flex items-center space-x-3 text-xs text-gray-600">
+                                      {product.sku && (
+                                        <span className="px-2 py-0.5 bg-gray-100 rounded">SKU: {product.sku}</span>
+                                      )}
+                                      {product.category && (
+                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">{product.category}</span>
+                                      )}
                                     </div>
-                                    <div className="text-xs text-gray-500">
-                                      Fiyat: {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY | Stok: {product.stockQuantity}
+                                    <div className="flex items-center justify-between mt-2 text-sm">
+                                      <span className="font-medium text-green-600">
+                                        {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY
+                                      </span>
+                                      <span className="text-gray-500">
+                                        Stok: <span className={product.stockQuantity > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                                          {product.stockQuantity}
+                                        </span>
+                                      </span>
                                     </div>
                                   </button>
                                 ))}
@@ -539,6 +590,33 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
           </button>
         </div>
       </div>
+
+      {/* Validation Error Modal */}
+      {validationError && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[70]">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Uyarı</h3>
+                <p className="text-gray-600">{validationError}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setValidationError(null)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Tamam
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

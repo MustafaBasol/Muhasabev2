@@ -11,9 +11,18 @@ export class ExpensesService {
   ) {}
 
   async create(tenantId: string, createExpenseDto: any) {
+    // Generate expense number if not provided
+    const expenseNumber = createExpenseDto.expenseNumber || 
+      `EXP-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+    
+    // Map 'date' to 'expenseDate' for entity compatibility
+    const expenseDate = createExpenseDto.expenseDate || createExpenseDto.date || new Date().toISOString().split('T')[0];
+    
     const expense = this.expensesRepository.create({
       ...createExpenseDto,
       tenantId,
+      expenseNumber,
+      expenseDate,
     });
     return this.expensesRepository.save(expense);
   }
@@ -41,6 +50,13 @@ export class ExpensesService {
 
   async update(tenantId: string, id: string, updateExpenseDto: any): Promise<Expense> {
     const expense = await this.findOne(tenantId, id);
+    
+    // Map 'date' to 'expenseDate' for entity compatibility
+    if (updateExpenseDto.date && !updateExpenseDto.expenseDate) {
+      updateExpenseDto.expenseDate = updateExpenseDto.date;
+      delete updateExpenseDto.date;
+    }
+    
     Object.assign(expense, updateExpenseDto);
     return this.expensesRepository.save(expense);
   }

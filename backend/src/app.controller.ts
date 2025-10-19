@@ -9,7 +9,7 @@ export class AppController {
 
   @Get()
   getApp(@Res() res: Response) {
-    return res.sendFile(join(__dirname, '..', 'public', 'dist', 'index.html'));
+    return res.sendFile(join(__dirname, '..', 'public', 'index.html'));
   }
 
   @Get('health')

@@ -5,13 +5,18 @@ interface Expense {
   id: string;
   expenseNumber: string;
   description: string;
-  supplier: string;
+  supplierId?: string;
+  supplier?: {
+    id: string;
+    name: string;
+  };
   amount: number;
   category: string;
-  status: 'draft' | 'approved' | 'paid';
+  status: 'draft' | 'approved' | 'paid' | 'pending' | 'rejected';
   expenseDate: string;
-  dueDate: string;
+  dueDate?: string;
   receiptUrl?: string;
+  notes?: string;
 }
 
 interface ExpenseModalProps {
@@ -26,33 +31,30 @@ interface ExpenseModalProps {
 }
 
 const categories = [
-  'Ofis Malzemeleri',
-  'Kira',
-  'Elektrik',
-  'Su',
-  'İnternet',
-  'Telefon',
-  'Yakıt',
-  'Yemek',
-  'Kırtasiye',
-  'Temizlik',
-  'Bakım-Onarım',
-  'Sigorta',
-  'Vergi',
-  'Diğer'
+  { label: 'Kira', value: 'rent' },
+  { label: 'Faturalar (Elektrik, Su, İnternet)', value: 'utilities' },
+  { label: 'Maaşlar', value: 'salaries' },
+  { label: 'Malzemeler', value: 'supplies' },
+  { label: 'Pazarlama', value: 'marketing' },
+  { label: 'Seyahat', value: 'travel' },
+  { label: 'Ekipman', value: 'equipment' },
+  { label: 'Sigorta', value: 'insurance' },
+  { label: 'Vergiler', value: 'taxes' },
+  { label: 'Diğer', value: 'other' },
 ];
 
 export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplierInfo }: ExpenseModalProps) {
   const [expenseData, setExpenseData] = useState({
     expenseNumber: expense?.expenseNumber || `EXP-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
     description: expense?.description || '',
-    supplier: expense?.supplier || supplierInfo?.name || '',
+    supplier: expense?.supplier?.name || expense?.supplierId || supplierInfo?.name || '',
     amount: expense?.amount || 0,
-    category: expense?.category || supplierInfo?.category || 'Diğer',
-    status: expense?.status || 'draft',
+    category: expense?.category || supplierInfo?.category || 'other',
+    status: expense?.status || 'pending',
     expenseDate: expense?.expenseDate || new Date().toISOString().split('T')[0],
     dueDate: expense?.dueDate || '',
-    receiptUrl: expense?.receiptUrl || ''
+    receiptUrl: expense?.receiptUrl || '',
+    notes: expense?.notes || ''
   });
 
   // Reset form when modal opens for new expense
@@ -64,24 +66,26 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
         description: '',
         supplier: supplierInfo?.name || '',
         amount: 0,
-        category: supplierInfo?.category || 'Diğer',
-        status: 'draft',
+        category: supplierInfo?.category || 'other',
+        status: 'pending',
         expenseDate: new Date().toISOString().split('T')[0],
         dueDate: '',
-        receiptUrl: ''
+        receiptUrl: '',
+        notes: ''
       });
     } else if (isOpen && expense) {
       // Editing existing expense - load data
       setExpenseData({
         expenseNumber: expense.expenseNumber,
         description: expense.description,
-        supplier: expense.supplier,
-        amount: expense.amount || 0,
+        supplier: expense.supplier?.name || expense.supplierId || '',
+        amount: expense.amount,
         category: expense.category,
         status: expense.status,
         expenseDate: expense.expenseDate,
-        dueDate: expense.dueDate,
-        receiptUrl: expense.receiptUrl || ''
+        dueDate: expense.dueDate || '',
+        receiptUrl: expense.receiptUrl || '',
+        notes: expense.notes || ''
       });
     }
   }, [isOpen, expense, supplierInfo]);
@@ -172,8 +176,8 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
               >
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                {categories.map(cat => (
+                  <option key={cat.value} value={cat.value}>{cat.label}</option>
                 ))}
               </select>
             </div>

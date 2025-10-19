@@ -10,8 +10,8 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  // Serve static files from public/dist
-  app.useStaticAssets(join(__dirname, '..', 'public', 'dist'), {
+  // Serve static files from public
+  app.useStaticAssets(join(__dirname, '..', 'public'), {
     index: false, // Don't serve index.html automatically
     prefix: '/',
   });

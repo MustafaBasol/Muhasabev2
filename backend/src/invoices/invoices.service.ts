@@ -11,9 +11,32 @@ export class InvoicesService {
   ) {}
 
   async create(tenantId: string, createInvoiceDto: any) {
+    // Generate invoice number if not provided
+    const invoiceNumber = createInvoiceDto.invoiceNumber || 
+      `INV-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+    
+    // Calculate subtotal from line items
+    const items = createInvoiceDto.lineItems || createInvoiceDto.items || [];
+    const subtotal = items.reduce((sum: number, item: any) => {
+      const quantity = Number(item.quantity) || 0;
+      const unitPrice = Number(item.unitPrice) || 0;
+      return sum + (quantity * unitPrice);
+    }, 0);
+    
+    // Calculate total
+    const taxAmount = Number(createInvoiceDto.taxAmount) || 0;
+    const discountAmount = Number(createInvoiceDto.discountAmount) || 0;
+    const total = subtotal + taxAmount - discountAmount;
+    
     const invoice = this.invoicesRepository.create({
       ...createInvoiceDto,
       tenantId,
+      invoiceNumber,
+      items,
+      subtotal,
+      taxAmount,
+      discountAmount,
+      total,
     });
     return this.invoicesRepository.save(invoice);
   }
@@ -41,6 +64,25 @@ export class InvoicesService {
 
   async update(tenantId: string, id: string, updateInvoiceDto: any): Promise<Invoice> {
     const invoice = await this.findOne(tenantId, id);
+    
+    // Recalculate if items are updated
+    if (updateInvoiceDto.lineItems || updateInvoiceDto.items) {
+      const items = updateInvoiceDto.lineItems || updateInvoiceDto.items || [];
+      const subtotal = items.reduce((sum: number, item: any) => {
+        const quantity = Number(item.quantity) || 0;
+        const unitPrice = Number(item.unitPrice) || 0;
+        return sum + (quantity * unitPrice);
+      }, 0);
+      
+      const taxAmount = Number(updateInvoiceDto.taxAmount ?? invoice.taxAmount) || 0;
+      const discountAmount = Number(updateInvoiceDto.discountAmount ?? invoice.discountAmount) || 0;
+      const total = subtotal + taxAmount - discountAmount;
+      
+      updateInvoiceDto.items = items;
+      updateInvoiceDto.subtotal = subtotal;
+      updateInvoiceDto.total = total;
+    }
+    
     Object.assign(invoice, updateInvoiceDto);
     return this.invoicesRepository.save(invoice);
   }
