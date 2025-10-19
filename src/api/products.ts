@@ -11,13 +11,16 @@ export interface Product {
   minStock: number;
   unit: string;
   category?: string;
+  barcode?: string;
+  taxRate: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateProductDto {
   name: string;
-  code?: string;
+  code: string;
   description?: string;
   price: number;
   cost?: number;
@@ -25,6 +28,8 @@ export interface CreateProductDto {
   minStock?: number;
   unit?: string;
   category?: string;
+  barcode?: string;
+  taxRate?: number;
 }
 
 export interface UpdateProductDto {
@@ -37,10 +42,13 @@ export interface UpdateProductDto {
   minStock?: number;
   unit?: string;
   category?: string;
+  barcode?: string;
+  taxRate?: number;
+  isActive?: boolean;
 }
 
 /**
- * Tüm ürünleri listele
+ * Tüm ürünleri listele (tenant-aware)
  */
 export const getProducts = async (): Promise<Product[]> => {
   const response = await apiClient.get('/products');
@@ -48,7 +56,7 @@ export const getProducts = async (): Promise<Product[]> => {
 };
 
 /**
- * Düşük stoklu ürünleri listele
+ * Düşük stoklu ürünleri getir
  */
 export const getLowStockProducts = async (): Promise<Product[]> => {
   const response = await apiClient.get('/products/low-stock');

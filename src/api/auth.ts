@@ -6,7 +6,6 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   companyName?: string;
-  tenantName?: string;
 }
 
 export interface LoginData {

@@ -3,10 +3,11 @@ import apiClient from './client';
 export interface Customer {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
   address?: string;
   taxNumber?: string;
+  company?: string;
   balance: number;
   createdAt: string;
   updatedAt: string;
@@ -18,6 +19,7 @@ export interface CreateCustomerDto {
   phone?: string;
   address?: string;
   taxNumber?: string;
+  company?: string;
 }
 
 export interface UpdateCustomerDto {
@@ -26,10 +28,11 @@ export interface UpdateCustomerDto {
   phone?: string;
   address?: string;
   taxNumber?: string;
+  company?: string;
 }
 
 /**
- * Tüm müşterileri listele
+ * Tüm müşterileri listele (tenant-aware)
  */
 export const getCustomers = async (): Promise<Customer[]> => {
   const response = await apiClient.get('/customers');

@@ -3,10 +3,11 @@ import apiClient from './client';
 export interface Supplier {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
   address?: string;
   taxNumber?: string;
+  company?: string;
   balance: number;
   createdAt: string;
   updatedAt: string;
@@ -14,10 +15,11 @@ export interface Supplier {
 
 export interface CreateSupplierDto {
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
   address?: string;
   taxNumber?: string;
+  company?: string;
 }
 
 export interface UpdateSupplierDto {
