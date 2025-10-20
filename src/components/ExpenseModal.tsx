@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Plus, Receipt, Calendar, Building2, Tag } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface Expense {
   id: string;
@@ -50,6 +51,8 @@ const categories = [
 ];
 
 export default function ExpenseModal({ isOpen, onClose, onSave, expense, suppliers = [], supplierInfo }: ExpenseModalProps) {
+  const { formatCurrency } = useCurrency();
+  
   const [expenseData, setExpenseData] = useState({
     expenseNumber: expense?.expenseNumber || `EXP-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
     description: expense?.description || '',
@@ -357,7 +360,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <div className="flex justify-between items-center">
               <span className="text-red-800 font-medium">Toplam Gider:</span>
               <span className="text-xl font-bold text-red-600">
-                ₺{(expenseData.amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                {formatCurrency(expenseData.amount || 0)}
               </span>
             </div>
           </div>

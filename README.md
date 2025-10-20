@@ -266,19 +266,17 @@ Bu script:
 
 ### Business Features
 
-- 📊 Dashboard ve raporlama- ✅ Frontend uygulamasını başlatır (port 5173)## 📦 Teknolojiler
-
+- 📊 Dashboard ve raporlama
 - 👥 Müşteri/Tedarikçi yönetimi
-
 - 🧾 Fatura ve gider yönetimi
-
 - 💰 Satış takibi
-
-- 🏦 Banka hesapları### Manuel Başlatma- React 18
-
+- 🏦 Banka hesapları
 - 📈 Grafik ve analizler
-
-- TypeScript
+- 💱 **Multi-Currency Support** (TRY, USD, EUR)
+  - Global para birimi değiştirme
+  - Anlık format güncelleme
+  - LocalStorage persistence
+  - Locale-aware formatting
 
 ## 🔐 Güvenlik
 

@@ -9,6 +9,7 @@ import {
   Calendar
 } from 'lucide-react';
 import type { Product } from './ProductList';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface ProductViewModalProps {
   isOpen: boolean;
@@ -17,13 +18,9 @@ interface ProductViewModalProps {
   onEdit?: (product: Product) => void;
 }
 
-const currencyFormatter = new Intl.NumberFormat('tr-TR', {
-  style: 'currency',
-  currency: 'TRY',
-  minimumFractionDigits: 2,
-});
-
 export default function ProductViewModal({ isOpen, onClose, product, onEdit }: ProductViewModalProps) {
+  const { formatCurrency } = useCurrency();
+  
   if (!isOpen || !product) {
     return null;
   }
@@ -79,8 +76,8 @@ export default function ProductViewModal({ isOpen, onClose, product, onEdit }: P
           <section>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Fiyat ve Stok</h3>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              <DetailItem icon={DollarSign} label="Satis Fiyati" value={currencyFormatter.format(product.unitPrice || 0)} />
-              <DetailItem icon={DollarSign} label="Maliyet" value={currencyFormatter.format(product.costPrice || 0)} />
+              <DetailItem icon={DollarSign} label="Satis Fiyati" value={formatCurrency(product.unitPrice || 0)} />
+              <DetailItem icon={DollarSign} label="Maliyet" value={formatCurrency(product.costPrice || 0)} />
               <DetailItem icon={Layers} label="Stok Miktari" value={`${product.stockQuantity} ${product.unit}`} />
               <DetailItem icon={Layers} label="Kritik Seviye" value={product.reorderLevel} />
             </div>

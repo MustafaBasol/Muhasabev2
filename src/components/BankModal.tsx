@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, CreditCard, Building2, User, Hash, Globe, DollarSign } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface Bank {
   id: string;
@@ -48,6 +49,8 @@ const bankNames = [
 ];
 
 export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }: BankModalProps) {
+  const { currency: defaultCurrency } = useCurrency();
+  
   // Use bankAccount if provided, otherwise use bank
   const initialBankData = bankAccount || bank;
   
@@ -57,7 +60,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
     accountNumber: initialBankData?.accountNumber || '',
     iban: initialBankData?.iban || '',
     balance: initialBankData?.balance || 0,
-    currency: initialBankData?.currency || 'TRY',
+    currency: initialBankData?.currency || defaultCurrency,
     accountType: initialBankData?.accountType || 'checking',
     isActive: initialBankData?.isActive !== undefined ? initialBankData.isActive : true
   });
@@ -84,12 +87,12 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
         accountNumber: '',
         iban: '',
         balance: 0,
-        currency: 'TRY',
+        currency: defaultCurrency,
         accountType: 'checking',
         isActive: true
       });
     }
-  }, [isOpen, initialBankData]);
+  }, [isOpen, initialBankData, defaultCurrency]);
 
     const handleSave = () => {
     const newBank: any = {

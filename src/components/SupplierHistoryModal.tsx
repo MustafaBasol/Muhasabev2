@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Receipt, Calendar } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface SupplierHistoryModalProps {
   isOpen: boolean;
@@ -20,12 +21,14 @@ export default function SupplierHistoryModal({
 }: SupplierHistoryModalProps) {
   if (!isOpen || !supplier) return null;
 
+  const { formatCurrency } = useCurrency();
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR');
   };
 
   const formatAmount = (amount: number) => {
-    return `₺${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    return formatCurrency(amount);
   };
 
   return (

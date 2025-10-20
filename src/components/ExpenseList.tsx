@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, DollarSign, Check, X } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface Expense {
   id: string;
@@ -33,6 +34,8 @@ export default function ExpenseList({
   onUpdateExpense,
   onDownloadExpense
 }: ExpenseListProps) {
+  const { formatCurrency } = useCurrency();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -75,7 +78,7 @@ export default function ExpenseList({
   };
 
   const formatAmount = (amount: number) => {
-    return `₺${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    return formatCurrency(amount);
   };
 
   const handleInlineEdit = (expenseId: string, field: string, currentValue: string) => {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Plus, Eye, Edit, Download, Trash2, FileText, Calendar, DollarSign, Check, X } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 // Archive threshold: invoices older than this many days will only appear in archive
 const ARCHIVE_THRESHOLD_DAYS = 365; // 1 year
@@ -39,8 +40,10 @@ export default function InvoiceList({
   onUpdateInvoice,
   onDownloadInvoice
 }: InvoiceListProps) {
+  const { formatCurrency } = useCurrency();
+  
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [editingInvoice, setEditingInvoice] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
@@ -92,7 +95,7 @@ export default function InvoiceList({
   };
 
   const formatAmount = (amount: number) => {
-    return `₺${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    return formatCurrency(amount);
   };
 
   const handleInlineEdit = (invoiceId: string, field: string, currentValue: string) => {

@@ -5,6 +5,7 @@ import type { Product } from './ProductList';
 import SaleViewModal from './SaleViewModal';
 import InvoiceViewModal from './InvoiceViewModal';
 import type { Sale } from '../types';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 
 
@@ -43,6 +44,8 @@ interface SimpleSalesPageProps {
 }
 
 export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale }: SimpleSalesPageProps) {
+  const { formatCurrency } = useCurrency();
+  
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [showSaleViewModal, setShowSaleViewModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -177,9 +180,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
 
   const formatAmount = (amount: number) => {
     if (amount == null || isNaN(amount)) {
-      return '₺0,00';
+      return formatCurrency(0);
     }
-    return `₺${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    return formatCurrency(amount);
   };
 
   const formatDate = (dateString: string) => {

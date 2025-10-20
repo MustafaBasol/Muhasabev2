@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Eye, Edit, Download } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface RecentTransactionsProps {
   invoices?: any[];
@@ -33,6 +34,8 @@ export default function RecentTransactions({
   onViewAllTransactions
 }: RecentTransactionsProps) {
   
+  const { formatCurrency } = useCurrency();
+  
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR', {
       day: '2-digit',
@@ -41,11 +44,11 @@ export default function RecentTransactions({
     });
   };
 
-const formatAmount = (amount?: number | string) => {
-  const n = Number(amount);
-  const safe = Number.isFinite(n) ? n : 0;
-  return `₺${safe.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
-};
+  const formatAmount = (amount?: number | string) => {
+    const n = Number(amount);
+    const safe = Number.isFinite(n) ? n : 0;
+    return formatCurrency(safe);
+  };
 
   // Combine all transactions and sort by date
   const transactions = useMemo(() => {

@@ -1,4 +1,5 @@
 import { X, Download, Edit, Calendar, Mail, MapPin } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface Invoice {
   id: string;
@@ -40,12 +41,14 @@ export default function InvoiceViewModal({
 }: InvoiceViewModalProps) {
   if (!isOpen || !invoice) return null;
 
+  const { formatCurrency } = useCurrency();
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR');
   };
 
   const formatAmount = (amount: number) => {
-    return `₺${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    return formatCurrency(amount);
   };
 
   const getStatusBadge = (status: string) => {

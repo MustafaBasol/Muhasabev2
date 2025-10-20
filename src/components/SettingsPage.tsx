@@ -15,6 +15,7 @@ import {
   Info,
 } from 'lucide-react';
 import type { CompanyProfile } from '../utils/pdfGenerator';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 type BankAccount = {
   id: string;
@@ -115,10 +116,8 @@ type SettingsTranslations = {
     title: string;
     currencyLabel: string;
     dateFormatLabel: string;
-    languageLabel: string;
     timezoneLabel: string;
     currencies: Record<'TRY' | 'USD' | 'EUR', string>;
-    languages: Record<'tr' | 'en' | 'fr', string>;
     timezones: Record<'Europe/Istanbul' | 'UTC' | 'America/New_York', string>;
     backup: {
       title: string;
@@ -192,8 +191,6 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         upload: 'Logo Yükle',
         remove: 'Kaldır',
         helper: 'PNG, JPG veya GIF formatında, maksimum 5MB boyutunda dosya yükleyebilirsiniz.',
-        invalidFileType: 'Lütfen sadece resim dosyası seçin.',
-        fileTooLarge: 'Dosya boyutu 5MB\'dan küçük olmalıdır.',
         uploaded: ({ name, sizeKB }) => `Logo ${name} (${sizeKB} KB)`,
       },
       fields: {
@@ -230,19 +227,13 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
     },
     system: {
       title: 'Sistem Ayarları',
-      currencyLabel: '{text.system.currencyLabel}',
-      dateFormatLabel: '{text.system.dateFormatLabel}',
-      languageLabel: 'Dil',
-      timezoneLabel: '{text.system.timezoneLabel}',
+      currencyLabel: 'Para Birimi',
+      dateFormatLabel: 'Tarih Formatı',
+      timezoneLabel: 'Saat Dilimi',
       currencies: {
-        TRY: '{text.system.currencies.TRY}',
-        USD: '{text.system.currencies.USD}',
-        EUR: '{text.system.currencies.EUR}',
-      },
-      languages: {
-        tr: 'Türkçe',
-        en: 'English',
-        fr: 'Français',
+        TRY: '₺ Türk Lirası',
+        USD: '$ ABD Doları',
+        EUR: '€ Euro',
       },
       timezones: {
         'Europe/Istanbul': 'İstanbul',
@@ -251,9 +242,9 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       },
       backup: {
         title: 'Yedekleme',
-        toggleLabel: '{text.system.backup.toggleLabel}',
-        toggleDescription: '{text.system.backup.toggleDescription}',
-        frequencyLabel: '{text.system.backup.frequencyLabel}',
+        toggleLabel: 'Otomatik Yedekleme',
+        toggleDescription: 'Verilerinizi otomatik olarak yedekleyin',
+        frequencyLabel: 'Yedekleme Sıklığı',
         options: {
           daily: 'Günlük',
           weekly: 'Haftalık',
@@ -347,8 +338,6 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         upload: 'Upload Logo',
         remove: 'Remove',
         helper: 'You can upload PNG, JPG or GIF files up to 5MB.',
-        invalidFileType: 'Please select an image file.',
-        fileTooLarge: 'File size must be under 5MB.',
         uploaded: ({ name, sizeKB }) => `Logo ${name} (${sizeKB} KB)`,
       },
       fields: {
@@ -387,17 +376,11 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       title: 'System Settings',
       currencyLabel: 'Currency',
       dateFormatLabel: 'Date Format',
-      languageLabel: 'Language',
       timezoneLabel: 'Time Zone',
       currencies: {
         TRY: '₺ Turkish Lira',
         USD: '$ US Dollar',
-        EUR: '{text.system.currencies.EUR}',
-      },
-      languages: {
-        tr: 'Türkçe',
-        en: 'English',
-        fr: 'Français',
+        EUR: '€ Euro',
       },
       timezones: {
         'Europe/Istanbul': 'Istanbul',
@@ -502,8 +485,6 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         upload: 'Télécharger le logo',
         remove: 'Supprimer',
         helper: 'Vous pouvez téléverser des fichiers PNG, JPG ou GIF jusqu’à 5 Mo.',
-        invalidFileType: 'Veuillez sélectionner un fichier image.',
-        fileTooLarge: 'La taille du fichier doit être inférieure à 5 Mo.',
         uploaded: ({ name, sizeKB }) => `Logo ${name} (${sizeKB} Ko)`,
       },
       fields: {
@@ -542,17 +523,11 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       title: 'Paramètres du système',
       currencyLabel: 'Devise',
       dateFormatLabel: 'Format de date',
-      languageLabel: 'Langue',
       timezoneLabel: 'Fuseau horaire',
       currencies: {
         TRY: '₺ Livre turque',
         USD: '$ Dollar américain',
-        EUR: '{text.system.currencies.EUR}',
-      },
-      languages: {
-        tr: 'Türkçe',
-        en: 'English',
-        fr: 'Français',
+        EUR: '€ Euro',
       },
       timezones: {
         'Europe/Istanbul': 'Istanbul',
@@ -647,6 +622,16 @@ export default function SettingsPage({
   const currentLanguage = ensureLanguage(language);
   const text = settingsTranslations[currentLanguage];
   const notificationLabels = text.notifications.labels;
+  
+  // Currency context
+  const { currency, setCurrency } = useCurrency();
+  
+  console.log('[SettingsPage] Current currency from context:', currency);
+  
+  // Debug: currency değişimini izle
+  useEffect(() => {
+    console.log('[SettingsPage] Current currency:', currency);
+  }, [currency]);
 
   // Profile
   const [profileData, setProfileData] = useState({
@@ -668,11 +653,7 @@ export default function SettingsPage({
     email: company?.email ?? 'info@moneyflow.com',
     website: company?.website ?? 'www.moneyflow.com',
     logoDataUrl: company?.logoDataUrl ?? '',
-    iban: company?.iban ?? '',
     bankAccountId: company?.bankAccountId ?? undefined,
-    bankName: company?.bankName ?? undefined,
-    bankAccountName: company?.bankAccountName ?? undefined,
-    manualBankName: company?.manualBankName ?? '',
     logoFile: null,
   }));
 
@@ -688,17 +669,10 @@ export default function SettingsPage({
       email: company?.email ?? prev.email,
       website: company?.website ?? prev.website,
       logoDataUrl: company?.logoDataUrl ?? prev.logoDataUrl,
-      iban: company?.iban ?? prev.iban,
       bankAccountId: company?.bankAccountId ?? prev.bankAccountId,
-      bankName: company?.bankName ?? prev.bankName,
-      bankAccountName: company?.bankAccountName ?? prev.bankAccountName,
-      manualBankName: company?.manualBankName ?? prev.manualBankName,
     }));
     setUnsavedChanges(false);
   }, [company]);
-
-  const formatIban = (v?: string) =>
-    (v || '').replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
 
   // Notifications
   const [notificationSettings, setNotificationSettings] = useState({
@@ -710,15 +684,15 @@ export default function SettingsPage({
     monthlyReports: true,
   });
 
-  // System
+  // System (currency context'ten geliyor, burada tutmuyoruz)
   const [systemSettings, setSystemSettings] = useState({
     language: 'tr',
-    currency: 'TRY',
     dateFormat: 'DD/MM/YYYY',
     timezone: 'Europe/Istanbul',
     theme: 'light',
-    autoBackup: true,
-    backupFrequency: 'daily',
+    // TODO: Otomatik yedekleme - Backend servisi eklendiğinde aktif edilecek
+    // autoBackup: true,
+    // backupFrequency: 'daily',
   });
 
   const tabs = [
@@ -745,11 +719,11 @@ export default function SettingsPage({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert(text.company.logo.invalidFileType);
+      alert('Lütfen sadece resim dosyası seçin.');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert(text.company.logo.fileTooLarge);
+      alert('Dosya boyutu 5MB\'dan küçük olmalıdır.');
       return;
     }
     const reader = new FileReader();
@@ -775,33 +749,62 @@ export default function SettingsPage({
   };
 
   const handleSystemChange = (field: string, value: string | boolean) => {
-    setSystemSettings(prev => ({ ...prev, [field]: value }));
+    // Currency değişikliği context'e git
+    if (field === 'currency') {
+      console.log('[SettingsPage] handleSystemChange - Setting currency to:', value);
+      setCurrency(value as 'TRY' | 'USD' | 'EUR');
+    } else {
+      setSystemSettings(prev => ({ ...prev, [field]: value }));
+    }
     setUnsavedChanges(true);
   };
 
   const handleSave = () => {
-  if (onUserUpdate) onUserUpdate(profileData);
+    if (onUserUpdate) onUserUpdate(profileData);
 
-  if (onCompanyUpdate) {
-    const selected = bankAccounts.find(b => b.id === companyData.bankAccountId);
-    const cleaned: CompanyProfile = {
-      ...companyData,
-      logoFile: undefined,
-      iban: (companyData.iban ?? '').replace(/\s+/g, ''),
-      bankName: companyData.bankAccountId ? selected?.bankName : (companyData.manualBankName || undefined),
-      bankAccountName: companyData.bankAccountId ? selected?.accountName : undefined,
+    if (onCompanyUpdate) {
+      const cleaned: CompanyProfile = {
+        name: companyData.name,
+        address: companyData.address,
+        taxNumber: companyData.taxNumber,
+        taxOffice: companyData.taxOffice,
+        phone: companyData.phone,
+        email: companyData.email,
+        website: companyData.website,
+        logoDataUrl: companyData.logoDataUrl,
+        bankAccountId: companyData.bankAccountId,
+      };
+      onCompanyUpdate(cleaned);
+    }
+
+    setUnsavedChanges(false);
+  };
+
+  const handleExport = () => {
+    onExportData?.();
+  };
+
+  const handleDataImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        onImportData?.(data);
+        alert(text.alerts.importSuccess);
+      } catch {
+        alert(text.alerts.importError);
+      }
     };
-    onCompanyUpdate(cleaned);
-  }
+    reader.readAsText(file);
+  };
 
-  setUnsavedChanges(false);
-};
-
-const renderProfileTab = () => (
-  <div className="space-y-6">
-    <div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.profile.title}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  const renderProfileTab = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.profile.title}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">{text.profile.fields.name}</label>
           <input
@@ -873,7 +876,7 @@ const renderProfileTab = () => (
         </div>
       </div>
 
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
         <div className="flex items-start space-x-3">
           <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
           <div>
@@ -892,33 +895,156 @@ const renderProfileTab = () => (
       </div>
     </div>
   </div>
-);
+  );
 
-const renderCompanyTab = () => {
-  const hasBanks = bankAccounts.length > 0;
-  const selectedBank = bankAccounts.find(b => b.id === companyData.bankAccountId);
+  const renderCompanyTab = () => {
+    const hasBanks = bankAccounts.length > 0;
+    const selectedBank = bankAccounts.find(b => b.id === companyData.bankAccountId);
+    
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.company.title}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.name}</label>
+              <input
+                type="text"
+                value={companyData.name}
+                onChange={e => handleCompanyChange('name', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.taxNumber}</label>
+              <input
+                type="text"
+                value={companyData.taxNumber}
+                onChange={e => handleCompanyChange('taxNumber', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.taxOffice}</label>
+              <input
+                type="text"
+                value={companyData.taxOffice}
+                onChange={e => handleCompanyChange('taxOffice', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.phone}</label>
+              <input
+                type="tel"
+                value={companyData.phone}
+                onChange={e => handleCompanyChange('phone', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.email}</label>
+              <input
+                type="email"
+                value={companyData.email}
+                onChange={e => handleCompanyChange('email', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.website}</label>
+              <input
+                type="url"
+                value={companyData.website}
+                onChange={e => handleCompanyChange('website', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.address}</label>
+              <textarea
+                value={companyData.address}
+                onChange={e => handleCompanyChange('address', e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
 
-const handleExport = () => {
-  onExportData?.();
-};
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.company.logo.label}</h3>
+          <div className="flex items-center space-x-4">
+            {companyData.logoDataUrl ? (
+              <div className="relative">
+                <img
+                  src={companyData.logoDataUrl}
+                  alt="Company Logo"
+                  className="w-24 h-24 object-contain border border-gray-300 rounded-lg"
+                />
+                <button
+                  onClick={handleRemoveLogo}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                <Building2 className="w-8 h-8 text-gray-400" />
+              </div>
+            )}
+            <div>
+              <input
+                type="file"
+                id="logo-upload"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
+              <label
+                htmlFor="logo-upload"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer inline-block"
+              >
+                {text.company.logo.upload}
+              </label>
+              <p className="text-sm text-gray-500 mt-2">{text.company.logo.helper}</p>
+            </div>
+          </div>
+        </div>
 
-const handleDataImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target?.result as string);
-      onImportData?.(data);
-      alert(text.alerts.importSuccess);
-    } catch {
-      alert(text.alerts.importError);
-    }
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.company.iban.sectionTitle}</h3>
+          {hasBanks ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.iban.bankOption}</label>
+              <select
+                value={companyData.bankAccountId || ''}
+                onChange={e => handleCompanyChange('bankAccountId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">{text.company.iban.bankSelectPlaceholder}</option>
+                {bankAccounts.map(bank => (
+                  <option key={bank.id} value={bank.id}>
+                    {bank.bankName} - {bank.accountName}
+                  </option>
+                ))}
+              </select>
+              {selectedBank && (
+                <p className="text-sm text-gray-500 mt-1">
+                  IBAN: {selectedBank.iban}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-gray-600">{text.company.iban.noBanks}</p>
+          )}
+        </div>
+      </div>
+    );
   };
-  reader.readAsText(file);
-};
 
-const renderNotificationsTab = () => (
+  const renderNotificationsTab = () => (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.notifications.title}</h3>
@@ -957,8 +1083,11 @@ const renderNotificationsTab = () => (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.currencyLabel}</label>
             <select
-              value={systemSettings.currency}
-              onChange={e => handleSystemChange('currency', e.target.value)}
+              value={currency}
+              onChange={e => {
+                console.log('[SettingsPage] Currency dropdown changed to:', e.target.value);
+                handleSystemChange('currency', e.target.value);
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="TRY">{text.system.currencies.TRY}</option>
@@ -979,18 +1108,6 @@ const renderNotificationsTab = () => (
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.languageLabel}</label>
-            <select
-              value={systemSettings.language}
-              onChange={e => handleSystemChange('language', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="tr">{text.system.languages.tr}</option>
-              <option value="en">{text.system.languages.en}</option>
-              <option value="fr">{text.system.languages.fr}</option>
-            </select>
-          </div>
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.timezoneLabel}</label>
             <select
               value={systemSettings.timezone}
@@ -1005,6 +1122,7 @@ const renderNotificationsTab = () => (
         </div>
       </div>
 
+      {/* TODO: Otomatik Yedekleme - Backend servisi eklendiğinde aktif edilecek
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.system.backup.title}</h3>
         <div className="space-y-4">
@@ -1040,6 +1158,7 @@ const renderNotificationsTab = () => (
           )}
         </div>
       </div>
+      */}
     </div>
   );
 
@@ -1114,318 +1233,66 @@ const renderNotificationsTab = () => (
   </div>
 );
 
-const renderDataTab = () => (
-  <div className="space-y-6">
-    <div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.data.title}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 border border-gray-200 rounded-lg">
-          <div className="flex items-center space-x-3 mb-3">
-            <Download className="w-6 h-6 text-green-600" />
-            <div>
-              <h4 className="font-medium text-gray-900">{text.data.export.title}</h4>
-              <p className="text-sm text-gray-500">{text.data.export.description}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleExport}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            {text.data.export.button}
-          </button>
-        </div>
-
-        <div className="p-4 border border-gray-200 rounded-lg">
-          <div className="flex items-center space-x-3 mb-3">
-            <Upload className="w-6 h-6 text-blue-600" />
-            <div>
-              <h4 className="font-medium text-gray-900">{text.data.import.title}</h4>
-              <p className="text-sm text-gray-500">{text.data.import.description}</p>
-            </div>
-          </div>
-          <input
-            type="file"
-            accept=".json"
-            onChange={handleDataImport}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
-          <div>
-            <h4 className="font-medium text-red-800">{text.dangerZone.title}</h4>
-            <p className="text-sm text-red-700 mt-1">{text.dangerZone.description}</p>
-            <div className="mt-4 space-y-2">
-              <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                {text.dangerZone.deleteAll}
-              </button>
-              <button className="ml-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
-                {text.dangerZone.closeAccount}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-  return (
+  const renderDataTab = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.company.title}</h3>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.logo.label}</label>
-          <div className="flex items-center space-x-4">
-            <div className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-              {companyData.logoDataUrl ? (
-                <img
-                  src={companyData.logoDataUrl}
-                  alt={text.company.logo.label}
-                  className="w-full h-full object-contain rounded-lg"
-                />
-              ) : (
-                <Building2 className="w-8 h-8 text-gray-400" />
-              )}
-            </div>
-
-            <div className="flex-1">
-              <div className="flex items-center space-x-3">
-                <label className="cursor-pointer">
-                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                  <span className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                    <Upload className="w-4 h-4 mr-2" />
-                    {text.company.logo.upload}
-                  </span>
-                </label>
-
-                {companyData.logoDataUrl && (
-                  <button
-                    onClick={handleRemoveLogo}
-                    className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                  >
-                    {text.company.logo.remove}
-                  </button>
-                )}
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.data.title}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="flex items-center space-x-3 mb-3">
+              <Download className="w-6 h-6 text-green-600" />
+              <div>
+                <h4 className="font-medium text-gray-900">{text.data.export.title}</h4>
+                <p className="text-sm text-gray-500">{text.data.export.description}</p>
               </div>
-              <p className="text-xs text-gray-500 mt-2">{text.company.logo.helper}</p>
-              {companyData.logoFile && (
-                <p className="text-xs text-green-600 mt-1">
-                  {text.company.logo.uploaded({
-                    name: companyData.logoFile.name,
-                    sizeKB: ((companyData.logoFile.size ?? 0) / 1024).toFixed(1),
-                  })}
-                </p>
-              )}
             </div>
+            <button
+              onClick={handleExport}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              {text.data.export.button}
+            </button>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.name}</label>
-            <input
-              type="text"
-              value={companyData.name ?? ''}
-              onChange={e => handleCompanyChange('name', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="md:col-span-2 mt-2 space-y-3">
-          <label className="block text-sm font-medium text-gray-700">{text.company.iban.sectionTitle}</label>
-
-          <div className="p-3 border border-gray-200 rounded-lg space-y-3">
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="iban-source-bank"
-                name="iban-source"
-                className="mr-2"
-                disabled={!hasBanks}
-                checked={!!companyData.bankAccountId}
-                onChange={() => {
-                  if (!hasBanks) return;
-                  const first = selectedBank ?? bankAccounts[0];
-                  setCompanyData(prev => ({
-                    ...prev,
-                    bankAccountId: first.id,
-                    iban: first.iban,
-                    bankName: first.bankName,
-                    bankAccountName: first.accountName,
-                  }));
-                  setUnsavedChanges(true);
-                }}
-              />
-              <label htmlFor="iban-source-bank" className="font-medium text-gray-900">
-                {text.company.iban.bankOption}
-              </label>
-              {!hasBanks && (
-                <span className="ml-2 text-xs text-gray-500">{text.company.iban.noBanks}</span>
-              )}
+          <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="flex items-center space-x-3 mb-3">
+              <Upload className="w-6 h-6 text-blue-600" />
+              <div>
+                <h4 className="font-medium text-gray-900">{text.data.import.title}</h4>
+                <p className="text-sm text-gray-500">{text.data.import.description}</p>
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <select
-                disabled={!companyData.bankAccountId}
-                value={companyData.bankAccountId ?? ''}
-                onChange={e => {
-                  const sel = bankAccounts.find(b => b.id === e.target.value);
-                  setCompanyData(prev => ({
-                    ...prev,
-                    bankAccountId: sel?.id,
-                    iban: sel?.iban ?? '',
-                    bankName: sel?.bankName,
-                    bankAccountName: sel?.accountName,
-                  }));
-                  setUnsavedChanges(true);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {!companyData.bankAccountId && (
-                  <option value="">{text.company.iban.bankSelectPlaceholder}</option>
-                )}
-                {bankAccounts.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.bankName} — {b.accountName}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                disabled={!companyData.bankAccountId}
-                value={companyData.bankAccountId ? (selectedBank?.iban ?? '') : ''}
-                readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="p-3 border border-gray-200 rounded-lg space-y-3">
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="iban-source-manual"
-                name="iban-source"
-                className="mr-2"
-                checked={!companyData.bankAccountId}
-                onChange={() => {
-                  setCompanyData(prev => ({
-                    ...prev,
-                    bankAccountId: undefined,
-                    bankName: undefined,
-                    bankAccountName: undefined,
-                  }));
-                  setUnsavedChanges(true);
-                }}
-              />
-              <label htmlFor="iban-source-manual" className="font-medium text-gray-900">
-                {text.company.iban.manualOption}
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input
-                type="text"
-                disabled={!!companyData.bankAccountId}
-                value={companyData.bankAccountId ? '' : (companyData.iban ?? '')}
-                onChange={e => {
-                  setCompanyData(prev => ({ ...prev, iban: e.target.value }));
-                  setUnsavedChanges(true);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={text.company.iban.ibanPlaceholder}
-              />
-              <input
-                type="text"
-                disabled={!!companyData.bankAccountId}
-                value={companyData.bankAccountId ? '' : (companyData.manualBankName ?? '')}
-                onChange={e => {
-                  setCompanyData(prev => ({ ...prev, manualBankName: e.target.value }));
-                  setUnsavedChanges(true);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={text.company.iban.bankNamePlaceholder}
-              />
-            </div>
-
-            <p className="text-xs text-gray-500">
-              {companyData.iban
-                ? text.company.iban.preview(formatIban(companyData.iban))
-                : text.company.iban.previewExample}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.taxNumber}</label>
             <input
-              type="text"
-              value={companyData.taxNumber ?? ''}
-              onChange={e => handleCompanyChange('taxNumber', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.taxOffice}</label>
-            <input
-              type="text"
-              value={companyData.taxOffice ?? ''}
-              onChange={e => handleCompanyChange('taxOffice', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.phone}</label>
-            <input
-              type="tel"
-              value={companyData.phone ?? ''}
-              onChange={e => handleCompanyChange('phone', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.email}</label>
-            <input
-              type="email"
-              value={companyData.email ?? ''}
-              onChange={e => handleCompanyChange('email', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.website}</label>
-            <input
-              type="url"
-              value={companyData.website ?? ''}
-              onChange={e => handleCompanyChange('website', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              type="file"
+              accept=".json"
+              onChange={handleDataImport}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
 
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.address}</label>
-          <textarea
-            value={companyData.address ?? ''}
-            onChange={e => handleCompanyChange('address', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={3}
-          />
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-red-800">{text.dangerZone.title}</h4>
+              <p className="text-sm text-red-700 mt-1">{text.dangerZone.description}</p>
+              <div className="mt-4 space-y-2">
+                <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                  {text.dangerZone.deleteAll}
+                </button>
+                <button className="ml-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+                  {text.dangerZone.closeAccount}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
-};
 
-
-return (
+  return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -1453,46 +1320,40 @@ return (
             </div>
           )}
         </div>
+
+        {/* Tabs */}
+        <div className="flex space-x-2 border-b border-gray-200 mt-6">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="font-medium text-sm">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Content */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="flex">
-          {/* Sidebar */}
-          <div className="w-64 bg-gray-50 border-r border-gray-200">
-            <nav className="p-4 space-y-2">
-              {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-blue-100 text-blue-700 border-r-4 border-blue-600'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  <tab.icon className="w-5 h-5" />
-                  <span className="font-medium">{tab.label}</span>
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          {/* Body */}
-          <div className="flex-1 p-6">
-            {activeTab === 'profile' && renderProfileTab()}
-            {activeTab === 'company' && renderCompanyTab()}
-            {activeTab === 'notifications' && renderNotificationsTab()}
-            {activeTab === 'system' && renderSystemTab()}
-            {activeTab === 'security' && renderSecurityTab()}
-            {activeTab === 'data' && renderDataTab()}
-          </div>
+        <div className="p-6">
+          {activeTab === 'profile' && renderProfileTab()}
+          {activeTab === 'company' && renderCompanyTab()}
+          {activeTab === 'notifications' && renderNotificationsTab()}
+          {activeTab === 'system' && renderSystemTab()}
+          {activeTab === 'security' && renderSecurityTab()}
+          {activeTab === 'data' && renderDataTab()}
         </div>
       </div>
     </div>
   );
 }
-
-
-
-

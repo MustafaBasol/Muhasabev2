@@ -16,6 +16,7 @@ import {
   Clock,
   CheckCircle
 } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface ArchivePageProps {
   invoices?: any[];
@@ -48,6 +49,8 @@ export default function ArchivePage({
   onDownloadExpense,
   onDownloadSale
 }: ArchivePageProps) {
+  const { formatCurrency } = useCurrency();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['invoices', 'expenses', 'sales']));
@@ -85,7 +88,7 @@ export default function ArchivePage({
   };
 
   const formatAmount = (amount: number) => {
-    return `₺${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    return formatCurrency(amount);
   };
 
   const getStatusBadge = (status: string, type: string) => {

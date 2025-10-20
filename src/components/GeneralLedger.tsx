@@ -3,6 +3,7 @@ import { Search, Calendar, Filter, Eye, Edit, Trash2, BookOpen, TrendingUp, Tren
 import InvoiceViewModal from './InvoiceViewModal';
 import ExpenseViewModal from './ExpenseViewModal';
 import SaleViewModal from './SaleViewModal';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 // --- Helpers ---
 // Safely parse localized currency strings (e.g., '1.234,56') into numbers
@@ -57,6 +58,8 @@ export default function GeneralLedger({
   onEditSale,
   onViewEntry
 }: GeneralLedgerProps) {
+  const { formatCurrency } = useCurrency();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -205,7 +208,7 @@ export default function GeneralLedger({
 
   // Rendering helpers
   const formatAmount = (n: number) =>
-    `₺${(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    formatCurrency(n || 0);
 
   const getTypeIcon = (type: string) => {
     if (type === 'invoice') {

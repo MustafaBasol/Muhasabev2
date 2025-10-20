@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, FileText, Calendar, DollarSign } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface CustomerHistoryModalProps {
   isOpen: boolean;
@@ -20,6 +21,8 @@ export default function CustomerHistoryModal({
   onViewInvoice,
   onCreateInvoice
 }: CustomerHistoryModalProps) {
+  const { formatCurrency } = useCurrency();
+  
   if (!isOpen || !customer) return null;
   
   // Filter sales for this customer
@@ -34,7 +37,7 @@ export default function CustomerHistoryModal({
   };
 
   const formatAmount = (amount: number) => {
-    return `₺${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    return formatCurrency(amount);
   };
 
   return (

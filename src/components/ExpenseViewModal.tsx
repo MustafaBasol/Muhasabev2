@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Download, Edit, Calendar, Building2, Tag, Receipt } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface Expense {
   id: string;
@@ -29,6 +30,8 @@ export default function ExpenseViewModal({
   onEdit, 
   onDownload 
 }: ExpenseViewModalProps) {
+  const { formatCurrency } = useCurrency();
+  
   if (!isOpen || !expense) return null;
 
   const formatDate = (dateString: string) => {
@@ -36,7 +39,7 @@ export default function ExpenseViewModal({
   };
 
   const formatAmount = (amount: number) => {
-    return `₺${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    return formatCurrency(amount);
   };
 
   const getStatusBadge = (status: string) => {

@@ -14,6 +14,7 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 export interface Product {
   id: string;
@@ -57,12 +58,6 @@ interface FilterDefinition {
   menuRef: React.RefObject<HTMLDivElement>;
 }
 
-const currencyFormatter = new Intl.NumberFormat('tr-TR', {
-  style: 'currency',
-  currency: 'TRY',
-  minimumFractionDigits: 2,
-});
-
 export default function ProductList({
   products,
   categories,
@@ -75,6 +70,8 @@ export default function ProductList({
   onDeleteCategory,
   onBulkAction,
 }: ProductListProps) {
+  const { formatCurrency } = useCurrency();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
@@ -409,7 +406,7 @@ export default function ProductList({
             <BarChart2 className="h-5 w-5 text-emerald-500" />
           </div>
           <p className="mt-3 text-2xl font-semibold text-gray-900">
-            {currencyFormatter.format(inventorySnapshot.totalValue || 0)}
+            {formatCurrency(inventorySnapshot.totalValue || 0)}
           </p>
           <p className="text-xs text-gray-500">Tahmini toplam stok maliyeti</p>
         </div>
@@ -783,10 +780,10 @@ export default function ProductList({
                             </td>
                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
                               <div className="font-semibold">
-                                {currencyFormatter.format(product.unitPrice || 0)}
+                                {formatCurrency(product.unitPrice || 0)}
                               </div>
                               <div className="text-xs text-gray-500">
-                                Maliyet: {currencyFormatter.format(product.costPrice || 0)}
+                                Maliyet: {formatCurrency(product.costPrice || 0)}
                               </div>
                             </td>
                             <td

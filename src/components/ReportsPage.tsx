@@ -18,6 +18,7 @@ import {
   Target,
   Wallet
 } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 /* __REPORTS_HELPERS__ */
 // numeric
@@ -86,6 +87,8 @@ export default function ReportsPage({
   sales = [],
   customers = []
 }: ReportsPageProps) {
+  const { formatCurrency } = useCurrency();
+  
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const toggleSection = (sectionId: string) => {
@@ -355,7 +358,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
       .slice(0, 8);
   }, [invoices, sales]);
 
-  const formatAmount = (amount: any) => { const n = toNumber(amount); return `₺${n.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`; };
+  const formatAmount = (amount: any) => { const n = toNumber(amount); return formatCurrency(n); };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR');

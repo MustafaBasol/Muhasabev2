@@ -7,6 +7,13 @@
 - **[GITHUB_CODESPACES_SETUP.md](./GITHUB_CODESPACES_SETUP.md)** - GitHub Codespaces detaylı kurulum rehberi
 - **[SETUP_SUMMARY.md](./SETUP_SUMMARY.md)** - Yapılan değişikliklerin özeti
 
+### 💱 Para Birimi (Currency) - YENİ! ✨
+- **[CURRENCY_QUICKSTART.md](./CURRENCY_QUICKSTART.md)** - Hızlı başlangıç kılavuzu
+- **[CURRENCY_IMPLEMENTATION_COMPLETE.md](./CURRENCY_IMPLEMENTATION_COMPLETE.md)** - Tam implementasyon
+- **[CURRENCY_USAGE_EXAMPLES.md](./CURRENCY_USAGE_EXAMPLES.md)** - Kod örnekleri
+- **[CURRENCY_TEST_CHECKLIST.md](./CURRENCY_TEST_CHECKLIST.md)** - Test kontrol listesi
+- **[SETTINGS_CURRENCY_INTEGRATION.md](./SETTINGS_CURRENCY_INTEGRATION.md)** - Settings entegrasyonu
+
 ### 🔧 Teknik Dokümantasyon
 - **[BACKEND_COMPLETE.md](./BACKEND_COMPLETE.md)** - Backend API dokümantasyonu
 - **[BACKEND_STATUS.md](./BACKEND_STATUS.md)** - Backend geliştirme durumu

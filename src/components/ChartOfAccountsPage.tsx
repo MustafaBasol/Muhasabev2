@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BookOpen, Plus, Trash2, Search, FolderOpen, Folder, X, Check } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface Account {
   id: string;
@@ -29,6 +30,8 @@ export default function ChartOfAccountsPage({
   sales = [],
   customers = []
 }: ChartOfAccountsPageProps) {
+  const { formatCurrency, getCurrencySymbol } = useCurrency();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -200,36 +203,27 @@ export default function ChartOfAccountsPage({
   const formatAmount = (amount: number) => {
     // Remove leading zeros and format properly
     const cleanAmount = Number(amount) || 0;
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(cleanAmount);
+    return formatCurrency(cleanAmount);
   };
 
   // Format amount for summary cards (compact format for large numbers)
   const formatAmountCompact = (amount: number) => {
     const cleanAmount = Number(amount) || 0;
     const absAmount = Math.abs(cleanAmount);
+    const symbol = getCurrencySymbol();
     
     // Manual compact formatting for large numbers
     if (absAmount >= 1000000) {
       const millions = cleanAmount / 1000000;
-      return `₺${millions.toFixed(2)}M`;
+      return `${symbol}${millions.toFixed(2)}M`;
     }
     
     if (absAmount >= 1000) {
       const thousands = cleanAmount / 1000;
-      return `₺${thousands.toFixed(2)}K`;
+      return `${symbol}${thousands.toFixed(2)}K`;
     }
     
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(cleanAmount);
+    return formatCurrency(cleanAmount);
   };
 
   // Clean account code - remove leading zeros

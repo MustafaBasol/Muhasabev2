@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Currency Debug Tool</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #2563eb;
+        }
+        .button.danger {
+            background: #ef4444;
+        }
+        .button.danger:hover {
+            background: #dc2626;
+        }
+        .log {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #334155;
+        }
+        select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            font-size: 14px;
+            margin: 10px 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Currency Debug Tool</h1>
+        
+        <div class="info-box">
+            <strong>Current Currency in localStorage:</strong>
+            <div id="currentCurrency" style="font-size: 20px; margin-top: 10px; font-weight: bold;">-</div>
+        </div>
+
+        <h3>Test Controls</h3>
+        <div>
+            <select id="currencySelect">
+                <option value="TRY">₺ Turkish Lira (TRY)</option>
+                <option value="USD">$ US Dollar (USD)</option>
+                <option value="EUR">€ Euro (EUR)</option>
+            </select>
+            <button class="button" onclick="setCurrencyTest()">Set Currency</button>
+        </div>
+
+        <div>
+            <button class="button" onclick="refreshInfo()">🔄 Refresh Info</button>
+            <button class="button danger" onclick="clearCurrency()">🗑️ Clear Currency</button>
+            <button class="button danger" onclick="clearAllStorage()">🗑️ Clear All Storage</button>
+            <button class="button" onclick="clearLogs()">Clear Logs</button>
+        </div>
+
+        <h3>Debug Logs</h3>
+        <div class="log" id="logContainer"></div>
+
+        <div class="info-box">
+            <strong>Instructions:</strong>
+            <ol>
+                <li>Use this tool to test localStorage currency operations</li>
+                <li>Check console for detailed React app logs</li>
+                <li>Open main app at <a href="http://localhost:5174" target="_blank">http://localhost:5174</a></li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const time = new Date().toLocaleTimeString();
+            const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            entry.innerHTML = `[${time}] ${icon} ${message}`;
+            container.insertBefore(entry, container.firstChild);
+        }
+
+        function refreshInfo() {
+            const currency = localStorage.getItem('currency');
+            document.getElementById('currentCurrency').textContent = currency || 'Not Set';
+            if (currency) {
+                document.getElementById('currencySelect').value = currency;
+                log(`Currency read from localStorage: ${currency}`, 'success');
+            } else {
+                log('No currency found in localStorage', 'info');
+            }
+        }
+
+        function setCurrencyTest() {
+            const select = document.getElementById('currencySelect');
+            const value = select.value;
+            localStorage.setItem('currency', value);
+            log(`Currency set to: ${value}`, 'success');
+            refreshInfo();
+        }
+
+        function clearCurrency() {
+            localStorage.removeItem('currency');
+            log('Currency cleared from localStorage', 'success');
+            refreshInfo();
+        }
+
+        function clearAllStorage() {
+            if (confirm('Clear ALL localStorage data? This will reset the entire app!')) {
+                localStorage.clear();
+                log('All localStorage cleared', 'success');
+                refreshInfo();
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+
+        // Initialize
+        refreshInfo();
+        log('Debug tool initialized', 'info');
+
+        // Listen to storage events
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'currency') {
+                log(`Storage event detected: ${e.oldValue} → ${e.newValue}`, 'info');
+                refreshInfo();
+            }
+        });
+    </script>
+</body>
+</html>

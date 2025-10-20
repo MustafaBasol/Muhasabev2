@@ -1,5 +1,6 @@
 import { X, Edit, Calendar, User, Package, CreditCard, Download } from 'lucide-react';
 import type { Sale } from '../types';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 // Safely parse localized currency-like values to number
 const toNumber = (v: any): number => {
@@ -26,6 +27,8 @@ export default function SaleViewModal({
   onEdit,
   onDownload
 }: SaleViewModalProps) {
+  const { formatCurrency } = useCurrency();
+  
   if (!isOpen || !sale) return null;
 
   const formatDate = (dateString: string) => {
@@ -34,7 +37,7 @@ export default function SaleViewModal({
 
   const formatAmount = (amount: any) => {
   const n = toNumber(amount);
-  return `₺${n.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+  return formatCurrency(n);
 };
 
   const getStatusBadge = (status: string) => {

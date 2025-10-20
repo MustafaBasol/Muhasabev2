@@ -1,4 +1,5 @@
 import React from 'react';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface ChartCardProps {
   sales?: any[];
@@ -7,6 +8,8 @@ interface ChartCardProps {
 }
 
 export default function ChartCard({ sales = [], expenses = [], invoices = [] }: ChartCardProps) {
+  const { formatCurrency } = useCurrency();
+  
   // Get current date and calculate last 6 months dynamically
   const getCurrentDate = () => new Date(2025, 8, 10); // September 10, 2025
   const currentDate = getCurrentDate();
@@ -100,7 +103,7 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-gray-700">{data.month}</span>
               <div className="text-xs text-gray-500">
-                Net: ₺{(data.income - data.expense).toLocaleString()}
+                Net: {formatCurrency(data.income - data.expense)}
               </div>
             </div>
             
@@ -116,8 +119,8 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
             </div>
             
             <div className="flex justify-between text-xs text-gray-500">
-              <span>₺{data.income.toLocaleString()}</span>
-              <span>₺{data.expense.toLocaleString()}</span>
+              <span>{formatCurrency(data.income)}</span>
+              <span>{formatCurrency(data.expense)}</span>
             </div>
           </div>
         ))}

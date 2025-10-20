@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { Users, FileText, CreditCard, TrendingUp } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
+import { CurrencyProvider, useCurrency } from "./contexts/CurrencyContext";
 
 import type { CompanyProfile } from "./utils/pdfGenerator";
 import type { 
@@ -253,15 +254,14 @@ const initialBankAccounts = [
     createdAt: "2024-01-03",
   },
 ];
-
-const formatCurrency = (value: number) =>
-  `₺${value.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`;
 const formatPercentage = (value: number) =>
   `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const { isAuthenticated, user: authUser, logout } = useAuth();
+  const { formatCurrency } = useCurrency();
+  
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [user, setUser] = useState<User>({ name: authUser?.firstName || "User", email: authUser?.email || "" });
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -2157,6 +2157,14 @@ const App: React.FC = () => {
       {renderToasts()}
       {renderModals()}
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <CurrencyProvider>
+      <AppContent />
+    </CurrencyProvider>
   );
 };
 

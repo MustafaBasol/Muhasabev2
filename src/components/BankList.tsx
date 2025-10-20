@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Plus, Edit, Trash2, CreditCard, Building2, Eye, DollarSign } from 'lucide-react';
+import { formatCurrency as formatCurrencyUtil, type Currency } from '../utils/currencyFormatter';
 
 interface Bank {
   id: string;
@@ -46,8 +47,7 @@ export default function BankList({
   });
 
   const formatAmount = (amount: number, currency: string = 'TRY') => {
-    const symbol = currency === 'TRY' ? '₺' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency;
-    return `${symbol}${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    return formatCurrencyUtil(amount, currency as Currency);
   };
 
   const getAccountTypeBadge = (type: string) => {

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Currency Context Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; }
+        .test-box { background: #f0f9ff; padding: 20px; margin: 20px 0; border-radius: 8px; border: 2px solid #3b82f6; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .result { font-size: 24px; font-weight: bold; margin: 20px 0; padding: 15px; background: white; border-radius: 5px; }
+        .log { background: #1e293b; color: #94a3b8; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; }
+        .log-item { padding: 5px 0; border-bottom: 1px solid #334155; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Currency Context Test</h1>
+    
+    <div class="test-box">
+        <h2>Test 1: localStorage Operations</h2>
+        <button class="btn-primary" onclick="testSet('TRY')">Set TRY</button>
+        <button class="btn-primary" onclick="testSet('USD')">Set USD</button>
+        <button class="btn-primary" onclick="testSet('EUR')">Set EUR</button>
+        <button class="btn-danger" onclick="testClear()">Clear</button>
+        <div class="result" id="storageResult">-</div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 2: React App Integration</h2>
+        <p>Steps:</p>
+        <ol>
+            <li>Open main app: <a href="http://localhost:5174" target="_blank">http://localhost:5174</a></li>
+            <li>Login if needed</li>
+            <li>Go to Settings → System tab</li>
+            <li>Change currency dropdown</li>
+            <li>Watch console logs and this page</li>
+        </ol>
+        <button class="btn-success" onclick="refreshStorage()">🔄 Refresh Current Value</button>
+        <div class="result" id="currentValue">-</div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 3: Event Listener</h2>
+        <p>This will listen to storage changes from other tabs/windows:</p>
+        <div class="log" id="eventLog">Waiting for storage events...</div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('eventLog');
+            const time = new Date().toLocaleTimeString();
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.textContent = `[${time}] ${message}`;
+            logDiv.insertBefore(item, logDiv.firstChild);
+        }
+
+        function testSet(currency) {
+            localStorage.setItem('currency', currency);
+            log(`✅ Set currency to: ${currency}`);
+            refreshStorage();
+        }
+
+        function testClear() {
+            localStorage.removeItem('currency');
+            log(`🗑️ Cleared currency`);
+            refreshStorage();
+        }
+
+        function refreshStorage() {
+            const current = localStorage.getItem('currency');
+            document.getElementById('storageResult').textContent = current || '(not set)';
+            document.getElementById('currentValue').textContent = current || '(not set)';
+            log(`📊 Current value: ${current || '(not set)'}`);
+        }
+
+        // Listen to storage events
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'currency') {
+                log(`🔔 Storage event: "${e.oldValue}" → "${e.newValue}"`);
+                refreshStorage();
+            }
+        });
+
+        // Poll for changes (since storage events don't fire in same window)
+        setInterval(() => {
+            const current = localStorage.getItem('currency');
+            const displayed = document.getElementById('storageResult').textContent;
+            if (current !== displayed && displayed !== '-') {
+                log(`🔄 Detected change: "${displayed}" → "${current}"`);
+                refreshStorage();
+            }
+        }, 1000);
+
+        // Initialize
+        refreshStorage();
+        log('✨ Test page initialized');
+    </script>
+</body>
+</html>
