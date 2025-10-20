@@ -79,7 +79,7 @@ export default function InvoiceList({
       cancelled: { label: 'İptal', class: 'bg-red-100 text-red-800' }
     };
     
-    const config = statusConfig[status as keyof typeof statusConfig];
+    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, class: 'bg-gray-100 text-gray-800' };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.class}`}>
         {config.label}

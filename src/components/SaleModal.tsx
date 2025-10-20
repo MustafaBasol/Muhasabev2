@@ -11,27 +11,7 @@ import {
   Check
 } from 'lucide-react';
 import type { Product } from './ProductList';
-
-interface Sale {
-  id: string;
-  saleNumber: string;
-  customerName: string;
-  customerEmail: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-  status: 'completed' | 'pending' | 'cancelled';
-  saleDate: string;
-  paymentMethod: 'cash' | 'card' | 'transfer' | 'check';
-  notes?: string;
-  productId?: string;
-  productUnit?: string;
-  amount?: number;
-  date?: string;
-  createInvoice?: boolean;
-  createdAt?: string;
-}
+import type { Sale } from '../types';
 
 interface Customer {
   id: string;
@@ -62,7 +42,7 @@ export default function SaleModal({
   products = [],
 }: SaleModalProps) {
   const [saleData, setSaleData] = useState({
-    saleNumber: sale?.saleNumber || `SAL-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
+    saleNumber: sale?.saleNumber || '', // Boş bırak, backend oluşturacak
     customerName: sale?.customerName || '',
     customerEmail: sale?.customerEmail || '',
     productId: sale?.productId || '',
@@ -71,7 +51,7 @@ export default function SaleModal({
     quantity: sale?.quantity || 1,
     unitPrice: sale?.unitPrice || 0,
     status: sale?.status || 'completed',
-    saleDate: sale?.saleDate || sale?.date || new Date().toISOString().split('T')[0],
+    date: sale?.date || new Date().toISOString().split('T')[0],
     paymentMethod: sale?.paymentMethod || 'cash',
     notes: sale?.notes || '',
   });
@@ -88,13 +68,21 @@ export default function SaleModal({
   const [createInvoice, setCreateInvoice] = useState(false);
 
   React.useEffect(() => {
+    console.log('🎬 SaleModal useEffect çalıştı:', { 
+      isOpen, 
+      hasSale: !!sale,
+      saleId: sale?.id,
+      saleName: sale?.customerName 
+    });
+    
     if (!isOpen) {
       return;
     }
 
     if (!sale) {
+      console.log('📝 Yeni satış formu hazırlanıyor');
       setSaleData({
-        saleNumber: `SAL-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
+        saleNumber: '', // Backend oluşturacak
         customerName: '',
         customerEmail: '',
         productId: '',
@@ -103,7 +91,7 @@ export default function SaleModal({
         quantity: 1,
         unitPrice: 0,
         status: 'completed',
-        saleDate: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split('T')[0],
         paymentMethod: 'cash',
         notes: '',
       });
@@ -118,8 +106,9 @@ export default function SaleModal({
       return;
     }
 
+    console.log('✏️ Mevcut satış formu yükleniyor:', sale.saleNumber);
     setSaleData({
-      saleNumber: sale.saleNumber || `SAL-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
+      saleNumber: sale.saleNumber || '', // Mevcut numarayı kullan
       customerName: sale.customerName || '',
       customerEmail: sale.customerEmail || '',
       productId: sale.productId || '',
@@ -128,8 +117,8 @@ export default function SaleModal({
       quantity: sale.quantity || 1,
       unitPrice: sale.unitPrice || 0,
       status: sale.status,
-      saleDate: sale.saleDate || sale.date || new Date().toISOString().split('T')[0],
-      paymentMethod: sale.paymentMethod,
+      date: sale.date || new Date().toISOString().split('T')[0],
+      paymentMethod: sale.paymentMethod || 'cash',
       notes: sale.notes || '',
     });
     setCustomerSearch(sale.customerName || '');
@@ -255,8 +244,8 @@ export default function SaleModal({
       nextErrors.productName = 'Urun veya hizmet adi gereklidir';
     }
 
-    if (!saleData.saleDate) {
-      nextErrors.saleDate = 'Satis tarihi gereklidir';
+    if (!saleData.date) {
+      nextErrors.date = 'Satis tarihi gereklidir';
     }
 
     if (saleData.unitPrice <= 0) {
@@ -288,16 +277,31 @@ export default function SaleModal({
     // Only include ID if editing
     if (sale?.id) {
       saleToSave.id = sale.id;
-      saleToSave.createdAt = sale.createdAt;
+    }
+    
+    // Remove empty saleNumber - backend will generate it
+    if (!saleToSave.saleNumber || saleToSave.saleNumber === '') {
+      delete saleToSave.saleNumber;
     }
 
+    console.log('💾 SaleModal kayıt gönderiyor:', saleToSave);
     onSave(saleToSave);
-    onClose();
+    // onClose'u biraz geciktir ki state güncellensin
+    setTimeout(() => {
+      console.log('🚪 SaleModal kapanıyor');
+      onClose();
+    }, 10);
   };
 
   if (!isOpen) {
+    console.log('🚫 SaleModal render edilmiyor (isOpen=false)');
     return null;
   }
+
+  console.log('✅ SaleModal render ediliyor:', { 
+    saleNumber: saleData.saleNumber || 'YENİ',
+    customerName: saleData.customerName || 'BOŞ'
+  });
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -326,13 +330,16 @@ export default function SaleModal({
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Satis Numarasi</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Satış Numarası</label>
               <input
                 type="text"
-                value={saleData.saleNumber}
-                onChange={(event) => setSaleData({ ...saleData, saleNumber: event.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                value={saleData.saleNumber || 'Otomatik oluşturulacak'}
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
               />
+              {!saleData.saleNumber && (
+                <p className="text-xs text-gray-500 mt-1">Satış kaydedildiğinde otomatik numara verilecek</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -341,11 +348,11 @@ export default function SaleModal({
               </label>
               <input
                 type="date"
-                value={saleData.saleDate}
-                onChange={(event) => setSaleData({ ...saleData, saleDate: event.target.value })}
+                value={saleData.date}
+                onChange={(event) => setSaleData({ ...saleData, date: event.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               />
-              {errors.saleDate && <p className="text-red-500 text-xs mt-1">{errors.saleDate}</p>}
+              {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date}</p>}
             </div>
           </div>
 
@@ -511,8 +518,8 @@ export default function SaleModal({
                 Odeme Yontemi
               </label>
               <select
-                value={saleData.paymentMethod}
-                onChange={(event) => setSaleData({ ...saleData, paymentMethod: event.target.value as Sale['paymentMethod'] })}
+                value={saleData.paymentMethod || 'cash'}
+                onChange={(event) => setSaleData({ ...saleData, paymentMethod: event.target.value as 'cash' | 'card' | 'transfer' | 'check' })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="cash">Nakit</option>

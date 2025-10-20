@@ -155,7 +155,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-3xl rounded-xl bg-white shadow-2xl">
+      <div className="w-full max-w-3xl rounded-xl bg-white shadow-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between border-b border-gray-200 p-6">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-indigo-100">
@@ -178,7 +178,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
           </button>
         </div>
 
-        <div className="space-y-8 p-6">
+        <div className="space-y-8 p-6 overflow-y-auto flex-1">
           <section>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Genel Bilgiler</h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -349,7 +349,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
           </section>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 flex-shrink-0">
           <button
             type="button"
             onClick={onClose}

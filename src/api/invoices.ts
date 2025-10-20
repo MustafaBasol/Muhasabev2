@@ -28,6 +28,7 @@ export interface Invoice {
   issueDate: string;
   dueDate: string;
   status: InvoiceStatus;
+  type?: 'product' | 'service';
   lineItems: InvoiceLineItem[];
   subtotal: number;
   taxAmount: number;
@@ -41,6 +42,7 @@ export interface CreateInvoiceDto {
   customerId: string;
   issueDate: string;
   dueDate: string;
+  type?: 'product' | 'service';
   lineItems: InvoiceLineItem[];
   taxAmount: number;
   notes?: string;
@@ -51,6 +53,7 @@ export interface UpdateInvoiceDto {
   issueDate?: string;
   dueDate?: string;
   status?: InvoiceStatus;
+  type?: 'product' | 'service';
   lineItems?: InvoiceLineItem[];
   taxAmount?: number;
   notes?: string;

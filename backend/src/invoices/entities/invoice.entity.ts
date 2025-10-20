@@ -60,6 +60,12 @@ export class Invoice {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  saleId: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  type: string;
+
   @Column({ type: 'jsonb', nullable: true })
   items: any[];
 

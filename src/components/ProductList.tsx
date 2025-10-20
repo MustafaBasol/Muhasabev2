@@ -149,9 +149,20 @@ export default function ProductList({
   }, [products]);
 
   const inventorySnapshot = useMemo(() => {
-    const totalStock = products.reduce((acc, product) => acc + product.stockQuantity, 0);
-    const totalValue = products.reduce((acc, product) => acc + product.stockQuantity * product.unitPrice, 0);
-    const lowStock = products.filter(product => product.stockQuantity <= product.reorderLevel).length;
+    const totalStock = Math.floor(products.reduce((acc, product) => {
+      const qty = Number(product.stockQuantity) || 0;
+      return acc + qty;
+    }, 0));
+    const totalValue = products.reduce((acc, product) => {
+      const qty = Number(product.stockQuantity) || 0;
+      const price = Number(product.unitPrice) || 0;
+      return acc + (qty * price);
+    }, 0);
+    const lowStock = products.filter(product => {
+      const qty = Number(product.stockQuantity) || 0;
+      const minQty = Number(product.reorderLevel) || 0;
+      return qty < minQty;
+    }).length;
     const activeCount = products.filter(product => product.status !== 'archived').length;
 
     return {
@@ -181,7 +192,7 @@ export default function ProductList({
 
     const matchesStockFilter = (product: Product) => {
       if (stockFilter === 'all') return true;
-      if (stockFilter === 'low') return product.stockQuantity <= product.reorderLevel;
+      if (stockFilter === 'low') return product.stockQuantity < product.reorderLevel;
       if (stockFilter === 'out') return product.stockQuantity === 0;
       if (stockFilter === 'overstock') return product.stockQuantity > product.reorderLevel * 2;
       return true;
@@ -407,7 +418,7 @@ export default function ProductList({
             <h3 className="text-sm font-medium text-gray-500">Toplam Stok</h3>
             <Layers className="h-5 w-5 text-blue-500" />
           </div>
-          <p className="mt-3 text-2xl font-semibold text-gray-900">{inventorySnapshot.totalStock}</p>
+          <p className="mt-3 text-2xl font-semibold text-gray-900">{inventorySnapshot.totalStock.toLocaleString('tr-TR')} adet</p>
           <p className="text-xs text-gray-500">Depodaki toplam birim sayisi</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -723,7 +734,7 @@ export default function ProductList({
                       {filteredProducts.map(product => {
                         const isSelected = selectedProductIds.includes(product.id);
                         const isOutOfStock = product.stockQuantity === 0;
-                        const isCritical = !isOutOfStock && product.stockQuantity <= product.reorderLevel;
+                        const isCritical = !isOutOfStock && product.stockQuantity < product.reorderLevel;
                         const statusLabel = isOutOfStock ? 'Tukendi' : isCritical ? 'Kritik' : 'Stokta';
                         const statusTone = isOutOfStock ? 'danger' : isCritical ? 'warning' : 'success';
                         const statusClass =
@@ -753,7 +764,13 @@ export default function ProductList({
                                   <Package className="h-5 w-5 text-indigo-600" />
                                 </div>
                                 <div>
-                                  <div className="font-medium text-gray-900">{product.name}</div>
+                                  <button
+                                    type="button"
+                                    onClick={() => onViewProduct(product)}
+                                    className="font-medium text-gray-900 hover:text-indigo-600 transition-colors text-left"
+                                  >
+                                    {product.name}
+                                  </button>
                                   <div className="text-xs text-gray-500">SKU: {product.sku}</div>
                                 </div>
                               </div>
@@ -774,12 +791,12 @@ export default function ProductList({
                             </td>
                             <td
                               className="whitespace-nowrap px-6 py-4 text-sm text-gray-900"
-                              title={`Min stok: ${product.reorderLevel}`}
+                              title={`Min stok: ${Math.floor(product.reorderLevel)}`}
                             >
                               <div className="font-semibold">
-                                {product.stockQuantity} {product.unit}
+                                {Math.floor(product.stockQuantity)} {product.unit}
                               </div>
-                              <div className="text-xs text-gray-500">Min stok: {product.reorderLevel}</div>
+                              <div className="text-xs text-gray-500">Min stok: {Math.floor(product.reorderLevel)}</div>
                             </td>
                             <td className="whitespace-nowrap px-6 py-4 text-sm">
                               <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}>

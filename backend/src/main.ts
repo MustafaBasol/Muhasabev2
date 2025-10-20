@@ -16,28 +16,20 @@ async function bootstrap() {
     prefix: '/',
   });
   
-  // Gelişmiş CORS yapılandırması
+  // Gelişmiş CORS yapılandırması - GitHub Codespaces için
   app.enableCors({
     origin: (origin, callback) => {
-      // Tüm localhost originlerine izin ver
-      const allowedOrigins = [
-        'http://localhost:5173',
-        'http://localhost:3002',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:3002',
-      ];
-      
-      if (!origin || allowedOrigins.includes(origin) || origin.includes('github.dev')) {
-        callback(null, true);
-      } else {
-        callback(null, true); // Development'ta tüm originlere izin ver
-      }
+      // Development: tüm originlere izin ver
+      console.log('🌐 CORS Request from origin:', origin);
+      callback(null, true);
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
-    exposedHeaders: ['Authorization'],
-    maxAge: 3600,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'Access-Control-Allow-Origin'],
+    exposedHeaders: ['Authorization', 'Access-Control-Allow-Origin', 'Access-Control-Allow-Credentials'],
+    maxAge: 86400,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Global validation pipe

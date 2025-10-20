@@ -79,10 +79,13 @@ export interface Sale {
   quantity?: number;
   unitPrice?: number;
   amount: number;
+  total?: number; // Toplam tutar (amount ile aynı olabilir)
   status: 'completed' | 'pending' | 'cancelled';
   date: string;
   paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
   notes?: string;
+  productId?: string;
+  productUnit?: string;
 }
 
 export interface Bank {

@@ -8,7 +8,7 @@ interface Expense {
   supplier: string;
   amount: number;
   category: string;
-  status: 'draft' | 'approved' | 'paid';
+  status: 'pending' | 'approved' | 'paid' | 'rejected';
   expenseDate: string;
   dueDate: string;
   receiptUrl?: string;
@@ -56,12 +56,13 @@ export default function ExpenseList({
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      draft: { label: 'Taslak', class: 'bg-gray-100 text-gray-800' },
+      pending: { label: 'Beklemede', class: 'bg-yellow-100 text-yellow-800' },
       approved: { label: 'Onaylandı', class: 'bg-blue-100 text-blue-800' },
-      paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' }
+      paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' },
+      rejected: { label: 'Reddedildi', class: 'bg-red-100 text-red-800' }
     };
     
-    const config = statusConfig[status as keyof typeof statusConfig];
+    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, class: 'bg-gray-100 text-gray-800' };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.class}`}>
         {config.label}
@@ -138,9 +139,10 @@ export default function ExpenseList({
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             <option value="all">Tüm Durumlar</option>
-            <option value="draft">Taslak</option>
+            <option value="pending">Beklemede</option>
             <option value="approved">Onaylandı</option>
             <option value="paid">Ödendi</option>
+            <option value="rejected">Reddedildi</option>
           </select>
           <select
             value={categoryFilter}
@@ -255,9 +257,10 @@ export default function ExpenseList({
                             onChange={(e) => setTempValue(e.target.value)}
                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-500"
                           >
-                            <option value="draft">Taslak</option>
+                            <option value="pending">Beklemede</option>
                             <option value="approved">Onaylandı</option>
                             <option value="paid">Ödendi</option>
+                            <option value="rejected">Reddedildi</option>
                           </select>
                           <button
                             onClick={() => handleSaveInlineEdit(expense)}

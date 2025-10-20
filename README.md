@@ -1,8 +1,24 @@
-# MoneyFlow - Multi-Tenant Muhasebe Sistemi# MoneyFlow - Multi-Tenant Muhasebe Sistemi# MoneyFlow Muhasebe v2
-
-
+# MoneyFlow Muhasebe v2
 
 Modern, güvenli ve ölçeklenebilir multi-tenant muhasebe ve finans yönetim sistemi.
+
+---
+
+## ⚡ GitHub Codespaces'te Hızlı Başlangıç
+
+**Codespaces'te çalışıyorsanız, detaylı kurulum için:**  
+📖 **[GITHUB_CODESPACES_SETUP.md](./GITHUB_CODESPACES_SETUP.md)** dosyasını okuyun!
+
+**Hızlı başlatma:**
+```bash
+./start-dev.sh
+```
+
+**Erişim:**
+- Frontend: VS Code "Ports" sekmesinden 5173 portunu açın
+- Giriş: `admin@test.com` / `123456`
+
+---
 
 
 

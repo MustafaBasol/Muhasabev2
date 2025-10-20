@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Plus, Edit, Trash2, Search, Eye, FolderOpen, Folder, Save, X, Check } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Search, FolderOpen, Folder, X, Check } from 'lucide-react';
 
 interface Account {
   id: string;
@@ -31,8 +31,6 @@ export default function ChartOfAccountsPage({
 }: ChartOfAccountsPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [showAccountModal, setShowAccountModal] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [inlineEditingAccount, setInlineEditingAccount] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -77,54 +75,57 @@ export default function ChartOfAccountsPage({
   // Calculate dynamic balances from actual data
   const calculateDynamicBalance = (account: Account): number => {
     const accountCode = account.code;
-    const accountType = account.type;
     
     // Calculate based on account type and code
     switch (accountCode) {
       case '101': // Kasa - Cash from completed sales
         return sales
           .filter(sale => sale.status === 'completed' && sale.paymentMethod === 'cash')
-          .reduce((sum, sale) => sum + sale.amount, 0);
+          .reduce((sum, sale) => sum + (Number(sale.amount) || 0), 0);
       
       case '102': // Bankalar - Bank transfers and card payments
         return sales
           .filter(sale => sale.status === 'completed' && (sale.paymentMethod === 'card' || sale.paymentMethod === 'transfer'))
-          .reduce((sum, sale) => sum + sale.amount, 0);
+          .reduce((sum, sale) => sum + (Number(sale.amount) || 0), 0);
       
       case '120': // Alıcılar - Unpaid invoices (receivables)
         return invoices
           .filter(invoice => invoice.status === 'sent' || invoice.status === 'overdue')
-          .reduce((sum, invoice) => sum + invoice.total, 0);
+          .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
       case '201': // Satıcılar - Unpaid expenses (payables)
         return expenses
-          .filter(expense => expense.status === 'approved')
-          .reduce((sum, expense) => sum + expense.amount, 0);
+          .filter(expense => expense.status === 'approved' || expense.status === 'pending')
+          .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
-      case '601': // Satış Gelirleri - Total sales revenue
-        return invoices
-          .filter(invoice => invoice.status === 'paid' && invoice.type === 'product')
-          .reduce((sum, invoice) => sum + invoice.total, 0);
+      case '601': // Satış Gelirleri - Total sales revenue (all completed sales + paid invoices)
+        const salesRevenue = sales
+          .filter(sale => sale.status === 'completed')
+          .reduce((sum, sale) => sum + (Number(sale.amount) || 0), 0);
+        const invoiceRevenue = invoices
+          .filter(invoice => (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && invoice.type === 'product')
+          .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
+        return salesRevenue + invoiceRevenue;
       
       case '602': // Hizmet Gelirleri - Service revenue (invoices)
         return invoices
-          .filter(invoice => invoice.status === 'paid' && invoice.type === 'service')
-          .reduce((sum, invoice) => sum + invoice.total, 0);
+          .filter(invoice => (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && invoice.type === 'service')
+          .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
-      case '701': // Kira Giderleri - Rent expenses
+      case '701': // Kira Giderleri - Rent expenses (all statuses)
         return expenses
-          .filter(expense => expense.category === 'Kira' && expense.status === 'paid')
-          .reduce((sum, expense) => sum + expense.amount, 0);
+          .filter(expense => expense.category === 'Kira')
+          .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
-      case '702': // Personel Giderleri - Personnel expenses
+      case '702': // Personel Giderleri - Personnel expenses (all statuses)
         return expenses
-          .filter(expense => expense.category === 'Personel' && expense.status === 'paid')
-          .reduce((sum, expense) => sum + expense.amount, 0);
+          .filter(expense => expense.category === 'Personel')
+          .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
-      case '703': // Elektrik Giderleri - Electricity expenses
+      case '703': // Elektrik Giderleri - Electricity expenses (all statuses)
         return expenses
-          .filter(expense => expense.category === 'Elektrik' && expense.status === 'paid')
-          .reduce((sum, expense) => sum + expense.amount, 0);
+          .filter(expense => expense.category === 'Elektrik')
+          .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
       default:
         // For other accounts, use the stored balance
@@ -140,10 +141,27 @@ export default function ChartOfAccountsPage({
 
   // Update accounts with dynamic balances
   React.useEffect(() => {
-    const updatedAccounts = currentAccounts.map(account => ({
-      ...account,
-      balance: isDataFromOtherPages(account) ? calculateDynamicBalance(account) : account.balance
-    }));
+    console.log('📊 Hesap Planı Veri Kontrolü:', {
+      invoicesCount: invoices.length,
+      expensesCount: expenses.length,
+      salesCount: sales.length,
+      customersCount: customers.length,
+      sampleInvoice: invoices[0],
+      sampleExpense: expenses[0],
+      sampleSale: sales[0]
+    });
+    
+    const updatedAccounts = currentAccounts.map(account => {
+      if (isDataFromOtherPages(account)) {
+        const dynamicBalance = calculateDynamicBalance(account);
+        // Keep stored balance if dynamic calculation returns 0
+        return {
+          ...account,
+          balance: dynamicBalance > 0 ? dynamicBalance : account.balance
+        };
+      }
+      return account;
+    });
     setCurrentAccounts(updatedAccounts);
   }, [invoices, expenses, sales, customers]);
 
@@ -180,7 +198,45 @@ export default function ChartOfAccountsPage({
   };
 
   const formatAmount = (amount: number) => {
-    return `₺${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+    // Remove leading zeros and format properly
+    const cleanAmount = Number(amount) || 0;
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(cleanAmount);
+  };
+
+  // Format amount for summary cards (compact format for large numbers)
+  const formatAmountCompact = (amount: number) => {
+    const cleanAmount = Number(amount) || 0;
+    const absAmount = Math.abs(cleanAmount);
+    
+    // Manual compact formatting for large numbers
+    if (absAmount >= 1000000) {
+      const millions = cleanAmount / 1000000;
+      return `₺${millions.toFixed(2)}M`;
+    }
+    
+    if (absAmount >= 1000) {
+      const thousands = cleanAmount / 1000;
+      return `₺${thousands.toFixed(2)}K`;
+    }
+    
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(cleanAmount);
+  };
+
+  // Clean account code - remove leading zeros
+  const cleanAccountCode = (code: string): string => {
+    if (!code) return '';
+    // Remove leading zeros but keep the code structure
+    return code.replace(/^0+/, '') || '0';
   };
 
   const toggleGroup = (accountId: string) => {
@@ -281,7 +337,17 @@ export default function ChartOfAccountsPage({
       if (childHasChildren) {
         return total + calculateParentBalance(child.id);
       }
-      return total + (isDataFromOtherPages(child) ? calculateDynamicBalance(child) : child.balance);
+      
+      // Use dynamic balance with fallback to stored balance
+      let childBalance = 0;
+      if (isDataFromOtherPages(child)) {
+        const dynamicBalance = calculateDynamicBalance(child);
+        childBalance = dynamicBalance > 0 ? dynamicBalance : (Number(child.balance) || 0);
+      } else {
+        childBalance = Number(child.balance) || 0;
+      }
+      
+      return total + childBalance;
     }, 0);
   };
 
@@ -291,7 +357,14 @@ export default function ChartOfAccountsPage({
     if (hasChildren) {
       return calculateParentBalance(account.id);
     }
-    return isDataFromOtherPages(account) ? calculateDynamicBalance(account) : account.balance;
+    
+    // Use dynamic balance with fallback to stored balance
+    if (isDataFromOtherPages(account)) {
+      const dynamicBalance = calculateDynamicBalance(account);
+      return dynamicBalance > 0 ? dynamicBalance : (Number(account.balance) || 0);
+    }
+    
+    return Number(account.balance) || 0;
   };
 
   const deleteAccount = (accountId: string) => {
@@ -388,7 +461,7 @@ export default function ChartOfAccountsPage({
                           : 'Kodu düzenlemek için tıklayın'
                         }
                       >
-                        {account.code}
+                        {cleanAccountCode(account.code)}
                         {isDataFromOtherPages(account) && (
                           <span className="ml-1 text-xs">🔒</span>
                         )}
@@ -449,7 +522,7 @@ export default function ChartOfAccountsPage({
               {getAccountTypeLabel(account.type)}
             </span>
           </td>
-          <td className="px-6 py-4 whitespace-nowrap text-right">
+          <td className="px-6 py-4 text-right" style={{ minWidth: '180px' }}>
             {isEditing && editingField === 'balance' ? (
               <div className="flex items-center justify-end space-x-1">
                 <input
@@ -474,12 +547,12 @@ export default function ChartOfAccountsPage({
                 </button>
               </div>
             ) : (
-              <div className="text-right">
+              <div className="text-right max-w-xs ml-auto">
                 {hasChildren ? (
                   <div>
-                    <span className="text-sm font-bold text-blue-600">
+                    <div className="text-sm font-bold text-blue-600 truncate" title={formatAmount(getDisplayBalance(account))}>
                       {formatAmount(getDisplayBalance(account))}
-                    </span>
+                    </div>
                     <div className="text-xs text-gray-500">
                       (Alt hesaplar toplamı)
                     </div>
@@ -487,15 +560,12 @@ export default function ChartOfAccountsPage({
                 ) : (
                   <span 
                     onClick={() => !isDataFromOtherPages(account) && startInlineEdit(account.id, 'balance', account.balance)}
-                    className={`text-sm font-semibold text-gray-900 px-2 py-1 rounded ${
+                    className={`inline-block text-sm font-semibold text-gray-900 px-2 py-1 rounded truncate max-w-full ${
                       isDataFromOtherPages(account) 
                         ? 'cursor-not-allowed opacity-60' 
                         : 'cursor-pointer hover:bg-gray-50'
                     }`}
-                    title={isDataFromOtherPages(account) 
-                      ? 'Bu hesap diğer sayfalardan otomatik hesaplanır' 
-                      : 'Bakiyeyi düzenlemek için tıklayın'
-                    }
+                    title={formatAmount(getDisplayBalance(account)) + (isDataFromOtherPages(account) ? ' (Otomatik hesaplanır)' : ' (Düzenlemek için tıklayın)')}
                   >
                     {formatAmount(getDisplayBalance(account))}
                     {isDataFromOtherPages(account) && (
@@ -552,11 +622,32 @@ export default function ChartOfAccountsPage({
     const hasChildren = isParentAccount(account.id);
     if (!hasChildren && account.isActive) {
       // Use dynamic balance for accounts with data from other pages, actual balance for others
-      const balance = isDataFromOtherPages(account) ? calculateDynamicBalance(account) : account.balance;
+      let balance = 0;
+      if (isDataFromOtherPages(account)) {
+        const dynamicBalance = calculateDynamicBalance(account);
+        // If dynamic calculation returns 0 and account has a stored balance, use the stored balance as fallback
+        balance = dynamicBalance > 0 ? dynamicBalance : (Number(account.balance) || 0);
+      } else {
+        balance = Number(account.balance) || 0;
+      }
+      
+      // Debug logging for revenue and expense accounts
+      if (account.type === 'revenue' || account.type === 'expense') {
+        console.log(`💰 ${account.name} (${account.code}):`, {
+          type: account.type,
+          balance,
+          storedBalance: account.balance,
+          isDataFromOtherPages: isDataFromOtherPages(account),
+          hasChildren
+        });
+      }
+      
       acc[account.type] = (acc[account.type] || 0) + balance;
     }
     return acc;
   }, {} as Record<string, number>);
+  
+  console.log('📊 Hesaplanan Toplamlar:', totals);
 
   return (
     <div className="space-y-6">
@@ -583,32 +674,32 @@ export default function ChartOfAccountsPage({
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="text-sm text-blue-600 mb-1">Varlıklar</div>
-            <div className="text-lg font-bold text-blue-700">
-              {formatAmount(totals.asset || 0)}
+            <div className="text-lg font-bold text-blue-700 truncate" title={formatAmount(totals.asset || 0)}>
+              {formatAmountCompact(totals.asset || 0)}
             </div>
           </div>
           <div className="bg-red-50 rounded-lg p-4">
             <div className="text-sm text-red-600 mb-1">Yükümlülükler</div>
-            <div className="text-lg font-bold text-red-700">
-              {formatAmount(totals.liability || 0)}
+            <div className="text-lg font-bold text-red-700 truncate" title={formatAmount(totals.liability || 0)}>
+              {formatAmountCompact(totals.liability || 0)}
             </div>
           </div>
           <div className="bg-purple-50 rounded-lg p-4">
             <div className="text-sm text-purple-600 mb-1">Özkaynaklar</div>
-            <div className="text-lg font-bold text-purple-700">
-              {formatAmount(totals.equity || 0)}
+            <div className="text-lg font-bold text-purple-700 truncate" title={formatAmount(totals.equity || 0)}>
+              {formatAmountCompact(totals.equity || 0)}
             </div>
           </div>
           <div className="bg-green-50 rounded-lg p-4">
             <div className="text-sm text-green-600 mb-1">Gelirler</div>
-            <div className="text-lg font-bold text-green-700">
-              {formatAmount(totals.revenue || 0)}
+            <div className="text-lg font-bold text-green-700 truncate" title={formatAmount(totals.revenue || 0)}>
+              {formatAmountCompact(totals.revenue || 0)}
             </div>
           </div>
           <div className="bg-orange-50 rounded-lg p-4">
             <div className="text-sm text-orange-600 mb-1">Giderler</div>
-            <div className="text-lg font-bold text-orange-700">
-              {formatAmount(totals.expense || 0)}
+            <div className="text-lg font-bold text-orange-700 truncate" title={formatAmount(totals.expense || 0)}>
+              {formatAmountCompact(totals.expense || 0)}
             </div>
           </div>
         </div>

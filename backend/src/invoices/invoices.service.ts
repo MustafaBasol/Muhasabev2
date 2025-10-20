@@ -10,7 +10,7 @@ export class InvoicesService {
     private invoicesRepository: Repository<Invoice>,
   ) {}
 
-  async create(tenantId: string, createInvoiceDto: any) {
+  async create(tenantId: string, createInvoiceDto: any): Promise<Invoice> {
     // Generate invoice number if not provided
     const invoiceNumber = createInvoiceDto.invoiceNumber || 
       `INV-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
@@ -38,7 +38,21 @@ export class InvoicesService {
       discountAmount,
       total,
     });
-    return this.invoicesRepository.save(invoice);
+    
+    const saved = await this.invoicesRepository.save(invoice) as any;
+    const savedId = Array.isArray(saved) ? saved[0].id : saved.id;
+    
+    // Load with customer relation
+    const result = await this.invoicesRepository.findOne({
+      where: { id: savedId },
+      relations: ['customer'],
+    });
+    
+    if (!result) {
+      throw new NotFoundException('Failed to create invoice');
+    }
+    
+    return result;
   }
 
   async findAll(tenantId: string): Promise<Invoice[]> {
@@ -84,7 +98,10 @@ export class InvoicesService {
     }
     
     Object.assign(invoice, updateInvoiceDto);
-    return this.invoicesRepository.save(invoice);
+    await this.invoicesRepository.save(invoice);
+    
+    // Reload with customer relation
+    return this.findOne(tenantId, id);
   }
 
   async remove(tenantId: string, id: string): Promise<void> {

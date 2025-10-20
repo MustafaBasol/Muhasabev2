@@ -12,7 +12,7 @@ interface Expense {
   };
   amount: number;
   category: string;
-  status: 'draft' | 'approved' | 'paid' | 'pending' | 'rejected';
+  status: 'pending' | 'approved' | 'paid' | 'rejected';
   expenseDate: string;
   dueDate?: string;
   receiptUrl?: string;
@@ -24,6 +24,12 @@ interface ExpenseModalProps {
   onClose: () => void;
   onSave: (expense: Expense) => void;
   expense?: Expense | null;
+  suppliers?: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  }>;
   supplierInfo?: {
     name: string;
     category?: string;
@@ -43,11 +49,12 @@ const categories = [
   { label: 'Diğer', value: 'other' },
 ];
 
-export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplierInfo }: ExpenseModalProps) {
+export default function ExpenseModal({ isOpen, onClose, onSave, expense, suppliers = [], supplierInfo }: ExpenseModalProps) {
   const [expenseData, setExpenseData] = useState({
     expenseNumber: expense?.expenseNumber || `EXP-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
     description: expense?.description || '',
     supplier: expense?.supplier?.name || expense?.supplierId || supplierInfo?.name || '',
+    supplierId: expense?.supplierId || '',
     amount: expense?.amount || 0,
     category: expense?.category || supplierInfo?.category || 'other',
     status: expense?.status || 'pending',
@@ -56,6 +63,9 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
     receiptUrl: expense?.receiptUrl || '',
     notes: expense?.notes || ''
   });
+
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [filteredSuppliers, setFilteredSuppliers] = useState(suppliers);
 
   // Reset form when modal opens for new expense
   React.useEffect(() => {
@@ -200,7 +210,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
 
           {/* Supplier and Amount */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Building2 className="w-4 h-4 inline mr-2" />
                 Tedarikçi/Firma
@@ -208,10 +218,62 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               <input
                 type="text"
                 value={expenseData.supplier}
-                onChange={(e) => setExpenseData({...expenseData, supplier: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setExpenseData({...expenseData, supplier: value, supplierId: ''});
+                  
+                  // Filter suppliers
+                  if (value.length >= 2) {
+                    const filtered = suppliers?.filter(s => 
+                      s.name.toLowerCase().includes(value.toLowerCase()) ||
+                      s.email?.toLowerCase().includes(value.toLowerCase())
+                    );
+                    setFilteredSuppliers(filtered || []);
+                    setShowSupplierDropdown(true);
+                  } else {
+                    setShowSupplierDropdown(false);
+                  }
+                }}
+                onFocus={() => {
+                  if (expenseData.supplier.length >= 2) {
+                    setShowSupplierDropdown(true);
+                  }
+                }}
+                onBlur={() => {
+                  // Delay to allow click on dropdown item
+                  setTimeout(() => setShowSupplierDropdown(false), 200);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                placeholder="Tedarikçi adı..."
+                placeholder="Tedarikçi adı yazın..."
               />
+              
+              {/* Autocomplete Dropdown */}
+              {showSupplierDropdown && filteredSuppliers.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {filteredSuppliers.map((supplier) => (
+                    <div
+                      key={supplier.id}
+                      onClick={() => {
+                        setExpenseData({
+                          ...expenseData,
+                          supplier: supplier.name,
+                          supplierId: supplier.id
+                        });
+                        setShowSupplierDropdown(false);
+                      }}
+                      className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="font-medium text-gray-900">{supplier.name}</div>
+                      {supplier.email && (
+                        <div className="text-sm text-gray-500">{supplier.email}</div>
+                      )}
+                      {supplier.phone && (
+                        <div className="text-sm text-gray-500">{supplier.phone}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -265,9 +327,10 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
                 onChange={(e) => setExpenseData({...expenseData, status: e.target.value as any})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               >
-                <option value="draft">Taslak</option>
+                <option value="pending">Beklemede</option>
                 <option value="approved">Onaylandı</option>
                 <option value="paid">Ödendi</option>
+                <option value="rejected">Reddedildi</option>
               </select>
             </div>
           </div>

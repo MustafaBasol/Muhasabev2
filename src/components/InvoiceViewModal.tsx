@@ -1,5 +1,4 @@
-import React from 'react';
-import { X, Download, Edit, Calendar, Mail, Phone, MapPin } from 'lucide-react';
+import { X, Download, Edit, Calendar, Mail, MapPin } from 'lucide-react';
 
 interface Invoice {
   id: string;
@@ -114,7 +113,7 @@ export default function InvoiceViewModal({
                       ? 'bg-blue-100 text-blue-800' 
                       : 'bg-green-100 text-green-800'
                   }`}>
-                    {invoice.type === 'product' ? 'Ürün Satışı' : 'Hizmet Satışı'}
+                    {invoice.type === 'product' ? 'Ürün Satışı' : invoice.type === 'service' ? 'Hizmet Satışı' : 'Hizmet Satışı'}
                   </span>
                 </div>
                 <div className="flex items-center text-sm">

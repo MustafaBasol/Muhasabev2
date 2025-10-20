@@ -104,74 +104,6 @@ const initialNotifications: HeaderNotification[] = [
   },
 ];
 
-const initialCustomers = [
-  {
-    id: 1,
-    name: "Ahmet Yilmaz",
-    email: "ahmet@email.com",
-    phone: "0532 123 4567",
-    address: "Istanbul",
-    taxNumber: "1234567890",
-    company: "Yilmaz Teknoloji",
-    createdAt: "2024-12-15",
-    balance: 15000,
-  },
-];
-
-const initialSuppliers = [
-  {
-    id: 1,
-    name: "ABC Tedarik Ltd.",
-    email: "info@abc.com",
-    phone: "0212 123 4567",
-    address: "Istanbul",
-    taxNumber: "1111111111",
-    company: "ABC Tedarik Ltd.",
-    category: "Ofis Malzemeleri",
-    createdAt: "2024-11-01",
-    balance: 25000,
-  },
-];
-
-const initialInvoices = [
-  {
-    id: "1",
-    invoiceNumber: "INV-2024-001",
-    customerName: "Ahmet Yilmaz",
-    customerEmail: "ahmet@email.com",
-    customerAddress: "Istanbul",
-    total: 5000,
-    subtotal: 4237.29,
-    taxAmount: 762.71,
-    status: "paid",
-    issueDate: "2024-12-15",
-    dueDate: "2025-01-15",
-    items: [
-      {
-        id: "1",
-        description: "Web Tasarim Hizmeti",
-        quantity: 1,
-        unitPrice: 4237.29,
-        total: 4237.29,
-      },
-    ],
-  },
-];
-
-const initialExpenses = [
-  {
-    id: 1,
-    expenseNumber: "EXP-2024-001",
-    description: "Ofis kirasi - Aralik",
-    supplier: "Gayrimenkul A.S.",
-    amount: 8000,
-    category: "Kira",
-    expenseDate: "2024-12-01",
-    dueDate: "2024-12-01",
-    status: "paid",
-  },
-];
-
 const initialSales = [
   {
     id: 1,
@@ -373,20 +305,51 @@ const App: React.FC = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
-  const [sales, setSales] = useState<any[]>(() => initialSales.map(sale => ({ ...sale, id: String(sale.id) })));
+  const [sales, setSales] = useState<any[]>(() => {
+    // Önce localStorage'dan yüklemeyi dene
+    const savedSales = localStorage.getItem('sales');
+    if (savedSales) {
+      try {
+        return JSON.parse(savedSales);
+      } catch (e) {
+        console.error('Error loading sales from localStorage:', e);
+      }
+    }
+    // localStorage'da yoksa initial data kullan
+    return initialSales.map(sale => ({ ...sale, id: String(sale.id) }));
+  });
   const [products, setProducts] = useState<Product[]>([]);
   const [productCategories, setProductCategories] = useState<string[]>(() => initialProductCategories);
-  const [bankAccounts, setBankAccounts] = useState<any[]>(() => initialBankAccounts.map(account => ({ ...account, id: String(account.id) })));
+  const [bankAccounts, setBankAccounts] = useState<any[]>(() => {
+    // Önce localStorage'dan yüklemeyi dene
+    const savedBanks = localStorage.getItem('bankAccounts');
+    if (savedBanks) {
+      try {
+        return JSON.parse(savedBanks);
+      } catch (e) {
+        console.error('Error loading banks from localStorage:', e);
+      }
+    }
+    // localStorage'da yoksa initial data kullan
+    return initialBankAccounts.map(account => ({ ...account, id: String(account.id) }));
+  });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [_isLoadingData, setIsLoadingData] = useState(true);
 
   // Load data from backend on mount
   useEffect(() => {
     const loadData = async () => {
-      if (!isAuthenticated) return;
+      // Check if we have auth token
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.log('⚠️ Token yok, backend verisi yüklenmiyor');
+        setIsLoadingData(false);
+        return;
+      }
       
       try {
         setIsLoadingData(true);
+        console.log('🔄 Backend verisi yükleniyor...');
         
         const [customersData, suppliersData, productsData, invoicesData, expensesData] = await Promise.all([
           customersApi.getCustomers(),
@@ -396,6 +359,14 @@ const App: React.FC = () => {
           expensesApi.getExpenses(),
         ]);
 
+        console.log('✅ Backend verisi yüklendi:', {
+          customers: customersData.length,
+          suppliers: suppliersData.length,
+          products: productsData.length,
+          invoices: invoicesData.length,
+          expenses: expensesData.length
+        });
+
         setCustomers(customersData);
         setSuppliers(suppliersData);
         
@@ -403,18 +374,35 @@ const App: React.FC = () => {
         const mappedProducts = productsData.map((p: any) => ({
           ...p,
           sku: p.code,
-          unitPrice: p.price,
-          costPrice: p.cost || 0,
-          stockQuantity: p.stock,
-          reorderLevel: p.minStock,
+          unitPrice: Number(p.price) || 0,
+          costPrice: Number(p.cost) || 0,
+          stockQuantity: Number(p.stock) || 0,
+          reorderLevel: Number(p.minStock) || 0,
           status: p.stock === 0 ? 'out-of-stock' : p.stock <= p.minStock ? 'low' : 'active'
         }));
         setProducts(mappedProducts);
         
+        // Map backend expense fields to frontend format
+        const mappedExpenses = expensesData.map((e: any) => ({
+          ...e,
+          supplier: e.supplier?.name || '',
+          expenseDate: typeof e.expenseDate === 'string' ? e.expenseDate : new Date(e.expenseDate).toISOString().split('T')[0],
+          dueDate: e.dueDate || e.expenseDate,
+        }));
+        
         setInvoices(invoicesData);
-        setExpenses(expensesData);
+        setExpenses(mappedExpenses);
+        
+        // Cache all data to localStorage for persistence
+        localStorage.setItem('customers_cache', JSON.stringify(customersData));
+        localStorage.setItem('suppliers_cache', JSON.stringify(suppliersData));
+        localStorage.setItem('products_cache', JSON.stringify(mappedProducts));
+        localStorage.setItem('invoices_cache', JSON.stringify(invoicesData));
+        localStorage.setItem('expenses_cache', JSON.stringify(expensesData));
+        
+        console.log('💾 Tüm veriler localStorage\'a kaydedildi');
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('❌ Backend veri yükleme hatası:', error);
         showToast('Veriler yüklenirken hata oluştu', 'error');
       } finally {
         setIsLoadingData(false);
@@ -422,9 +410,9 @@ const App: React.FC = () => {
     };
 
     loadData();
-  }, [isAuthenticated]);
+  }, []); // Sadece component mount olduğunda çalış
 
-  // Save Bank and Sales to localStorage (no backend module)
+  // Save Bank, Sales, and Invoices cache to localStorage
   useEffect(() => {
     if (bankAccounts.length > 0) {
       localStorage.setItem('bankAccounts', JSON.stringify(bankAccounts));
@@ -436,15 +424,29 @@ const App: React.FC = () => {
       localStorage.setItem('sales', JSON.stringify(sales));
     }
   }, [sales]);
-
-  // Load Bank and Sales from localStorage on mount
+  
   useEffect(() => {
+    if (invoices.length > 0) {
+      localStorage.setItem('invoices_cache', JSON.stringify(invoices));
+    }
+  }, [invoices]);
+
+  // Load Bank, Sales, and Invoices cache from localStorage on mount
+  useEffect(() => {
+    console.log('📂 localStorage cache yükleniyor...');
     const savedBanks = localStorage.getItem('bankAccounts');
     const savedSales = localStorage.getItem('sales');
+    const savedCustomers = localStorage.getItem('customers_cache');
+    const savedSuppliers = localStorage.getItem('suppliers_cache');
+    const savedProducts = localStorage.getItem('products_cache');
+    const savedInvoices = localStorage.getItem('invoices_cache');
+    const savedExpenses = localStorage.getItem('expenses_cache');
     
     if (savedBanks) {
       try {
-        setBankAccounts(JSON.parse(savedBanks));
+        const banks = JSON.parse(savedBanks);
+        console.log('✅ Bankalar cache\'den yüklendi:', banks.length);
+        setBankAccounts(banks);
       } catch (e) {
         console.error('Error loading banks:', e);
       }
@@ -452,9 +454,78 @@ const App: React.FC = () => {
     
     if (savedSales) {
       try {
-        setSales(JSON.parse(savedSales));
+        const salesData = JSON.parse(savedSales);
+        console.log('✅ Satışlar cache\'den yüklendi:', salesData.length);
+        setSales(salesData);
       } catch (e) {
         console.error('Error loading sales:', e);
+      }
+    }
+    
+    if (savedCustomers) {
+      try {
+        const customersData = JSON.parse(savedCustomers);
+        console.log('✅ Müşteriler cache\'den yüklendi:', customersData.length);
+        setCustomers(customersData);
+      } catch (e) {
+        console.error('Error loading customers cache:', e);
+      }
+    }
+    
+    if (savedSuppliers) {
+      try {
+        const suppliersData = JSON.parse(savedSuppliers);
+        console.log('✅ Tedarikçiler cache\'den yüklendi:', suppliersData.length);
+        setSuppliers(suppliersData);
+      } catch (e) {
+        console.error('Error loading suppliers cache:', e);
+      }
+    }
+    
+    if (savedProducts) {
+      try {
+        const productsData = JSON.parse(savedProducts);
+        console.log('✅ Ürünler cache\'den yüklendi:', productsData.length);
+        // Ensure numeric values
+        const normalizedProducts = productsData.map((p: any) => ({
+          ...p,
+          unitPrice: Number(p.unitPrice) || 0,
+          costPrice: Number(p.costPrice) || 0,
+          stockQuantity: Number(p.stockQuantity) || 0,
+          reorderLevel: Number(p.reorderLevel) || 0,
+        }));
+        setProducts(normalizedProducts);
+      } catch (e) {
+        console.error('Error loading products cache:', e);
+      }
+    }
+    
+    if (savedInvoices) {
+      try {
+        const invoicesData = JSON.parse(savedInvoices);
+        console.log('✅ Faturalar cache\'den yüklendi:', invoicesData.length);
+        setInvoices(invoicesData);
+      } catch (e) {
+        console.error('Error loading invoices cache:', e);
+      }
+    }
+    
+    if (savedExpenses) {
+      try {
+        const expensesData = JSON.parse(savedExpenses);
+        console.log('✅ Giderler cache\'den yüklendi:', expensesData.length);
+        // Ensure proper format for expenseDate
+        const mappedExpenses = expensesData.map((e: any) => ({
+          ...e,
+          expenseDate: typeof e.expenseDate === 'string' ? e.expenseDate : 
+                      (e.expenseDate ? new Date(e.expenseDate).toISOString().split('T')[0] : 
+                       new Date().toISOString().split('T')[0]),
+          dueDate: e.dueDate || e.expenseDate,
+          supplier: e.supplier?.name || e.supplier || '',
+        }));
+        setExpenses(mappedExpenses);
+      } catch (e) {
+        console.error('Error loading expenses cache:', e);
       }
     }
   }, []);
@@ -519,7 +590,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogin = (email: string, password: string) => {
+  const handleLogin = (_email: string, _password: string) => {
     // This is now handled by AuthContext in LoginPage
     // Keep for compatibility
     return true;
@@ -781,14 +852,43 @@ const App: React.FC = () => {
 
   const upsertInvoice = async (invoiceData: any) => {
     try {
+      console.log('📄 upsertInvoice çağrıldı:', {
+        id: invoiceData.id,
+        saleId: invoiceData.saleId,
+        customerId: invoiceData.customerId,
+        customerName: invoiceData.customerName,
+        invoiceNumber: invoiceData.invoiceNumber
+      });
+      
+      // Validate customerId
+      if (!invoiceData.customerId) {
+        console.error('❌ customerId eksik!', {
+          customerName: invoiceData.customerName,
+          availableCustomers: customers.map(c => ({ id: c.id, name: c.name }))
+        });
+        showToast('Müşteri seçilmedi! Lütfen geçerli bir müşteri seçin.', 'error');
+        return;
+      }
+      
       const cleanData: any = {
         customerId: invoiceData.customerId,
+        type: invoiceData.type || 'product', // Fatura türü
         issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
         dueDate: invoiceData.dueDate,
         lineItems: invoiceData.items || invoiceData.lineItems || [],
         taxAmount: Number(invoiceData.taxAmount || 0),
-        notes: invoiceData.notes,
+        discountAmount: Number(invoiceData.discountAmount || 0),
+        notes: invoiceData.notes || '',
+        saleId: invoiceData.saleId, // Satış ID'sini ekle
       };
+      
+      console.log('📤 Backend\'e gönderilecek data:', {
+        customerId: cleanData.customerId,
+        lineItems: cleanData.lineItems.length,
+        taxAmount: cleanData.taxAmount,
+        discountAmount: cleanData.discountAmount,
+        saleId: cleanData.saleId
+      });
       
       if (invoiceData.status) {
         cleanData.status = invoiceData.status;
@@ -796,12 +896,24 @@ const App: React.FC = () => {
       
       if (invoiceData.id) {
         const updated = await invoicesApi.updateInvoice(String(invoiceData.id), cleanData);
-        setInvoices(prev => prev.map(i => i.id === updated.id ? updated : i));
+        const newInvoices = invoices.map(i => i.id === updated.id ? updated : i);
+        setInvoices(newInvoices);
+        localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
+        console.log('💾 Fatura cache güncellendi (update)');
         showToast('Fatura güncellendi', 'success');
       } else {
         const created = await invoicesApi.createInvoice(cleanData);
-        setInvoices(prev => [...prev, created]);
-        showToast('Fatura eklendi', 'success');
+        console.log('✅ Fatura oluşturuldu:', {
+          id: created.id,
+          invoiceNumber: created.invoiceNumber,
+          type: created.type,
+          customer: created.customer
+        });
+        const newInvoices = [...invoices, created];
+        setInvoices(newInvoices);
+        localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
+        console.log('💾 Fatura cache güncellendi (create)');
+        showToast('Fatura oluşturuldu', 'success');
       }
     } catch (error: any) {
       console.error('Invoice upsert error:', error);
@@ -815,7 +927,10 @@ const App: React.FC = () => {
     if (!confirmAction("Bu faturayı silmek istediğinizden emin misiniz?")) return;
     try {
       await invoicesApi.deleteInvoice(String(invoiceId));
-      setInvoices(prev => prev.filter(invoice => String(invoice.id) !== String(invoiceId)));
+      const newInvoices = invoices.filter(invoice => String(invoice.id) !== String(invoiceId));
+      setInvoices(newInvoices);
+      localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
+      console.log('💾 Fatura cache güncellendi (delete)');
       showToast('Fatura silindi', 'success');
     } catch (error: any) {
       console.error('Invoice delete error:', error);
@@ -828,19 +943,36 @@ const App: React.FC = () => {
       const cleanData = {
         description: expenseData.description || '',
         amount: Number(expenseData.amount || 0),
-        category: expenseData.category || 'Genel',
+        category: expenseData.category || 'other',
+        status: expenseData.status || 'pending',
         date: expenseData.date || expenseData.expenseDate || new Date().toISOString().split('T')[0],
         supplierId: expenseData.supplierId || undefined,
-        notes: expenseData.notes,
+        notes: expenseData.notes || '',
       };
       
       if (expenseData.id) {
         const updated = await expensesApi.updateExpense(String(expenseData.id), cleanData);
-        setExpenses(prev => prev.map(e => e.id === updated.id ? updated : e));
+        const mappedUpdated: any = {
+          ...updated,
+          supplier: typeof updated.supplier === 'string' ? updated.supplier : (updated.supplier?.name || ''),
+          expenseDate: updated.expenseDate ? (typeof updated.expenseDate === 'string' ? updated.expenseDate : new Date(updated.expenseDate).toISOString().split('T')[0]) : cleanData.date,
+          dueDate: updated.dueDate || updated.expenseDate || cleanData.date,
+        };
+        const newExpenses = expenses.map(e => e.id === mappedUpdated.id ? mappedUpdated : e);
+        setExpenses(newExpenses);
+        localStorage.setItem('expenses_cache', JSON.stringify(newExpenses));
         showToast('Gider güncellendi', 'success');
       } else {
         const created = await expensesApi.createExpense(cleanData);
-        setExpenses(prev => [...prev, created]);
+        const mappedCreated: any = {
+          ...created,
+          supplier: typeof created.supplier === 'string' ? created.supplier : (created.supplier?.name || ''),
+          expenseDate: created.expenseDate ? (typeof created.expenseDate === 'string' ? created.expenseDate : new Date(created.expenseDate).toISOString().split('T')[0]) : cleanData.date,
+          dueDate: created.dueDate || created.expenseDate || cleanData.date,
+        };
+        const newExpenses = [...expenses, mappedCreated];
+        setExpenses(newExpenses);
+        localStorage.setItem('expenses_cache', JSON.stringify(newExpenses));
         showToast('Gider eklendi', 'success');
       }
     } catch (error: any) {
@@ -855,7 +987,9 @@ const App: React.FC = () => {
     if (!confirmAction("Bu gideri silmek istediğinizden emin misiniz?")) return;
     try {
       await expensesApi.deleteExpense(String(expenseId));
-      setExpenses(prev => prev.filter(expense => String(expense.id) !== String(expenseId)));
+      const newExpenses = expenses.filter(expense => String(expense.id) !== String(expenseId));
+      setExpenses(newExpenses);
+      localStorage.setItem('expenses_cache', JSON.stringify(newExpenses));
       showToast('Gider silindi', 'success');
     } catch (error: any) {
       console.error('Expense delete error:', error);
@@ -864,18 +998,73 @@ const App: React.FC = () => {
   };
 
   const upsertSale = (saleData: any) => {
-    const id = normalizeId(saleData?.id);
-    const normalized = {
-      ...saleData,
-      id,
-      saleNumber: saleData?.saleNumber || "SAL-" + new Date().getFullYear() + "-" + String(sales.length + 1).padStart(3, "0"),
-      date: saleData?.date || saleData?.saleDate || new Date().toISOString().split("T")[0],
-    };
     setSales(prev => {
-      const exists = prev.some(sale => String(sale.id) === id);
-      return exists
-        ? prev.map(sale => (String(sale.id) === id ? { ...sale, ...normalized } : sale))
-        : [...prev, normalized];
+      // Mevcut satış mı yoksa yeni mi?
+      const existingSale = prev.find(sale => 
+        saleData.id && String(sale.id) === String(saleData.id)
+      );
+      
+      console.log('🔍 upsertSale çağrıldı:', {
+        saleDataId: saleData.id,
+        existingSale: existingSale ? existingSale.id : 'YOK - YENİ SATIŞ',
+        currentSalesCount: prev.length
+      });
+      
+      let finalData: any;
+      
+      if (existingSale) {
+        // MEVCUT SATIŞ - Numarayı ve ID'yi koru
+        finalData = {
+          ...existingSale,
+          ...saleData,
+          id: existingSale.id,
+          saleNumber: existingSale.saleNumber, // Orijinal numarayı koru
+          date: saleData?.date || saleData?.saleDate || existingSale.date,
+        };
+        console.log('✏️ Mevcut satış güncelleniyor:', finalData.saleNumber);
+      } else {
+        // YENİ SATIŞ - Yeni ID ve numara oluştur
+        const newId = String(Date.now());
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        
+        // Bu ay için sıradaki numarayı bul
+        const currentMonthPrefix = `SAL-${year}-${month}-`;
+        const monthSales = prev.filter(s => 
+          s.saleNumber && s.saleNumber.startsWith(currentMonthPrefix)
+        );
+        const nextNumber = monthSales.length + 1;
+        const newSaleNumber = `SAL-${year}-${month}-${String(nextNumber).padStart(3, '0')}`;
+        
+        console.log('➕ Yeni satış oluşturuluyor:', {
+          monthPrefix: currentMonthPrefix,
+          currentMonthSales: monthSales.length,
+          nextNumber,
+          newSaleNumber,
+          saleData
+        });
+        
+        // saleNumber'ı silip yenisini ekle - saleData'daki boş saleNumber ezmesin
+        const { saleNumber: _, ...cleanSaleData } = saleData;
+        
+        finalData = {
+          ...cleanSaleData,
+          id: newId,
+          saleNumber: newSaleNumber, // En son ekle ki ezilmesin
+          date: saleData?.date || saleData?.saleDate || new Date().toISOString().split("T")[0],
+        };
+        
+        console.log('✅ Yeni satış oluşturuldu:', {
+          id: finalData.id,
+          saleNumber: finalData.saleNumber,
+          customerName: finalData.customerName
+        });
+      }
+      
+      return existingSale
+        ? prev.map(sale => String(sale.id) === String(existingSale.id) ? finalData : sale)
+        : [...prev, finalData];
     });
   };
 
@@ -903,10 +1092,10 @@ const App: React.FC = () => {
         setProducts(prev => prev.map(p => p.id === updated.id ? { 
           ...updated,
           sku: updated.code,
-          unitPrice: updated.price,
-          costPrice: updated.cost,
-          stockQuantity: updated.stock,
-          reorderLevel: updated.minStock,
+          unitPrice: Number(updated.price) || 0,
+          costPrice: Number(updated.cost) || 0,
+          stockQuantity: Number(updated.stock) || 0,
+          reorderLevel: Number(updated.minStock) || 0,
           status: updated.stock === 0 ? 'out-of-stock' : updated.stock <= updated.minStock ? 'low' : 'active'
         } as Product : p));
         showToast('Ürün güncellendi', 'success');
@@ -916,10 +1105,10 @@ const App: React.FC = () => {
         setProducts(prev => [...prev, { 
           ...created,
           sku: created.code,
-          unitPrice: created.price,
-          costPrice: created.cost,
-          stockQuantity: created.stock,
-          reorderLevel: created.minStock,
+          unitPrice: Number(created.price) || 0,
+          costPrice: Number(created.cost) || 0,
+          stockQuantity: Number(created.stock) || 0,
+          reorderLevel: Number(created.minStock) || 0,
           status: created.stock === 0 ? 'out-of-stock' : created.stock <= created.minStock ? 'low' : 'active'
         } as Product]);
         showToast('Ürün eklendi', 'success');
@@ -1136,8 +1325,31 @@ const App: React.FC = () => {
   };
 
   const openSaleModal = (sale?: any) => {
-    setSelectedSale(sale ?? null);
-    setShowSaleModal(true);
+    console.log('🚪 openSaleModal çağrıldı:', {
+      modalAcikMi: showSaleModal,
+      saleId: sale?.id,
+      isNewSale: !sale
+    });
+    
+    // Modal kapalıysa direkt aç
+    if (!showSaleModal) {
+      console.log('✅ Modal kapalı, direkt açılıyor');
+      setSelectedSale(sale || null);
+      setShowSaleModal(true);
+      return;
+    }
+    
+    // Modal açıksa: kapat → bekle → state güncelle → aç
+    console.log('♻️ Modal açık, kapatıp yeniden açılacak');
+    setShowSaleModal(false);
+    setTimeout(() => {
+      console.log('⏱️ 100ms sonra state güncelleniyor');
+      setSelectedSale(sale || null);
+      setTimeout(() => {
+        console.log('⏱️ 50ms sonra modal açılıyor');
+        setShowSaleModal(true);
+      }, 50);
+    }, 100);
   };
 
   const openProductModal = (product?: any) => {
@@ -1181,8 +1393,13 @@ const App: React.FC = () => {
   };
 
   const closeSaleModal = () => {
+    console.log('🚪❌ closeSaleModal çağrıldı');
     setShowSaleModal(false);
-    setSelectedSale(null);
+    // Modal tamamen kapanana kadar bekle
+    setTimeout(() => {
+      console.log('⏱️ 100ms sonra selectedSale temizleniyor');
+      setSelectedSale(null);
+    }, 100);
   };
 
   const closeProductModal = () => {
@@ -1579,12 +1796,13 @@ const App: React.FC = () => {
             sales={sales}
             invoices={invoices}
             products={products}
-            onSalesUpdate={setSales}
-            onCreateInvoice={upsertInvoice}
-            onViewInvoice={invoice => {
-              setSelectedInvoice(invoice);
-              setShowInvoiceViewModal(true);
+            onSalesUpdate={(updatedSales) => {
+              // Her satış için upsertSale çağır
+              console.log('📊 SimpleSalesPage sales güncelleme:', updatedSales.length);
+              setSales(updatedSales);
             }}
+            onUpsertSale={upsertSale}
+            onCreateInvoice={upsertInvoice}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
             onDownloadSale={handleDownloadSale}
           />
@@ -1755,6 +1973,7 @@ const App: React.FC = () => {
             closeExpenseModal();
           }}
           expense={selectedExpense}
+          suppliers={suppliers}
           supplierInfo={supplierForExpense}
         />
       )}

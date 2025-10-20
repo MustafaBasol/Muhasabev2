@@ -1,9 +1,10 @@
-﻿import React, { useState } from 'react';
-import { TrendingUp, Plus, Calendar, DollarSign, User, Package, Search, Eye, Edit, Trash2, Download, Check, X, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+﻿import { useState } from 'react';
+import { TrendingUp, Plus, Calendar, DollarSign, User, Package, Search, Eye, Edit, Trash2, Download, Check, X, FileText, CheckCircle } from 'lucide-react';
 import SaleModal from './SaleModal';
 import type { Product } from './ProductList';
 import SaleViewModal from './SaleViewModal';
 import InvoiceViewModal from './InvoiceViewModal';
+import type { Sale } from '../types';
 
 
 
@@ -17,6 +18,7 @@ const toNumber = (v: any): number => {
 };
 
 const TAX_RATE = 0.18;
+
 interface Customer {
   id: string;
   name: string;
@@ -28,32 +30,19 @@ interface Customer {
   createdAt: string;
 }
 
-interface Sale {
-  id: string;
-  customerName: string;
-  productName: string;
-  amount: number;
-  date: string;
-  status: 'completed' | 'pending';
-  quantity?: number;
-  unitPrice?: number;
-  productId?: string;
-  productUnit?: string;
-}
-
 interface SimpleSalesPageProps {
   customers?: Customer[];
   sales?: Sale[];
   invoices?: any[];
   onSalesUpdate?: (sales: any[]) => void;
+  onUpsertSale?: (sale: any) => void; // Tek satış için
   onCreateInvoice?: (invoiceData: any) => void;
-  onViewInvoice?: (invoice: any) => void;
   onEditInvoice?: (invoice: any) => void;
   onDownloadSale?: (sale: Sale) => void;
   products?: Product[];
 }
 
-export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onCreateInvoice, onViewInvoice, onEditInvoice, onDownloadSale }: SimpleSalesPageProps) {
+export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale }: SimpleSalesPageProps) {
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [showSaleViewModal, setShowSaleViewModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -70,9 +59,17 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const [tempValue, setTempValue] = useState<string>('');
 
   const handleAddSale = (newSale: any) => {
-    // Store the sale data and show confirmation modal
-    setPendingSale(newSale);
-    setShowConfirmationModal(true);
+    console.log('➕ SimpleSalesPage: Yeni satış ekleniyor');
+    // Eğer onUpsertSale varsa kullan (numara oluşturma için)
+    if (onUpsertSale) {
+      onUpsertSale(newSale);
+      setShowSaleModal(false);
+      setEditingSale(null);
+    } else {
+      // Fallback: eski yöntem
+      setPendingSale(newSale);
+      setShowConfirmationModal(true);
+    }
   };
 
   const handleConfirmSale = (createInvoice: boolean) => {
@@ -140,18 +137,28 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   };
 
   const handleEditSale = (sale: any) => {
+    console.log('✏️ SimpleSalesPage: Satış düzenleniyor:', sale.id);
     setEditingSale(sale);
     setShowSaleModal(true);
   };
 
   const handleUpdateSale = (updatedSale: any) => {
-    const updatedSales = sales.map(sale => 
-      sale.id === updatedSale.id ? updatedSale : sale
-    );
-    if (onSalesUpdate) {
-      onSalesUpdate(updatedSales);
+    console.log('✏️ SimpleSalesPage: Satış güncelleniyor');
+    // Eğer onUpsertSale varsa kullan
+    if (onUpsertSale) {
+      onUpsertSale(updatedSale);
+      setEditingSale(null);
+      setShowSaleModal(false);
+    } else {
+      // Fallback: eski yöntem
+      const updatedSales = sales.map(sale => 
+        sale.id === updatedSale.id ? updatedSale : sale
+      );
+      if (onSalesUpdate) {
+        onSalesUpdate(updatedSales);
+      }
+      setEditingSale(null);
     }
-    setEditingSale(null);
   };
 
   const handleDeleteSale = (saleId: string) => {
@@ -243,16 +250,21 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   };
 
   const handleCreateInvoiceFromSale = (sale: any) => {
+    console.log('📄 Fatura oluşturma talebi:', sale.id, sale.saleNumber);
+    
     // Check if invoice already exists for this sale
     const existingInvoice = invoices.find(invoice => 
-      invoice.notes && invoice.notes.includes(sale.saleNumber || `SAL-${sale.id}`)
+      invoice.saleId && String(invoice.saleId) === String(sale.id)
     );
 
     if (existingInvoice) {
+      console.log('✅ Mevcut fatura bulundu:', existingInvoice.invoiceNumber, existingInvoice);
+      console.log('👤 Müşteri bilgisi:', existingInvoice.customer);
       // Open existing invoice in modal
       setViewingInvoice(existingInvoice);
       setShowInvoiceViewModal(true);
     } else {
+      console.log('➕ Yeni fatura oluşturulacak');
       // Show confirmation modal
       setSelectedSaleForInvoice(sale);
       setShowInvoiceConfirmModal(true);
@@ -262,6 +274,14 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const handleConfirmCreateInvoice = () => {
     if (selectedSaleForInvoice) {
       const sale = selectedSaleForInvoice;
+      
+      console.log('🔍 Fatura oluşturma başladı:', {
+        saleCustomerName: sale.customerName,
+        saleCustomerEmail: sale.customerEmail,
+        totalCustomers: customers.length,
+        availableCustomers: customers.map(c => ({ id: c.id, name: c.name, email: c.email }))
+      });
+      
       const quantity = sale.quantity && sale.quantity > 0 ? sale.quantity : 1;
       const matchedProduct = sale.productId
         ? products.find(product => String(product.id) === String(sale.productId))
@@ -273,43 +293,128 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
 
       const calculatedTotal = sale.amount && sale.amount > 0 ? sale.amount : fallbackUnitPrice * quantity;
       const totalAmount = Number.isFinite(calculatedTotal) ? calculatedTotal : 0;
-      const unitPrice = quantity > 0 ? totalAmount / quantity : fallbackUnitPrice;
+      
+      // KDV hariç tutarları hesapla
       const subtotalAmount = totalAmount / (1 + TAX_RATE);
       const taxAmount = totalAmount - subtotalAmount;
+      
+      // Birim fiyat KDV hariç olmalı
+      const unitPriceWithoutTax = quantity > 0 ? subtotalAmount / quantity : (fallbackUnitPrice / (1 + TAX_RATE));
+
+      // Fatura türünü ürün kategorisine göre belirle
+      const productCategory = (matchedProduct?.category || '').toLowerCase().trim();
+      const productNameLower = (matchedProduct?.name || sale.productName || '').toLowerCase().trim();
+      
+      console.log('🔍 FATURA TÜRÜ DEBUG:', {
+        'Ürün Adı': matchedProduct?.name || sale.productName,
+        'Kategori (Raw)': matchedProduct?.category,
+        'Kategori (Lower)': productCategory,
+        'Ürün Adı (Lower)': productNameLower,
+        'matchedProduct': matchedProduct
+      });
+      
+      // VARSAYILAN: Ürün Satışı (Sadece hizmet kategorisindeki ürünler "Hizmet Satışı" olmalı)
+      let invoiceType: 'product' | 'service' = 'product';
+      
+      // Hizmet kategorileri - SADECE bunlar "Hizmet Satışı" olacak
+      const serviceCategories = ['hizmet', 'danışmanlık', 'danismanlik', 'eğitim', 'egitim', 'reklam', 'pazarlama'];
+      
+      // Önce kategoriyi kontrol et
+      if (serviceCategories.some(cat => productCategory.includes(cat))) {
+        invoiceType = 'service';
+        console.log('✅ Kategori kontrolünden HİZMET SATIŞI belirlendi');
+      } else if (productCategory.length === 0) {
+        // Kategori yoksa ürün adına bak
+        if (serviceCategories.some(cat => productNameLower.includes(cat))) {
+          invoiceType = 'service';
+          console.log('✅ Ürün adından HİZMET SATIŞI belirlendi');
+        } else {
+          console.log('✅ ÜRÜN SATIŞI belirlendi (varsayılan - kategori yok)');
+        }
+      } else {
+        console.log('✅ ÜRÜN SATIŞI belirlendi (varsayılan - hizmet değil)');
+      }
+
+      console.log('🎯 SONUÇ: invoiceType =', invoiceType);
+
+      // Check if customers list is empty
+      if (customers.length === 0) {
+        console.error('❌ Müşteri listesi boş! Önce müşteri ekleyin.');
+        alert('Fatura oluşturmak için önce en az bir müşteri eklemelisiniz.\n\n"Müşteriler" sayfasından yeni müşteri ekleyebilirsiniz.');
+        setShowInvoiceConfirmModal(false);
+        return;
+      }
+
+      // Find customer by name or email (flexible matching)
+      const customerNameLower = sale.customerName?.toLowerCase().trim() || '';
+      const customerEmailLower = sale.customerEmail?.toLowerCase().trim() || '';
+      
+      const matchedCustomer = customers.find(c => {
+        const nameLower = c.name?.toLowerCase().trim() || '';
+        const emailLower = c.email?.toLowerCase().trim() || '';
+        
+        // Check exact match or partial match
+        return nameLower === customerNameLower ||
+               emailLower === customerEmailLower ||
+               nameLower.includes(customerNameLower) ||
+               customerNameLower.includes(nameLower);
+      });
+
+      console.log('🔍 Müşteri eşleştirme sonucu:', {
+        found: !!matchedCustomer,
+        matchedCustomer: matchedCustomer ? { id: matchedCustomer.id, name: matchedCustomer.name } : null
+      });
+
+      // If no match found, use first customer as fallback
+      const customerToUse = matchedCustomer || customers[0];
+      
+      if (!matchedCustomer) {
+        console.warn('⚠️ Tam eşleşme bulunamadı, ilk müşteri kullanılıyor:', {
+          fallbackCustomer: { id: customerToUse.id, name: customerToUse.name }
+        });
+      }
 
       const invoiceData = {
-        id: 'inv-' + Date.now(),
-        invoiceNumber: 'INV-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-3),
-        customerName: sale.customerName,
-        customerEmail: sale.customerEmail || '',
-        customerAddress: '',
+        saleId: sale.id, // Satış ID'sini ekle
+        customerId: String(customerToUse.id), // Backend için customerId gerekli
+        type: invoiceType, // Fatura türü (product/service)
         issueDate: new Date().toISOString().split('T')[0],
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'sent',
-        type: 'product',
-        items: [
+        lineItems: [
           {
-            id: '1',
             productId: matchedProduct?.id,
-            unit: matchedProduct?.unit,
+            productName: matchedProduct?.name || sale.productName,
             description: matchedProduct?.name || sale.productName,
             quantity,
-            unitPrice,
-            total: totalAmount,
+            unitPrice: unitPriceWithoutTax,
+            total: subtotalAmount,
           },
         ],
         subtotal: subtotalAmount,
-        taxAmount,
+        taxAmount: taxAmount,
+        discountAmount: 0,
         total: totalAmount,
-        notes: 'Bu fatura ' + (sale.saleNumber || ('SAL-' + sale.id)) + ' numarali satisdan olusturulmustur.',
+        notes: 'Bu fatura ' + (sale.saleNumber || ('SAL-' + sale.id)) + ' numaralı satıştan oluşturulmuştur.',
       };
+
+      console.log('📄 Fatura data hazır:', {
+        customerId: invoiceData.customerId,
+        customerName: sale.customerName,
+        saleId: invoiceData.saleId,
+        subtotal: subtotalAmount,
+        taxAmount: taxAmount,
+        total: totalAmount,
+        lineItems: invoiceData.lineItems
+      });
 
       if (onCreateInvoice) {
         onCreateInvoice(invoiceData);
       }
 
-      setViewingInvoice(invoiceData);
-      setShowInvoiceViewModal(true);
+      // Close modal
+      setShowInvoiceConfirmModal(false);
+      setSelectedSaleForInvoice(null);
     }
     setShowInvoiceConfirmModal(false);
     setSelectedSaleForInvoice(null);
@@ -333,7 +438,11 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             <p className="text-gray-600">Satış kayıtlarınızı yönetin</p>
           </div>
           <button
-            onClick={() => setShowSaleModal(true)}
+            onClick={() => {
+              console.log('➕ SimpleSalesPage: Yeni Satış butonu tıklandı, editingSale temizleniyor');
+              setEditingSale(null);
+              setShowSaleModal(true);
+            }}
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -425,7 +534,11 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               </p>
               {!searchTerm && statusFilter === 'all' && (
                 <button
-                  onClick={() => setShowSaleModal(true)}
+                  onClick={() => {
+                    console.log('➕ SimpleSalesPage: Yeni Satış butonu (boş liste) tıklandı');
+                    setEditingSale(null);
+                    setShowSaleModal(true);
+                  }}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   İlk Satışı Ekle
@@ -608,8 +721,16 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           </button>
                           <button 
                             onClick={() => handleCreateInvoiceFromSale(sale)}
-                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                            title="Fatura Oluştur"
+                            className={`p-1 rounded transition-colors ${
+                              invoices.some(inv => inv.saleId && String(inv.saleId) === String(sale.id))
+                                ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-blue-50'
+                                : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                            }`}
+                            title={
+                              invoices.some(inv => inv.saleId && String(inv.saleId) === String(sale.id))
+                                ? 'Faturayı Görüntüle'
+                                : 'Fatura Oluştur'
+                            }
                           >
                             <FileText className="w-4 h-4" />
                           </button>
@@ -634,7 +755,11 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       {/* Sale Modal */}
       <SaleModal
         isOpen={showSaleModal}
-        onClose={() => setShowSaleModal(false)}
+        onClose={() => {
+          console.log('🚪 SimpleSalesPage: Modal kapatılıyor, editingSale temizleniyor');
+          setShowSaleModal(false);
+          setEditingSale(null);
+        }}
         onSave={editingSale ? handleUpdateSale : handleAddSale}
         sale={editingSale}
         customers={customers || []}
@@ -747,7 +872,14 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         }}
         onDownload={(invoice) => {
           import('../utils/pdfGenerator').then(({ generateInvoicePDF }) => {
-            generateInvoicePDF(invoice);
+            // PDF generator için customer bilgilerini tamamla
+            const invoiceWithCustomer = {
+              ...invoice,
+              customerName: invoice.customer?.name || invoice.customerName || 'Müşteri Yok',
+              customerEmail: invoice.customer?.email || invoice.customerEmail || '',
+              customerAddress: invoice.customer?.address || invoice.customerAddress || '',
+            };
+            generateInvoicePDF(invoiceWithCustomer as any);
           });
         }}
       />

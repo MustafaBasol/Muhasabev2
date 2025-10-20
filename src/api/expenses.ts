@@ -8,17 +8,20 @@ export enum ExpenseStatus {
 
 export interface Expense {
   id: string;
+  expenseNumber?: string;
   description: string;
   amount: number;
   category: string;
-  date: string;
+  date?: string; // Frontend uses this
+  expenseDate?: string | Date; // Backend returns this
+  dueDate?: string;
   status: ExpenseStatus;
   supplierId?: string;
   supplier?: {
     id: string;
     name: string;
     email: string;
-  };
+  } | string;
   receiptUrl?: string;
   notes?: string;
   createdAt: string;

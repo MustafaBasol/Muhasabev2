@@ -45,7 +45,10 @@ export default function ProductViewModal({ isOpen, onClose, product, onEdit }: P
             {onEdit && (
               <button
                 type="button"
-                onClick={() => onEdit(product)}
+                onClick={() => {
+                  onEdit(product);
+                  onClose();
+                }}
                 className="rounded-lg border border-indigo-100 px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50"
               >
                 Duzenle

@@ -1,7 +1,5 @@
-import React from 'react';
-import { X, Edit, Calendar, User, Package, DollarSign, CreditCard, Download } from 'lucide-react';
-
-
+import { X, Edit, Calendar, User, Package, CreditCard, Download } from 'lucide-react';
+import type { Sale } from '../types';
 
 // Safely parse localized currency-like values to number
 const toNumber = (v: any): number => {
@@ -12,20 +10,6 @@ const toNumber = (v: any): number => {
   const n = parseFloat(normalized);
   return isNaN(n) ? 0 : n;
 };
-interface Sale {
-  id: string;
-  saleNumber?: string;
-  customerName: string;
-  customerEmail?: string;
-  productName: string;
-  quantity?: number;
-  unitPrice?: number;
-  amount: number;
-  status: 'completed' | 'pending' | 'cancelled';
-  date: string;
-  paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
-  notes?: string;
-}
 
 interface SaleViewModalProps {
   isOpen: boolean;
