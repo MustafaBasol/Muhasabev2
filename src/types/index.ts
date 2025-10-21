@@ -30,6 +30,17 @@ export interface Product {
   stock: number;
   unit: string;
   description?: string;
+  taxRate?: number; // KDV oranı (örn: 0.18 = %18)
+  categoryTaxRateOverride?: number; // Ürüne özel KDV oranı (kategorinin KDV'sini override eder)
+}
+
+export interface ProductCategory {
+  id: string;
+  name: string;
+  taxRate: number; // Varsayılan KDV oranı (örn: 18 = %18)
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Invoice {
@@ -51,10 +62,13 @@ export interface Invoice {
 
 export interface InvoiceItem {
   id?: string;
+  productId?: string | number;
+  productName?: string;
   description: string;
   quantity: number;
   unitPrice: number;
   total: number;
+  taxRate?: number; // Her ürünün kendi KDV oranı
 }
 
 export interface Expense {

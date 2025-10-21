@@ -1,4 +1,5 @@
-import React from 'react';
+import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 
 interface ChartCardProps {
@@ -9,16 +10,18 @@ interface ChartCardProps {
 
 export default function ChartCard({ sales = [], expenses = [], invoices = [] }: ChartCardProps) {
   const { formatCurrency } = useCurrency();
+  const [isVisible, setIsVisible] = useState(true);
   
-  // Get current date and calculate last 6 months dynamically
-  const getCurrentDate = () => new Date(2025, 8, 10); // September 10, 2025
-  const currentDate = getCurrentDate();
+  // Get current date - use real date
+  const currentDate = new Date();
 
   const getLast6Months = () => {
     const months = [];
     const monthNames = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
     
-    for (let i = 5; i >= 0; i--) {
+    // Start from current month (i=0) and go back 5 months
+    // This will show: current month, -1 month, -2 months, ... -5 months
+    for (let i = 0; i <= 5; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
       months.push({
         month: monthNames[date.getMonth()],
@@ -83,7 +86,7 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Aylık Gelir/Gider</h3>
-          <p className="text-sm text-gray-500">Son 6 aylık performans</p>
+          <p className="text-sm text-gray-500">Son 6 aylık performans (yeni → eski)</p>
         </div>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
@@ -94,37 +97,57 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
             <div className="w-3 h-3 bg-red-500 rounded-full"></div>
             <span className="text-sm text-gray-600">Gider</span>
           </div>
+          <button
+            onClick={() => setIsVisible(!isVisible)}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title={isVisible ? "Tabloyu Gizle" : "Tabloyu Göster"}
+          >
+            {isVisible ? (
+              <EyeOff className="w-4 h-4 text-gray-600" />
+            ) : (
+              <Eye className="w-4 h-4 text-gray-600" />
+            )}
+          </button>
         </div>
       </div>
 
-      <div className="space-y-4">
-        {monthlyData.map((data, index) => (
-          <div key={index} className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">{data.month}</span>
-              <div className="text-xs text-gray-500">
-                Net: {formatCurrency(data.income - data.expense)}
+      {isVisible && (
+        <div className="space-y-4">
+          {monthlyData.map((data, index) => (
+            <div key={index} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">{data.month}</span>
+                <div className="text-xs text-gray-500">
+                  Net: {formatCurrency(data.income - data.expense)}
+                </div>
+              </div>
+              
+              <div className="relative h-8 bg-gray-100 rounded-lg overflow-hidden">
+                <div 
+                  className="absolute top-0 left-0 h-4 bg-blue-500 rounded-sm"
+                  style={{ width: `${(data.income / maxValue) * 100}%` }}
+                ></div>
+                <div 
+                  className="absolute bottom-0 left-0 h-4 bg-red-500 rounded-sm"
+                  style={{ width: `${(data.expense / maxValue) * 100}%` }}
+                ></div>
+              </div>
+              
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>{formatCurrency(data.income)}</span>
+                <span>{formatCurrency(data.expense)}</span>
               </div>
             </div>
-            
-            <div className="relative h-8 bg-gray-100 rounded-lg overflow-hidden">
-              <div 
-                className="absolute top-0 left-0 h-4 bg-blue-500 rounded-sm"
-                style={{ width: `${(data.income / maxValue) * 100}%` }}
-              ></div>
-              <div 
-                className="absolute bottom-0 left-0 h-4 bg-red-500 rounded-sm"
-                style={{ width: `${(data.expense / maxValue) * 100}%` }}
-              ></div>
-            </div>
-            
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>{formatCurrency(data.income)}</span>
-              <span>{formatCurrency(data.expense)}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+      
+      {!isVisible && (
+        <div className="text-center py-8 text-gray-400">
+          <Eye className="w-8 h-8 mx-auto mb-2" />
+          <p className="text-sm">Tablo gizlendi</p>
+        </div>
+      )}
     </div>
   );
 }

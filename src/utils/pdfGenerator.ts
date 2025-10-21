@@ -291,7 +291,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
             <span>Ara Toplam:</span><span>${formatAmount(invoice.subtotal)}</span>
           </div>
           <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #E5E7EB;">
-            <span>KDV (%18):</span><span>${formatAmount(invoice.taxAmount)}</span>
+            <span>KDV:</span><span>${formatAmount(invoice.taxAmount)}</span>
           </div>
           <div style="display:flex; justify-content:space-between; padding:12px 0; font-weight:bold; font-size:18px; border-top:2px solid #1F2937;">
             <span>Genel Toplam:</span><span>${formatAmount(invoice.total)}</span>

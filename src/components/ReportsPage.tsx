@@ -88,6 +88,8 @@ export default function ReportsPage({
   customers = []
 }: ReportsPageProps) {
   const { formatCurrency } = useCurrency();
+  // DEBUG: Gider verisi ve toplamı logla
+  console.log('DEBUG expenses (first 5):', expenses.slice(0, 5));
   
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
@@ -106,11 +108,10 @@ export default function ReportsPage({
 
   const getLast6Months = () => {
     const months = [];
-    const currentMonth = currentDate.getMonth();
-    const currentYear = currentDate.getFullYear();
     const monthNames = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
     
-    for (let i = 5; i >= 0; i--) {
+    // Son 6 ayı sondan başa doğru oluştur (en üstte içinde bulunduğumuz ay)
+    for (let i = 0; i < 6; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
       const monthIndex = date.getMonth();
       const year = date.getFullYear();
@@ -190,7 +191,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
   console.log('- Total revenue:', totalRevenue);
 
   const totalExpenses = expenses
-    .filter(expense => expense.status === 'paid')
+  .filter(expense => isPaidLike(expense.status))
     .reduce((sum, expense) => sum + getExpenseAmount(expense), 0);
   
   console.log('Total expenses (paid only):', totalExpenses);
@@ -437,14 +438,14 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
   // If no real data exists, create demo data for better visualization
   const hasRealData = totalRevenue > 0 || totalExpenses > 0;
   
-  // Demo monthly data if no real data exists
+  // Demo monthly data if no real data exists (son 6 ay, sondan başa doğru)
   const demoMonthlyData = [
-    { month: 'Tem', income: 45000, expense: 18000, net: 27000 },
-    { month: 'Ağu', income: 52000, expense: 22000, net: 30000 },
-    { month: 'Eyl', income: 38000, expense: 19000, net: 19000 },
     { month: 'Eki', income: 61000, expense: 25000, net: 36000 },
-    { month: 'Kas', income: 47000, expense: 21000, net: 26000 },
-    { month: 'Ara', income: 55000, expense: 23000, net: 32000 }
+    { month: 'Eyl', income: 38000, expense: 19000, net: 19000 },
+    { month: 'Ağu', income: 52000, expense: 22000, net: 30000 },
+    { month: 'Tem', income: 45000, expense: 18000, net: 27000 },
+    { month: 'Haz', income: 47000, expense: 21000, net: 26000 },
+    { month: 'May', income: 55000, expense: 23000, net: 32000 }
   ];
   
   const displayMonthlyData = hasRealData ? monthlyData : demoMonthlyData;
@@ -916,11 +917,11 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
                         <span className="text-red-600 font-semibold text-sm">
-                          {supplier.name.charAt(0).toUpperCase()}
+                          {(supplier.name?.charAt(0)?.toUpperCase()) || "?"}
                         </span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{supplier.name}</div>
+                        <div className="font-medium text-gray-900">{supplier.name || "Tedarikçi Yok"}</div>
                         <div className="text-sm text-gray-500">
                           {supplier.count} gider • Son: {formatDate(supplier.lastExpense)}
                         </div>
@@ -1019,11 +1020,11 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                         <span className="text-purple-600 font-semibold text-sm">
-                          {customer.name.charAt(0).toUpperCase()}
+                          {(customer.name?.charAt(0)?.toUpperCase()) || "?"}
                         </span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{customer.name}</div>
+                        <div className="font-medium text-gray-900">{customer.name || "Müşteri Yok"}</div>
                         <div className="text-sm text-gray-500">
                           {customer.count} alışveriş • Son: {formatDate(customer.lastPurchase)}
                         </div>

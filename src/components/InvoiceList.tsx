@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Plus, Eye, Edit, Download, Trash2, FileText, Calendar, DollarSign, Check, X } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Plus, Eye, Edit, Download, Trash2, FileText, Calendar, Check, X } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 
 // Archive threshold: invoices older than this many days will only appear in archive
@@ -56,22 +56,29 @@ export default function InvoiceList({
     return issueDate >= thresholdDate;
   });
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const normalizedSearch = (searchTerm || '').toLowerCase();
-    const matchesSearch = 
-      (invoice.invoiceNumber || '').toLowerCase().includes(normalizedSearch) ||
-      (invoice.customer?.name || '').toLowerCase().includes(normalizedSearch);
-    
-    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-    
-    // Only show invoices that are not archived (within threshold)
-    const issueDate = new Date(invoice.issueDate);
-    const thresholdDate = new Date();
-    thresholdDate.setDate(thresholdDate.getDate() - ARCHIVE_THRESHOLD_DAYS);
-    const isNotArchived = issueDate >= thresholdDate;
-    
-    return matchesSearch && matchesStatus && isNotArchived;
-  });
+  const filteredInvoices = invoices
+    .filter(invoice => {
+      const normalizedSearch = (searchTerm || '').toLowerCase();
+      const matchesSearch = 
+        (invoice.invoiceNumber || '').toLowerCase().includes(normalizedSearch) ||
+        (invoice.customer?.name || '').toLowerCase().includes(normalizedSearch);
+      
+      const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
+      
+      // Only show invoices that are not archived (within threshold)
+      const issueDate = new Date(invoice.issueDate);
+      const thresholdDate = new Date();
+      thresholdDate.setDate(thresholdDate.getDate() - ARCHIVE_THRESHOLD_DAYS);
+      const isNotArchived = issueDate >= thresholdDate;
+      
+      return matchesSearch && matchesStatus && isNotArchived;
+    })
+    .sort((a, b) => {
+      // En yeni faturalar en üstte (ID'ye göre ters sıralama)
+      const aId = String(a.id || '');
+      const bId = String(b.id || '');
+      return bId.localeCompare(aId);
+    });
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -205,6 +212,9 @@ export default function InvoiceList({
                     Müşteri
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Açıklama
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tutar
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -251,6 +261,43 @@ export default function InvoiceList({
                         <div className="text-xs text-gray-500">
                           {invoice.customer?.email || ''}
                         </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-700 max-w-xs">
+                        {(() => {
+                          const itemsList = invoice.items || (invoice as any).lineItems || [];
+                          console.log('🔍 Fatura ürün bilgisi:', {
+                            invoiceId: invoice.id,
+                            invoiceNumber: invoice.invoiceNumber,
+                            hasItems: !!invoice.items,
+                            hasLineItems: !!(invoice as any).lineItems,
+                            itemsLength: itemsList.length,
+                            itemsList: itemsList
+                          });
+                          
+                          if (itemsList.length > 0) {
+                            return (
+                              <div className="space-y-1">
+                                {itemsList.slice(0, 2).map((item: any, idx: number) => (
+                                  <div key={idx} className="flex items-start">
+                                    <span className="text-gray-400 mr-1">•</span>
+                                    <span className="line-clamp-1">
+                                      {item.productName || item.description || 'Ürün'} 
+                                      {item.quantity && ` (${item.quantity}x)`}
+                                    </span>
+                                  </div>
+                                ))}
+                                {itemsList.length > 2 && (
+                                  <div className="text-xs text-gray-400">
+                                    +{itemsList.length - 2} daha...
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                          return <span className="text-gray-400 text-xs">Ürün bilgisi yok</span>;
+                        })()}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

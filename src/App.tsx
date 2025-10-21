@@ -418,6 +418,8 @@ const AppContent: React.FC = () => {
         
         setInvoices(safeInvoicesData);
         setExpenses(mappedExpenses);
+        // Debug: log a sample of expenses to inspect status/amount values
+        console.log('🔎 Loaded expenses sample (first 10):', mappedExpenses.slice(0, 10).map(e => ({ id: e.id, amount: e.amount, status: e.status, expenseDate: e.expenseDate })));
         
         // Cache all data to localStorage for persistence
         localStorage.setItem('customers_cache', JSON.stringify(safeCustomersData));
@@ -903,9 +905,10 @@ const AppContent: React.FC = () => {
         type: invoiceData.type || 'product', // Fatura türü
         issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
         dueDate: invoiceData.dueDate,
-        lineItems: (invoiceData.items || invoiceData.lineItems || []).map((item: any) => ({
+        items: (invoiceData.items || invoiceData.lineItems || []).map((item: any) => ({
           productId: item.productId,
           productName: item.description || item.productName,
+          description: item.description || item.productName,
           quantity: Number(item.quantity) || 1,
           unitPrice: Number(item.unitPrice) || 0,
           total: Number(item.total) || 0,
@@ -918,7 +921,8 @@ const AppContent: React.FC = () => {
       
       console.log('📤 Backend\'e gönderilecek data:', {
         customerId: cleanData.customerId,
-        lineItems: cleanData.lineItems.length,
+        items: cleanData.items.length,
+        firstItem: cleanData.items[0],
         taxAmount: cleanData.taxAmount,
         discountAmount: cleanData.discountAmount,
         saleId: cleanData.saleId
@@ -935,17 +939,20 @@ const AppContent: React.FC = () => {
         localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
         console.log('💾 Fatura cache güncellendi (update)');
         showToast('Fatura güncellendi', 'success');
+        return updated; // Güncellenen faturayı return et
       } else {
         const created = await invoicesApi.createInvoice(cleanData);
         console.log('✅ Fatura oluşturuldu:', {
           id: created.id,
           invoiceNumber: created.invoiceNumber,
           type: created.type,
-          customer: created.customer
+          customer: created.customer,
+          items: (created as any).items,
+          lineItems: (created as any).lineItems
         });
         
         // Eğer mevcut bir satış yoksa (saleId yok) otomatik satış oluştur
-        if (!cleanData.saleId && cleanData.lineItems && cleanData.lineItems.length > 0) {
+        if (!cleanData.saleId && cleanData.items && cleanData.items.length > 0) {
           try {
             console.log('🔄 Otomatik satış oluşturuluyor...');
             
@@ -963,7 +970,7 @@ const AppContent: React.FC = () => {
             });
             
             // Fatura kalemlerinden satış verisi hazırla
-            const firstItem = cleanData.lineItems[0];
+            const firstItem = cleanData.items[0];
             
             // Tutar hesaplaması: Fatura toplam tutarı veya ilk ürün tutarı
             const saleAmount = Number(created.total) || (Number(firstItem.quantity) * Number(firstItem.unitPrice)) || 0;
@@ -993,11 +1000,39 @@ const AppContent: React.FC = () => {
               }
             });
             
+            // Sıralı satış numarası oluştur (SAL-YYYY-MM-XXX formatı)
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const prefix = `SAL-${year}-${month}-`;
+            
+            // Mevcut ayın satışlarını bul
+            const currentMonthSales = sales.filter(s => 
+              s.saleNumber && s.saleNumber.startsWith(prefix)
+            );
+            
+            // Sıra numarasını bul
+            let nextSequence = 1;
+            if (currentMonthSales.length > 0) {
+              const sequences = currentMonthSales
+                .map(s => {
+                  const parts = s.saleNumber?.split('-');
+                  return parts ? parseInt(parts[parts.length - 1] || '0', 10) : 0;
+                })
+                .filter(n => !isNaN(n));
+              
+              if (sequences.length > 0) {
+                nextSequence = Math.max(...sequences) + 1;
+              }
+            }
+            
+            const saleNumber = `${prefix}${String(nextSequence).padStart(3, '0')}`;
+            
             // Satış oluştur
             const newSale = {
               ...saleData,
               id: String(Date.now()),
-              saleNumber: `SAL-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
+              saleNumber: saleNumber,
               status: 'completed' as const,
               invoiceId: created.id, // Fatura ID'sini satışa ekle
             };
@@ -1025,6 +1060,7 @@ const AppContent: React.FC = () => {
         localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
         console.log('💾 Fatura cache güncellendi (create)');
         showToast('Fatura ve satış oluşturuldu', 'success');
+        return created; // Oluşturulan faturayı return et
       }
     } catch (error: any) {
       console.error('Invoice upsert error:', error);
@@ -1140,12 +1176,26 @@ const AppContent: React.FC = () => {
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         
-        // Bu ay için sıradaki numarayı bul
+        // Bu ay için sıradaki numarayı bul (en yüksek sıra numarasını bul)
         const currentMonthPrefix = `SAL-${year}-${month}-`;
         const monthSales = prev.filter(s => 
           s.saleNumber && s.saleNumber.startsWith(currentMonthPrefix)
         );
-        const nextNumber = monthSales.length + 1;
+        
+        let nextNumber = 1;
+        if (monthSales.length > 0) {
+          const sequences = monthSales
+            .map(s => {
+              const parts = s.saleNumber?.split('-');
+              return parts ? parseInt(parts[parts.length - 1] || '0', 10) : 0;
+            })
+            .filter(n => !isNaN(n));
+          
+          if (sequences.length > 0) {
+            nextNumber = Math.max(...sequences) + 1;
+          }
+        }
+        
         const newSaleNumber = `SAL-${year}-${month}-${String(nextNumber).padStart(3, '0')}`;
         
         console.log('➕ Yeni satış oluşturuluyor:', {
@@ -1173,10 +1223,34 @@ const AppContent: React.FC = () => {
         });
       }
       
-      return existingSale
+      const result = existingSale
         ? prev.map(sale => String(sale.id) === String(existingSale.id) ? finalData : sale)
         : [...prev, finalData];
+      
+      // localStorage'a kaydet
+      localStorage.setItem('sales', JSON.stringify(result));
+      
+      return result;
     });
+  };
+
+  const handleDeleteSale = (saleId: string) => {
+    if (!confirm('Bu satışı silmek istediğinizden emin misiniz?')) {
+      return;
+    }
+    
+    console.log('🗑️ Satış siliniyor:', saleId);
+    
+    setSales(prev => {
+      const filtered = prev.filter(sale => String(sale.id) !== String(saleId));
+      localStorage.setItem('sales', JSON.stringify(filtered));
+      console.log('✅ Satış silindi, kalan satış sayısı:', filtered.length);
+      return filtered;
+    });
+    
+    showToast('Satış başarıyla silindi', 'success');
+    setShowSaleViewModal(false);
+    setSelectedSale(null);
   };
 
   const upsertProduct = async (productData: Partial<Product>) => {
@@ -1458,9 +1532,26 @@ const AppContent: React.FC = () => {
     try {
       console.log('🔍 Invoice data gönderilecek:', invoiceData);
       
+      // customerId yoksa customerName'den bul
+      let customerId = invoiceData.customerId;
+      if (!customerId && invoiceData.customerName) {
+        const customer = customers.find(c => c.name === invoiceData.customerName);
+        customerId = customer?.id;
+        console.log('👤 Müşteri adından ID bulundu:', {
+          customerName: invoiceData.customerName,
+          foundCustomerId: customerId,
+          availableCustomers: customers.map(c => ({ id: c.id, name: c.name }))
+        });
+      }
+      
+      if (!customerId) {
+        showToast('Müşteri bulunamadı! Lütfen önce müşteri oluşturun.', 'error');
+        throw new Error('customerId gerekli');
+      }
+      
       // Frontend modaldan gelen veriyi backend formatına dönüştür
       const backendData = {
-        customerId: invoiceData.customerId,
+        customerId: customerId,
         issueDate: invoiceData.issueDate,
         dueDate: invoiceData.dueDate,
         type: invoiceData.type || 'service',
@@ -1688,19 +1779,26 @@ const AppContent: React.FC = () => {
       return !isNaN(date.getTime()) && date.getMonth() === month && date.getFullYear() === year;
     };
 
+
     const saleAmount = (sale: any) => Number(sale?.amount ?? (sale?.quantity || 0) * (sale?.unitPrice || 0));
     const expenseAmount = (expense: any) => Number(expense?.amount ?? 0);
     const invoiceAmount = (invoice: any) => Number(invoice?.total ?? 0);
 
     const sum = (items: any[], selector: (item: any) => number) => items.reduce((total, item) => total + selector(item), 0);
 
+    // Sadece ödenmiş giderler
+    const paidExpenses = expenses.filter(exp => {
+      const s = String(exp.status || '').toLowerCase();
+      return s.includes('paid') || s.includes('öden') || s.includes('odendi') || s.includes('ödenendi');
+    });
+
     const totalRevenue = sum(sales, saleAmount);
     const revenueCurrent = sum(sales.filter(sale => isInMonth(sale?.date || sale?.saleDate, currentMonth, currentYear)), saleAmount);
     const revenuePrevious = sum(sales.filter(sale => isInMonth(sale?.date || sale?.saleDate, previousMonth, previousYear)), saleAmount);
 
-    const totalExpense = sum(expenses, expenseAmount);
-    const expenseCurrent = sum(expenses.filter(expense => isInMonth(expense?.expenseDate, currentMonth, currentYear)), expenseAmount);
-    const expensePrevious = sum(expenses.filter(expense => isInMonth(expense?.expenseDate, previousMonth, previousYear)), expenseAmount);
+    const totalExpense = sum(paidExpenses, expenseAmount);
+    const expenseCurrent = sum(paidExpenses.filter(expense => isInMonth(expense?.expenseDate, currentMonth, currentYear)), expenseAmount);
+    const expensePrevious = sum(paidExpenses.filter(expense => isInMonth(expense?.expenseDate, previousMonth, previousYear)), expenseAmount);
 
     const outstandingInvoices = invoices.filter(invoice => invoice.status !== "paid");
     const outstandingAmount = sum(outstandingInvoices, invoiceAmount);
@@ -2178,8 +2276,8 @@ const AppContent: React.FC = () => {
       {showInvoiceModal && (
         <InvoiceModal
           onClose={closeInvoiceModal}
-          onSave={invoice => {
-            upsertInvoice(invoice);
+          onSave={async (invoice) => {
+            await upsertInvoice(invoice);
             closeInvoiceModal();
           }}
           invoice={selectedInvoice}
@@ -2288,6 +2386,7 @@ const AppContent: React.FC = () => {
         onClose={closeSaleViewModal}
         sale={selectedSale}
         onEdit={sale => openSaleModal(sale)}
+        onDelete={handleDeleteSale}
         onDownload={handleDownloadSale}
       />
 

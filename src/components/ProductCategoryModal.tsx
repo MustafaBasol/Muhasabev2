@@ -1,10 +1,10 @@
 import React from 'react';
-import { X, Tag, PlusCircle } from 'lucide-react';
+import { X, Tag, PlusCircle, Percent } from 'lucide-react';
 
 interface ProductCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (categoryName: string) => void;
+  onSubmit: (categoryName: string, taxRate: number) => void;
   categories: string[];
 }
 
@@ -15,15 +15,18 @@ export default function ProductCategoryModal({
   categories,
 }: ProductCategoryModalProps) {
   const [name, setName] = React.useState('');
+  const [taxRate, setTaxRate] = React.useState('18');
   const [error, setError] = React.useState('');
 
   React.useEffect(() => {
     if (!isOpen) {
       setName('');
+      setTaxRate('18');
       setError('');
       return;
     }
     setName('');
+    setTaxRate('18');
     setError('');
   }, [isOpen]);
 
@@ -38,6 +41,12 @@ export default function ProductCategoryModal({
       return;
     }
 
+    const taxRateNum = parseFloat(taxRate);
+    if (isNaN(taxRateNum) || taxRateNum < 0 || taxRateNum > 100) {
+      setError('KDV oranı 0-100 arasında olmalıdır');
+      return;
+    }
+
     const exists = categories
       .map(current => current.toLocaleLowerCase('tr-TR'))
       .includes(normalized.toLocaleLowerCase('tr-TR'));
@@ -47,7 +56,7 @@ export default function ProductCategoryModal({
       return;
     }
 
-    onSubmit(normalized);
+    onSubmit(normalized, taxRateNum);
     onClose();
   };
 
@@ -92,6 +101,29 @@ export default function ProductCategoryModal({
             className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             placeholder="Örn: Elektronik"
           />
+          
+          <label className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="category-tax-rate">
+            <Percent className="h-4 w-4 text-gray-400" />
+            KDV Oranı (%)
+          </label>
+          <input
+            id="category-tax-rate"
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={taxRate}
+            onChange={event => {
+              setTaxRate(event.target.value);
+              if (error) {
+                setError('');
+              }
+            }}
+            className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Örn: 18"
+          />
+          <p className="mt-1 text-xs text-gray-500">Bu kategorideki ürünler için varsayılan KDV oranı</p>
+          
           {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         </div>
 

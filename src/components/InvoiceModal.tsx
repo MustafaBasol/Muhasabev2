@@ -20,6 +20,7 @@ interface InvoiceItem {
   total: number;
   productId?: string;
   unit?: string;
+  taxRate?: number; // KDV oranı
 }
 
 interface InvoiceModalProps {
@@ -29,8 +30,6 @@ interface InvoiceModalProps {
   customers?: Customer[];
   products?: Product[];
 }
-
-const TAX_RATE = 0.18;
 
 const defaultItems: InvoiceItem[] = [
   { id: '1', description: '', quantity: 1, unitPrice: 0, total: 0 },
@@ -59,8 +58,14 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
 
   React.useEffect(() => {
     if (!invoice) {
+      // Geçici fatura numarası - Backend gerçek numarayı oluşturacak
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const tempNumber = `INV-${year}-${month}-XXX`;
+      
       setInvoiceData({
-        invoiceNumber: `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
+        invoiceNumber: tempNumber,
         customerId: '',
         customerName: '',
         customerEmail: '',
@@ -80,8 +85,14 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       return;
     }
 
+    // Düzenleme modunda backend'den gelen numarayı kullan
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const tempNumber = `INV-${year}-${month}-XXX`;
+    
     setInvoiceData({
-      invoiceNumber: invoice.invoiceNumber || `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
+      invoiceNumber: invoice.invoiceNumber || tempNumber,
       customerId: invoice.customerId || '',
       customerName: invoice.customer?.name || invoice.customerName || '',
       customerEmail: invoice.customer?.email || invoice.customerEmail || '',
@@ -156,9 +167,24 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     );
   };
 
-  const subtotal = items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
-  const taxAmount = subtotal * TAX_RATE;
-  const total = subtotal + taxAmount;
+  // Real-time özet hesaplama - Her ürün kendi KDV oranıyla
+  const totalWithTax = items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+  
+  // Her ürün için KDV hesapla
+  let subtotal = 0;
+  let taxAmount = 0;
+  
+  items.forEach(item => {
+    const itemTotal = Number(item.total) || 0;
+    const itemTaxRate = Number(item.taxRate ?? 18) / 100; // %18 -> 0.18
+    const itemSubtotal = itemTotal / (1 + itemTaxRate); // KDV HARİÇ
+    const itemTax = itemTotal - itemSubtotal; // KDV tutarı
+    
+    subtotal += itemSubtotal;
+    taxAmount += itemTax;
+  });
+  
+  const total = totalWithTax; // KDV DAHİL toplam
 
   const filteredCustomers = customers.filter(customer => {
     const query = customerSearch.trim().toLowerCase();
@@ -218,6 +244,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         }
         const quantity = item.quantity > 0 ? item.quantity : 1;
         const unitPrice = Number(product.unitPrice ?? item.unitPrice ?? 0);
+        const taxRate = Number(product.taxRate ?? 18); // Ürünün KDV oranı veya varsayılan %18
         return {
           ...item,
           productId: product.id,
@@ -226,13 +253,14 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
           unit: product.unit,
           quantity,
           total: quantity * unitPrice,
+          taxRate, // KDV oranını item'a ekle
         };
       })
     );
     setActiveProductDropdown(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     console.log('🔍 InvoiceModal handleSave - Validation başlıyor:', {
       customerId: invoiceData.customerId,
       customerName: invoiceData.customerName,
@@ -258,10 +286,24 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       return;
     }
     
-    // Calculate totals from items
-    const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
-    const taxAmount = subtotal * TAX_RATE;
-    const total = subtotal + taxAmount;
+    // Calculate totals from items - Her ürün kendi KDV oranıyla
+    const totalWithTax = items.reduce((sum, item) => sum + (item.total || 0), 0);
+    
+    // Her ürün için KDV hesapla
+    let subtotal = 0;
+    let taxAmount = 0;
+    
+    items.forEach(item => {
+      const itemTotal = Number(item.total) || 0;
+      const itemTaxRate = Number(item.taxRate ?? 18) / 100; // %18 -> 0.18
+      const itemSubtotal = itemTotal / (1 + itemTaxRate);
+      const itemTax = itemTotal - itemSubtotal;
+      
+      subtotal += itemSubtotal;
+      taxAmount += itemTax;
+    });
+    
+    const total = totalWithTax;
     
     const newInvoice: any = {
       invoiceNumber: invoiceData.invoiceNumber,
@@ -293,7 +335,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       total: newInvoice.total
     });
     
-    onSave(newInvoice);
+    await onSave(newInvoice);
     onClose();
   };
 
@@ -328,8 +370,9 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
               <input
                 type="text"
                 value={invoiceData.invoiceNumber}
-                onChange={(event) => setInvoiceData({ ...invoiceData, invoiceNumber: event.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                title="Fatura numarası otomatik oluşturulur"
               />
             </div>
             <div>
@@ -444,8 +487,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '40%' }}>Aciklama</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '12%' }}>Miktar</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '18%' }}>Birim Fiyat</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '18%' }}>Toplam</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '18%' }}>Birim Fiyat (KDV Dahil)</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '18%' }}>Toplam (KDV Dahil)</th>
                     <th className="px-4 py-3 text-center text-sm font-medium text-gray-700" style={{ width: '12%' }}>Islem</th>
                   </tr>
                 </thead>
@@ -504,7 +547,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                                     </div>
                                     <div className="flex items-center justify-between mt-2 text-sm">
                                       <span className="font-medium text-green-600">
-                                        {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY
+                                        {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                                       </span>
                                       <span className="text-gray-500">
                                         Stok: <span className={product.stockQuantity > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
@@ -525,10 +568,10 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                           <input
                             type="number"
                             value={item.quantity}
-                            onChange={(event) => updateItem(item.id, 'quantity', parseFloat(event.target.value) || 0)}
+                            onChange={(event) => updateItem(item.id, 'quantity', parseInt(event.target.value, 10) || 1)}
                             className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            min="0"
-                            step="0.01"
+                            min="1"
+                            step="1"
                           />
                         </td>
                         <td className="px-4 py-3">
@@ -543,7 +586,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                         </td>
                         <td className="px-4 py-3">
                           <span className="font-medium text-gray-900">
-                            {item.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY
+                            {item.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -567,16 +610,16 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
             <div className="flex justify-end">
               <div className="w-64 space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Ara Toplam:</span>
-                  <span className="font-medium">{subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY</span>
+                  <span className="text-gray-600">Ara Toplam (KDV Hariç):</span>
+                  <span className="font-medium">{subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">KDV (%18):</span>
-                  <span className="font-medium">{taxAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY</span>
+                  <span className="text-gray-600">KDV:</span>
+                  <span className="font-medium">{taxAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t border-gray-300 pt-2">
-                  <span>Genel Toplam:</span>
-                  <span>{total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY</span>
+                  <span>Genel Toplam (KDV Dahil):</span>
+                  <span>{total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>

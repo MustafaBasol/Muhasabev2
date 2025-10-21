@@ -433,7 +433,7 @@ export default function SaleModal({
             </div>
             {selectedProductOption && (
               <p className="mt-1 text-xs text-gray-500">
-                Stok: {selectedProductOption.stockQuantity} {selectedProductOption.unit || ''} | Fiyat: {selectedProductOption.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY
+                Stok: {selectedProductOption.stockQuantity} {selectedProductOption.unit || ''} | Fiyat: {selectedProductOption.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
               </p>
             )}
             {errors.productName && <p className="text-red-500 text-xs mt-1">{errors.productName}</p>}
@@ -455,7 +455,7 @@ export default function SaleModal({
                       {(product.sku ? `SKU: ${product.sku}` : '')}{product.sku && product.category ? ' • ' : ''}{product.category || ''}
                     </div>
                     <div className="text-xs text-gray-500">
-                      Fiyat: {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY | Stok: {product.stockQuantity}
+                      Fiyat: {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} | Stok: {product.stockQuantity}
                     </div>
                   </button>
                 ))}
@@ -472,13 +472,14 @@ export default function SaleModal({
                 onChange={(event) => setSaleData({ ...saleData, quantity: parseInt(event.target.value, 10) || 1 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 min="1"
+                step="1"
               />
               {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <DollarSign className="w-4 h-4 inline mr-2" />
-                Birim Fiyat (TRY) *
+                Birim Fiyat (KDV Dahil) *
               </label>
               <input
                 type="number"
@@ -492,9 +493,9 @@ export default function SaleModal({
               {errors.unitPrice && <p className="text-red-500 text-xs mt-1">{errors.unitPrice}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Toplam</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Toplam (KDV Dahil)</label>
               <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 font-medium">
-                {safeTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TRY
+                {safeTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
               </div>
             </div>
           </div>

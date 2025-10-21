@@ -192,16 +192,23 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const totalSales = sales.reduce((sum, sale) => sum + toNumber(sale.amount ?? sale.total ?? (toNumber(sale.quantity) * toNumber(sale.unitPrice))), 0);
   const completedSales = sales.filter(sale => sale.status === 'completed').length;
 
-  const filteredSales = sales.filter(sale => {
-    const matchesSearch = 
-      sale.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sale.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (sale.saleNumber && sale.saleNumber.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = statusFilter === 'all' || sale.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredSales = sales
+    .filter(sale => {
+      const matchesSearch = 
+        sale.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sale.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (sale.saleNumber && sale.saleNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesStatus = statusFilter === 'all' || sale.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      // En yeni satışlar en üstte (ID'ye göre ters sıralama)
+      const aId = String(a.id || '');
+      const bId = String(b.id || '');
+      return bId.localeCompare(aId);
+    });
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -279,6 +286,21 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     if (selectedSaleForInvoice) {
       const sale = selectedSaleForInvoice;
       
+      // Satışın zaten faturası var mı kontrol et
+      if (sale.invoiceId) {
+        console.log('ℹ️ Bu satışın zaten faturası var:', sale.invoiceId);
+        
+        // Mevcut faturayı bul ve göster
+        const existingInvoice = invoices.find(inv => inv.id === sale.invoiceId);
+        if (existingInvoice) {
+          setShowInvoiceConfirmModal(false);
+          setSelectedSaleForInvoice(null);
+          setViewingInvoice(existingInvoice);
+          setShowInvoiceViewModal(true);
+          return;
+        }
+      }
+      
       console.log('🔍 Fatura oluşturma başladı:', {
         saleCustomerName: sale.customerName,
         saleCustomerEmail: sale.customerEmail,
@@ -298,12 +320,12 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       const calculatedTotal = sale.amount && sale.amount > 0 ? sale.amount : fallbackUnitPrice * quantity;
       const totalAmount = Number.isFinite(calculatedTotal) ? calculatedTotal : 0;
       
-      // KDV hariç tutarları hesapla
-      const subtotalAmount = totalAmount / (1 + TAX_RATE);
-      const taxAmount = totalAmount - subtotalAmount;
+      // Satıştaki tutar ZATEN KDV DAHİL
+      // Backend InvoiceModal mantığıyla çalışıyor: items'daki fiyatlar KDV DAHİL olmalı
+      // Backend kendi KDV hesabını yapacak (totalWithTax / 1.18 = subtotal)
       
-      // Birim fiyat KDV hariç olmalı
-      const unitPriceWithoutTax = quantity > 0 ? subtotalAmount / quantity : (fallbackUnitPrice / (1 + TAX_RATE));
+      // Birim fiyat KDV DAHİL olmalı (satıştaki gibi)
+      const unitPriceWithTax = quantity > 0 ? totalAmount / quantity : fallbackUnitPrice;
 
       // Fatura türünü ürün kategorisine göre belirle
       const productCategory = (matchedProduct?.category || '').toLowerCase().trim();
@@ -391,14 +413,12 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             productName: matchedProduct?.name || sale.productName,
             description: matchedProduct?.name || sale.productName,
             quantity,
-            unitPrice: unitPriceWithoutTax,
-            total: subtotalAmount,
+            unitPrice: unitPriceWithTax, // KDV DAHİL fiyat (InvoiceModal ile tutarlı)
+            total: totalAmount, // KDV DAHİL toplam (InvoiceModal ile tutarlı)
+            taxRate: matchedProduct?.taxRate ?? 18, // Ürünün KDV oranı veya varsayılan %18
           },
         ],
-        subtotal: subtotalAmount,
-        taxAmount: taxAmount,
-        discountAmount: 0,
-        total: totalAmount,
+        // subtotal ve taxAmount'u backend hesaplayacak (App.tsx'deki mantık)
         notes: 'Bu fatura ' + (sale.saleNumber || ('SAL-' + sale.id)) + ' numaralı satıştan oluşturulmuştur.',
       };
 
@@ -406,9 +426,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         customerId: invoiceData.customerId,
         customerName: sale.customerName,
         saleId: invoiceData.saleId,
-        subtotal: subtotalAmount,
-        taxAmount: taxAmount,
-        total: totalAmount,
+        totalWithTax: totalAmount,
+        unitPriceWithTax: unitPriceWithTax,
+        quantity: quantity,
         lineItems: invoiceData.lineItems
       });
 
@@ -417,33 +437,37 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
           // Faturayı oluştur ve ID'sini al
           const createdInvoice = await onCreateInvoice(invoiceData);
           
-          console.log('✅ Fatura oluşturuldu, satış güncelleniyor:', {
-            invoiceId: createdInvoice.id,
-            saleId: sale.id
-          });
-          
-          // Satışı invoiceId ile güncelle
-          const updatedSale = { ...sale, invoiceId: createdInvoice.id };
-          const updatedSales = sales.map(s => s.id === sale.id ? updatedSale : s);
-          
-          if (onSalesUpdate) {
-            onSalesUpdate(updatedSales);
+          // Eğer invoice oluşturuldu ve ID varsa
+          if (createdInvoice && createdInvoice.id) {
+            console.log('✅ Fatura oluşturuldu, satış güncelleniyor:', {
+              invoiceId: createdInvoice.id,
+              saleId: sale.id
+            });
+            
+            // Satışı invoiceId ile güncelle
+            const updatedSale = { ...sale, invoiceId: createdInvoice.id };
+            const updatedSales = sales.map(s => s.id === sale.id ? updatedSale : s);
+            
+            if (onSalesUpdate) {
+              onSalesUpdate(updatedSales);
+            }
+            
+            console.log('🔗 Satış-Fatura ilişkisi kuruldu');
+            
+            // Başarılı olduktan sonra modal'ı kapat
+            setShowInvoiceConfirmModal(false);
+            setSelectedSaleForInvoice(null);
+          } else {
+            console.error('❌ Fatura oluşturuldu ama ID alınamadı:', createdInvoice);
+            // Modal açık kalsın, kullanıcı tekrar denesin
           }
-          
-          console.log('🔗 Satış-Fatura ilişkisi kuruldu');
         }
       } catch (error) {
         console.error('❌ Fatura oluşturma hatası:', error);
         // Hata durumunda modal açık kalır, kullanıcı tekrar deneyebilir
         return;
       }
-
-      // Close modal
-      setShowInvoiceConfirmModal(false);
-      setSelectedSaleForInvoice(null);
     }
-    setShowInvoiceConfirmModal(false);
-    setSelectedSaleForInvoice(null);
   };
 
   const handleCancelCreateInvoice = () => {

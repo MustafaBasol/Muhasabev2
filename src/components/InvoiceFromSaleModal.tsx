@@ -211,7 +211,7 @@ export default function InvoiceFromSaleModal({
                   <span>{formatCurrency(sale.amount / 1.18)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>KDV (%18):</span>
+                  <span>KDV:</span>
                   <span>{formatCurrency(sale.amount - (sale.amount / 1.18))}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t border-blue-300 pt-2">

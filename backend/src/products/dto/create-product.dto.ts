@@ -58,4 +58,10 @@ export class CreateProductDto {
   @IsNumber()
   @Min(0)
   taxRate?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  categoryTaxRateOverride?: number;
 }

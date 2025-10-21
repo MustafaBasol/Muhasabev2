@@ -47,6 +47,9 @@ export class Product {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
   taxRate: number;
 
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  categoryTaxRateOverride: number; // Ürüne özel KDV oranı (kategorinin KDV'sini override eder)
+
   @Column({ default: true })
   isActive: boolean;
 

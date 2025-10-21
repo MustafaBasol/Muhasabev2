@@ -28,6 +28,8 @@ interface ProductFormState {
   reorderLevel: string;
   unit: string;
   description: string;
+  hasCustomTaxRate: boolean;
+  categoryTaxRateOverride: string;
 }
 
 const defaultState: ProductFormState = {
@@ -40,6 +42,8 @@ const defaultState: ProductFormState = {
   reorderLevel: '10',
   unit: 'adet',
   description: '',
+  hasCustomTaxRate: false,
+  categoryTaxRateOverride: '',
 };
 
 export default function ProductModal({ isOpen, onClose, onSave, product, categories }: ProductModalProps) {
@@ -75,6 +79,8 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
         reorderLevel: product.reorderLevel ? String(product.reorderLevel) : '10',
         unit: product.unit || 'adet',
         description: product.description || '',
+        hasCustomTaxRate: product.categoryTaxRateOverride != null,
+        categoryTaxRateOverride: product.categoryTaxRateOverride != null ? String(product.categoryTaxRateOverride) : '',
       });
     } else {
       setFormState({
@@ -138,6 +144,14 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       description: formState.description.trim(),
       status: stockQuantity === 0 ? 'out-of-stock' : stockQuantity <= reorderLevel ? 'low' : 'active',
     };
+
+    // Özel KDV oranı varsa ekle
+    if (formState.hasCustomTaxRate && formState.categoryTaxRateOverride) {
+      const taxRateOverride = Number(formState.categoryTaxRateOverride);
+      if (!isNaN(taxRateOverride) && taxRateOverride >= 0 && taxRateOverride <= 100) {
+        nextProduct.categoryTaxRateOverride = taxRateOverride;
+      }
+    }
     
     // Only include ID if editing existing product
     if (product?.id) {
@@ -254,6 +268,39 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                   className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="adet"
                 />
+              </div>
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={formState.hasCustomTaxRate}
+                    onChange={(event) => handleChange('hasCustomTaxRate', event.target.checked ? 'true' : 'false')}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  />
+                  Bu ürün için özel KDV oranı kullan (kategorinin KDV'sini geçersiz kılar)
+                </label>
+                {formState.hasCustomTaxRate && (
+                  <div className="mt-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-custom-tax">
+                      <DollarSign className="h-4 w-4 text-gray-400" />
+                      Özel KDV Oranı (%)
+                    </label>
+                    <input
+                      id="product-custom-tax"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={formState.categoryTaxRateOverride}
+                      onChange={(event) => handleChange('categoryTaxRateOverride', event.target.value)}
+                      className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Örn: 18"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Bu ürün için özel KDV oranı. Kategorinin varsayılan KDV'si yerine bu oran kullanılacaktır.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </section>

@@ -195,7 +195,7 @@ export default function InvoiceViewModal({
                 <span className="font-medium">{formatAmount(Number(invoice.subtotal) || 0)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">KDV (%18):</span>
+                <span className="text-gray-600">KDV:</span>
                 <span className="font-medium">{formatAmount(Number(invoice.taxAmount) || 0)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold border-t border-gray-300 pt-3">

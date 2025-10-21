@@ -1,4 +1,4 @@
-import { X, Edit, Calendar, User, Package, CreditCard, Download } from 'lucide-react';
+import { X, Edit, Calendar, User, Package, CreditCard, Download, Trash2 } from 'lucide-react';
 import type { Sale } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 
@@ -17,6 +17,7 @@ interface SaleViewModalProps {
   onClose: () => void;
   sale: Sale | null;
   onEdit: (sale: Sale) => void;
+  onDelete?: (saleId: string) => void;
   onDownload?: (sale: Sale) => void;
 }
 
@@ -25,6 +26,7 @@ export default function SaleViewModal({
   onClose, 
   sale, 
   onEdit,
+  onDelete,
   onDownload
 }: SaleViewModalProps) {
   const { formatCurrency } = useCurrency();
@@ -91,11 +93,20 @@ export default function SaleViewModal({
             )}
             <button
               onClick={() => onEdit(sale)}
-              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Edit className="w-4 h-4" />
               <span>Düzenle</span>
             </button>
+            {onDelete && (
+              <button
+                onClick={() => onDelete(sale.id)}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Sil</span>
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"

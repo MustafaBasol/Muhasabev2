@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// Use environment variable or relative path for production
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3002');
+// Use /api prefix to leverage Vite proxy in development
+// In production, the API will be on the same origin
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : '/api');
 
 console.log('🔗 API Base URL:', API_BASE_URL);
 console.log('🏭 Production Mode:', import.meta.env.PROD);

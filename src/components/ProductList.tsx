@@ -29,6 +29,8 @@ export interface Product {
   createdAt: string;
   status?: string;
   description?: string;
+  taxRate?: number; // KDV oranı (örn: 18 = %18)
+  categoryTaxRateOverride?: number; // Ürüne özel KDV oranı (kategorinin KDV'sini override eder)
 }
 
 interface ProductListProps {
