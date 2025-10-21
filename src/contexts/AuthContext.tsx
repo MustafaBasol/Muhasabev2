@@ -47,10 +47,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem('user');
     const storedTenant = localStorage.getItem('tenant');
 
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-      if (storedTenant) {
-        setTenant(JSON.parse(storedTenant));
+    console.log('🔍 AuthContext localStorage kontrolü:', {
+      token: token ? 'var' : 'yok',
+      storedUser,
+      storedTenant
+    });
+
+    if (token && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
+      try {
+        setUser(JSON.parse(storedUser));
+        console.log('✅ User localStorage\'dan yüklendi');
+      } catch (error) {
+        console.error('❌ User parse hatası:', error);
+        localStorage.removeItem('user');
+      }
+      
+      if (storedTenant && storedTenant !== 'undefined' && storedTenant !== 'null') {
+        try {
+          setTenant(JSON.parse(storedTenant));
+          console.log('✅ Tenant localStorage\'dan yüklendi');
+        } catch (error) {
+          console.error('❌ Tenant parse hatası:', error);
+          localStorage.removeItem('tenant');
+        }
       }
     }
     setIsLoading(false);

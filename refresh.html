@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Force Refresh Test</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+</head>
+<body>
+    <h1>Cache Temizleme Testi</h1>
+    <script>
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 2000);
+    </script>
+    <p>2 saniye içinde ana sayfaya yönlendirileceksiniz...</p>
+</body>
+</html>

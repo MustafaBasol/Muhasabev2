@@ -233,8 +233,19 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   };
 
   const handleSave = () => {
+    console.log('🔍 InvoiceModal handleSave - Validation başlıyor:', {
+      customerId: invoiceData.customerId,
+      customerName: invoiceData.customerName,
+      selectedCustomer: selectedCustomer?.name,
+      customerSearch: customerSearch
+    });
+
     // Validation
     if (!invoiceData.customerId) {
+      console.error('❌ customerId validation failed:', {
+        customerId: invoiceData.customerId,
+        selectedCustomer: selectedCustomer
+      });
       setValidationError('Lütfen müşteri seçin');
       return;
     }
@@ -255,6 +266,9 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     const newInvoice: any = {
       invoiceNumber: invoiceData.invoiceNumber,
       customerId: invoiceData.customerId,
+      customerName: invoiceData.customerName,
+      customerEmail: invoiceData.customerEmail,
+      customerAddress: invoiceData.customerAddress,
       issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
       dueDate: invoiceData.dueDate || new Date().toISOString().split('T')[0],
       items,
@@ -270,6 +284,14 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       newInvoice.id = invoice.id;
       newInvoice.createdAt = invoice.createdAt;
     }
+    
+    console.log('💾 InvoiceModal - onSave\'e gönderilecek veri:', {
+      customerId: newInvoice.customerId,
+      customerName: newInvoice.customerName,
+      customerEmail: newInvoice.customerEmail,
+      itemCount: newInvoice.items.length,
+      total: newInvoice.total
+    });
     
     onSave(newInvoice);
     onClose();
@@ -430,9 +452,6 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                 <tbody className="divide-y divide-gray-200" style={{ position: 'relative' }}>
                   {items.map((item) => {
                     const productMatches = getProductMatches(item.description);
-                    const selectedProduct = item.productId
-                      ? products.find(product => product.id === item.productId)
-                      : null;
 
                     return (
                       <tr key={item.id}>

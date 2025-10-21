@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: moneyflow-prod-db
+    environment:
+      POSTGRES_DB: moneyflow_production
+      POSTGRES_USER: moneyflow_prod
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      # PRODUCTION: Host makinede kalıcı klasör
+      - /var/lib/postgresql/data:/var/lib/postgresql/data
+      - ./backups:/backups
+    restart: unless-stopped
+    networks:
+      - moneyflow-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: moneyflow-prod-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      # PRODUCTION: Host makinede kalıcı klasör
+      - /var/lib/redis:/data
+    restart: unless-stopped
+    networks:
+      - moneyflow-network
+
+  # Otomatik backup servisi
+  postgres-backup:
+    image: kartoza/pg-backup:15.0
+    container_name: moneyflow-backup
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: moneyflow_production
+      POSTGRES_USER: moneyflow_prod
+      POSTGRES_PASS: ${DATABASE_PASSWORD}
+      POSTGRES_PORT: 5432
+      # Her gün saat 3'te backup al
+      CRON_SCHEDULE: "0 3 * * *"
+      # 30 gün backup sakla
+      DB_DUMP_SAFEGUARDS: TRUE
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - moneyflow-network
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/postgresql
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/redis
+
+networks:
+  moneyflow-network:
+    driver: bridge

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LocalStorage Temizle</title>
+</head>
+<body>
+    <h1>LocalStorage Temizleniyor...</h1>
+    <script>
+        localStorage.clear();
+        sessionStorage.clear();
+        console.log('✅ LocalStorage temizlendi');
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1000);
+    </script>
+    <p>LocalStorage temizlendi, ana sayfaya yönlendiriliyor...</p>
+</body>
+</html>

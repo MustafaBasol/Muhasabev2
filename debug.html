@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Debug</title>
+</head>
+<body>
+    <h1>Frontend Debug</h1>
+    <div id="console-output"></div>
+    
+    <script>
+        // Console hijacking to show errors
+        const originalConsoleError = console.error;
+        const originalConsoleLog = console.log;
+        const output = document.getElementById('console-output');
+        
+        function addToOutput(type, ...args) {
+            const div = document.createElement('div');
+            div.style.color = type === 'error' ? 'red' : 'black';
+            div.textContent = `[${type.toUpperCase()}] ${args.join(' ')}`;
+            output.appendChild(div);
+        }
+        
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            addToOutput('error', ...args);
+        };
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            addToOutput('log', ...args);
+        };
+        
+        // Test API connection
+        fetch('/api/health')
+            .then(response => response.text())
+            .then(data => {
+                addToOutput('log', 'API Health Check:', data);
+            })
+            .catch(error => {
+                addToOutput('error', 'API Health Check Failed:', error.message);
+            });
+            
+        // Test if React app loads
+        setTimeout(() => {
+            const root = document.getElementById('root');
+            if (root && root.innerHTML.trim() === '') {
+                addToOutput('error', 'React app did not mount - root div is empty');
+            } else {
+                addToOutput('log', 'React app seems to be mounted');
+            }
+        }, 3000);
+    </script>
+    
+    <!-- Load the main React app -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

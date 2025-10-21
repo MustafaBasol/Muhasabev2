@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, Download, Edit, Calendar, Building2, Tag, Receipt } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 
@@ -6,12 +5,17 @@ interface Expense {
   id: string;
   expenseNumber: string;
   description: string;
-  supplier: string;
-  amount: number;
+  supplier?: {
+    id: string;
+    name: string;
+    email: string;
+    address: string;
+  };
+  amount: number | string;
   category: string;
-  status: 'draft' | 'approved' | 'paid';
+  status: 'draft' | 'approved' | 'paid' | 'pending' | 'rejected';
   expenseDate: string;
-  dueDate: string;
+  notes?: string;
   receiptUrl?: string;
 }
 
@@ -34,22 +38,47 @@ export default function ExpenseViewModal({
   
   if (!isOpen || !expense) return null;
 
+  // Kategori çeviri haritası
+  const categoryLabels: { [key: string]: string } = {
+    'equipment': 'Ekipman',
+    'utilities': 'Faturalar (Elektrik, Su, İnternet)',
+    'rent': 'Kira',
+    'salaries': 'Maaşlar',
+    'supplies': 'Malzemeler',
+    'marketing': 'Pazarlama',
+    'travel': 'Seyahat',
+    'insurance': 'Sigorta',
+    'taxes': 'Vergiler',
+    'other': 'Diğer'
+  };
+
+  // Kategori çeviri fonksiyonu
+  const getCategoryLabel = (category: string): string => {
+    return categoryLabels[category] || category;
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR');
   };
 
-  const formatAmount = (amount: number) => {
-    return formatCurrency(amount);
+  const formatAmount = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return formatCurrency(numAmount || 0);
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       draft: { label: 'Taslak', class: 'bg-gray-100 text-gray-800' },
       approved: { label: 'Onaylandı', class: 'bg-blue-100 text-blue-800' },
-      paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' }
+      paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' },
+      pending: { label: 'Beklemede', class: 'bg-yellow-100 text-yellow-800' },
+      rejected: { label: 'Reddedildi', class: 'bg-red-100 text-red-800' }
     };
     
-    const config = statusConfig[status as keyof typeof statusConfig];
+    const config = statusConfig[status as keyof typeof statusConfig] || { 
+      label: status || 'Bilinmeyen', 
+      class: 'bg-gray-100 text-gray-800' 
+    };
     return (
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.class}`}>
         {config.label}
@@ -80,7 +109,10 @@ export default function ExpenseViewModal({
               </button>
             )}
             <button
-              onClick={() => onEdit(expense)}
+              onClick={() => {
+                onClose(); // Önce view modal'ı kapat
+                setTimeout(() => onEdit(expense), 100); // Sonra edit modal'ı aç
+              }}
               className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               <Edit className="w-4 h-4" />
@@ -106,17 +138,10 @@ export default function ExpenseViewModal({
                   <span className="text-gray-600">Gider Tarihi:</span>
                   <span className="ml-2 font-medium">{formatDate(expense.expenseDate)}</span>
                 </div>
-                {expense.dueDate && (
-                  <div className="flex items-center text-sm">
-                    <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                    <span className="text-gray-600">Ödeme Tarihi:</span>
-                    <span className="ml-2 font-medium">{formatDate(expense.dueDate)}</span>
-                  </div>
-                )}
                 <div className="flex items-center text-sm">
                   <Tag className="w-4 h-4 text-gray-400 mr-2" />
                   <span className="text-gray-600">Kategori:</span>
-                  <span className="ml-2 font-medium">{expense.category}</span>
+                  <span className="ml-2 font-medium">{getCategoryLabel(expense.category)}</span>
                 </div>
               </div>
             </div>
@@ -127,8 +152,20 @@ export default function ExpenseViewModal({
                 <div className="flex items-center text-sm">
                   <Building2 className="w-4 h-4 text-gray-400 mr-2" />
                   <span className="text-gray-600">Tedarikçi:</span>
-                  <span className="ml-2 font-medium">{expense.supplier}</span>
+                  <span className="ml-2 font-medium">{expense.supplier?.name || 'Tedarikçi Yok'}</span>
                 </div>
+                {expense.supplier?.email && (
+                  <div className="flex items-center text-sm">
+                    <span className="text-gray-600">E-posta:</span>
+                    <span className="ml-2 font-medium">{expense.supplier.email}</span>
+                  </div>
+                )}
+                {expense.supplier?.address && (
+                  <div className="flex items-start text-sm">
+                    <span className="text-gray-600">Adres:</span>
+                    <span className="ml-2 font-medium">{expense.supplier.address}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -170,6 +207,16 @@ export default function ExpenseViewModal({
                     Fiş/Faturayı Görüntüle
                   </a>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {expense.notes && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Notlar</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-gray-700">{expense.notes}</p>
               </div>
             </div>
           )}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Receipt, Calendar, Building2, Tag } from 'lucide-react';
+import { X, Receipt, Calendar, Building2, Tag } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 
 interface Expense {
@@ -38,16 +38,16 @@ interface ExpenseModalProps {
 }
 
 const categories = [
-  { label: 'Kira', value: 'rent' },
+  { label: 'Diğer', value: 'other' },
+  { label: 'Ekipman', value: 'equipment' },
   { label: 'Faturalar (Elektrik, Su, İnternet)', value: 'utilities' },
+  { label: 'Kira', value: 'rent' },
   { label: 'Maaşlar', value: 'salaries' },
   { label: 'Malzemeler', value: 'supplies' },
   { label: 'Pazarlama', value: 'marketing' },
   { label: 'Seyahat', value: 'travel' },
-  { label: 'Ekipman', value: 'equipment' },
   { label: 'Sigorta', value: 'insurance' },
   { label: 'Vergiler', value: 'taxes' },
-  { label: 'Diğer', value: 'other' },
 ];
 
 export default function ExpenseModal({ isOpen, onClose, onSave, expense, suppliers = [], supplierInfo }: ExpenseModalProps) {
@@ -58,7 +58,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
     description: expense?.description || '',
     supplier: expense?.supplier?.name || expense?.supplierId || supplierInfo?.name || '',
     supplierId: expense?.supplierId || '',
-    amount: expense?.amount || 0,
+    amount: String(expense?.amount || 0),
     category: expense?.category || supplierInfo?.category || 'other',
     status: expense?.status || 'pending',
     expenseDate: expense?.expenseDate || new Date().toISOString().split('T')[0],
@@ -78,7 +78,8 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
         expenseNumber: `EXP-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
         description: '',
         supplier: supplierInfo?.name || '',
-        amount: 0,
+        supplierId: '',
+        amount: "0",
         category: supplierInfo?.category || 'other',
         status: 'pending',
         expenseDate: new Date().toISOString().split('T')[0],
@@ -91,8 +92,9 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
       setExpenseData({
         expenseNumber: expense.expenseNumber,
         description: expense.description,
-        supplier: expense.supplier?.name || expense.supplierId || '',
-        amount: expense.amount,
+        supplier: expense.supplier?.name || '',
+        supplierId: expense.supplier?.id || '',
+        amount: String(expense.amount),
         category: expense.category,
         status: expense.status,
         expenseDate: expense.expenseDate,
@@ -109,7 +111,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
       alert('Lütfen açıklama girin');
       return;
     }
-    if (!expenseData.amount || parseFloat(expenseData.amount) <= 0) {
+    if (!expenseData.amount || Number(expenseData.amount) <= 0) {
       alert('Lütfen geçerli bir tutar girin');
       return;
     }
@@ -120,10 +122,10 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
     
     const newExpense: any = {
       description: expenseData.description.trim(),
-      amount: parseFloat(expenseData.amount),
+      amount: Number(expenseData.amount),
       category: expenseData.category,
-      date: expenseData.date || expenseData.expenseDate || new Date().toISOString().split('T')[0],
-      supplierId: expenseData.supplierId || undefined,
+      expenseDate: expenseData.expenseDate || new Date().toISOString().split('T')[0],
+      supplierId: expenseData.supplierId && expenseData.supplierId.trim() ? expenseData.supplierId : null,
       status: expenseData.status || 'pending',
       notes: expenseData.notes?.trim() || '',
     };
@@ -131,7 +133,6 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
     // Only include ID if editing
     if (expense?.id) {
       newExpense.id = expense.id;
-      newExpense.createdAt = expense.createdAt;
     }
     
     onSave(newExpense);
@@ -218,37 +219,52 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
                 <Building2 className="w-4 h-4 inline mr-2" />
                 Tedarikçi/Firma
               </label>
-              <input
-                type="text"
-                value={expenseData.supplier}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setExpenseData({...expenseData, supplier: value, supplierId: ''});
-                  
-                  // Filter suppliers
-                  if (value.length >= 2) {
-                    const filtered = suppliers?.filter(s => 
-                      s.name.toLowerCase().includes(value.toLowerCase()) ||
-                      s.email?.toLowerCase().includes(value.toLowerCase())
-                    );
-                    setFilteredSuppliers(filtered || []);
-                    setShowSupplierDropdown(true);
-                  } else {
-                    setShowSupplierDropdown(false);
-                  }
-                }}
-                onFocus={() => {
-                  if (expenseData.supplier.length >= 2) {
-                    setShowSupplierDropdown(true);
-                  }
-                }}
-                onBlur={() => {
-                  // Delay to allow click on dropdown item
-                  setTimeout(() => setShowSupplierDropdown(false), 200);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                placeholder="Tedarikçi adı yazın..."
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={expenseData.supplier}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setExpenseData({...expenseData, supplier: value, supplierId: ''});
+                    
+                    // Filter suppliers
+                    if (value.length >= 2) {
+                      const filtered = suppliers?.filter(s => 
+                        s.name.toLowerCase().includes(value.toLowerCase()) ||
+                        s.email?.toLowerCase().includes(value.toLowerCase())
+                      );
+                      setFilteredSuppliers(filtered || []);
+                      setShowSupplierDropdown(true);
+                    } else {
+                      setShowSupplierDropdown(false);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (expenseData.supplier.length >= 2) {
+                      setShowSupplierDropdown(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay to allow click on dropdown item
+                    setTimeout(() => setShowSupplierDropdown(false), 200);
+                  }}
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Tedarikçi adı yazın..."
+                />
+                {/* Clear supplier button */}
+                {expenseData.supplier && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpenseData({...expenseData, supplier: '', supplierId: ''});
+                      setShowSupplierDropdown(false);
+                    }}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               
               {/* Autocomplete Dropdown */}
               {showSupplierDropdown && filteredSuppliers.length > 0 && (
@@ -285,7 +301,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               <input
                 type="number"
                 value={expenseData.amount}
-                onChange={(e) => setExpenseData({...expenseData, amount: parseFloat(e.target.value) || 0})}
+                onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 placeholder="0.00"
                 min="0"
@@ -360,7 +376,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <div className="flex justify-between items-center">
               <span className="text-red-800 font-medium">Toplam Gider:</span>
               <span className="text-xl font-bold text-red-600">
-                {formatCurrency(expenseData.amount || 0)}
+                {formatCurrency(Number(expenseData.amount) || 0)}
               </span>
             </div>
           </div>

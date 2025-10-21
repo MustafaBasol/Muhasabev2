@@ -47,8 +47,9 @@ export default function InvoiceViewModal({
     return new Date(dateString).toLocaleDateString('tr-TR');
   };
 
-  const formatAmount = (amount: number) => {
-    return formatCurrency(amount);
+  const formatAmount = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return formatCurrency(numAmount || 0);
   };
 
   const getStatusBadge = (status: string) => {
@@ -88,7 +89,10 @@ export default function InvoiceViewModal({
               <span>PDF İndir</span>
             </button>
             <button
-              onClick={() => onEdit?.(invoice)}
+              onClick={() => {
+                onClose(); // Önce view modal'ı kapat
+                setTimeout(() => onEdit?.(invoice), 100); // Sonra edit modal'ı aç
+              }}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Edit className="w-4 h-4" />
@@ -171,10 +175,10 @@ export default function InvoiceViewModal({
                       <td className="px-4 py-3 text-sm text-gray-900">{item.description}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.quantity}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                        {formatAmount(item.unitPrice)}
+                        {formatAmount(Number(item.unitPrice) || 0)}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">
-                        {formatAmount(item.total)}
+                        {formatAmount(Number(item.total) || 0)}
                       </td>
                     </tr>
                   ))}
@@ -188,15 +192,15 @@ export default function InvoiceViewModal({
             <div className="w-80 space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Ara Toplam:</span>
-                <span className="font-medium">{formatAmount(invoice.subtotal)}</span>
+                <span className="font-medium">{formatAmount(Number(invoice.subtotal) || 0)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">KDV (%18):</span>
-                <span className="font-medium">{formatAmount(invoice.taxAmount)}</span>
+                <span className="font-medium">{formatAmount(Number(invoice.taxAmount) || 0)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold border-t border-gray-300 pt-3">
                 <span>Genel Toplam:</span>
-                <span>{formatAmount(invoice.total)}</span>
+                <span>{formatAmount(Number(invoice.total) || 0)}</span>
               </div>
             </div>
           </div>

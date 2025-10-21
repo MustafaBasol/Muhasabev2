@@ -37,7 +37,7 @@ interface SimpleSalesPageProps {
   invoices?: any[];
   onSalesUpdate?: (sales: any[]) => void;
   onUpsertSale?: (sale: any) => void; // Tek satış için
-  onCreateInvoice?: (invoiceData: any) => void;
+  onCreateInvoice?: (invoiceData: any) => Promise<any>; // Promise döndürüyor
   onEditInvoice?: (invoice: any) => void;
   onDownloadSale?: (sale: Sale) => void;
   products?: Product[];
@@ -255,9 +255,10 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const handleCreateInvoiceFromSale = (sale: any) => {
     console.log('📄 Fatura oluşturma talebi:', sale.id, sale.saleNumber);
     
-    // Check if invoice already exists for this sale
+    // Check if invoice already exists for this sale (iki türlü kontrol)
     const existingInvoice = invoices.find(invoice => 
-      invoice.saleId && String(invoice.saleId) === String(sale.id)
+      (invoice.saleId && String(invoice.saleId) === String(sale.id)) ||
+      (sale.invoiceId && String(sale.invoiceId) === String(invoice.id))
     );
 
     if (existingInvoice) {
@@ -274,7 +275,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     }
   };
 
-  const handleConfirmCreateInvoice = () => {
+  const handleConfirmCreateInvoice = async () => {
     if (selectedSaleForInvoice) {
       const sale = selectedSaleForInvoice;
       
@@ -411,8 +412,30 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         lineItems: invoiceData.lineItems
       });
 
-      if (onCreateInvoice) {
-        onCreateInvoice(invoiceData);
+      try {
+        if (onCreateInvoice) {
+          // Faturayı oluştur ve ID'sini al
+          const createdInvoice = await onCreateInvoice(invoiceData);
+          
+          console.log('✅ Fatura oluşturuldu, satış güncelleniyor:', {
+            invoiceId: createdInvoice.id,
+            saleId: sale.id
+          });
+          
+          // Satışı invoiceId ile güncelle
+          const updatedSale = { ...sale, invoiceId: createdInvoice.id };
+          const updatedSales = sales.map(s => s.id === sale.id ? updatedSale : s);
+          
+          if (onSalesUpdate) {
+            onSalesUpdate(updatedSales);
+          }
+          
+          console.log('🔗 Satış-Fatura ilişkisi kuruldu');
+        }
+      } catch (error) {
+        console.error('❌ Fatura oluşturma hatası:', error);
+        // Hata durumunda modal açık kalır, kullanıcı tekrar deneyebilir
+        return;
       }
 
       // Close modal
@@ -725,12 +748,18 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           <button 
                             onClick={() => handleCreateInvoiceFromSale(sale)}
                             className={`p-1 rounded transition-colors ${
-                              invoices.some(inv => inv.saleId && String(inv.saleId) === String(sale.id))
+                              invoices.some(inv => 
+                                (inv.saleId && String(inv.saleId) === String(sale.id)) ||
+                                (sale.invoiceId && String(sale.invoiceId) === String(inv.id))
+                              )
                                 ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-blue-50'
                                 : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                             }`}
                             title={
-                              invoices.some(inv => inv.saleId && String(inv.saleId) === String(sale.id))
+                              invoices.some(inv => 
+                                (inv.saleId && String(inv.saleId) === String(sale.id)) ||
+                                (sale.invoiceId && String(sale.invoiceId) === String(inv.id))
+                              )
                                 ? 'Faturayı Görüntüle'
                                 : 'Fatura Oluştur'
                             }

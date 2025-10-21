@@ -57,10 +57,10 @@ export default function InvoiceList({
   });
 
   const filteredInvoices = invoices.filter(invoice => {
-    const normalizedSearch = searchTerm.toLowerCase();
+    const normalizedSearch = (searchTerm || '').toLowerCase();
     const matchesSearch = 
-      invoice.invoiceNumber.toLowerCase().includes(normalizedSearch) ||
-      (invoice.customer?.name ? invoice.customer.name.toLowerCase().includes(normalizedSearch) : false);
+      (invoice.invoiceNumber || '').toLowerCase().includes(normalizedSearch) ||
+      (invoice.customer?.name || '').toLowerCase().includes(normalizedSearch);
     
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
     
@@ -256,7 +256,7 @@ export default function InvoiceList({
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <span className="text-sm font-semibold text-gray-900">
-                          {formatAmount(invoice.total)}
+                          {formatAmount(Number(invoice.total) || 0)}
                         </span>
                       </div>
                     </td>

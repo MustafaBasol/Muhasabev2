@@ -4,6 +4,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -39,6 +41,12 @@ async function bootstrap() {
     transform: true,
   }));
 
+  // Global exception filter
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
+  // Global logging interceptor
+  app.useGlobalInterceptors(new LoggingInterceptor());
+
   // Swagger setup
   const config = new DocumentBuilder()
     .setTitle('MoneyFlow API')
@@ -51,7 +59,8 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   const port = 3002; // Fixed port to avoid conflicts
-  const host = '0.0.0.0';
+  const host = '0.0.0.0'; // Bu tüm interface'lerde dinlemeyi sağlar
+  
   await app.listen(port, host);
 
   const codespaceName = process.env.CODESPACE_NAME;
@@ -61,5 +70,6 @@ async function bootstrap() {
 
   console.log(`🚀 Application is running on: ${externalUrl}`);
   console.log(`📚 Swagger documentation: ${externalUrl}/api`);
+  console.log(`🔗 Local access: http://localhost:${port}`);
 }
 bootstrap();

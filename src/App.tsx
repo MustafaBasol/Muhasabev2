@@ -37,6 +37,11 @@ import SaleModal from "./components/SaleModal";
 import BankModal from "./components/BankModal";
 import SettingsPage from "./components/SettingsPage";
 
+// New Invoice Flow Modals
+import InvoiceTypeSelectionModal from "./components/InvoiceTypeSelectionModal";
+import ExistingSaleSelectionModal from "./components/ExistingSaleSelectionModal";
+import InvoiceFromSaleModal from "./components/InvoiceFromSaleModal";
+
 // view modals
 import CustomerViewModal from "./components/CustomerViewModal";
 import ProductViewModal from "./components/ProductViewModal";
@@ -292,6 +297,12 @@ const AppContent: React.FC = () => {
   const [showCustomerHistoryModal, setShowCustomerHistoryModal] = useState(false);
   const [showSupplierHistoryModal, setShowSupplierHistoryModal] = useState(false);
 
+  // New Invoice Flow States
+  const [showInvoiceTypeModal, setShowInvoiceTypeModal] = useState(false);
+  const [showExistingSaleModal, setShowExistingSaleModal] = useState(false);
+  const [showInvoiceFromSaleModal, setShowInvoiceFromSaleModal] = useState(false);
+  const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<any>(null);
+
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -359,19 +370,34 @@ const AppContent: React.FC = () => {
           expensesApi.getExpenses(),
         ]);
 
-        console.log('✅ Backend verisi yüklendi:', {
-          customers: customersData.length,
-          suppliers: suppliersData.length,
-          products: productsData.length,
-          invoices: invoicesData.length,
-          expenses: expensesData.length
+        console.log('✅ Backend verisi yüklendi. Raw data:', {
+          customers: customersData,
+          suppliers: suppliersData,
+          products: productsData,
+          invoices: invoicesData,
+          expenses: expensesData
         });
 
-        setCustomers(customersData);
-        setSuppliers(suppliersData);
+        // Verilerin array olduğundan emin olalım
+        const safeCustomersData = Array.isArray(customersData) ? customersData : [];
+        const safeSuppliersData = Array.isArray(suppliersData) ? suppliersData : [];
+        const safeProductsData = Array.isArray(productsData) ? productsData : [];
+        const safeInvoicesData = Array.isArray(invoicesData) ? invoicesData : [];
+        const safeExpensesData = Array.isArray(expensesData) ? expensesData : [];
+
+        console.log('✅ Güvenli veri boyutları:', {
+          customers: safeCustomersData.length,
+          suppliers: safeSuppliersData.length,
+          products: safeProductsData.length,
+          invoices: safeInvoicesData.length,
+          expenses: safeExpensesData.length
+        });
+
+        setCustomers(safeCustomersData);
+        setSuppliers(safeSuppliersData);
         
         // Map backend product fields to frontend format
-        const mappedProducts = productsData.map((p: any) => ({
+        const mappedProducts = safeProductsData.map((p: any) => ({
           ...p,
           sku: p.code,
           unitPrice: Number(p.price) || 0,
@@ -383,22 +409,22 @@ const AppContent: React.FC = () => {
         setProducts(mappedProducts);
         
         // Map backend expense fields to frontend format
-        const mappedExpenses = expensesData.map((e: any) => ({
+        const mappedExpenses = safeExpensesData.map((e: any) => ({
           ...e,
-          supplier: e.supplier?.name || '',
+          supplier: e.supplier || null, // Supplier object'ini olduğu gibi koru
           expenseDate: typeof e.expenseDate === 'string' ? e.expenseDate : new Date(e.expenseDate).toISOString().split('T')[0],
           dueDate: e.dueDate || e.expenseDate,
         }));
         
-        setInvoices(invoicesData);
+        setInvoices(safeInvoicesData);
         setExpenses(mappedExpenses);
         
         // Cache all data to localStorage for persistence
-        localStorage.setItem('customers_cache', JSON.stringify(customersData));
-        localStorage.setItem('suppliers_cache', JSON.stringify(suppliersData));
+        localStorage.setItem('customers_cache', JSON.stringify(safeCustomersData));
+        localStorage.setItem('suppliers_cache', JSON.stringify(safeSuppliersData));
         localStorage.setItem('products_cache', JSON.stringify(mappedProducts));
-        localStorage.setItem('invoices_cache', JSON.stringify(invoicesData));
-        localStorage.setItem('expenses_cache', JSON.stringify(expensesData));
+        localStorage.setItem('invoices_cache', JSON.stringify(safeInvoicesData));
+        localStorage.setItem('expenses_cache', JSON.stringify(safeExpensesData));
         
         console.log('💾 Tüm veriler localStorage\'a kaydedildi');
       } catch (error) {
@@ -485,9 +511,11 @@ const AppContent: React.FC = () => {
     if (savedProducts) {
       try {
         const productsData = JSON.parse(savedProducts);
-        console.log('✅ Ürünler cache\'den yüklendi:', productsData.length);
+        // Ensure it's an array
+        const safeProductsData = Array.isArray(productsData) ? productsData : [];
+        console.log('✅ Ürünler cache\'den yüklendi:', safeProductsData.length);
         // Ensure numeric values
-        const normalizedProducts = productsData.map((p: any) => ({
+        const normalizedProducts = safeProductsData.map((p: any) => ({
           ...p,
           unitPrice: Number(p.unitPrice) || 0,
           costPrice: Number(p.costPrice) || 0,
@@ -875,7 +903,13 @@ const AppContent: React.FC = () => {
         type: invoiceData.type || 'product', // Fatura türü
         issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
         dueDate: invoiceData.dueDate,
-        lineItems: invoiceData.items || invoiceData.lineItems || [],
+        lineItems: (invoiceData.items || invoiceData.lineItems || []).map((item: any) => ({
+          productId: item.productId,
+          productName: item.description || item.productName,
+          quantity: Number(item.quantity) || 1,
+          unitPrice: Number(item.unitPrice) || 0,
+          total: Number(item.total) || 0,
+        })),
         taxAmount: Number(invoiceData.taxAmount || 0),
         discountAmount: Number(invoiceData.discountAmount || 0),
         notes: invoiceData.notes || '',
@@ -909,11 +943,88 @@ const AppContent: React.FC = () => {
           type: created.type,
           customer: created.customer
         });
+        
+        // Eğer mevcut bir satış yoksa (saleId yok) otomatik satış oluştur
+        if (!cleanData.saleId && cleanData.lineItems && cleanData.lineItems.length > 0) {
+          try {
+            console.log('🔄 Otomatik satış oluşturuluyor...');
+            
+            // Müşteri bilgilerini frontend'den al (daha güvenli)
+            const customerInfo = customers.find(c => c.id === cleanData.customerId);
+            const customerName = customerInfo?.name || invoiceData.customerName || 'N/A';
+            const customerEmail = customerInfo?.email || invoiceData.customerEmail || '';
+            
+            console.log('👤 Müşteri bilgileri hazırlandı:', {
+              customerId: cleanData.customerId,
+              customerName: customerName,
+              customerEmail: customerEmail,
+              backendCustomer: created.customer?.name,
+              frontendCustomer: customerInfo?.name
+            });
+            
+            // Fatura kalemlerinden satış verisi hazırla
+            const firstItem = cleanData.lineItems[0];
+            
+            // Tutar hesaplaması: Fatura toplam tutarı veya ilk ürün tutarı
+            const saleAmount = Number(created.total) || (Number(firstItem.quantity) * Number(firstItem.unitPrice)) || 0;
+            
+            const saleData = {
+              customerName: customerName,
+              customerEmail: customerEmail,
+              productName: firstItem.productName || firstItem.description || 'Satış Kalemi',
+              quantity: Number(firstItem.quantity) || 1,
+              unitPrice: Number(firstItem.unitPrice) || 0,
+              amount: saleAmount,
+              date: cleanData.issueDate,
+              paymentMethod: 'card' as const,
+              notes: `${created.invoiceNumber} numaralı faturadan otomatik oluşturuldu.`,
+              invoiceId: created.id
+            };
+            
+            console.log('💰 Satış tutar hesaplaması:', {
+              createdTotal: created.total,
+              firstItemQuantity: firstItem.quantity,
+              firstItemUnitPrice: firstItem.unitPrice,
+              calculatedAmount: saleAmount,
+              finalSaleData: {
+                amount: saleData.amount,
+                quantity: saleData.quantity,
+                unitPrice: saleData.unitPrice
+              }
+            });
+            
+            // Satış oluştur
+            const newSale = {
+              ...saleData,
+              id: String(Date.now()),
+              saleNumber: `SAL-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
+              status: 'completed' as const,
+              invoiceId: created.id, // Fatura ID'sini satışa ekle
+            };
+            
+            const newSales = [...sales, newSale];
+            setSales(newSales);
+            localStorage.setItem('sales_cache', JSON.stringify(newSales));
+            
+            console.log('✅ Otomatik satış oluşturuldu:', {
+              id: newSale.id,
+              saleNumber: newSale.saleNumber,
+              customer: newSale.customerName,
+              amount: newSale.amount,
+              invoiceId: newSale.invoiceId
+            });
+            
+          } catch (saleError) {
+            console.error('⚠️ Otomatik satış oluşturulamadı:', saleError);
+            // Fatura başarılı oldu ama satış oluşturulamadı, kullanıcıyı uyar
+          }
+        }
+        
         const newInvoices = [...invoices, created];
         setInvoices(newInvoices);
         localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
         console.log('💾 Fatura cache güncellendi (create)');
-        showToast('Fatura oluşturuldu', 'success');
+        showToast('Fatura ve satış oluşturuldu', 'success');
       }
     } catch (error: any) {
       console.error('Invoice upsert error:', error);
@@ -946,7 +1057,7 @@ const AppContent: React.FC = () => {
         category: expenseData.category || 'other',
         status: expenseData.status || 'pending',
         date: expenseData.date || expenseData.expenseDate || new Date().toISOString().split('T')[0],
-        supplierId: expenseData.supplierId || undefined,
+        supplierId: expenseData.supplierId === null ? null : (expenseData.supplierId || undefined),
         notes: expenseData.notes || '',
       };
       
@@ -954,7 +1065,7 @@ const AppContent: React.FC = () => {
         const updated = await expensesApi.updateExpense(String(expenseData.id), cleanData);
         const mappedUpdated: any = {
           ...updated,
-          supplier: typeof updated.supplier === 'string' ? updated.supplier : (updated.supplier?.name || ''),
+          supplier: updated.supplier || null, // Supplier object'ini olduğu gibi koru
           expenseDate: updated.expenseDate ? (typeof updated.expenseDate === 'string' ? updated.expenseDate : new Date(updated.expenseDate).toISOString().split('T')[0]) : cleanData.date,
           dueDate: updated.dueDate || updated.expenseDate || cleanData.date,
         };
@@ -966,7 +1077,7 @@ const AppContent: React.FC = () => {
         const created = await expensesApi.createExpense(cleanData);
         const mappedCreated: any = {
           ...created,
-          supplier: typeof created.supplier === 'string' ? created.supplier : (created.supplier?.name || ''),
+          supplier: created.supplier || null, // Supplier object'ini olduğu gibi koru
           expenseDate: created.expenseDate ? (typeof created.expenseDate === 'string' ? created.expenseDate : new Date(created.expenseDate).toISOString().split('T')[0]) : cleanData.date,
           dueDate: created.dueDate || created.expenseDate || cleanData.date,
         };
@@ -1314,8 +1425,80 @@ const AppContent: React.FC = () => {
   };
 
   const openInvoiceModal = (invoice?: any) => {
-    setSelectedInvoice(invoice ?? null);
+    // Eğer mevcut fatura düzenleniyor ise direkt eski modalı aç
+    if (invoice) {
+      setSelectedInvoice(invoice);
+      setShowInvoiceModal(true);
+    } else {
+      // Yeni fatura için tip seçim modalını aç
+      setShowInvoiceTypeModal(true);
+    }
+  };
+
+  // Yeni fatura akışı handler'ları
+  const handleNewSaleForInvoice = () => {
+    setShowInvoiceTypeModal(false);
+    // Direkt eski invoice modal'ını aç
+    setSelectedInvoice(null);
     setShowInvoiceModal(true);
+  };
+
+  const handleExistingSaleForInvoice = () => {
+    setShowInvoiceTypeModal(false);
+    setShowExistingSaleModal(true);
+  };
+
+  const handleSelectSaleForInvoice = (sale: any) => {
+    setSelectedSaleForInvoice(sale);
+    setShowExistingSaleModal(false);
+    setShowInvoiceFromSaleModal(true);
+  };
+
+  const handleCreateInvoiceFromSale = async (invoiceData: any) => {
+    try {
+      console.log('🔍 Invoice data gönderilecek:', invoiceData);
+      
+      // Frontend modaldan gelen veriyi backend formatına dönüştür
+      const backendData = {
+        customerId: invoiceData.customerId,
+        issueDate: invoiceData.issueDate,
+        dueDate: invoiceData.dueDate,
+        type: invoiceData.type || 'service',
+        lineItems: (invoiceData.items || []).map((item: any) => ({
+          productId: item.productId,
+          productName: item.description,
+          quantity: Number(item.quantity) || 1,
+          unitPrice: Number(item.unitPrice) || 0,
+          total: Number(item.total) || 0,
+        })),
+        taxAmount: Number(invoiceData.taxAmount) || 0,
+        notes: invoiceData.notes || '',
+      };
+      
+      console.log('🚀 Backend formatında gönderilecek veri:', backendData);
+      
+      // Backend'e invoice oluştur
+      const created = await invoicesApi.createInvoice(backendData);
+      
+      // Frontend state'ini güncelle
+      const newInvoices = [...invoices, created];
+      setInvoices(newInvoices);
+      localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
+      
+      showToast('Fatura başarıyla oluşturuldu', 'success');
+      
+      // Modal'ları kapat
+      setShowInvoiceFromSaleModal(false);
+      setSelectedSaleForInvoice(null);
+      
+      // Oluşturulan faturayı döndür
+      return created;
+    } catch (error: any) {
+      console.error('Invoice creation error:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Fatura oluşturulamadı';
+      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+      throw error;
+    }
   };
 
   const openExpenseModal = (expense?: any, supplierHint?: any) => {
@@ -1458,8 +1641,16 @@ const AppContent: React.FC = () => {
 
   const handleDownloadInvoice = async (invoice: any) => {
     try {
+      // PDF generator için invoice verisini uygun formata çevir
+      const mappedInvoice = {
+        ...invoice,
+        customerName: invoice.customer?.name || 'N/A',
+        customerEmail: invoice.customer?.email || '',
+        customerAddress: invoice.customer?.address || '',
+      };
+      
       const module = await import("./utils/pdfGenerator");
-      await module.generateInvoicePDF(invoice, { company });
+      await module.generateInvoicePDF(mappedInvoice, { company });
     } catch (error) {
       console.error(error);
     }
@@ -1679,6 +1870,7 @@ const AppContent: React.FC = () => {
             onNewExpense={() => openExpenseModal()}
             onNewSale={() => openSaleModal()}
             onNewCustomer={() => openCustomerModal()}
+            onNewProduct={() => openProductModal()}
             onViewCustomers={() => navigateTo("customers")}
             onViewSuppliers={() => navigateTo("suppliers")}
             onViewBanks={() => navigateTo("banks")}
@@ -1948,6 +2140,38 @@ const AppContent: React.FC = () => {
             closeSupplierModal();
           }}
           supplier={selectedSupplier}
+        />
+      )}
+
+      {/* Yeni Fatura Akışı Modal'ları */}
+      {showInvoiceTypeModal && (
+        <InvoiceTypeSelectionModal
+          isOpen={showInvoiceTypeModal}
+          onClose={() => setShowInvoiceTypeModal(false)}
+          onSelectNewSale={handleNewSaleForInvoice}
+          onSelectExistingSale={handleExistingSaleForInvoice}
+        />
+      )}
+
+      {showExistingSaleModal && (
+        <ExistingSaleSelectionModal
+          isOpen={showExistingSaleModal}
+          onClose={() => setShowExistingSaleModal(false)}
+          onSelectSale={handleSelectSaleForInvoice}
+          sales={sales}
+          existingInvoices={invoices}
+        />
+      )}
+
+      {showInvoiceFromSaleModal && selectedSaleForInvoice && (
+        <InvoiceFromSaleModal
+          isOpen={showInvoiceFromSaleModal}
+          onClose={() => {
+            setShowInvoiceFromSaleModal(false);
+            setSelectedSaleForInvoice(null);
+          }}
+          onSave={handleCreateInvoiceFromSale}
+          sale={selectedSaleForInvoice}
         />
       )}
 

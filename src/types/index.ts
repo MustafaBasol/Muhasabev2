@@ -86,6 +86,7 @@ export interface Sale {
   notes?: string;
   productId?: string;
   productUnit?: string;
+  invoiceId?: string; // Fatura ID'si (fatura oluşturulduysa)
 }
 
 export interface Bank {

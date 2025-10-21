@@ -1,6 +1,5 @@
 ﻿import React from 'react';
 import {
-  Plus,
   FileText,
   Receipt,
   TrendingUp,
@@ -15,6 +14,7 @@ interface QuickActionsProps {
   onNewExpense: () => void;
   onNewSale: () => void;
   onNewCustomer: () => void;
+  onNewProduct: () => void;
   onViewCustomers: () => void;
   onViewSuppliers: () => void;
   onViewBanks: () => void;
@@ -30,6 +30,7 @@ export default function QuickActions({
   onNewExpense,
   onNewSale,
   onNewCustomer,
+  onNewProduct,
   onViewCustomers,
   onViewSuppliers,
   onViewBanks,
@@ -71,11 +72,11 @@ export default function QuickActions({
       onClick: onNewCustomer,
     },
     {
-      title: 'Ürünler',
-      description: productCount > 0 ? `${productCount} ürün stokta` : 'Stok ve fiyatları yönet',
+      title: 'Yeni Ürün',
+      description: 'Ürün bilgisi ekle',
       icon: Package,
       color: 'bg-amber-500 hover:bg-amber-600',
-      onClick: onViewProducts,
+      onClick: onNewProduct,
     },
   ];
 
@@ -120,16 +121,18 @@ export default function QuickActions({
               key={index}
               type="button"
               onClick={action.onClick}
-              className={`${action.color} flex items-center justify-between rounded-lg px-4 py-4 text-left text-white shadow transition-all duration-200 hover:scale-[1.02] hover:shadow-lg`}
+              className={`${action.color} rounded-lg px-4 py-4 text-left text-white shadow transition-all duration-200 hover:scale-[1.02] hover:shadow-lg h-28`}
             >
-              <div className="flex items-center space-x-3">
-                <action.icon className="h-6 w-6" />
-                <div>
-                  <div className="text-sm font-semibold">{action.title}</div>
-                  <div className="text-xs opacity-90">{action.description}</div>
-                </div>
+              {/* Başlık üst satırda */}
+              <div className="h-6 flex items-center mb-3">
+                <div className="text-sm font-semibold">{action.title}</div>
               </div>
-              <Plus className="h-5 w-5 opacity-80" />
+              
+              {/* İkon ve açıklama yan yana alt satırda */}
+              <div className="flex items-start space-x-3">
+                <action.icon className="h-5 w-5 flex-shrink-0" />
+                <div className="text-xs opacity-90 leading-normal">{action.description}</div>
+              </div>
             </button>
           ))}
         </div>

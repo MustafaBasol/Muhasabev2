@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
-import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, DollarSign, Check, X } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 
 interface Expense {
   id: string;
   expenseNumber: string;
   description: string;
-  supplier: string;
-  amount: number;
+  supplier?: {
+    id: string;
+    name: string;
+    email: string;
+    address: string;
+  };
+  amount: number | string;
   category: string;
   status: 'pending' | 'approved' | 'paid' | 'rejected';
   expenseDate: string;
-  dueDate: string;
+  notes?: string;
   receiptUrl?: string;
 }
 
@@ -43,13 +48,32 @@ export default function ExpenseList({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
 
-  const categories = ['Ofis Malzemeleri', 'Kira', 'Elektrik', 'Su', 'İnternet', 'Telefon', 'Yakıt', 'Yemek', 'Diğer'];
+  // Kategori çeviri haritası
+  const categoryLabels: { [key: string]: string } = {
+    'equipment': 'Ekipman',
+    'utilities': 'Faturalar (Elektrik, Su, İnternet)',
+    'rent': 'Kira',
+    'salaries': 'Maaşlar',
+    'supplies': 'Malzemeler',
+    'marketing': 'Pazarlama',
+    'travel': 'Seyahat',
+    'insurance': 'Sigorta',
+    'taxes': 'Vergiler',
+    'other': 'Diğer'
+  };
+
+  // Kategori çeviri fonksiyonu
+  const getCategoryLabel = (category: string): string => {
+    return categoryLabels[category] || category;
+  };
+
+  const categories = Object.keys(categoryLabels);
 
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = 
       expense.expenseNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+      (expense.supplier?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
     const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
@@ -77,8 +101,9 @@ export default function ExpenseList({
     return new Date(dateString).toLocaleDateString('tr-TR');
   };
 
-  const formatAmount = (amount: number) => {
-    return formatCurrency(amount);
+  const formatAmount = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return formatCurrency(numAmount || 0);
   };
 
   const handleInlineEdit = (expenseId: string, field: string, currentValue: string) => {
@@ -90,8 +115,6 @@ export default function ExpenseList({
   const handleSaveInlineEdit = (expense: Expense) => {
     if (editingField === 'status') {
       onUpdateExpense({ ...expense, status: tempValue as any });
-    } else if (editingField === 'dueDate') {
-      onUpdateExpense({ ...expense, dueDate: tempValue });
     }
     setEditingExpense(null);
     setEditingField(null);
@@ -154,7 +177,7 @@ export default function ExpenseList({
           >
             <option value="all">Tüm Kategoriler</option>
             {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
+              <option key={category} value={category}>{getCategoryLabel(category)}</option>
             ))}
           </select>
         </div>
@@ -239,12 +262,12 @@ export default function ExpenseList({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {expense.supplier}
+                        {expense.supplier?.name || 'Tedarikçi Yok'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">
-                        {expense.category}
+                        {getCategoryLabel(expense.category)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -310,19 +333,9 @@ export default function ExpenseList({
                           </button>
                         </div>
                       ) : (
-                        <div 
-                          onClick={() => handleInlineEdit(expense.id, 'dueDate', expense.dueDate)}
-                          className="cursor-pointer hover:bg-gray-50 rounded p-1"
-                        >
-                          <div className="flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            {formatDate(expense.expenseDate)}
-                          </div>
-                          {expense.dueDate && (
-                            <div className="text-xs text-gray-400">
-                              Vade: {formatDate(expense.dueDate)}
-                            </div>
-                          )}
+                        <div className="flex items-center">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          {formatDate(expense.expenseDate)}
                         </div>
                       )}
                     </td>

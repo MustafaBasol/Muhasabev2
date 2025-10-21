@@ -49,16 +49,40 @@ export class ExpensesService {
   }
 
   async update(tenantId: string, id: string, updateExpenseDto: any): Promise<Expense> {
-    const expense = await this.findOne(tenantId, id);
-    
-    // Map 'date' to 'expenseDate' for entity compatibility
-    if (updateExpenseDto.date && !updateExpenseDto.expenseDate) {
-      updateExpenseDto.expenseDate = updateExpenseDto.date;
-      delete updateExpenseDto.date;
+    console.log('ExpensesService.update called with:', {
+      tenantId,
+      id,
+      updateExpenseDto: JSON.stringify(updateExpenseDto),
+    });
+
+    try {
+      // Map 'date' to 'expenseDate' for entity compatibility
+      if (updateExpenseDto.date && !updateExpenseDto.expenseDate) {
+        updateExpenseDto.expenseDate = updateExpenseDto.date;
+        delete updateExpenseDto.date;
+      }
+
+      console.log('Processed updateExpenseDto:', JSON.stringify(updateExpenseDto));
+      
+      // Use query builder for more precise updates, especially for relations
+      const result = await this.expensesRepository
+        .createQueryBuilder()
+        .update(Expense)
+        .set(updateExpenseDto)
+        .where('id = :id AND tenantId = :tenantId', { id, tenantId })
+        .execute();
+
+      console.log('Update query result:', result);
+      
+      // Reload with relations to get accurate data
+      const updatedExpense = await this.findOne(tenantId, id);
+      console.log('Updated expense found:', JSON.stringify(updatedExpense));
+      
+      return updatedExpense;
+    } catch (error) {
+      console.error('Error in ExpensesService.update:', error);
+      throw error;
     }
-    
-    Object.assign(expense, updateExpenseDto);
-    return this.expensesRepository.save(expense);
   }
 
   async remove(tenantId: string, id: string): Promise<void> {
