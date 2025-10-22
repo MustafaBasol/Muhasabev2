@@ -36,6 +36,7 @@ import ExpenseModal from "./components/ExpenseModal";
 import SaleModal from "./components/SaleModal";
 import BankModal from "./components/BankModal";
 import SettingsPage from "./components/SettingsPage";
+import AdminPage from "./components/AdminPage";
 
 // New Invoice Flow Modals
 import InvoiceTypeSelectionModal from "./components/InvoiceTypeSelectionModal";
@@ -68,6 +69,7 @@ import ArchivePage from "./components/ArchivePage";
 import GeneralLedger from "./components/GeneralLedger";
 import SimpleSalesPage from "./components/SimpleSalesPage";
 import LoginPage from "./components/LoginPage";
+import RegisterPage from "./components/RegisterPage";
 import * as ExcelJS from 'exceljs';
 
 const defaultCompany: CompanyProfile = {
@@ -268,6 +270,11 @@ const AppContent: React.FC = () => {
   const { formatCurrency } = useCurrency();
   
   const [currentPage, setCurrentPage] = useState("dashboard");
+  
+  // Debug currentPage değişikliklerini
+  useEffect(() => {
+    console.log('CurrentPage değişti:', currentPage);
+  }, [currentPage]);
   const [user, setUser] = useState<User>({ name: authUser?.firstName || "User", email: authUser?.email || "" });
   const [accounts, setAccounts] = useState<any[]>([]);
   const [company, setCompany] = useState<CompanyProfile>(() => {
@@ -567,6 +574,38 @@ const AppContent: React.FC = () => {
 
   const normalizeId = (value?: string | number) => String(value ?? Date.now());
 
+  // URL hash routing for admin page
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      console.log('Hash değişti:', hash);
+      if (hash === 'admin') {
+        console.log('Admin sayfasına yönlendiriliyor...');
+        setCurrentPage('admin');
+      } else if (hash === 'register') {
+        console.log('Kayıt sayfasına yönlendiriliyor...');
+        setCurrentPage('register');
+      } else if (hash === 'login') {
+        console.log('Giriş sayfasına yönlendiriliyor...');
+        setCurrentPage('login');
+      } else if (hash === '') {
+        console.log('Ana sayfaya yönlendiriliyor...');
+        setCurrentPage('dashboard');
+      }
+    };
+
+    // Check initial hash
+    console.log('İlk hash kontrolü:', window.location.hash);
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
   const dismissToast = React.useCallback((toastId: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== toastId));
   }, []);
@@ -618,12 +657,6 @@ const AppContent: React.FC = () => {
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  };
-
-  const handleLogin = (_email: string, _password: string) => {
-    // This is now handled by AuthContext in LoginPage
-    // Keep for compatibility
-    return true;
   };
 
   const handleLogout = () => {
@@ -2182,6 +2215,8 @@ const AppContent: React.FC = () => {
             language={language}
           />
         );
+      case "admin":
+        return <AdminPage />;
       default:
         return renderDashboard();
     }
@@ -2438,8 +2473,18 @@ const AppContent: React.FC = () => {
     </>
   );
 
+  // Admin sayfası için authentication bypass
+  if (currentPage === 'admin') {
+    return <AdminPage />;
+  }
+
+  // Register sayfası için authentication bypass
+  if (currentPage === 'register') {
+    return <RegisterPage />;
+  }
+
   if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage />;
   }
 
   return (

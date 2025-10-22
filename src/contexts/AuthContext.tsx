@@ -25,11 +25,12 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: {
+    name: string;
     email: string;
     password: string;
-    firstName: string;
-    lastName: string;
-    companyName?: string;
+    company?: string;
+    phone?: string;
+    address?: string;
   }) => Promise<void>;
   logout: () => void;
 }
@@ -97,14 +98,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (registerData: {
+    name: string;
     email: string;
     password: string;
-    firstName: string;
-    lastName: string;
-    companyName?: string;
+    company?: string;
+    phone?: string;
+    address?: string;
   }) => {
     try {
-      const data = await authService.register(registerData);
+      // Name'i firstName ve lastName olarak ayır
+      const nameParts = registerData.name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      const authData = {
+        email: registerData.email,
+        password: registerData.password,
+        firstName,
+        lastName,
+        companyName: registerData.company
+      };
+      
+      const data = await authService.register(authData);
       handleAuthSuccess(data);
     } catch (error) {
       console.error('Registration failed:', error);
