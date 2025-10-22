@@ -6,17 +6,27 @@ Modern, güvenli ve ölçeklenebilir multi-tenant muhasebe ve finans yönetim si
 
 ## ⚡ GitHub Codespaces'te Hızlı Başlangıç
 
-**Codespaces'te çalışıyorsanız, detaylı kurulum için:**  
-📖 **[GITHUB_CODESPACES_SETUP.md](./GITHUB_CODESPACES_SETUP.md)** dosyasını okuyun!
-
-**Hızlı başlatma:**
+**🚀 Tek komutla başlatma:**
 ```bash
-./start-dev.sh
+./start-dev-new.sh
 ```
 
-**Erişim:**
-- Frontend: VS Code "Ports" sekmesinden 5173 portunu açın
-- Giriş: `admin@test.com` / `123456`
+**🛡️ Port kapanma önleme (ÖNERİLEN):**
+```bash
+./port-monitor.sh
+```
+
+**📚 Detaylı rehberler:**
+- **[CODESPACE_QUICKSTART.md](./CODESPACE_QUICKSTART.md)** - 5 dakikalık hızlı başlangıç
+- **[CODESPACE_SETUP_GUIDE.md](./CODESPACE_SETUP_GUIDE.md)** - Kapsamlı kurulum rehberi
+
+**🌐 Codespace URL'leri:**
+- Frontend: `https://[codespace-name]-5173.app.github.dev`
+- Backend: `https://[codespace-name]-3000.app.github.dev`
+
+**👤 Demo Login:**
+- E-posta: admin@test.com
+- Şifre: Test123456
 
 ---
 

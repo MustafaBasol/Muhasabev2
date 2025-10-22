@@ -16,7 +16,7 @@ pkill -f "nest|vite" 2>/dev/null || true
 sleep 2
 
 # Docker kontrol
-echo -e "${BLUE}� Docker servisleri kontrol ediliyor...${NC}"
+echo -e "${BLUE}🐳 Docker servisleri kontrol ediliyor...${NC}"
 if ! docker ps | grep -q "postgres\|redis"; then
     echo -e "${YELLOW}⚠️  Docker servisleri başlatılıyor...${NC}"
     cd /workspaces/Muhasabev2/backend
@@ -62,33 +62,36 @@ fi
 
 npm run dev &
 FRONTEND_PID=$!
-BACKEND_PID=$!
-echo "Backend PID: $BACKEND_PID"
 
-# Backend'in başlamasını bekle
-echo "⏳ Waiting for backend to start..."
-sleep 8
+# Frontend'in başlamasını bekle
+echo -e "${YELLOW}⏳ Frontend'in başlaması bekleniyor...${NC}"
+sleep 5
 
-# Frontend'i başlat
-echo "🎨 Starting frontend..."
-cd /workspaces/Muhasabev2
-npm run dev > /tmp/frontend.log 2>&1 &
-FRONTEND_PID=$!
-echo "Frontend PID: $FRONTEND_PID"
+# URL'leri göster
+echo ""
+echo -e "${GREEN}🎉 TÜM SERVİSLER BAŞARILI BAŞLATILDI!${NC}"
+echo "=================================================="
+echo -e "${BLUE}🔧 Backend:${NC}"
+echo "   • Local: http://localhost:3000"
+echo "   • External: https://$CODESPACE_NAME-3000.app.github.dev"
+echo "   • Health: http://localhost:3000/health"
+echo ""
+echo -e "${BLUE}🎨 Frontend:${NC}"
+echo "   • Local: http://localhost:5173"  
+echo "   • External: https://$CODESPACE_NAME-5173.app.github.dev"
+echo ""
+echo -e "${BLUE}👤 Demo Login:${NC}"
+echo "   • Email: admin@test.com"
+echo "   • Password: Test123456"
+echo ""
+echo -e "${YELLOW}📋 Process IDs:${NC}"
+echo "   • Backend PID: $BACKEND_PID"
+echo "   • Frontend PID: $FRONTEND_PID"
+echo ""
+echo -e "${GREEN}🌐 Frontend URL'i tarayıcıda aç:${NC}"
+echo -e "${BLUE}https://$CODESPACE_NAME-5173.app.github.dev${NC}"
+echo ""
+echo -e "${YELLOW}💡 Servisleri durdurmak için: Ctrl+C${NC}"
 
-echo ""
-echo "✅ All services started!"
-echo ""
-echo "📊 Services:"
-echo "  - Backend:  http://localhost:3002"
-echo "  - Frontend: http://localhost:5173"
-echo "  - Swagger:  http://localhost:3002/api"
-echo "  - pgAdmin:  http://localhost:5050"
-echo ""
-echo "📝 Logs:"
-echo "  - Backend:  tail -f /tmp/backend.log"
-echo "  - Frontend: tail -f /tmp/frontend.log"
-echo ""
-echo "🛑 To stop all services:"
-echo "  - kill $BACKEND_PID $FRONTEND_PID"
-echo "  - docker-compose -f /workspaces/Muhasabev2/backend/docker-compose.yml down"
+# Process'leri bekle
+wait
