@@ -11,7 +11,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - backend_postgres_data:/var/lib/postgresql/data
     networks:
       - moneyflow-network
 
@@ -21,7 +21,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - backend_redis_data:/data
     networks:
       - moneyflow-network
 
@@ -39,8 +39,10 @@ services:
       - moneyflow-network
 
 volumes:
-  postgres_data:
-  redis_data:
+  backend_postgres_data:
+    external: true
+  backend_redis_data:
+    external: true
 
 networks:
   moneyflow-network:

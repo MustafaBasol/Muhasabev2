@@ -1,5 +1,4 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Calendar, Filter, Eye, Edit, Trash2, BookOpen, TrendingUp, TrendingDown, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import InvoiceViewModal from './InvoiceViewModal';
 import ExpenseViewModal from './ExpenseViewModal';
 import SaleViewModal from './SaleViewModal';
@@ -49,26 +48,16 @@ interface GeneralLedgerProps {
 export default function GeneralLedger({
   invoices,
   expenses,
-  sales,
-  onViewInvoice,
-  onEditInvoice,
-  onViewExpense,
-  onEditExpense,
-  onViewSale,
-  onEditSale,
-  onViewEntry
+  sales
 }: GeneralLedgerProps) {
   const { formatCurrency } = useCurrency();
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [showExpenseModal, setShowExpenseModal] = useState(false);
-  const [showSaleModal, setShowSaleModal] = useState(false);
+  const [searchTerm] = useState('');
+  const [startDate] = useState('');
+  const [endDate] = useState('');
+  const [customerSearch] = useState('');
+  const [categoryFilter] = useState('');
+  const [typeFilter] = useState('all');
   const [viewingInvoice, setViewingInvoice] = useState<any>(null);
   const [viewingExpense, setViewingExpense] = useState<any>(null);
   const [viewingSale, setViewingSale] = useState<any>(null);
@@ -125,9 +114,9 @@ export default function GeneralLedger({
         entries.push({
           id: `inv-${invoice.id}`,
           date: invoice.issueDate,
-          description: `Fatura - ${invoice.customerName}`,
+          description: `Fatura - ${invoice.customerName || invoice.customer?.name || 'Müşteri'}`,
           reference: invoice.invoiceNumber,
-          customer: invoice.customerName,
+          customer: invoice.customerName || invoice.customer?.name || '',
           category,
           debit: 0,
           credit: invoice.status === 'paid' ? toNumber(invoice.total) : 0,
@@ -147,7 +136,7 @@ export default function GeneralLedger({
           date: expense.expenseDate,
           description: `Gider - ${expense.description}`,
           reference: expense.expenseNumber,
-          customer: expense.supplier,
+          customer: expense.supplier?.name || expense.supplier || '',
           category: expense.category,
           debit: expense.status === 'paid' ? toNumber(expense.amount) : 0,
           credit: 0,
@@ -300,13 +289,28 @@ export default function GeneralLedger({
 
       {/* View Modals */}
       {viewingInvoice && (
-        <InvoiceViewModal invoice={viewingInvoice} onClose={() => setViewingInvoice(null)} />
+        <InvoiceViewModal 
+          invoice={viewingInvoice} 
+          isOpen={true}
+          onClose={() => setViewingInvoice(null)} 
+          onEdit={() => {}} 
+        />
       )}
       {viewingExpense && (
-        <ExpenseViewModal expense={viewingExpense} onClose={() => setViewingExpense(null)} />
+        <ExpenseViewModal 
+          expense={viewingExpense} 
+          isOpen={true}
+          onClose={() => setViewingExpense(null)} 
+          onEdit={() => {}} 
+        />
       )}
       {viewingSale && (
-        <SaleViewModal sale={viewingSale} onClose={() => setViewingSale(null)} />
+        <SaleViewModal 
+          sale={viewingSale} 
+          isOpen={true}
+          onClose={() => setViewingSale(null)} 
+          onEdit={() => {}} 
+        />
       )}
     </div>
   );

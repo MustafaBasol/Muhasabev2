@@ -49,7 +49,21 @@ export const authService = {
   },
 
   logout() {
+    // Auth verileri
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
+    localStorage.removeItem('tenant');
+    
+    // Cache'leri temizle (güvenlik için)
+    localStorage.removeItem('bankAccounts');
+    localStorage.removeItem('sales');
+    localStorage.removeItem('customers_cache');
+    localStorage.removeItem('suppliers_cache');
+    localStorage.removeItem('products_cache');
+    localStorage.removeItem('invoices_cache');
+    localStorage.removeItem('expenses_cache');
+    localStorage.removeItem('notifications'); // Bildirimler de kullanıcıya özel
+    
+    // NOT: localStorage.clear() KULLANMA - diğer browser ayarlarını siler!
   },
 };

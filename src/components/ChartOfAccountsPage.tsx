@@ -39,36 +39,32 @@ export default function ChartOfAccountsPage({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValues, setTempValues] = useState<{[key: string]: string}>({});
 
-  // Demo hesap planı
+  // Gerçek verilerden hesap planı oluştur
   const defaultAccounts: Account[] = [
     // VARLIKLAR (ASSETS)
     { id: '1', code: '100', name: 'DÖNEN VARLIKLAR', type: 'asset', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '2', code: '101', name: 'Kasa', type: 'asset', parentId: '1', isActive: true, balance: 15000, createdAt: '2024-01-01' },
-    { id: '3', code: '102', name: 'Bankalar', type: 'asset', parentId: '1', isActive: true, balance: 200000, createdAt: '2024-01-01' },
-    { id: '4', code: '120', name: 'Alıcılar', type: 'asset', parentId: '1', isActive: true, balance: 85000, createdAt: '2024-01-01' },
+    { id: '2', code: '101', name: 'Kasa', type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '3', code: '102', name: 'Bankalar', type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '4', code: '120', name: 'Alıcılar', type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
     { id: '5', code: '150', name: 'DURAN VARLIKLAR', type: 'asset', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '6', code: '151', name: 'Demirbaşlar', type: 'asset', parentId: '5', isActive: true, balance: 125000, createdAt: '2024-01-01' },
     
     // YÜKÜMLÜLÜKLER (LIABILITIES)
     { id: '7', code: '200', name: 'KISA VADELİ YÜKÜMLÜLÜKLER', type: 'liability', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '8', code: '201', name: 'Satıcılar', type: 'liability', parentId: '7', isActive: true, balance: 45000, createdAt: '2024-01-01' },
-    { id: '9', code: '220', name: 'Vergi Dairesi', type: 'liability', parentId: '7', isActive: true, balance: 12000, createdAt: '2024-01-01' },
+    { id: '8', code: '201', name: 'Satıcılar', type: 'liability', parentId: '7', isActive: true, balance: 0, createdAt: '2024-01-01' },
     
     // ÖZKAYNAKLAR (EQUITY)
     { id: '10', code: '300', name: 'ÖZKAYNAKLAR', type: 'equity', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '11', code: '301', name: 'Sermaye', type: 'equity', parentId: '10', isActive: true, balance: 100000, createdAt: '2024-01-01' },
-    { id: '12', code: '302', name: 'Geçmiş Yıl Karları', type: 'equity', parentId: '10', isActive: true, balance: 75000, createdAt: '2024-01-01' },
     
     // GELİRLER (REVENUE)
     { id: '13', code: '600', name: 'GELİRLER', type: 'revenue', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '14', code: '601', name: 'Satış Gelirleri', type: 'revenue', parentId: '13', isActive: true, balance: 250000, createdAt: '2024-01-01' },
-    { id: '15', code: '602', name: 'Hizmet Gelirleri', type: 'revenue', parentId: '13', isActive: true, balance: 180000, createdAt: '2024-01-01' },
+    { id: '14', code: '601', name: 'Satış Gelirleri', type: 'revenue', parentId: '13', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '15', code: '602', name: 'Hizmet Gelirleri', type: 'revenue', parentId: '13', isActive: true, balance: 0, createdAt: '2024-01-01' },
     
     // GİDERLER (EXPENSES)
     { id: '16', code: '700', name: 'GİDERLER', type: 'expense', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '17', code: '701', name: 'Kira Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 36000, createdAt: '2024-01-01' },
-    { id: '18', code: '702', name: 'Personel Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 120000, createdAt: '2024-01-01' },
-    { id: '19', code: '703', name: 'Elektrik Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 8500, createdAt: '2024-01-01' },
+    { id: '17', code: '701', name: 'Kira Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '18', code: '702', name: 'Personel Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '19', code: '703', name: 'Elektrik Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
   ];
 
   const [currentAccounts, setCurrentAccounts] = useState<Account[]>(
@@ -81,15 +77,15 @@ export default function ChartOfAccountsPage({
     
     // Calculate based on account type and code
     switch (accountCode) {
-      case '101': // Kasa - Cash from completed sales
-        return sales
-          .filter(sale => sale.status === 'completed' && sale.paymentMethod === 'cash')
-          .reduce((sum, sale) => sum + (Number(sale.amount) || 0), 0);
+      case '101': // Kasa - Cash payments from paid invoices
+        return invoices
+          .filter(invoice => invoice.status === 'paid' && invoice.paymentMethod === 'cash')
+          .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
-      case '102': // Bankalar - Bank transfers and card payments
-        return sales
-          .filter(sale => sale.status === 'completed' && (sale.paymentMethod === 'card' || sale.paymentMethod === 'transfer'))
-          .reduce((sum, sale) => sum + (Number(sale.amount) || 0), 0);
+      case '102': // Bankalar - Bank/card payments from paid invoices
+        return invoices
+          .filter(invoice => invoice.status === 'paid' && (invoice.paymentMethod === 'card' || invoice.paymentMethod === 'transfer'))
+          .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
       case '120': // Alıcılar - Unpaid invoices (receivables)
         return invoices
@@ -101,16 +97,12 @@ export default function ChartOfAccountsPage({
           .filter(expense => expense.status === 'approved' || expense.status === 'pending')
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
-      case '601': // Satış Gelirleri - Total sales revenue (all completed sales + paid invoices)
-        const salesRevenue = sales
-          .filter(sale => sale.status === 'completed')
-          .reduce((sum, sale) => sum + (Number(sale.amount) || 0), 0);
-        const invoiceRevenue = invoices
+      case '601': // Satış Gelirleri - Product invoices only (no duplicate counting)
+        return invoices
           .filter(invoice => (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && invoice.type === 'product')
           .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
-        return salesRevenue + invoiceRevenue;
       
-      case '602': // Hizmet Gelirleri - Service revenue (invoices)
+      case '602': // Hizmet Gelirleri - Service invoices only
         return invoices
           .filter(invoice => (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && invoice.type === 'service')
           .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);

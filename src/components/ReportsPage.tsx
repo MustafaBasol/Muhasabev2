@@ -1,22 +1,16 @@
-import React, { useState, useMemo } from 'react';
-
-
+import { useState, useMemo } from 'react';
 
 import { 
   TrendingUp, 
   TrendingDown, 
   DollarSign, 
   Users, 
-  FileText, 
   Receipt, 
-  Calendar,
   ChevronDown,
   ChevronUp,
   BarChart3,
-  PieChart,
   Activity,
-  Target,
-  Wallet
+  Target
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 
@@ -209,8 +203,6 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
     };
   });
 
-  const maxValue = Math.max(...monthlyData.flatMap(d => [d.income, d.expense]));
-
   // Product sales analysis
   const productSales = useMemo(() => {
     const productMap = new Map();
@@ -219,7 +211,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
     invoices
       .filter(invoice => invoice.status === 'paid')
       .forEach(invoice => {
-        (invoice.items || []).forEach(item => {
+        (invoice.items || []).forEach((item: any) => {
           const existing = productMap.get(item.description) || { name: item.description, total: 0, count: 0 };
           existing.total += toNumber(item.total);
           existing.count += 1;
@@ -244,20 +236,6 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
       }
     });
     
-    // If no real data, add some demo data for visualization
-    if (productMap.size === 0) {
-      const demoProducts = [
-        { name: 'Web Tasarım Hizmeti', total: 15000, count: 3 },
-        { name: 'Mobil Uygulama', total: 25000, count: 2 },
-        { name: 'SEO Danışmanlığı', total: 8000, count: 4 },
-        { name: 'Grafik Tasarım', total: 5000, count: 5 }
-      ];
-      
-      demoProducts.forEach(product => {
-        productMap.set(product.name, product);
-      });
-    }
-    
     return Array.from(productMap.values())
       .sort((a, b) => b.total - a.total)
       .slice(0, 8);
@@ -275,20 +253,6 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
         existing.count += 1;
         categoryMap.set(expense.category, existing);
       });
-    
-    // If no real data, add some demo data
-    if (categoryMap.size === 0) {
-      const demoCategories = [
-        { category: 'Kira', total: 12000, count: 6 },
-        { category: 'Elektrik', total: 3500, count: 6 },
-        { category: 'İnternet', total: 1800, count: 6 },
-        { category: 'Ofis Malzemeleri', total: 2500, count: 8 }
-      ];
-      
-      demoCategories.forEach(cat => {
-        categoryMap.set(cat.category, cat);
-      });
-    }
     
     return Array.from(categoryMap.values())
       .sort((a, b) => b.total - a.total);
@@ -422,34 +386,9 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
       icon: Users
     }
   ];
-
-  // Cash flow data
-  const cashFlowData = monthlyData.map(data => ({
-    ...data,
-    cashIn: data.income,
-    cashOut: data.expense,
-    netFlow: data.net
-  }));
-
-  const totalCashIn = cashFlowData.reduce((sum, data) => sum + data.cashIn, 0);
-  const totalCashOut = cashFlowData.reduce((sum, data) => sum + data.cashOut, 0);
-  const netCashFlow = totalCashIn - totalCashOut;
   
-  // If no real data exists, create demo data for better visualization
-  const hasRealData = totalRevenue > 0 || totalExpenses > 0;
-  
-  // Demo monthly data if no real data exists (son 6 ay, sondan başa doğru)
-  const demoMonthlyData = [
-    { month: 'Eki', income: 61000, expense: 25000, net: 36000 },
-    { month: 'Eyl', income: 38000, expense: 19000, net: 19000 },
-    { month: 'Ağu', income: 52000, expense: 22000, net: 30000 },
-    { month: 'Tem', income: 45000, expense: 18000, net: 27000 },
-    { month: 'Haz', income: 47000, expense: 21000, net: 26000 },
-    { month: 'May', income: 55000, expense: 23000, net: 32000 }
-  ];
-  
-  const displayMonthlyData = hasRealData ? monthlyData : demoMonthlyData;
-  const displayMaxValue = Math.max(...displayMonthlyData.flatMap(d => [d.income, d.expense]));
+  const displayMonthlyData = monthlyData;
+  const displayMaxValue = Math.max(...displayMonthlyData.flatMap(d => [d.income, d.expense]), 1);
 
   return (
     <>
@@ -501,11 +440,6 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Temel Metrikler</h3>
-                {!hasRealData && (
-                  <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                    Demo Veri
-                  </span>
-                )}
                 {collapsedSections.has('basic-metrics') ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 ) : (
@@ -521,7 +455,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       <div>
                         <p className="text-sm text-green-600">Toplam Gelir</p>
                         <p className="text-xl font-bold text-green-700">
-                          {formatAmount(hasRealData ? totalRevenue : 298000)}
+                          {formatAmount(totalRevenue)}
                         </p>
                       </div>
                     </div>
@@ -532,7 +466,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       <div>
                         <p className="text-sm text-red-600">Toplam Gider</p>
                         <p className="text-xl font-bold text-red-700">
-                          {formatAmount(hasRealData ? totalExpenses : 128000)}
+                          {formatAmount(totalExpenses)}
                         </p>
                       </div>
                     </div>
@@ -542,8 +476,8 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       <DollarSign className="w-8 h-8 text-blue-600 mr-3" />
                       <div>
                         <p className="text-sm text-blue-600">Net Kar</p>
-                        <p className={`text-xl font-bold ${(hasRealData ? netProfit : 170000) >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                          {formatAmount(hasRealData ? netProfit : 170000)}
+                        <p className={`text-xl font-bold ${netProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                          {formatAmount(netProfit)}
                         </p>
                       </div>
                     </div>
@@ -554,7 +488,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       <div>
                         <p className="text-sm text-purple-600">Toplam Müşteri</p>
                         <p className="text-xl font-bold text-purple-700">
-                          {hasRealData ? customers.length : 15}
+                          {customers.length}
                         </p>
                       </div>
                     </div>
@@ -630,7 +564,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       <div>
                         <p className="text-green-100 text-sm">Kar Marjı</p>
                         <p className="text-2xl font-bold">
-                          {hasRealData ? profitMargin.toFixed(1) : '57.0'}%
+                          {profitMargin.toFixed(1)}%
                         </p>
                       </div>
                       <Target className="w-8 h-8 text-green-200" />
@@ -641,7 +575,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       <div>
                         <p className="text-blue-100 text-sm">Büyüme Oranı</p>
                         <p className="text-2xl font-bold">
-                          {hasRealData ? `${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}` : '+12.5'}%
+                          {`${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}`}%
                         </p>
                       </div>
                       <TrendingUp className="w-8 h-8 text-blue-200" />
@@ -652,7 +586,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       <div>
                         <p className="text-purple-100 text-sm">Ortalama Satış</p>
                         <p className="text-2xl font-bold">
-                          {formatAmount(hasRealData ? averageSale : 19867)}
+                          {formatAmount(averageSale)}
                         </p>
                       </div>
                       <DollarSign className="w-8 h-8 text-purple-200" />
@@ -965,8 +899,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Gider Kategorisi Dağılımı</h3>
               <div className="space-y-3">
                 {expenseCategories.slice(0, 6).map((category, index) => {
-                  const displayTotalExpenses = hasRealData ? totalExpenses : 19800;
-                  const percentage = displayTotalExpenses > 0 ? (category.total / displayTotalExpenses * 100) : 0;
+                  const percentage = totalExpenses > 0 ? (category.total / totalExpenses * 100) : 0;
                   return (
                     <div key={index} className="space-y-2">
                       <div className="flex justify-between items-center">
@@ -1208,7 +1141,6 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                   <div className="space-y-2">
                     {expenseCategories.slice(0, 5).map((category, index) => {
                       const percentage = totalExpenses > 0 ? (category.total / totalExpenses * 100) : 0;
-                      const avgPerExpense = category.total / category.count;
                       return (
                         <div key={index} className="p-3 bg-gray-50 rounded-lg">
                           <div className="flex justify-between items-center mb-2">

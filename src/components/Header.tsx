@@ -18,6 +18,11 @@ export interface HeaderNotification {
   time: string;
   type?: 'info' | 'warning' | 'success' | 'danger';
   read?: boolean;
+  readAt?: number; // Timestamp: okunma zamanı (1 gün sonra silinecek)
+  link?: string; // Bildirime tıklandığında gidilecek sayfa
+  persistent?: boolean; // Kalıcı bildirim - koşul sağlandığı sürece her gün tekrar göster
+  repeatDaily?: boolean; // Her gün tekrar göster (ödeme tarihi geçenler için)
+  relatedId?: string; // İlgili kayıt ID (fatura/gider ID)
 }
 
 interface HeaderProps {
@@ -35,6 +40,7 @@ interface HeaderProps {
   isNotificationsOpen?: boolean;
   onToggleNotifications?: () => void;
   onCloseNotifications?: () => void;
+  onNotificationClick?: (notification: HeaderNotification) => void;
   language?: 'tr' | 'en' | 'fr';
   onLanguageChange?: (language: 'tr' | 'en' | 'fr') => void;
 }
@@ -51,6 +57,7 @@ const Header: React.FC<HeaderProps> = ({
   isNotificationsOpen = false,
   onToggleNotifications,
   onCloseNotifications,
+  onNotificationClick,
   language = 'tr',
   onLanguageChange,
 }) => {
@@ -290,9 +297,15 @@ const Header: React.FC<HeaderProps> = ({
                               : 'bg-gray-300';
 
                           return (
-                            <div
+                            <button
                               key={notification.id}
-                              className="flex gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                              type="button"
+                              onClick={() => {
+                                if (onNotificationClick) {
+                                  onNotificationClick(notification);
+                                }
+                              }}
+                              className="flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
                             >
                               <span
                                 className={`mt-1 inline-flex h-2.5 w-2.5 flex-shrink-0 rounded-full ${indicatorClass}`}
@@ -308,7 +321,7 @@ const Header: React.FC<HeaderProps> = ({
                                   {notification.time}
                                 </span>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>

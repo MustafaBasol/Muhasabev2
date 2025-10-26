@@ -159,33 +159,92 @@ export default function SaleViewModal({
           {/* Product Info */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Ürün/Hizmet Bilgileri</h3>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center space-x-3 mb-2">
-                <Package className="w-5 h-5 text-gray-400" />
-                <span className="font-medium text-gray-900">{sale.productName}</span>
+            
+            {/* Çoklu ürün varsa tablo göster */}
+            {sale.items && sale.items.length > 0 ? (
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ürün/Hizmet
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Miktar
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Birim Fiyat
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Toplam
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {sale.items.map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center space-x-2">
+                            <Package className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium text-gray-900">{item.productName}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-700">
+                          {item.quantity}
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-700">
+                          {formatAmount(item.unitPrice)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-gray-900">
+                          {formatAmount(item.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                    <tr>
+                      <td colSpan={3} className="px-4 py-4 text-right font-semibold text-gray-900">
+                        Genel Toplam:
+                      </td>
+                      <td className="px-4 py-4 text-right font-bold text-green-600 text-lg">
+                        {formatAmount(sale.amount)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-              {sale.quantity && sale.unitPrice && (
-                <div className="text-sm text-gray-600 ml-8">
-                  <span>Miktar: {sale.quantity}</span>
-                  <span className="mx-2">•</span>
-                  <span>Birim Fiyat: {formatAmount(sale.unitPrice)}</span>
+            ) : (
+              /* Tek ürün gösterimi (eski sistem) */
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center space-x-3 mb-2">
+                  <Package className="w-5 h-5 text-gray-400" />
+                  <span className="font-medium text-gray-900">{sale.productName}</span>
                 </div>
-              )}
-            </div>
+                {sale.quantity && sale.unitPrice && (
+                  <div className="text-sm text-gray-600 ml-8">
+                    <span>Miktar: {sale.quantity}</span>
+                    <span className="mx-2">•</span>
+                    <span>Birim Fiyat: {formatAmount(sale.unitPrice)}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Amount */}
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Tutar Bilgileri</h3>
-            <div className="bg-green-50 rounded-lg p-6 border border-green-200">
-              <div className="flex justify-between items-center">
-                <span className="text-green-800 font-medium text-lg">Toplam Tutar:</span>
-                <span className="text-2xl font-bold text-green-600">
-                  {formatAmount(sale.amount)}
-                </span>
+          {/* Amount - Sadece tek ürün varsa göster */}
+          {(!sale.items || sale.items.length === 0) && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Tutar Bilgileri</h3>
+              <div className="bg-green-50 rounded-lg p-6 border border-green-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-green-800 font-medium text-lg">Toplam Tutar:</span>
+                  <span className="text-2xl font-bold text-green-600">
+                    {formatAmount(sale.amount)}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Notes */}
           {sale.notes && (

@@ -67,10 +67,13 @@ export class UsersService {
   }
 
   async update(id: string, updateData: Partial<User>): Promise<User> {
+    console.log('🔧 UsersService.update called with:', { id, updateData });
+    
     if (updateData.password) {
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
 
+    console.log('📊 Calling repository.update with:', { id, updateData });
     await this.usersRepository.update(id, updateData);
     return this.findOne(id);
   }

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, type AuthResponse } from '../api/auth';
+import { usersApi } from '../api/users';
 
 interface User {
   id: string;
@@ -33,6 +34,7 @@ interface AuthContextType {
     address?: string;
   }) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>; // Yeni: User bilgisini backend'den yeniden yükle
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,29 +56,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       storedTenant
     });
 
-    if (token && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
-      try {
-        setUser(JSON.parse(storedUser));
-        console.log('✅ User localStorage\'dan yüklendi');
-      } catch (error) {
-        console.error('❌ User parse hatası:', error);
-        localStorage.removeItem('user');
-      }
-      
-      if (storedTenant && storedTenant !== 'undefined' && storedTenant !== 'null') {
+    const initUser = async () => {
+      if (token && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
         try {
-          setTenant(JSON.parse(storedTenant));
-          console.log('✅ Tenant localStorage\'dan yüklendi');
+          // Önce localStorage'dan hızlı başlat
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          console.log('✅ User localStorage\'dan yüklendi:', parsedUser.email);
+          
+          // Sonra backend'den güncel bilgiyi al
+          try {
+            console.log('🔄 Backend\'den güncel user bilgisi çekiliyor...');
+            const updatedUser = await usersApi.getProfile();
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            console.log('✅ User bilgisi backend\'den güncellendi:', updatedUser);
+          } catch (error) {
+            console.error('⚠️ Backend\'den user yüklenemedi, localStorage kullanılıyor:', error);
+          }
+          
         } catch (error) {
-          console.error('❌ Tenant parse hatası:', error);
-          localStorage.removeItem('tenant');
+          console.error('❌ User parse hatası:', error);
+          localStorage.removeItem('user');
+        }
+        
+        if (storedTenant && storedTenant !== 'undefined' && storedTenant !== 'null') {
+          try {
+            setTenant(JSON.parse(storedTenant));
+            console.log('✅ Tenant localStorage\'dan yüklendi');
+          } catch (error) {
+            console.error('❌ Tenant parse hatası:', error);
+            localStorage.removeItem('tenant');
+          }
         }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    initUser();
   }, []);
 
   const handleAuthSuccess = (data: AuthResponse) => {
+    // Önce eski verileri temizle
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('tenant');
+    
+    // Yeni verileri kaydet
     localStorage.setItem('auth_token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);
@@ -85,12 +111,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('tenant', JSON.stringify(data.tenant));
       setTenant(data.tenant);
     }
+    
+    console.log('✅ Yeni kullanıcı girişi:', {
+      email: data.user.email,
+      tenantId: data.user.tenantId,
+      tenant: data.tenant?.name
+    });
   };
 
   const login = async (email: string, password: string) => {
     try {
       const data = await authService.login({ email, password });
       handleAuthSuccess(data);
+      console.log('✅ Login tamamlandı');
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -128,9 +161,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    console.log('🚪 Kullanıcı çıkış yapıyor...');
     authService.logout();
     setUser(null);
     setTenant(null);
+    // Sayfayı yenile (login sayfasına yönlendir)
+    window.location.href = '/';
+  };
+
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.log('⚠️ Token yok, refreshUser iptal');
+        return;
+      }
+
+      console.log('🔄 Backend\'den güncel user bilgisi alınıyor...');
+      const updatedUser = await usersApi.getProfile();
+      
+      console.log('✅ User bilgisi backend\'den güncellendi:', updatedUser);
+      console.log('📝 Detay - firstName:', updatedUser.firstName, 'lastName:', updatedUser.lastName);
+      
+      // State'i güncelle
+      setUser(updatedUser);
+      
+      // localStorage'ı güncelle
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      console.log('💾 localStorage user güncellendi');
+    } catch (error) {
+      console.error('❌ HATA: User refresh başarısız oldu!', error);
+      if (error instanceof Error) {
+        console.error('❌ Error message:', error.message);
+      }
+    }
   };
 
   return (
@@ -143,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        refreshUser, // Yeni fonksiyon
       }}
     >
       {children}

@@ -85,118 +85,10 @@ const defaultCompany: CompanyProfile = {
   bankAccountId: undefined,
 };
 
-const initialNotifications: HeaderNotification[] = [
-  {
-    id: "notif-1",
-    title: "Yeni fatura olusturuldu",
-    description: "INV-2024-001 numarali fatura PDF olarak hazir.",
-    time: "5 dk önce",
-    type: "success",
-    read: false,
-  },
-  {
-    id: "notif-2",
-    title: "Geciken ödeme uyarisi",
-    description: "EXP-2024-001 gideri için ödeme tarihi geçti.",
-    time: "1 gün önce",
-    type: "warning",
-    read: false,
-  },
-  {
-    id: "notif-3",
-    title: "Banka hareketi",
-    description: "Ana hesap bakiyesi güncellendi.",
-    time: "2 gün önce",
-    type: "info",
-    read: true,
-  },
-];
+// Bildirimler başlangıçta boş - backend'den veya işlemlerden dinamik oluşturulacak
+const initialNotifications: HeaderNotification[] = [];
 
-const initialSales = [
-  {
-    id: 1,
-    saleNumber: "SAL-2024-001",
-    customerName: "Ahmet Yilmaz",
-    customerEmail: "ahmet@email.com",
-    productName: "Web Tasarim Hizmeti",
-    quantity: 1,
-    unitPrice: 5000,
-    amount: 5000,
-    status: "completed",
-    date: "2024-12-15",
-    paymentMethod: "transfer",
-  },
-];
-
-const initialProducts = [
-  {
-    id: 1,
-    name: "Kablosuz Kulaklik",
-    sku: "PRD-001",
-    category: "Elektronik",
-    unitPrice: 1499,
-    costPrice: 950,
-    stockQuantity: 45,
-    reorderLevel: 10,
-    unit: "adet",
-    description: "Bluetooth 5.3 destekli gürültü engelleme",
-    status: "active",
-    createdAt: "2024-11-20",
-  },
-  {
-    id: 2,
-    name: "Ofis Sandalyesi",
-    sku: "PRD-002",
-    category: "Ofis",
-    unitPrice: 3299,
-    costPrice: 2100,
-    stockQuantity: 18,
-    reorderLevel: 5,
-    unit: "adet",
-    description: "Ergonomik destekli, ayarlanabilir yükseklik",
-    status: "active",
-    createdAt: "2024-10-05",
-  },
-  {
-    id: 3,
-    name: "A4 Fotokopi Kagidi",
-    sku: "PRD-003",
-    category: "Kirtasiye",
-    unitPrice: 129,
-    costPrice: 78,
-    stockQuantity: 220,
-    reorderLevel: 50,
-    unit: "kutu",
-    description: "80 gr beyaz fotokopi kagidi",
-    status: "active",
-    createdAt: "2025-01-02",
-  },
-  {
-    id: 4,
-    name: "Bulut Yazilim Lisansi",
-    sku: "PRD-004",
-    category: "Hizmet",
-    unitPrice: 899,
-    costPrice: 420,
-    stockQuantity: 0,
-    reorderLevel: 5,
-    unit: "adet",
-    description: "Yillik abonelik, 10 kullanici hakki",
-    status: "out-of-stock",
-    createdAt: "2024-09-12",
-  },
-];
-
-const initialProductCategories = Array.from(
-  new Set(
-    [
-      "Genel",
-      ...initialProducts
-        .map(product => product.category)
-        .filter((category): category is string => Boolean(category && category.trim())),
-    ].map(category => category.trim())
-  )
-).sort((a, b) => a.localeCompare(b, "tr-TR"));
+const initialProductCategories = ["Genel"]; // Boş başlangıç, backend'den yüklenecek
 
 interface ImportedCustomer {
   id?: string;
@@ -223,44 +115,6 @@ interface ToastMessage {
   tone: ToastTone;
 }
 
-const initialBankAccounts = [
-  {
-    id: "1",
-    bankName: "Ziraat Bankasi",
-    accountName: "Ana Hesap",
-    accountNumber: "1234567890",
-    iban: "TR330006100519786457841326",
-    balance: 125000,
-    currency: "TRY",
-    accountType: "business",
-    isActive: true,
-    createdAt: "2024-01-01",
-  },
-  {
-    id: "2",
-    bankName: "Is Bankasi",
-    accountName: "Ticari Hesap",
-    accountNumber: "0987654321",
-    iban: "TR640006400000011709426117",
-    balance: 85000,
-    currency: "TRY",
-    accountType: "checking",
-    isActive: true,
-    createdAt: "2024-01-02",
-  },
-  {
-    id: "3",
-    bankName: "Garanti BBVA",
-    accountName: "Vadeli Hesap",
-    accountNumber: "1122334455",
-    iban: "TR620006200046200006678001",
-    balance: 45000,
-    currency: "TRY",
-    accountType: "savings",
-    isActive: true,
-    createdAt: "2024-01-03",
-  },
-];
 const formatPercentage = (value: number) =>
   `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 
@@ -281,7 +135,18 @@ const AppContent: React.FC = () => {
     const stored = secureStorage.getJSON<CompanyProfile>("companyProfile");
     return stored ? { ...defaultCompany, ...stored } : defaultCompany;
   });
-  const [notifications, setNotifications] = useState<HeaderNotification[]>(initialNotifications);
+  const [notifications, setNotifications] = useState<HeaderNotification[]>(() => {
+    // localStorage'dan yükle, yoksa initialNotifications kullan
+    const stored = localStorage.getItem('notifications');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error('Notifications parse error:', e);
+      }
+    }
+    return initialNotifications;
+  });
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [language, setLanguage] = useState<"tr" | "en" | "fr">("tr");
@@ -323,34 +188,10 @@ const AppContent: React.FC = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
-  const [sales, setSales] = useState<any[]>(() => {
-    // Önce localStorage'dan yüklemeyi dene
-    const savedSales = localStorage.getItem('sales');
-    if (savedSales) {
-      try {
-        return JSON.parse(savedSales);
-      } catch (e) {
-        console.error('Error loading sales from localStorage:', e);
-      }
-    }
-    // localStorage'da yoksa initial data kullan
-    return initialSales.map(sale => ({ ...sale, id: String(sale.id) }));
-  });
+  const [sales, setSales] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productCategories, setProductCategories] = useState<string[]>(() => initialProductCategories);
-  const [bankAccounts, setBankAccounts] = useState<any[]>(() => {
-    // Önce localStorage'dan yüklemeyi dene
-    const savedBanks = localStorage.getItem('bankAccounts');
-    if (savedBanks) {
-      try {
-        return JSON.parse(savedBanks);
-      } catch (e) {
-        console.error('Error loading banks from localStorage:', e);
-      }
-    }
-    // localStorage'da yoksa initial data kullan
-    return initialBankAccounts.map(account => ({ ...account, id: String(account.id) }));
-  });
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [_isLoadingData, setIsLoadingData] = useState(true);
 
@@ -359,8 +200,14 @@ const AppContent: React.FC = () => {
     const loadData = async () => {
       // Check if we have auth token
       const token = localStorage.getItem('auth_token');
-      if (!token) {
-        console.log('⚠️ Token yok, backend verisi yüklenmiyor');
+      if (!token || !isAuthenticated) {
+        console.log('⚠️ Token yok veya authenticated değil, state temizleniyor');
+        // Logout durumunda state'i temizle
+        setCustomers([]);
+        setSuppliers([]);
+        setProducts([]);
+        setInvoices([]);
+        setExpenses([]);
         setIsLoadingData(false);
         return;
       }
@@ -445,7 +292,7 @@ const AppContent: React.FC = () => {
     };
 
     loadData();
-  }, []); // Sadece component mount olduğunda çalış
+  }, [isAuthenticated]); // isAuthenticated değiştiğinde tekrar yükle
 
   // Save Bank, Sales, and Invoices cache to localStorage
   useEffect(() => {
@@ -466,9 +313,35 @@ const AppContent: React.FC = () => {
     }
   }, [invoices]);
 
-  // Load Bank, Sales, and Invoices cache from localStorage on mount
+  // � Bildirimleri localStorage'a kaydet
   useEffect(() => {
-    console.log('📂 localStorage cache yükleniyor...');
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  // �🔄 AuthContext'deki user değiştiğinde App.tsx'deki user state'ini güncelle
+  useEffect(() => {
+    if (authUser) {
+      const updatedUser = {
+        name: `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || 'User',
+        email: authUser.email || '',
+      };
+      console.log('🔄 authUser değişti, App.tsx user state güncelleniyor:', updatedUser);
+      setUser(updatedUser);
+    }
+  }, [authUser]);
+
+  // ⚠️ GÜVENLİK: localStorage cache'i SADECE authenticated kullanıcılar için yükle
+  // Bu useEffect API'den veri gelmeden ÖNCE çalışır ve hızlı yükleme sağlar
+  // Ancak authentication kontrolü olmadan çalışmaz
+  useEffect(() => {
+    // Authentication kontrolü - token yoksa veya authenticated değilse ÇIKIŞ
+    const token = localStorage.getItem('auth_token');
+    if (!token || !isAuthenticated) {
+      console.log('🔒 Cache yükleme atlandı - kullanıcı authenticated değil');
+      return;
+    }
+
+    console.log('📂 localStorage cache yükleniyor (authenticated user)...');
     const savedBanks = localStorage.getItem('bankAccounts');
     const savedSales = localStorage.getItem('sales');
     const savedCustomers = localStorage.getItem('customers_cache');
@@ -490,8 +363,17 @@ const AppContent: React.FC = () => {
     if (savedSales) {
       try {
         const salesData = JSON.parse(savedSales);
-        console.log('✅ Satışlar cache\'den yüklendi:', salesData.length);
-        setSales(salesData);
+        // TenantId'ye göre filtrele
+        const currentTenantId = authUser?.tenantId;
+        const filteredSales = currentTenantId 
+          ? salesData.filter((s: any) => s.tenantId === currentTenantId)
+          : [];
+        console.log('✅ Satışlar cache\'den yüklendi:', {
+          total: salesData.length,
+          filtered: filteredSales.length,
+          tenantId: currentTenantId
+        });
+        setSales(filteredSales);
       } catch (e) {
         console.error('Error loading sales:', e);
       }
@@ -565,12 +447,166 @@ const AppContent: React.FC = () => {
         console.error('Error loading expenses cache:', e);
       }
     }
+  }, [isAuthenticated]); // isAuthenticated değiştiğinde tekrar kontrol et
+
+  // 🗑️ Okunmuş bildirimleri 1 gün sonra otomatik temizle (persistent olanları hariç)
+  useEffect(() => {
+    const cleanupOldNotifications = () => {
+      const now = Date.now();
+      const oneDayInMs = 24 * 60 * 60 * 1000; // 24 saat
+      
+      setNotifications(current => {
+        const filtered = current.filter(n => {
+          // Persistent bildirimleri asla silme
+          if (n.persistent || n.repeatDaily) return true;
+          
+          // Okunmamış bildirimleri koru
+          if (!n.read || !n.readAt) return true;
+          
+          // Okunma zamanından 1 gün geçmişse sil
+          const ageInMs = now - n.readAt;
+          return ageInMs < oneDayInMs;
+        });
+        
+        // Persistent bildirimleri sıfırla (read: false yap) eğer 1 gün geçmişse
+        const reset = filtered.map(n => {
+          if ((n.persistent || n.repeatDaily) && n.read && n.readAt) {
+            const ageInMs = now - n.readAt;
+            if (ageInMs >= oneDayInMs) {
+              console.log(`🔄 Kalıcı bildirim sıfırlandı: ${n.title}`);
+              return { ...n, read: false, readAt: undefined };
+            }
+          }
+          return n;
+        });
+        
+        const removedCount = current.length - filtered.length;
+        if (removedCount > 0) {
+          console.log(`🗑️ ${removedCount} eski bildirim temizlendi`);
+        }
+        
+        return reset;
+      });
+    };
+    
+    // Sayfa yüklendiğinde temizle
+    cleanupOldNotifications();
+    
+    // Her 1 saatte bir kontrol et
+    const interval = setInterval(cleanupOldNotifications, 60 * 60 * 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const unreadNotificationCount = useMemo(
     () => notifications.filter(notification => !notification.read).length,
     [notifications]
   );
+
+  // 🔔 Yaklaşan ve geçmiş ödemeler için bildirim kontrol et
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const checkPaymentNotifications = () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayMs = today.getTime();
+      const threeDaysLater = new Date(today);
+      threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+      
+      // Faturaları kontrol et
+      invoices.forEach(invoice => {
+        if (invoice.status === 'paid' || invoice.status === 'cancelled') return;
+        
+        const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
+        if (!dueDate) return;
+        
+        dueDate.setHours(0, 0, 0, 0);
+        const dueDateMs = dueDate.getTime();
+        
+        const customerName = invoice.customer?.name || 'Müşteri';
+        const invoiceNumber = invoice.invoiceNumber || `#${invoice.id}`;
+        
+        if (dueDateMs < todayMs) {
+          // Ödeme tarihi geçmiş
+          const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
+          addNotification(
+            'Gecikmiş fatura ödemesi',
+            `${invoiceNumber} - ${customerName} (${daysOverdue} gün gecikmiş)`,
+            'danger',
+            'invoices',
+            { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
+          );
+        } else if (dueDateMs <= threeDaysLater.getTime()) {
+          // 3 gün içinde ödeme
+          const daysLeft = Math.ceil((dueDateMs - todayMs) / (1000 * 60 * 60 * 24));
+          addNotification(
+            'Yaklaşan fatura ödemesi',
+            `${invoiceNumber} - ${customerName} (${daysLeft} gün kaldı)`,
+            'warning',
+            'invoices',
+            { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
+          );
+        }
+      });
+      
+      // Giderleri kontrol et
+      expenses.forEach(expense => {
+        if (expense.status === 'paid' || expense.status === 'cancelled') return;
+        
+        const dueDate = expense.dueDate || expense.expenseDate ? new Date(expense.dueDate || expense.expenseDate) : null;
+        if (!dueDate) return;
+        
+        dueDate.setHours(0, 0, 0, 0);
+        const dueDateMs = dueDate.getTime();
+        
+        const supplierName = expense.supplier?.name || expense.supplier || 'Tedarikçi';
+        const description = expense.description || 'Gider';
+        
+        if (dueDateMs < todayMs) {
+          // Ödeme tarihi geçmiş
+          const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
+          addNotification(
+            'Gecikmiş gider ödemesi',
+            `${description} - ${supplierName} (${daysOverdue} gün gecikmiş)`,
+            'danger',
+            'expenses',
+            { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
+          );
+        } else if (dueDateMs <= threeDaysLater.getTime()) {
+          // 3 gün içinde ödeme
+          const daysLeft = Math.ceil((dueDateMs - todayMs) / (1000 * 60 * 60 * 24));
+          addNotification(
+            'Yaklaşan gider ödemesi',
+            `${description} - ${supplierName} (${daysLeft} gün kaldı)`,
+            'warning',
+            'expenses',
+            { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
+          );
+        }
+      });
+    };
+    
+    // İlk yüklemede kontrol et
+    checkPaymentNotifications();
+    
+    // Her gün sabah 9'da kontrol et
+    const now = new Date();
+    const tomorrow9am = new Date(now);
+    tomorrow9am.setHours(9, 0, 0, 0);
+    if (tomorrow9am <= now) {
+      tomorrow9am.setDate(tomorrow9am.getDate() + 1);
+    }
+    
+    const msUntil9am = tomorrow9am.getTime() - now.getTime();
+    const timeout = setTimeout(() => {
+      checkPaymentNotifications();
+      // Her 24 saatte bir tekrarla
+      setInterval(checkPaymentNotifications, 24 * 60 * 60 * 1000);
+    }, msUntil9am);
+    
+    return () => clearTimeout(timeout);
+  }, [invoices, expenses, isAuthenticated]);
 
   const normalizeId = (value?: string | number) => String(value ?? Date.now());
 
@@ -638,9 +674,13 @@ const AppContent: React.FC = () => {
     setIsNotificationsOpen(prev => {
       const next = !prev;
       if (!prev) {
+        // Panel açılınca okunmamış bildirimleri okundu yap ve readAt ekle
+        const now = Date.now();
         setNotifications(current =>
           current.map(notification =>
-            notification.read ? notification : { ...notification, read: true }
+            notification.read 
+              ? notification 
+              : { ...notification, read: true, readAt: now }
           )
         );
       }
@@ -649,6 +689,42 @@ const AppContent: React.FC = () => {
   };
 
   const handleCloseNotifications = () => setIsNotificationsOpen(false);
+
+  const handleNotificationClick = (notification: HeaderNotification) => {
+    console.log('🔔 Bildirime tıklandı:', notification);
+    
+    // Persistent/repeatDaily bildirimleri için özel işlem
+    if (notification.persistent || notification.repeatDaily) {
+      // Sadece okundu işaretle ama silme - ertesi gün tekrar gösterilecek
+      const now = Date.now();
+      setNotifications(current =>
+        current.map(n =>
+          n.id === notification.id 
+            ? { ...n, read: true, readAt: now } 
+            : n
+        )
+      );
+      console.log('⏰ Kalıcı bildirim - ertesi gün tekrar görünecek');
+    } else {
+      // Normal bildirimleri okundu yap
+      const now = Date.now();
+      setNotifications(current =>
+        current.map(n =>
+          n.id === notification.id 
+            ? { ...n, read: true, readAt: now } 
+            : n
+        )
+      );
+    }
+    
+    // Bildirim panelini kapat
+    handleCloseNotifications();
+    
+    // Eğer link varsa o sayfaya git
+    if (notification.link) {
+      navigateTo(notification.link);
+    }
+  };
 
   const navigateTo = (page: string) => {
     setCurrentPage(page);
@@ -662,11 +738,55 @@ const AppContent: React.FC = () => {
   const handleLogout = () => {
     setCurrentPage('dashboard');
     handleCloseNotifications();
+    // State'leri temizle
+    setSales([]);
+    setCustomers([]);
+    setSuppliers([]);
+    setProducts([]);
+    setInvoices([]);
+    setExpenses([]);
+    setBankAccounts([]);
     logout();
   };
 
   const handleToggleSidebar = () => setIsSidebarOpen(prev => !prev);
   const handleCloseSidebar = () => setIsSidebarOpen(false);
+
+  // 🔔 Bildirim ekleme fonksiyonu
+  const addNotification = (
+    title: string,
+    description: string,
+    type: 'info' | 'warning' | 'success' | 'danger' = 'info',
+    link?: string,
+    options?: {
+      persistent?: boolean;
+      repeatDaily?: boolean;
+      relatedId?: string;
+    }
+  ) => {
+    const newNotification: HeaderNotification = {
+      id: options?.relatedId ? `${options.relatedId}-${Date.now()}` : `notif-${Date.now()}`,
+      title,
+      description,
+      time: 'Şimdi',
+      type,
+      read: false,
+      link,
+      persistent: options?.persistent,
+      repeatDaily: options?.repeatDaily,
+      relatedId: options?.relatedId,
+    };
+    
+    // Aynı relatedId'ye sahip eski bildirimi kaldır (tekrar gösterilmemesi için)
+    setNotifications(prev => {
+      if (options?.relatedId) {
+        const filtered = prev.filter(n => n.relatedId !== options.relatedId);
+        return [newNotification, ...filtered];
+      }
+      return [newNotification, ...prev];
+    });
+    console.log('🔔 Yeni bildirim eklendi:', newNotification);
+  };
 
   const upsertCustomer = async (customerData: Partial<Customer>) => {
     try {
@@ -689,6 +809,14 @@ const AppContent: React.FC = () => {
         const created = await customersApi.createCustomer(cleanData);
         setCustomers(prev => [...prev, created]);
         showToast('Müşteri eklendi', 'success');
+        
+        // 🔔 Bildirim ekle
+        addNotification(
+          'Yeni müşteri eklendi',
+          `${created.name} sisteme kaydedildi.`,
+          'success',
+          'customers'
+        );
       }
     } catch (error: any) {
       console.error('Customer upsert error:', error);
@@ -891,6 +1019,14 @@ const AppContent: React.FC = () => {
         const created = await suppliersApi.createSupplier(cleanData);
         setSuppliers(prev => [...prev, created]);
         showToast('Tedarikçi eklendi', 'success');
+        
+        // 🔔 Bildirim ekle
+        addNotification(
+          'Yeni tedarikçi eklendi',
+          `${created.name} sisteme kaydedildi.`,
+          'success',
+          'suppliers'
+        );
       }
     } catch (error: any) {
       console.error('Supplier upsert error:', error);
@@ -1003,17 +1139,32 @@ const AppContent: React.FC = () => {
             });
             
             // Fatura kalemlerinden satış verisi hazırla
-            const firstItem = cleanData.items[0];
+            // ✅ Tüm ürünleri items array olarak sakla
+            const saleItems = cleanData.items.map((item: any) => ({
+              productName: item.productName || item.description || 'Ürün/Hizmet',
+              productId: item.productId,
+              quantity: Number(item.quantity) || 1,
+              unitPrice: Number(item.unitPrice) || 0,
+              total: Number(item.total) || 0,
+            }));
             
-            // Tutar hesaplaması: Fatura toplam tutarı veya ilk ürün tutarı
-            const saleAmount = Number(created.total) || (Number(firstItem.quantity) * Number(firstItem.unitPrice)) || 0;
+            // Toplam tutar hesaplama
+            const saleAmount = Number(created.total) || saleItems.reduce((sum: number, item: any) => sum + item.total, 0);
+            
+            // İlk ürün bilgisini eski format uyumluluğu için tut
+            const firstItem = saleItems[0];
             
             const saleData = {
               customerName: customerName,
               customerEmail: customerEmail,
-              productName: firstItem.productName || firstItem.description || 'Satış Kalemi',
-              quantity: Number(firstItem.quantity) || 1,
-              unitPrice: Number(firstItem.unitPrice) || 0,
+              // Eski format uyumluluğu
+              productName: saleItems.length === 1 
+                ? firstItem.productName 
+                : `${saleItems.length} ürün`,
+              quantity: saleItems.length === 1 ? firstItem.quantity : saleItems.length,
+              unitPrice: saleItems.length === 1 ? firstItem.unitPrice : saleAmount,
+              // Yeni: Çoklu ürün desteği
+              items: saleItems,
               amount: saleAmount,
               date: cleanData.issueDate,
               paymentMethod: 'card' as const,
@@ -1021,17 +1172,62 @@ const AppContent: React.FC = () => {
               invoiceId: created.id
             };
             
-            console.log('💰 Satış tutar hesaplaması:', {
-              createdTotal: created.total,
-              firstItemQuantity: firstItem.quantity,
-              firstItemUnitPrice: firstItem.unitPrice,
-              calculatedAmount: saleAmount,
-              finalSaleData: {
-                amount: saleData.amount,
-                quantity: saleData.quantity,
-                unitPrice: saleData.unitPrice
-              }
+            console.log('💰 Satış oluşturuldu:', {
+              itemCount: saleItems.length,
+              items: saleItems,
+              totalAmount: saleAmount
             });
+            
+            // 📦 Stok kontrolü ve düşürme
+            for (const item of saleItems) {
+              if (item.productId) {
+                const product = products.find(p => String(p.id) === String(item.productId));
+                if (product) {
+                  const newStock = Number(product.stockQuantity || 0) - Number(item.quantity);
+                  
+                  // Stok negatife düşerse uyarı ver
+                  if (newStock < 0) {
+                    console.warn(`⚠️ Stok yetersiz: ${product.name} (Mevcut: ${product.stockQuantity}, İstenen: ${item.quantity})`);
+                    showToast(`Uyarı: ${product.name} stoğu yetersiz!`, 'error');
+                  }
+                  
+                  // Stoku güncelle
+                  try {
+                    const updateData = {
+                      stock: newStock < 0 ? 0 : newStock, // Negatif stok olmasın
+                    };
+                    
+                    await productsApi.updateProduct(String(product.id), updateData);
+                    
+                    // Frontend state'i güncelle
+                    setProducts(prev => prev.map(p => 
+                      String(p.id) === String(product.id) 
+                        ? { 
+                            ...p, 
+                            stockQuantity: newStock < 0 ? 0 : newStock,
+                            status: newStock <= 0 ? 'out-of-stock' : newStock <= (p.reorderLevel || 0) ? 'low' : 'active'
+                          } 
+                        : p
+                    ));
+                    
+                    console.log(`📦 Stok güncellendi: ${product.name} (${product.stockQuantity} → ${newStock < 0 ? 0 : newStock})`);
+                    
+                    // Düşük stok uyarısı
+                    if (newStock > 0 && newStock <= (product.reorderLevel || 0)) {
+                      addNotification(
+                        'Düşük stok uyarısı',
+                        `${product.name} - Stok seviyesi minimum limitin altında! (${newStock}/${product.reorderLevel})`,
+                        'info',
+                        'products',
+                        { persistent: true, repeatDaily: true, relatedId: `low-stock-${product.id}` }
+                      );
+                    }
+                  } catch (stockError) {
+                    console.error('Stok güncellenemedi:', stockError);
+                  }
+                }
+              }
+            }
             
             // Sıralı satış numarası oluştur (SAL-YYYY-MM-XXX formatı)
             const now = new Date();
@@ -1068,11 +1264,12 @@ const AppContent: React.FC = () => {
               saleNumber: saleNumber,
               status: 'completed' as const,
               invoiceId: created.id, // Fatura ID'sini satışa ekle
+              tenantId: authUser?.tenantId, // Tenant ID ekle
             };
             
             const newSales = [...sales, newSale];
             setSales(newSales);
-            localStorage.setItem('sales_cache', JSON.stringify(newSales));
+            localStorage.setItem('sales', JSON.stringify(newSales));
             
             console.log('✅ Otomatik satış oluşturuldu:', {
               id: newSale.id,
@@ -1081,6 +1278,14 @@ const AppContent: React.FC = () => {
               amount: newSale.amount,
               invoiceId: newSale.invoiceId
             });
+            
+            // 🔔 Satış bildirimi
+            addNotification(
+              'Yeni satış gerçekleşti',
+              `${newSale.saleNumber} - ${newSale.customerName}: ${newSale.amount} TL`,
+              'success',
+              'sales'
+            );
             
           } catch (saleError) {
             console.error('⚠️ Otomatik satış oluşturulamadı:', saleError);
@@ -1093,6 +1298,16 @@ const AppContent: React.FC = () => {
         localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
         console.log('💾 Fatura cache güncellendi (create)');
         showToast('Fatura ve satış oluşturuldu', 'success');
+        
+        // 🔔 Bildirim ekle
+        const customerInfo = customers.find(c => c.id === cleanData.customerId);
+        addNotification(
+          'Yeni fatura oluşturuldu',
+          `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`,
+          'success',
+          'invoices'
+        );
+        
         return created; // Oluşturulan faturayı return et
       }
     } catch (error: any) {
@@ -1154,6 +1369,15 @@ const AppContent: React.FC = () => {
         setExpenses(newExpenses);
         localStorage.setItem('expenses_cache', JSON.stringify(newExpenses));
         showToast('Gider eklendi', 'success');
+        
+        // 🔔 Bildirim ekle
+        const supplierName = mappedCreated.supplier?.name || 'Tedarikçi';
+        addNotification(
+          'Yeni gider kaydedildi',
+          `${supplierName} - ${mappedCreated.description}: ${mappedCreated.amount} TL`,
+          'info',
+          'expenses'
+        );
       }
     } catch (error: any) {
       console.error('Expense upsert error:', error);
@@ -1177,7 +1401,34 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const upsertSale = (saleData: any) => {
+  const upsertSale = async (saleData: any) => {
+    // 📦 YENİ SATIŞ İÇİN STOK KONTROLÜ
+    if (!saleData.id && saleData.productId) {
+      const product = products.find(p => String(p.id) === String(saleData.productId));
+      
+      if (product) {
+        const availableStock = Number(product.stockQuantity || 0);
+        const requestedQty = Number(saleData.quantity || 0);
+        
+        if (availableStock < requestedQty) {
+          showToast(
+            `❌ Yetersiz stok! ${product.name} - Mevcut: ${availableStock}, İstenen: ${requestedQty}`,
+            'error'
+          );
+          return; // Satışı oluşturma
+        }
+        
+        console.log('✅ Stok kontrolü başarılı:', {
+          product: product.name,
+          available: availableStock,
+          requested: requestedQty
+        });
+      }
+    }
+    
+    // State güncelleme - Senkron
+    let isNewSale = false;
+    
     setSales(prev => {
       // Mevcut satış mı yoksa yeni mi?
       const existingSale = prev.find(sale => 
@@ -1189,6 +1440,8 @@ const AppContent: React.FC = () => {
         existingSale: existingSale ? existingSale.id : 'YOK - YENİ SATIŞ',
         currentSalesCount: prev.length
       });
+      
+      isNewSale = !existingSale;
       
       let finalData: any;
       
@@ -1247,12 +1500,14 @@ const AppContent: React.FC = () => {
           id: newId,
           saleNumber: newSaleNumber, // En son ekle ki ezilmesin
           date: saleData?.date || saleData?.saleDate || new Date().toISOString().split("T")[0],
+          tenantId: authUser?.tenantId, // Tenant ID ekle
         };
         
         console.log('✅ Yeni satış oluşturuldu:', {
           id: finalData.id,
           saleNumber: finalData.saleNumber,
-          customerName: finalData.customerName
+          customerName: finalData.customerName,
+          tenantId: finalData.tenantId
         });
       }
       
@@ -1265,6 +1520,72 @@ const AppContent: React.FC = () => {
       
       return result;
     });
+    
+    // 📦 YENİ SATIŞ İÇİN STOK DÜŞÜR
+    if (isNewSale && saleData.productId) {
+      const product = products.find(p => String(p.id) === String(saleData.productId));
+      
+      if (product) {
+        const quantity = Number(saleData.quantity || 0);
+        const newStock = Number(product.stockQuantity || 0) - quantity;
+        
+        try {
+          const updateData = {
+            stock: newStock < 0 ? 0 : newStock,
+          };
+          
+          await productsApi.updateProduct(String(product.id), updateData);
+          
+          // Frontend state'i güncelle
+          setProducts(prev => prev.map(p => 
+            String(p.id) === String(product.id) 
+              ? { 
+                  ...p, 
+                  stockQuantity: newStock < 0 ? 0 : newStock,
+                  status: newStock <= 0 ? 'out-of-stock' : newStock <= (p.reorderLevel || 0) ? 'low' : 'active'
+                } 
+              : p
+          ));
+          
+          console.log(`📦 Manuel satış - Stok güncellendi: ${product.name} (-${quantity} → ${newStock})`);
+          
+          // Düşük stok uyarısı
+          if (newStock > 0 && newStock <= (product.reorderLevel || 0)) {
+            addNotification(
+              'Düşük stok uyarısı',
+              `${product.name} - Stok seviyesi minimum limitin altında! (${newStock}/${product.reorderLevel})`,
+              'info',
+              'products',
+              { persistent: true, repeatDaily: true, relatedId: `low-stock-${product.id}` }
+            );
+          }
+          
+          // Stok tükendi uyarısı
+          if (newStock <= 0) {
+            addNotification(
+              'Stok tükendi',
+              `${product.name} - Stok tükendi!`,
+              'info',
+              'products',
+              { persistent: true, repeatDaily: true, relatedId: `out-of-stock-${product.id}` }
+            );
+          }
+        } catch (stockError) {
+          console.error('Manuel satış - Stok güncellenemedi:', stockError);
+          showToast('Satış kaydedildi ancak stok güncellenemedi', 'error');
+        }
+      }
+    }
+    
+    // 🔔 Yeni satış bildirimi
+    if (isNewSale) {
+      addNotification(
+        'Yeni satış kaydedildi',
+        `${saleData.customerName} - ${saleData.productName}: ${saleData.amount || (saleData.quantity * saleData.unitPrice)} TL`,
+        'success',
+        'sales'
+      );
+    }
   };
 
   const handleDeleteSale = (saleId: string) => {
@@ -1330,6 +1651,24 @@ const AppContent: React.FC = () => {
           status: created.stock === 0 ? 'out-of-stock' : created.stock <= created.minStock ? 'low' : 'active'
         } as Product]);
         showToast('Ürün eklendi', 'success');
+        
+        // 🔔 Bildirim ekle
+        addNotification(
+          'Yeni ürün eklendi',
+          `${created.name} stoğa kaydedildi. Stok: ${created.stock} ${created.unit}`,
+          'info',
+          'products'
+        );
+        
+        // ⚠️ Stok uyarısı
+        if (created.stock <= created.minStock) {
+          addNotification(
+            'Düşük stok uyarısı',
+            `${created.name} - Stok seviyesi minimum limitin altında! (${created.stock}/${created.minStock})`,
+            'warning',
+            'products'
+          );
+        }
       }
     } catch (error: any) {
       console.error('Product upsert error:', error);
@@ -1565,8 +1904,20 @@ const AppContent: React.FC = () => {
     try {
       console.log('🔍 Invoice data gönderilecek:', invoiceData);
       
-      // customerId yoksa customerName'den bul
+      // customerId yoksa customerName'den bul veya saleId'den bul
       let customerId = invoiceData.customerId;
+      
+      // Eğer selectedSaleForInvoice varsa oradan customerId al
+      if (!customerId && selectedSaleForInvoice) {
+        const customer = customers.find(c => c.name === selectedSaleForInvoice.customerName);
+        customerId = customer?.id;
+        console.log('👤 Satıştan müşteri ID bulundu:', {
+          saleCustomerName: selectedSaleForInvoice.customerName,
+          foundCustomerId: customerId
+        });
+      }
+      
+      // customerName'den bul
       if (!customerId && invoiceData.customerName) {
         const customer = customers.find(c => c.name === invoiceData.customerName);
         customerId = customer?.id;
@@ -1585,18 +1936,20 @@ const AppContent: React.FC = () => {
       // Frontend modaldan gelen veriyi backend formatına dönüştür
       const backendData = {
         customerId: customerId,
-        issueDate: invoiceData.issueDate,
+        issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
         dueDate: invoiceData.dueDate,
         type: invoiceData.type || 'service',
         lineItems: (invoiceData.items || []).map((item: any) => ({
           productId: item.productId,
-          productName: item.description,
+          description: item.description || item.productName || 'Ürün/Hizmet',
           quantity: Number(item.quantity) || 1,
           unitPrice: Number(item.unitPrice) || 0,
           total: Number(item.total) || 0,
         })),
         taxAmount: Number(invoiceData.taxAmount) || 0,
+        discountAmount: Number(invoiceData.discountAmount) || 0,
         notes: invoiceData.notes || '',
+        status: invoiceData.status || 'draft',
       };
       
       console.log('🚀 Backend formatında gönderilecek veri:', backendData);
@@ -1604,10 +1957,43 @@ const AppContent: React.FC = () => {
       // Backend'e invoice oluştur
       const created = await invoicesApi.createInvoice(backendData);
       
+      console.log('✅ Fatura oluşturuldu:', {
+        id: created.id,
+        invoiceNumber: created.invoiceNumber,
+        lineItems: created.lineItems
+      });
+      
       // Frontend state'ini güncelle
       const newInvoices = [...invoices, created];
       setInvoices(newInvoices);
       localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
+      
+      // 🔗 Satışa invoiceId ekle
+      if (selectedSaleForInvoice) {
+        const updatedSale = {
+          ...selectedSaleForInvoice,
+          invoiceId: created.id,
+        };
+        
+        const updatedSales = sales.map(s => 
+          s.id === selectedSaleForInvoice.id ? updatedSale : s
+        );
+        setSales(updatedSales);
+        localStorage.setItem('sales_cache', JSON.stringify(updatedSales));
+        console.log('🔗 Satış fatura ile ilişkilendirildi:', {
+          saleId: selectedSaleForInvoice.id,
+          invoiceId: created.id
+        });
+      }
+      
+      // 🔔 Bildirimler
+      const customerInfo = customers.find(c => c.id === customerId);
+      addNotification(
+        'Yeni fatura oluşturuldu',
+        `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`,
+        'success',
+        'invoices'
+      );
       
       showToast('Fatura başarıyla oluşturuldu', 'success');
       
@@ -2514,6 +2900,7 @@ const AppContent: React.FC = () => {
             isNotificationsOpen={isNotificationsOpen}
             onToggleNotifications={handleToggleNotifications}
             onCloseNotifications={handleCloseNotifications}
+            onNotificationClick={handleNotificationClick}
           />
 
           <main className="flex-1 px-3 py-6 sm:px-6 lg:px-8">

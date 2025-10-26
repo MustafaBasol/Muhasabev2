@@ -18,8 +18,6 @@ const toNumber = (v: any): number => {
   return isNaN(n) ? 0 : n;
 };
 
-const TAX_RATE = 0.18;
-
 interface Customer {
   id: string;
   name: string;
@@ -657,10 +655,33 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{sale.productName}</div>
-                        {sale.quantity && sale.unitPrice && (
-                          <div className="text-xs text-gray-500">
-                            {sale.quantity} x {formatAmount(sale.unitPrice)}
+                        {sale.items && sale.items.length > 0 ? (
+                          <div>
+                            <div className="text-sm text-gray-900">
+                              {sale.items[0].productName}
+                              {sale.items.length > 1 && (
+                                <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                  +{sale.items.length - 1} ürün
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {sale.items.map((item, idx) => (
+                                <span key={idx}>
+                                  {item.quantity} x {formatAmount(item.unitPrice)}
+                                  {idx < sale.items!.length - 1 && ', '}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="text-sm text-gray-900">{sale.productName}</div>
+                            {sale.quantity && sale.unitPrice && (
+                              <div className="text-xs text-gray-500">
+                                {sale.quantity} x {formatAmount(sale.unitPrice)}
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>

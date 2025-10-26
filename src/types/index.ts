@@ -89,7 +89,7 @@ export interface Sale {
   saleNumber?: string;
   customerName: string;
   customerEmail?: string;
-  productName: string;
+  productName: string; // Eski sistem için (tek ürün) veya çoklu ürün için özet
   quantity?: number;
   unitPrice?: number;
   amount: number;
@@ -101,6 +101,13 @@ export interface Sale {
   productId?: string;
   productUnit?: string;
   invoiceId?: string; // Fatura ID'si (fatura oluşturulduysa)
+  items?: Array<{ // Çoklu ürün desteği
+    productId?: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }>;
 }
 
 export interface Bank {

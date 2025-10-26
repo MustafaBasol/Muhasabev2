@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import type { CompanyProfile } from '../utils/pdfGenerator';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useAuth } from '../contexts/AuthContext';
+import { usersApi } from '../api/users';
 
 type BankAccount = {
   id: string;
@@ -623,6 +625,9 @@ export default function SettingsPage({
   const text = settingsTranslations[currentLanguage];
   const notificationLabels = text.notifications.labels;
   
+  // Auth context - profil güncellemesi için
+  const { refreshUser } = useAuth();
+  
   // Currency context
   const { currency, setCurrency } = useCurrency();
   
@@ -759,25 +764,72 @@ export default function SettingsPage({
     setUnsavedChanges(true);
   };
 
-  const handleSave = () => {
-    if (onUserUpdate) onUserUpdate(profileData);
+  const handleSave = async () => {
+    console.log('🚀 KAYDET BUTONU BASILDI! profileData:', profileData);
+    console.log('📤 Backend\'e gönderilecek veri:', {
+      name: profileData.name,
+      phone: profileData.phone,
+    });
+    
+    try {
+      // ✅ KULLANICI PROFİLİNİ BACKEND'E KAYDET
+      console.log('🔄 usersApi.updateProfile ÇAĞRILIYOR...');
+      const updatedUser = await usersApi.updateProfile({
+        name: profileData.name,
+        phone: profileData.phone,
+      });
+      console.log('✅ usersApi.updateProfile TAMAMLANDI, response:', updatedUser);
+      
+      // ⚠️ KRİTİK: Backend'den dönen updatedUser'ı DOĞRUDAN localStorage'a yaz
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      console.log('✅ localStorage user güncellendi:', updatedUser);
+      
+      // AuthContext'i de güncelle
+      try {
+        await refreshUser();
+        console.log('✅ refreshUser() başarıyla tamamlandı!');
+      } catch (refreshError) {
+        console.error('⚠️ refreshUser() hatası (normal, localStorage güncel):', refreshError);
+      }
+      
+      // UI update için App.tsx'e bildir (opsiyonel - zaten refreshUser yapıyor)
+      if (onUserUpdate) {
+        const userToUpdate = {
+          name: `${updatedUser.firstName} ${updatedUser.lastName}`,
+          email: updatedUser.email,
+          phone: profileData.phone,
+        };
+        onUserUpdate(userToUpdate);
+        console.log('✅ onUserUpdate prop çağrıldı');
+      }
+      
+      console.log('✅✅✅ PROFİL DEĞİŞİKLİĞİ KALICI OLARAK KAYDEDİLDİ! ✅✅✅');
+      console.log('💾 Database\'de kayıtlı:', updatedUser);
 
-    if (onCompanyUpdate) {
-      const cleaned: CompanyProfile = {
-        name: companyData.name,
-        address: companyData.address,
-        taxNumber: companyData.taxNumber,
-        taxOffice: companyData.taxOffice,
-        phone: companyData.phone,
-        email: companyData.email,
-        website: companyData.website,
-        logoDataUrl: companyData.logoDataUrl,
-        bankAccountId: companyData.bankAccountId,
-      };
-      onCompanyUpdate(cleaned);
+      // Şirket bilgilerini kaydet
+      if (onCompanyUpdate) {
+        const cleaned: CompanyProfile = {
+          name: companyData.name,
+          address: companyData.address,
+          taxNumber: companyData.taxNumber,
+          taxOffice: companyData.taxOffice,
+          phone: companyData.phone,
+          email: companyData.email,
+          website: companyData.website,
+          logoDataUrl: companyData.logoDataUrl,
+          bankAccountId: companyData.bankAccountId,
+        };
+        onCompanyUpdate(cleaned);
+      }
+
+      setUnsavedChanges(false);
+      alert('✅ Profil başarıyla güncellendi ve kaydedildi!\n\n' +
+            'Değişiklikler kalıcı olarak database\'e kaydedildi.\n' +
+            'Çıkış yapıp tekrar giriş yapabilirsiniz.');
+    } catch (error) {
+      console.error('Ayarlar kaydedilirken hata:', error);
+      alert('Ayarlar kaydedilirken bir hata oluştu!');
     }
-
-    setUnsavedChanges(false);
   };
 
   const handleExport = () => {

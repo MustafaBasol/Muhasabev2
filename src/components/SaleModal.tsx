@@ -242,6 +242,17 @@ export default function SaleModal({
 
     if (!saleData.productName.trim()) {
       nextErrors.productName = 'Urun veya hizmet adi gereklidir';
+    } else {
+      // Ürün de sistemde olmalı
+      const productExists = products.some(product => {
+        if (!product.name) {
+          return false;
+        }
+        return product.name.toLowerCase() === saleData.productName.trim().toLowerCase();
+      });
+      if (!productExists) {
+        nextErrors.productName = 'Urun sistemde bulunamadi. Lutfen listeden secin.';
+      }
     }
 
     if (!saleData.date) {
@@ -369,8 +380,12 @@ export default function SaleModal({
                   value={customerSearch}
                   onChange={(event) => handleCustomerSearchChange(event.target.value)}
                   onFocus={() => setShowCustomerDropdown(true)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="Musteri ara veya yeni musteri adi girin"
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    errors.customerName 
+                      ? 'border-red-300 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-green-500'
+                  }`}
+                  placeholder="Listeden musteri secin"
                 />
                 {selectedCustomer && (
                   <Check className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-4 h-4" />
@@ -424,8 +439,12 @@ export default function SaleModal({
                 onChange={(event) => handleProductSearchChange(event.target.value)}
                 onFocus={() => setShowProductDropdown(true)}
                 onBlur={() => setTimeout(() => setShowProductDropdown(false), 120)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Urun ara veya yeni urun adi girin"
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                  errors.productName 
+                    ? 'border-red-300 focus:ring-red-500' 
+                    : 'border-gray-300 focus:ring-green-500'
+                }`}
+                placeholder="Listeden urun secin"
               />
               {selectedProductOption && (
                 <Check className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-4 h-4" />
