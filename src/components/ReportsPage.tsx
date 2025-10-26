@@ -19,8 +19,27 @@ import { useCurrency } from '../contexts/CurrencyContext';
 const toNumber = (v: any): number => {
   if (typeof v === 'number') return v;
   if (v == null) return 0;
-  const s = String(v).trim().replace(/\s/g,'').replace(/\./g,'').replace(/,/g,'.');
-  const n = parseFloat(s);
+  
+  const s = String(v).trim();
+  
+  // Backend'den gelen decimal string formatı: "2000.00" (SQL decimal)
+  // Eğer sadece rakam, nokta ve en fazla bir nokta varsa direkt parse et
+  if (/^\d+\.?\d*$/.test(s)) {
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+  
+  // Türkçe format: "2.000,00" → "2000.00"
+  // Binlik ayracı nokta, ondalık ayracı virgül
+  if (s.includes(',')) {
+    const cleaned = s.replace(/\./g, '').replace(/,/g, '.');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  }
+  
+  // Diğer durumlar: boşluk temizle ve parse et
+  const cleaned = s.replace(/\s/g, '');
+  const n = parseFloat(cleaned);
   return isNaN(n) ? 0 : n;
 };
 

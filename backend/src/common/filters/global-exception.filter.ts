@@ -20,26 +20,48 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let status: number;
     let message: string;
     let error: string;
+    let errorInfo: any;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const errorResponse = exception.getResponse();
-      message = typeof errorResponse === 'string' ? errorResponse : (errorResponse as any).message;
+      
+      // HttpException response'u object ise tüm alanları koru
+      if (typeof errorResponse === 'object' && errorResponse !== null) {
+        errorInfo = {
+          statusCode: status,
+          timestamp: new Date().toISOString(),
+          path: request.url,
+          method: request.method,
+          error: exception.name,
+          ...(errorResponse as object), // Tüm custom alanları dahil et (message, relatedExpenses, count vs.)
+        };
+        message = (errorResponse as any).message || 'Error';
+      } else {
+        message = typeof errorResponse === 'string' ? errorResponse : 'Error';
+        errorInfo = {
+          statusCode: status,
+          timestamp: new Date().toISOString(),
+          path: request.url,
+          method: request.method,
+          message,
+          error: exception.name,
+        };
+      }
       error = exception.name;
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       message = 'Internal server error';
       error = 'InternalServerError';
+      errorInfo = {
+        statusCode: status,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+        method: request.method,
+        message,
+        error,
+      };
     }
-
-    const errorInfo = {
-      statusCode: status,
-      timestamp: new Date().toISOString(),
-      path: request.url,
-      method: request.method,
-      message,
-      error,
-    };
 
     // Log detailed error information
     this.logger.error(

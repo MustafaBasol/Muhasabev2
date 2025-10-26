@@ -6,11 +6,16 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { SeedService } from './database/seed.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
+
+  // Seed database if empty
+  const seedService = app.get(SeedService);
+  await seedService.seed();
 
   // Serve static files from public
   app.useStaticAssets(join(__dirname, '..', 'public'), {

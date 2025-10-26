@@ -64,7 +64,14 @@ export class Invoice {
   saleId: string;
 
   @Column({ type: 'varchar', nullable: true })
-  type: string;
+  type: string; // 'product', 'service', 'refund' (iade faturası)
+
+  @Column({ type: 'uuid', nullable: true })
+  refundedInvoiceId: string; // İade edilen orijinal fatura ID'si
+
+  @ManyToOne(() => Invoice, { nullable: true })
+  @JoinColumn({ name: 'refundedInvoiceId' })
+  refundedInvoice: Invoice; // İade edilen orijinal fatura
 
   @Column({ type: 'jsonb', nullable: true })
   items: any[];

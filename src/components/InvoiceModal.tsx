@@ -29,13 +29,14 @@ interface InvoiceModalProps {
   invoice?: any;
   customers?: Customer[];
   products?: Product[];
+  invoices?: any[]; // mevcut faturalar (iade için seçim)
 }
 
 const defaultItems: InvoiceItem[] = [
   { id: '1', description: '', quantity: 1, unitPrice: 0, total: 0 },
 ];
 
-export default function InvoiceModal({ onClose, onSave, invoice, customers = [], products = [] }: InvoiceModalProps) {
+export default function InvoiceModal({ onClose, onSave, invoice, customers = [], products = [], invoices = [] }: InvoiceModalProps) {
   const [invoiceData, setInvoiceData] = useState({
     invoiceNumber: '',
     customerId: '',
@@ -46,7 +47,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     notes: '',
     status: 'draft',
-    type: 'service',
+    type: 'product', // 'product' veya 'return'
+    originalInvoiceId: '',
   });
 
   const [customerSearch, setCustomerSearch] = useState('');
@@ -74,7 +76,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         notes: '',
         status: 'draft',
-        type: 'service',
+        type: 'product',
+        originalInvoiceId: '',
       });
       setItems(defaultItems);
       setCustomerSearch('');
@@ -84,6 +87,9 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       setValidationError(null);
       return;
     }
+
+    // İade faturası bayrağını kontrol et
+    const isReturnInvoice = (invoice as any)._isReturnInvoice === true;
 
     // Düzenleme modunda backend'den gelen numarayı kullan
     const now = new Date();
@@ -101,7 +107,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       dueDate: invoice.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       notes: invoice.notes || '',
       status: invoice.status || 'draft',
-      type: invoice.type || 'service',
+      type: isReturnInvoice ? 'return' : (invoice.type || 'product'),
+      originalInvoiceId: invoice.originalInvoiceId || '',
     });
 
     const normalisedItems: InvoiceItem[] = (invoice.items || defaultItems).map((item: InvoiceItem, index: number) => {
@@ -168,23 +175,19 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   };
 
   // Real-time özet hesaplama - Her ürün kendi KDV oranıyla
-  const totalWithTax = items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
-  
-  // Her ürün için KDV hesapla
-  let subtotal = 0;
-  let taxAmount = 0;
+  let subtotal = 0; // KDV HARİÇ toplam
+  let taxAmount = 0; // KDV tutarı
   
   items.forEach(item => {
-    const itemTotal = Number(item.total) || 0;
+    const itemTotal = Number(item.total) || 0; // Bu KDV HARİÇ (quantity * unitPrice)
     const itemTaxRate = Number(item.taxRate ?? 18) / 100; // %18 -> 0.18
-    const itemSubtotal = itemTotal / (1 + itemTaxRate); // KDV HARİÇ
-    const itemTax = itemTotal - itemSubtotal; // KDV tutarı
+    const itemTax = itemTotal * itemTaxRate; // KDV tutarı
     
-    subtotal += itemSubtotal;
-    taxAmount += itemTax;
+    subtotal += itemTotal; // KDV HARİÇ toplam
+    taxAmount += itemTax; // KDV toplamı
   });
   
-  const total = totalWithTax; // KDV DAHİL toplam
+  const total = subtotal + taxAmount; // KDV DAHİL toplam
 
   const filteredCustomers = customers.filter(customer => {
     const query = customerSearch.trim().toLowerCase();
@@ -237,6 +240,13 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   };
 
   const handleSelectProduct = (itemId: string, product: Product) => {
+    console.log('🔍 Seçilen ürün:', {
+      name: product.name,
+      taxRate: product.taxRate,
+      categoryTaxRateOverride: product.categoryTaxRateOverride,
+      finalTaxRate: product.categoryTaxRateOverride ?? product.taxRate ?? 18
+    });
+    
     setItems(prev =>
       prev.map(item => {
         if (item.id !== itemId) {
@@ -244,7 +254,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         }
         const quantity = item.quantity > 0 ? item.quantity : 1;
         const unitPrice = Number(product.unitPrice ?? item.unitPrice ?? 0);
-        const taxRate = Number(product.taxRate ?? 18); // Ürünün KDV oranı veya varsayılan %18
+        // Öncelik: Ürüne özel KDV > Kategori KDV > Varsayılan %18
+        const taxRate = Number(product.categoryTaxRateOverride ?? product.taxRate ?? 18);
         return {
           ...item,
           productId: product.id,
@@ -277,11 +288,16 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       setValidationError('Lütfen müşteri seçin');
       return;
     }
+    if (invoiceData.type === 'return' && !invoiceData.originalInvoiceId) {
+      setValidationError('İade faturası oluşturmak için iade edilecek faturayı seçmelisiniz');
+      return;
+    }
     if (items.length === 0) {
       setValidationError('Lütfen en az bir ürün ekleyin');
       return;
     }
-    if (items.some(item => !item.description || item.quantity <= 0 || item.unitPrice <= 0)) {
+    // İade faturaları için negatif miktar kabul et
+    if (items.some(item => !item.description || item.unitPrice <= 0)) {
       setValidationError('Lütfen tüm ürün bilgilerini eksiksiz doldurun');
       return;
     }
@@ -319,6 +335,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       total,
       notes: invoiceData.notes || '',
       status: invoiceData.status || 'draft',
+      type: invoiceData.type || 'product',
+      originalInvoiceId: invoiceData.originalInvoiceId || undefined,
     };
     
     // Only include ID if editing
@@ -364,7 +382,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Fatura Numarasi</label>
               <input
@@ -375,6 +393,82 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                 title="Fatura numarası otomatik oluşturulur"
               />
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <span className="text-indigo-600 font-semibold">Fatura Türü</span>
+              </label>
+              <select
+                value={invoiceData.type}
+                onChange={e => setInvoiceData(prev => ({ ...prev, type: e.target.value }))}
+                className="w-full px-3 py-2 border-2 border-indigo-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+              >
+                <option value="product">✓ Ürün Faturası (Normal)</option>
+                <option value="return">↩ İade Faturası</option>
+              </select>
+            </div>
+          </div>
+
+          {invoiceData.type === 'return' && (
+            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                <span className="text-red-600">⚠ İade Edilecek Fatura (zorunlu)</span>
+              </label>
+              <select
+                value={invoiceData.originalInvoiceId}
+                onChange={e => {
+                  const id = e.target.value;
+                  
+                  // Eğer bir fatura seçildiyse onun bilgilerini al
+                  const original = invoices.find(inv => String(inv.id) === String(id));
+                  if (original) {
+                    // Müşteri bilgilerini de doldur
+                    setInvoiceData(prev => ({
+                      ...prev,
+                      originalInvoiceId: id,
+                      customerId: original.customerId || '',
+                      customerName: original.customer?.name || original.customerName || '',
+                      customerEmail: original.customer?.email || original.customerEmail || '',
+                      customerAddress: original.customer?.address || original.customerAddress || '',
+                    }));
+                    
+                    // Müşteri seçimini de ayarla
+                    if (original.customer) {
+                      setSelectedCustomer(original.customer);
+                      setCustomerSearch(original.customer.name || '');
+                    } else if (original.customerName) {
+                      setCustomerSearch(original.customerName);
+                    }
+                    
+                    // Kalemleri negatif olarak ekle
+                    const mapped = (original.items || []).map((it: any, idx: number) => ({
+                      id: `ret-${Date.now()}-${idx}`,
+                      description: it.description || it.productName || '',
+                      quantity: -(Number(it.quantity) || 1),
+                      unitPrice: Number(it.unitPrice) || 0,
+                      total: -(Number(it.quantity) || 1) * (Number(it.unitPrice) || 0),
+                      productId: it.productId,
+                      unit: it.unit || undefined,
+                      taxRate: Number(it.taxRate ?? 18),
+                    }));
+                    setItems(mapped.length ? mapped : defaultItems);
+                  } else {
+                    // Seçim temizlendiyse bilgileri sıfırla
+                    setInvoiceData(prev => ({ ...prev, originalInvoiceId: id }));
+                  }
+                }}
+                className="w-full px-3 py-2 border-2 border-yellow-400 rounded-lg bg-white"
+              >
+                <option value="">-- İade edilecek faturayı seçin --</option>
+                {invoices.map(inv => (
+                  <option key={inv.id} value={inv.id}>{inv.invoiceNumber} - {inv.customerName || inv.customer?.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-600 mt-2">💡 Seçilen faturanın ürünleri otomatik olarak negatif miktarlarla yüklenecektir.</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Duzenleme Tarihi</label>
               <input
@@ -487,7 +581,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '40%' }}>Aciklama</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '12%' }}>Miktar</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '18%' }}>Birim Fiyat (KDV Dahil)</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '18%' }}>Birim Fiyat (KDV Hariç)</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ width: '18%' }}>Toplam (KDV Dahil)</th>
                     <th className="px-4 py-3 text-center text-sm font-medium text-gray-700" style={{ width: '12%' }}>Islem</th>
                   </tr>

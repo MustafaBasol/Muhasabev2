@@ -21,7 +21,11 @@
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "migration:generate": "npm run typeorm -- migration:generate -d src/config/typeorm.config.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/config/typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d src/config/typeorm.config.ts"
+    "migration:revert": "npm run typeorm -- migration:revert -d src/config/typeorm.config.ts",
+    "seed:demo": "ts-node -r tsconfig-paths/register src/seeds/demo-data.seed.ts",
+    "backup": "./backup-db.sh",
+    "restore": "./restore-db.sh",
+    "backup:auto": "./backup-scheduler.sh"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

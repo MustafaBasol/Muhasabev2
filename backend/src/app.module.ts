@@ -14,6 +14,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { AdminModule } from './admin/admin.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
+import { SeedService } from './database/seed.service';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
       password: process.env.DATABASE_PASSWORD || 'moneyflow123',
       database: process.env.DATABASE_NAME || 'moneyflow_dev',
       autoLoadEntities: true,
-      synchronize: true, // Auto-create tables
+      synchronize: false, // Don't drop tables on restart - preserves data
       logging: true,
     }),
     AuthModule,
@@ -44,6 +45,7 @@ import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
   controllers: [AppController],
   providers: [
     AppService,
+    SeedService,
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantInterceptor,

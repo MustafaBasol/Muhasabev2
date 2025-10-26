@@ -7,6 +7,7 @@ import type { CompanyProfile } from "./utils/pdfGenerator";
 import type { 
   Customer, 
   User,
+  ProductCategory,
 } from "./types";
 import { secureStorage } from "./utils/storage";
 
@@ -55,6 +56,7 @@ import BankViewModal from "./components/BankViewModal";
 // history modals
 import CustomerHistoryModal from "./components/CustomerHistoryModal";
 import SupplierHistoryModal from "./components/SupplierHistoryModal";
+import DeleteWarningModal from "./components/DeleteWarningModal";
 
 // pages
 import CustomerList from "./components/CustomerList";
@@ -89,6 +91,7 @@ const defaultCompany: CompanyProfile = {
 const initialNotifications: HeaderNotification[] = [];
 
 const initialProductCategories = ["Genel"]; // Boş başlangıç, backend'den yüklenecek
+const initialProductCategoryObjects: ProductCategory[] = []; // Kategori nesneleri
 
 interface ImportedCustomer {
   id?: string;
@@ -140,7 +143,14 @@ const AppContent: React.FC = () => {
     const stored = localStorage.getItem('notifications');
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Eski notification'ların ID'lerini yeniden oluştur (duplicate key önleme)
+        return parsed.map((notif: HeaderNotification, index: number) => ({
+          ...notif,
+          id: notif.relatedId 
+            ? `${notif.relatedId}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
+            : `notif-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
+        }));
       } catch (e) {
         console.error('Notifications parse error:', e);
       }
@@ -173,6 +183,13 @@ const AppContent: React.FC = () => {
   const [showInvoiceTypeModal, setShowInvoiceTypeModal] = useState(false);
   const [showExistingSaleModal, setShowExistingSaleModal] = useState(false);
   const [showInvoiceFromSaleModal, setShowInvoiceFromSaleModal] = useState(false);
+  const [showDeleteWarning, setShowDeleteWarning] = useState(false);
+  const [deleteWarningData, setDeleteWarningData] = useState<{
+    title: string;
+    message: string;
+    relatedItems: any[];
+    itemType: 'invoice' | 'expense';
+  } | null>(null);
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<any>(null);
 
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
@@ -191,6 +208,7 @@ const AppContent: React.FC = () => {
   const [sales, setSales] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productCategories, setProductCategories] = useState<string[]>(() => initialProductCategories);
+  const [productCategoryObjects, setProductCategoryObjects] = useState<ProductCategory[]>(() => initialProductCategoryObjects);
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [_isLoadingData, setIsLoadingData] = useState(true);
@@ -211,17 +229,17 @@ const AppContent: React.FC = () => {
         setIsLoadingData(false);
         return;
       }
-      
       try {
         setIsLoadingData(true);
         console.log('🔄 Backend verisi yükleniyor...');
         
-        const [customersData, suppliersData, productsData, invoicesData, expensesData] = await Promise.all([
+        const [customersData, suppliersData, productsData, invoicesData, expensesData, categoriesData] = await Promise.all([
           customersApi.getCustomers(),
           suppliersApi.getSuppliers(),
           productsApi.getProducts(),
           invoicesApi.getInvoices(),
           expensesApi.getExpenses(),
+          import('./api/product-categories').then(({ productCategoriesApi }) => productCategoriesApi.getAll()),
         ]);
 
         console.log('✅ Backend verisi yüklendi. Raw data:', {
@@ -229,7 +247,8 @@ const AppContent: React.FC = () => {
           suppliers: suppliersData,
           products: productsData,
           invoices: invoicesData,
-          expenses: expensesData
+          expenses: expensesData,
+          categories: categoriesData
         });
 
         // Verilerin array olduğundan emin olalım
@@ -238,17 +257,29 @@ const AppContent: React.FC = () => {
         const safeProductsData = Array.isArray(productsData) ? productsData : [];
         const safeInvoicesData = Array.isArray(invoicesData) ? invoicesData : [];
         const safeExpensesData = Array.isArray(expensesData) ? expensesData : [];
+        const safeCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];
 
         console.log('✅ Güvenli veri boyutları:', {
           customers: safeCustomersData.length,
           suppliers: safeSuppliersData.length,
           products: safeProductsData.length,
           invoices: safeInvoicesData.length,
-          expenses: safeExpensesData.length
+          expenses: safeExpensesData.length,
+          categories: safeCategoriesData.length
         });
 
         setCustomers(safeCustomersData);
         setSuppliers(safeSuppliersData);
+        
+        // Kategori objelerini state'e kaydet
+        setProductCategoryObjects(safeCategoriesData);
+        
+        // String array kategorileri de güncelle (geriye uyumluluk için)
+        const categoryNames = safeCategoriesData.map((c: ProductCategory) => c.name);
+        setProductCategories(prev => {
+          const combined = new Set([...prev, ...categoryNames]);
+          return Array.from(combined);
+        });
         
         // Map backend product fields to frontend format
         const mappedProducts = safeProductsData.map((p: any) => ({
@@ -258,6 +289,8 @@ const AppContent: React.FC = () => {
           costPrice: Number(p.cost) || 0,
           stockQuantity: Number(p.stock) || 0,
           reorderLevel: Number(p.minStock) || 0,
+          taxRate: Number(p.taxRate) || 0, // KDV oranı (decimal -> number)
+          categoryTaxRateOverride: p.categoryTaxRateOverride ? Number(p.categoryTaxRateOverride) : null, // Özel KDV
           status: p.stock === 0 ? 'out-of-stock' : p.stock <= p.minStock ? 'low' : 'active'
         }));
         setProducts(mappedProducts);
@@ -764,8 +797,13 @@ const AppContent: React.FC = () => {
       relatedId?: string;
     }
   ) => {
+    // Benzersiz ID oluştur (Date.now + random)
+    const uniqueId = options?.relatedId 
+      ? `${options.relatedId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
+      : `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
     const newNotification: HeaderNotification = {
-      id: options?.relatedId ? `${options.relatedId}-${Date.now()}` : `notif-${Date.now()}`,
+      id: uniqueId,
       title,
       description,
       time: 'Şimdi',
@@ -836,7 +874,19 @@ const AppContent: React.FC = () => {
       showToast('Müşteri silindi', 'success');
     } catch (error: any) {
       console.error('Customer delete error:', error);
-      showToast(error.response?.data?.message || 'Müşteri silinemedi', 'error');
+      
+      // Bağlı fatura kontrolü
+      if (error.response?.data?.relatedInvoices) {
+        setDeleteWarningData({
+          title: 'Müşteri Silinemez',
+          message: error.response.data.message,
+          relatedItems: error.response.data.relatedInvoices,
+          itemType: 'invoice'
+        });
+        setShowDeleteWarning(true);
+      } else {
+        showToast(error.response?.data?.message || 'Müşteri silinemedi', 'error');
+      }
     }
   };
 
@@ -1045,7 +1095,19 @@ const AppContent: React.FC = () => {
       showToast('Tedarikçi silindi', 'success');
     } catch (error: any) {
       console.error('Supplier delete error:', error);
-      showToast(error.response?.data?.message || 'Tedarikçi silinemedi', 'error');
+      
+      // Bağlı gider kontrolü
+      if (error.response?.data?.relatedExpenses) {
+        setDeleteWarningData({
+          title: 'Tedarikçi Silinemez',
+          message: error.response.data.message,
+          relatedItems: error.response.data.relatedExpenses,
+          itemType: 'expense'
+        });
+        setShowDeleteWarning(true);
+      } else {
+        showToast(error.response?.data?.message || 'Tedarikçi silinemedi', 'error');
+      }
     }
   };
 
@@ -1081,11 +1143,13 @@ const AppContent: React.FC = () => {
           quantity: Number(item.quantity) || 1,
           unitPrice: Number(item.unitPrice) || 0,
           total: Number(item.total) || 0,
+          taxRate: Number(item.taxRate ?? 18), // KDV oranını ekle
         })),
         taxAmount: Number(invoiceData.taxAmount || 0),
         discountAmount: Number(invoiceData.discountAmount || 0),
         notes: invoiceData.notes || '',
         saleId: invoiceData.saleId, // Satış ID'sini ekle
+        refundedInvoiceId: invoiceData.originalInvoiceId || undefined,
       };
       
       console.log('📤 Backend\'e gönderilecek data:', {
@@ -1623,7 +1687,16 @@ const AppContent: React.FC = () => {
         minStock: Number(productData.reorderLevel ?? 0),
         unit: productData.unit || 'adet',
         category: categoryName,
+        taxRate: Number(productData.taxRate ?? 18), // Kategori KDV'si
+        categoryTaxRateOverride: productData.categoryTaxRateOverride ? Number(productData.categoryTaxRateOverride) : undefined, // Özel KDV
       };
+
+      console.log('🚀 Frontend: Backend\'e gönderiliyor:', {
+        name: backendData.name,
+        category: backendData.category,
+        taxRate: backendData.taxRate,
+        categoryTaxRateOverride: backendData.categoryTaxRateOverride
+      });
 
       if (productData?.id) {
         // Update existing
@@ -1635,6 +1708,8 @@ const AppContent: React.FC = () => {
           costPrice: Number(updated.cost) || 0,
           stockQuantity: Number(updated.stock) || 0,
           reorderLevel: Number(updated.minStock) || 0,
+          taxRate: Number(updated.taxRate) || 0,
+          categoryTaxRateOverride: updated.categoryTaxRateOverride ? Number(updated.categoryTaxRateOverride) : null,
           status: updated.stock === 0 ? 'out-of-stock' : updated.stock <= updated.minStock ? 'low' : 'active'
         } as Product : p));
         showToast('Ürün güncellendi', 'success');
@@ -1648,6 +1723,8 @@ const AppContent: React.FC = () => {
           costPrice: Number(created.cost) || 0,
           stockQuantity: Number(created.stock) || 0,
           reorderLevel: Number(created.minStock) || 0,
+          taxRate: Number(created.taxRate) || 0,
+          categoryTaxRateOverride: created.categoryTaxRateOverride ? Number(created.categoryTaxRateOverride) : null,
           status: created.stock === 0 ? 'out-of-stock' : created.stock <= created.minStock ? 'low' : 'active'
         } as Product]);
         showToast('Ürün eklendi', 'success');
@@ -1695,18 +1772,43 @@ const AppContent: React.FC = () => {
   const categoriesEqual = (left: string, right: string) =>
     left.localeCompare(right, "tr-TR", { sensitivity: "accent" }) === 0;
 
-  const addProductCategory = (categoryName: string) => {
+  const addProductCategory = async (categoryName: string, taxRate?: number) => {
     const normalized = categoryName.trim();
     if (!normalized) {
       return;
     }
-    setProductCategories(prev => {
-      const exists = prev.some(existing => categoriesEqual(existing, normalized));
-      if (exists) {
-        return prev;
+
+    try {
+      // Backend'e kategori ekle
+      if (taxRate !== undefined) {
+        const { productCategoriesApi } = await import('./api/product-categories');
+        const newCategory = await productCategoriesApi.create({
+          name: normalized,
+          taxRate: taxRate,
+        });
+        
+        console.log('✅ Kategori backend\'e eklendi:', newCategory);
+        
+        // State'leri güncelle
+        setProductCategoryObjects(prev => [...prev, newCategory]);
       }
-      return [...prev, normalized].sort((a, b) => a.localeCompare(b, "tr-TR"));
-    });
+
+      // String array'i de güncelle (geriye uyumluluk)
+      setProductCategories(prev => {
+        const exists = prev.some(existing => categoriesEqual(existing, normalized));
+        if (exists) {
+          return prev;
+        }
+        return [...prev, normalized].sort((a, b) => a.localeCompare(b, "tr-TR"));
+      });
+
+      if (taxRate !== undefined) {
+        showToast(`${normalized} kategorisi eklendi (KDV: %${taxRate})`, 'success');
+      }
+    } catch (error: any) {
+      console.error('Kategori ekleme hatası:', error);
+      showToast(error.response?.data?.message || 'Kategori eklenemedi', 'error');
+    }
   };
 
   const renameProductCategory = (currentName: string, nextName: string) => {
@@ -1892,6 +1994,13 @@ const AppContent: React.FC = () => {
   const handleExistingSaleForInvoice = () => {
     setShowInvoiceTypeModal(false);
     setShowExistingSaleModal(true);
+  };
+
+  const handleReturnInvoice = () => {
+    setShowInvoiceTypeModal(false);
+    // InvoiceModal'ı type='return' olarak aç
+    setSelectedInvoice({ _isReturnInvoice: true });
+    setShowInvoiceModal(true);
   };
 
   const handleSelectSaleForInvoice = (sale: any) => {
@@ -2669,6 +2778,7 @@ const AppContent: React.FC = () => {
           onClose={() => setShowInvoiceTypeModal(false)}
           onSelectNewSale={handleNewSaleForInvoice}
           onSelectExistingSale={handleExistingSaleForInvoice}
+          onSelectReturn={handleReturnInvoice}
         />
       )}
 
@@ -2704,6 +2814,7 @@ const AppContent: React.FC = () => {
           invoice={selectedInvoice}
           customers={customers}
           products={products}
+          invoices={invoices}
         />
       )}
 
@@ -2730,6 +2841,7 @@ const AppContent: React.FC = () => {
             closeProductModal();
           }}
           categories={productCategories}
+          categoryObjects={productCategoryObjects}
           product={selectedProduct}
         />
       )}
@@ -2856,6 +2968,20 @@ const AppContent: React.FC = () => {
         }}
         onCreateExpense={handleCreateExpenseFromSupplier}
       />
+
+      {deleteWarningData && (
+        <DeleteWarningModal
+          isOpen={showDeleteWarning}
+          onClose={() => {
+            setShowDeleteWarning(false);
+            setDeleteWarningData(null);
+          }}
+          title={deleteWarningData.title}
+          message={deleteWarningData.message}
+          relatedItems={deleteWarningData.relatedItems}
+          itemType={deleteWarningData.itemType}
+        />
+      )}
     </>
   );
 

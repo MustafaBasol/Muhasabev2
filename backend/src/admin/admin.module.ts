@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { BackupController } from './backup.controller';
+import { BackupService } from './backup.service';
 import { User } from '../users/entities/user.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { Customer } from '../customers/entities/customer.entity';
@@ -24,8 +26,8 @@ import { ProductCategory } from '../products/entities/product-category.entity';
       Expense,
     ]),
   ],
-  controllers: [AdminController],
-  providers: [AdminService],
-  exports: [AdminService],
+  controllers: [AdminController, BackupController],
+  providers: [AdminService, BackupService],
+  exports: [AdminService, BackupService],
 })
 export class AdminModule {}

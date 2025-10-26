@@ -1,31 +1,35 @@
+# Staging için Docker Compose (Codespace ile uyumlu)
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: moneyflow-db
+    container_name: moneyflow-staging-db
     environment:
-      POSTGRES_DB: moneyflow_dev
+      POSTGRES_DB: moneyflow_staging
       POSTGRES_USER: moneyflow
       POSTGRES_PASSWORD: moneyflow123
     ports:
       - "5432:5432"
     volumes:
-      - backend_postgres_data:/var/lib/postgresql/data
+      # Codespace'de /workspaces kalıcıdır
+      - /workspaces/Muhasabev2/.data/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
     networks:
       - moneyflow-network
 
   redis:
     image: redis:7-alpine
-    container_name: moneyflow-redis
+    container_name: moneyflow-staging-redis
     ports:
       - "6379:6379"
     volumes:
-      - backend_redis_data:/data
+      - /workspaces/Muhasabev2/.data/redis:/data
+    restart: unless-stopped
     networks:
       - moneyflow-network
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: moneyflow-pgadmin
+    container_name: moneyflow-staging-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@moneyflow.com
       PGADMIN_DEFAULT_PASSWORD: admin
@@ -35,10 +39,6 @@ services:
       - postgres
     networks:
       - moneyflow-network
-
-volumes:
-  backend_postgres_data:
-  backend_redis_data:
 
 networks:
   moneyflow-network:

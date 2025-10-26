@@ -30,3 +30,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Database data (local development)
+.data/
+backend/.data/
+*.sql
+!backend/backups/.gitkeep
+
+# Backup files (except structure)
+backend/backups/*
+!backend/backups/.gitkeep

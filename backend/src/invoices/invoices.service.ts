@@ -44,28 +44,43 @@ export class InvoicesService {
     
     // Calculate total from line items - Her ürün kendi KDV oranıyla
     const items = createInvoiceDto.lineItems || createInvoiceDto.items || [];
-    const totalWithTax = items.reduce((sum: number, item: any) => {
-      const quantity = Number(item.quantity) || 0;
-      const unitPrice = Number(item.unitPrice) || 0;
-      return sum + (quantity * unitPrice);
-    }, 0);
     
-    // Her ürün için KDV hesapla
-    let subtotal = 0;
-    let taxAmount = 0;
+    console.log('📊 Backend: Fatura KDV hesaplaması başlıyor:', {
+      itemCount: items.length,
+      firstItem: items[0]
+    });
+    
+    // Her ürün için KDV hesapla (Fiyatlar KDV HARİÇ)
+    let subtotal = 0; // KDV HARİÇ toplam
+    let taxAmount = 0; // KDV tutarı
     
     items.forEach((item: any) => {
-      const itemTotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+      const itemTotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0); // KDV HARİÇ
       const itemTaxRate = Number(item.taxRate ?? 18) / 100; // %18 -> 0.18
-      const itemSubtotal = itemTotal / (1 + itemTaxRate); // KDV HARİÇ
-      const itemTax = itemTotal - itemSubtotal; // KDV tutarı
+      const itemTax = itemTotal * itemTaxRate; // KDV tutarı
       
-      subtotal += itemSubtotal;
-      taxAmount += itemTax;
+      console.log('  📌 Item:', {
+        product: item.productName || item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        itemTotal,
+        taxRate: item.taxRate ?? 18,
+        itemTax
+      });
+      
+      subtotal += itemTotal; // KDV HARİÇ toplam
+      taxAmount += itemTax; // KDV toplamı
     });
     
     const discountAmount = Number(createInvoiceDto.discountAmount) || 0;
-    const total = totalWithTax - discountAmount; // KDV DAHİL toplam
+    const total = subtotal + taxAmount - discountAmount; // KDV DAHİL toplam
+    
+    console.log('✅ Backend: Fatura toplamları:', {
+      subtotal,
+      taxAmount,
+      discountAmount,
+      total
+    });
     
     const invoice = this.invoicesRepository.create({
       ...createInvoiceDto,
@@ -121,28 +136,22 @@ export class InvoicesService {
     // Recalculate if items are updated
     if (updateInvoiceDto.lineItems || updateInvoiceDto.items) {
       const items = updateInvoiceDto.lineItems || updateInvoiceDto.items || [];
-      const totalWithTax = items.reduce((sum: number, item: any) => {
-        const quantity = Number(item.quantity) || 0;
-        const unitPrice = Number(item.unitPrice) || 0;
-        return sum + (quantity * unitPrice);
-      }, 0);
       
-      // Her ürün için KDV hesapla
-      let subtotal = 0;
-      let taxAmount = 0;
+      // Her ürün için KDV hesapla (Fiyatlar KDV HARİÇ)
+      let subtotal = 0; // KDV HARİÇ toplam
+      let taxAmount = 0; // KDV tutarı
       
       items.forEach((item: any) => {
-        const itemTotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
-        const itemTaxRate = Number(item.taxRate ?? 18) / 100;
-        const itemSubtotal = itemTotal / (1 + itemTaxRate);
-        const itemTax = itemTotal - itemSubtotal;
+        const itemTotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0); // KDV HARİÇ
+        const itemTaxRate = Number(item.taxRate ?? 18) / 100; // %18 -> 0.18
+        const itemTax = itemTotal * itemTaxRate; // KDV tutarı
         
-        subtotal += itemSubtotal;
-        taxAmount += itemTax;
+        subtotal += itemTotal; // KDV HARİÇ toplam
+        taxAmount += itemTax; // KDV toplamı
       });
       
       const discountAmount = Number(updateInvoiceDto.discountAmount ?? invoice.discountAmount) || 0;
-      const total = totalWithTax - discountAmount;
+      const total = subtotal + taxAmount - discountAmount; // KDV DAHİL toplam
       
       updateInvoiceDto.items = items;
       updateInvoiceDto.subtotal = subtotal;

@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Supplier } from './entities/supplier.entity';
+import { Expense } from '../expenses/entities/expense.entity';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 
@@ -10,6 +11,8 @@ export class SuppliersService {
   constructor(
     @InjectRepository(Supplier)
     private suppliersRepository: Repository<Supplier>,
+    @InjectRepository(Expense)
+    private expensesRepository: Repository<Expense>,
   ) {}
 
   async findAll(tenantId: string): Promise<Supplier[]> {
@@ -48,6 +51,27 @@ export class SuppliersService {
 
   async remove(id: string, tenantId: string): Promise<void> {
     const supplier = await this.findOne(id, tenantId);
+    
+    // Bağlı gider var mı kontrol et
+    const relatedExpenses = await this.expensesRepository.find({
+      where: { supplierId: id, tenantId },
+      take: 5, // İlk 5 gideri al
+    });
+
+    if (relatedExpenses.length > 0) {
+      const expenseNumbers = relatedExpenses.map(e => e.expenseNumber).join(', ');
+      throw new HttpException({
+        message: 'Bu tedarikçi silinemez çünkü bağlı giderler var',
+        relatedExpenses: relatedExpenses.map(e => ({
+          id: e.id,
+          expenseNumber: e.expenseNumber,
+          description: e.description,
+          amount: e.amount,
+        })),
+        count: relatedExpenses.length,
+      }, HttpStatus.BAD_REQUEST);
+    }
+
     await this.suppliersRepository.remove(supplier);
   }
 

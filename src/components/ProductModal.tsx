@@ -9,6 +9,7 @@ import {
   FileText
 } from 'lucide-react';
 import type { Product } from './ProductList';
+import type { ProductCategory } from '../types';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface ProductModalProps {
   onSave: (product: Product) => void;
   product?: Product | null;
   categories: string[];
+  categoryObjects?: ProductCategory[]; // Kategori nesneleri (taxRate için)
 }
 
 interface ProductFormState {
@@ -46,20 +48,49 @@ const defaultState: ProductFormState = {
   categoryTaxRateOverride: '',
 };
 
-export default function ProductModal({ isOpen, onClose, onSave, product, categories }: ProductModalProps) {
+export default function ProductModal({ isOpen, onClose, onSave, product, categories, categoryObjects: initialCategoryObjects }: ProductModalProps) {
   const [formState, setFormState] = React.useState<ProductFormState>(defaultState);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [categoryObjects, setCategoryObjects] = React.useState<ProductCategory[]>(initialCategoryObjects || []);
+
+  // Backend'den kategori nesnelerini yükle
+  React.useEffect(() => {
+    if (isOpen && categoryObjects.length === 0) {
+      import('../api/product-categories').then(({ productCategoriesApi }) => {
+        productCategoriesApi.getAll()
+          .then(cats => {
+            console.log('📦 Kategoriler yüklendi:', cats);
+            setCategoryObjects(cats);
+          })
+          .catch(console.error);
+      });
+    }
+  }, [isOpen, categoryObjects.length]);
+
   const categoryOptions = React.useMemo(() => {
-    const optionSet = new Set(
-      categories
-        .map(category => category.trim())
-        .filter(category => Boolean(category))
-    );
+    // Hem categoryObjects'ten hem de categories'den al
+    const optionSet = new Set<string>();
+    
+    // categoryObjects varsa onlardan al (öncelik)
+    if (categoryObjects.length > 0) {
+      categoryObjects.forEach(cat => optionSet.add(cat.name));
+    }
+    
+    // String categories'i de ekle (geriye uyumluluk için)
+    categories.forEach(cat => {
+      const trimmed = cat.trim();
+      if (trimmed) optionSet.add(trimmed);
+    });
+    
+    // Ürünün kategorisi varsa onu da ekle
     if (product?.category) {
       optionSet.add(product.category.trim());
     }
-    return Array.from(optionSet).sort((a, b) => a.localeCompare(b, 'tr-TR'));
-  }, [categories, product]);
+    
+    const sorted = Array.from(optionSet).sort((a, b) => a.localeCompare(b, 'tr-TR'));
+    console.log('📋 Kategori seçenekleri:', sorted);
+    return sorted;
+  }, [categories, categoryObjects, product]);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -132,6 +163,17 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
     const reorderLevel = Number(formState.reorderLevel) || 0;
     const selectedCategory = formState.category.trim() || categoryOptions[0] || 'Genel';
 
+    // Kategorinin KDV oranını bul
+    const categoryObj = categoryObjects?.find(c => c.name === selectedCategory);
+    const categoryTaxRate = categoryObj?.taxRate ?? 18; // Kategori KDV'si veya varsayılan %18
+
+    console.log('💾 Ürün kaydediliyor:', {
+      selectedCategory,
+      categoryObj,
+      categoryTaxRate,
+      categoryObjects: categoryObjects?.map(c => ({ name: c.name, taxRate: c.taxRate }))
+    });
+
     const nextProduct: any = {
       name: formState.name.trim(),
       sku: formState.sku.trim(),
@@ -143,13 +185,22 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       unit: formState.unit.trim() || 'adet',
       description: formState.description.trim(),
       status: stockQuantity === 0 ? 'out-of-stock' : stockQuantity <= reorderLevel ? 'low' : 'active',
+      taxRate: categoryTaxRate, // Kategorinin KDV oranını ürüne ata
     };
 
-    // Özel KDV oranı varsa ekle
+    console.log('📦 Kaydedilecek ürün:', {
+      name: nextProduct.name,
+      category: nextProduct.category,
+      taxRate: nextProduct.taxRate,
+      categoryTaxRateOverride: nextProduct.categoryTaxRateOverride
+    });
+
+    // Özel KDV oranı varsa ekle (kategorinin KDV'sini override eder)
     if (formState.hasCustomTaxRate && formState.categoryTaxRateOverride) {
       const taxRateOverride = Number(formState.categoryTaxRateOverride);
       if (!isNaN(taxRateOverride) && taxRateOverride >= 0 && taxRateOverride <= 100) {
         nextProduct.categoryTaxRateOverride = taxRateOverride;
+        console.log('✏️ Özel KDV oranı eklendi:', taxRateOverride);
       }
     }
     
@@ -274,7 +325,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                   <input
                     type="checkbox"
                     checked={formState.hasCustomTaxRate}
-                    onChange={(event) => handleChange('hasCustomTaxRate', event.target.checked ? 'true' : 'false')}
+                    onChange={(event) => setFormState(prev => ({ ...prev, hasCustomTaxRate: event.target.checked }))}
                     className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
                   />
                   Bu ürün için özel KDV oranı kullan (kategorinin KDV'sini geçersiz kılar)

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../api/admin';
 import { Edit, Trash2, ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
+import BackupManagementPage from './admin/BackupManagementPage';
 
 interface User {
   id: string;
@@ -50,7 +51,7 @@ const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups'>('users');
   
   // Table visibility states
   const [visibleTables, setVisibleTables] = useState<{[key: string]: boolean}>({
@@ -376,6 +377,16 @@ const AdminPage: React.FC = () => {
           >
             📊 Veriler
           </button>
+          <button
+            onClick={() => setActiveTab('backups')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'backups'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            💾 Yedekleme
+          </button>
         </div>
 
         {/* Stats */}
@@ -551,6 +562,10 @@ const AdminPage: React.FC = () => {
               {renderTable('expenses', tableData.expenses, ['expenseNumber', 'supplierName', 'amount', 'category', 'date'])}
             </div>
           </div>
+        )}
+
+        {activeTab === 'backups' && (
+          <BackupManagementPage />
         )}
       </div>
     </div>

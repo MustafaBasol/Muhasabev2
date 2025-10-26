@@ -1,17 +1,19 @@
-import { X, Plus, FileText } from 'lucide-react';
+import { X, Plus, FileText, RotateCcw } from 'lucide-react';
 
 interface InvoiceTypeSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectNewSale: () => void;
   onSelectExistingSale: () => void;
+  onSelectReturn: () => void;
 }
 
 export default function InvoiceTypeSelectionModal({
   isOpen,
   onClose,
   onSelectNewSale,
-  onSelectExistingSale
+  onSelectExistingSale,
+  onSelectReturn
 }: InvoiceTypeSelectionModalProps) {
   if (!isOpen) return null;
 
@@ -77,6 +79,27 @@ export default function InvoiceTypeSelectionModal({
                   </p>
                   <p className="text-xs text-green-600 mt-1">
                     Sadece fatura bilgileri düzenlenebilir
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            {/* İade Faturası Seçeneği */}
+            <button
+              onClick={onSelectReturn}
+              className="w-full p-6 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg hover:from-red-100 hover:to-red-200 transition-all group"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center group-hover:bg-red-600 transition-colors">
+                  <RotateCcw className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">İade Faturası</h3>
+                  <p className="text-sm text-gray-600">
+                    Daha önce kesilen bir fatura için iade/iade faturası oluşturun
+                  </p>
+                  <p className="text-xs text-red-600 mt-1">
+                    Mevcut faturadan seçim yaparak iade oluşturulur
                   </p>
                 </div>
               </div>

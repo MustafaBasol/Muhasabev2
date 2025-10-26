@@ -39,20 +39,53 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto, tenantId: string): Promise<Product> {
+    console.log('📦 Backend: Yeni ürün oluşturuluyor:', {
+      name: createProductDto.name,
+      category: createProductDto.category,
+      taxRate: createProductDto.taxRate,
+      categoryTaxRateOverride: createProductDto.categoryTaxRateOverride,
+      tenantId
+    });
+
     const product = this.productsRepository.create({
       ...createProductDto,
       tenantId,
     });
 
-    return this.productsRepository.save(product);
+    const saved = await this.productsRepository.save(product);
+    
+    console.log('✅ Backend: Ürün kaydedildi:', {
+      id: saved.id,
+      name: saved.name,
+      taxRate: saved.taxRate,
+      categoryTaxRateOverride: saved.categoryTaxRateOverride
+    });
+
+    return saved;
   }
 
   async update(id: string, updateProductDto: UpdateProductDto, tenantId: string): Promise<Product> {
+    console.log('✏️ Backend: Ürün güncelleniyor:', {
+      id,
+      taxRate: updateProductDto.taxRate,
+      categoryTaxRateOverride: updateProductDto.categoryTaxRateOverride
+    });
+
     await this.productsRepository.update(
       { id, tenantId },
       updateProductDto,
     );
-    return this.findOne(id, tenantId);
+    
+    const updated = await this.findOne(id, tenantId);
+    
+    console.log('✅ Backend: Ürün güncellendi:', {
+      id: updated.id,
+      name: updated.name,
+      taxRate: updated.taxRate,
+      categoryTaxRateOverride: updated.categoryTaxRateOverride
+    });
+    
+    return updated;
   }
 
   async remove(id: string, tenantId: string): Promise<void> {

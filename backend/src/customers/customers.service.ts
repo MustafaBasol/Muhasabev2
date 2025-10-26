@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity';
+import { Invoice } from '../invoices/entities/invoice.entity';
 
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
@@ -11,6 +12,8 @@ export class CustomersService {
   constructor(
     @InjectRepository(Customer)
     private customersRepository: Repository<Customer>,
+    @InjectRepository(Invoice)
+    private invoicesRepository: Repository<Invoice>,
   ) {}
 
   async findAll(tenantId: string): Promise<Customer[]> {
@@ -49,6 +52,26 @@ export class CustomersService {
 
   async remove(id: string, tenantId: string): Promise<void> {
     const customer = await this.findOne(id, tenantId);
+    
+    // Bağlı fatura var mı kontrol et
+    const relatedInvoices = await this.invoicesRepository.find({
+      where: { customerId: id, tenantId },
+      take: 5, // İlk 5 faturayı al
+    });
+
+    if (relatedInvoices.length > 0) {
+      throw new HttpException({
+        message: 'Bu müşteri silinemez çünkü bağlı faturalar var',
+        relatedInvoices: relatedInvoices.map(i => ({
+          id: i.id,
+          invoiceNumber: i.invoiceNumber,
+          total: i.total,
+          status: i.status,
+        })),
+        count: relatedInvoices.length,
+      }, HttpStatus.BAD_REQUEST);
+    }
+
     await this.customersRepository.remove(customer);
   }
 

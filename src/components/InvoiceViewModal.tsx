@@ -19,7 +19,7 @@ interface Invoice {
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   issueDate: string;
   dueDate: string;
-  items: any[];
+  items?: any[];
   notes?: string;
   type?: 'product' | 'service';
 }
@@ -170,7 +170,7 @@ export default function InvoiceViewModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {invoice.items.map((item, index) => (
+                  {invoice.items && Array.isArray(invoice.items) && invoice.items.map((item, index) => (
                     <tr key={index}>
                       <td className="px-4 py-3 text-sm text-gray-900">{item.description}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.quantity}</td>
