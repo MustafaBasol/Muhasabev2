@@ -10,6 +10,8 @@ import {
   Globe,
   Check
 } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
+import { useTranslation } from 'react-i18next';
 
 export interface HeaderNotification {
   id: string;
@@ -41,8 +43,6 @@ interface HeaderProps {
   onToggleNotifications?: () => void;
   onCloseNotifications?: () => void;
   onNotificationClick?: (notification: HeaderNotification) => void;
-  language?: 'tr' | 'en' | 'fr';
-  onLanguageChange?: (language: 'tr' | 'en' | 'fr') => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -58,17 +58,35 @@ const Header: React.FC<HeaderProps> = ({
   onToggleNotifications,
   onCloseNotifications,
   onNotificationClick,
-  language = 'tr',
-  onLanguageChange,
 }) => {
-  const formatTitle = (value: string) =>
-    value
+  const { currentLanguage, changeLanguage, languages } = useLanguage();
+  const { t } = useTranslation();
+  
+  // Page title mapping to translation keys
+  const getPageTitle = (page: string): string => {
+    const pageMap: Record<string, string> = {
+      'dashboard': 'sidebar.dashboard',
+      'invoices': 'sidebar.invoices',
+      'expenses': 'sidebar.expenses',
+      'customers': 'sidebar.customers',
+      'products': 'sidebar.products',
+      'suppliers': 'sidebar.suppliers',
+      'banks': 'sidebar.banks',
+      'sales': 'sidebar.sales',
+      'reports': 'sidebar.reports',
+      'general-ledger': 'sidebar.accounting',
+      'chart-of-accounts': 'sidebar.chartOfAccounts',
+      'archive': 'sidebar.archive',
+      'settings': 'sidebar.settings',
+    };
+    
+    return pageMap[page] ? t(pageMap[page]) : page
       .split('-')
       .map(part => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ');
+  };
 
-  const formattedTitle =
-    activePage === 'dashboard' ? 'Dashboard' : formatTitle(activePage);
+  const formattedTitle = getPageTitle(activePage);
 
   const notificationsButtonRef = useRef<HTMLButtonElement | null>(null);
   const notificationsPanelRef = useRef<HTMLDivElement | null>(null);
@@ -140,16 +158,11 @@ const Header: React.FC<HeaderProps> = ({
     danger: 'bg-red-500',
   };
 
-    const languageOptions: Array<{ code: 'tr' | 'en' | 'fr'; label: string; nativeLabel: string }> = [
-    { code: 'tr', label: 'Turkish', nativeLabel: 'Türkçe' },
-    { code: 'en', label: 'English', nativeLabel: 'English' },
-    { code: 'fr', label: 'French', nativeLabel: 'Français' },
-  ];
   const selectedLanguage =
-    languageOptions.find(option => option.code === language) ?? languageOptions[0];
+    languages.find(option => option.code === currentLanguage) ?? languages[0];
 
-  const handleLanguageSelect = (code: 'tr' | 'en' | 'fr') => {
-    onLanguageChange?.(code);
+  const handleLanguageSelect = (code: string) => {
+    changeLanguage(code as 'tr' | 'en' | 'de' | 'fr');
     setIsLanguageMenuOpen(false);
   };
 
@@ -180,7 +193,7 @@ const Header: React.FC<HeaderProps> = ({
               className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
             >
               <Plus className="mr-2 h-4 w-4" />
-              Yeni Fatura
+              {t('header.newInvoice')}
             </button>
             <button
               type="button"
@@ -188,7 +201,7 @@ const Header: React.FC<HeaderProps> = ({
               className="inline-flex items-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
             >
               <Plus className="mr-2 h-4 w-4" />
-              Yeni Satış
+              {t('header.newSale')}
             </button>
           </div>
 
@@ -197,7 +210,7 @@ const Header: React.FC<HeaderProps> = ({
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
               <input
                 type="text"
-                placeholder="Ara..."
+                placeholder={t('header.search')}
                 className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -216,17 +229,17 @@ const Header: React.FC<HeaderProps> = ({
                 <Globe className="h-4 w-4 text-blue-500" aria-hidden />
                 <div className="flex flex-col text-left">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    Dil
+                    {t('header.language')}
                   </span>
-                  <span className="text-sm font-medium text-gray-700">{selectedLanguage.nativeLabel}</span>
+                  <span className="text-sm font-medium text-gray-700">{selectedLanguage.name}</span>
                 </div>
               </button>
 
               {isLanguageMenuOpen && (
                 <div className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                   <ul className="divide-y divide-gray-100" role="listbox" aria-label="Dil seçenekleri">
-                    {languageOptions.map(option => {
-                      const isActive = option.code === language;
+                    {languages.map(option => {
+                      const isActive = option.code === currentLanguage;
                       const itemClasses = isActive
                         ? 'bg-blue-50 text-blue-600'
                         : 'text-gray-600 hover:bg-gray-50';
@@ -238,7 +251,10 @@ const Header: React.FC<HeaderProps> = ({
                             onClick={() => handleLanguageSelect(option.code)}
                             className={`flex w-full items-center justify-between px-4 py-2 text-sm transition ${itemClasses}`}
                           >
-                            <span>{option.nativeLabel}</span>
+                            <span className="flex items-center gap-2">
+                              <span>{option.flag}</span>
+                              <span>{option.name}</span>
+                            </span>
                             {isActive && <Check className="h-4 w-4 text-blue-500" />}
                           </button>
                         </li>
@@ -260,7 +276,7 @@ const Header: React.FC<HeaderProps> = ({
                       ? 'text-blue-600 hover:bg-blue-50'
                       : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
                   }`}
-                  aria-label="Bildirimler"
+                  aria-label={t('header.notifications')}
                   aria-expanded={isNotificationsOpen}
                 >
                   <Bell className="h-5 w-5" />
@@ -278,15 +294,15 @@ const Header: React.FC<HeaderProps> = ({
                   >
                     <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                       <span className="text-sm font-semibold text-gray-900">
-                        Bildirimler
+                        {t('header.notifications')}
                       </span>
                       <span className="text-xs text-gray-400">
-                        {new Date().toLocaleDateString('tr-TR')}
+                        {new Date().toLocaleDateString(currentLanguage)}
                       </span>
                     </div>
                     {notifications.length === 0 ? (
                       <div className="px-4 py-6 text-center text-sm text-gray-500">
-                        Yeni bildiriminiz yok.
+                        {t('header.noNotifications')}
                       </div>
                     ) : (
                       <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto">
@@ -334,7 +350,7 @@ const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-              aria-label="Ayarlar"
+              aria-label={t('header.settings')}
             >
               <SettingsIcon className="h-5 w-5" />
             </button>
@@ -353,7 +369,7 @@ const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={onLogout}
               className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
-              title="Çıkış Yap"
+              title={t('header.logout')}
             >
               <LogOut className="h-5 w-5" />
             </button>

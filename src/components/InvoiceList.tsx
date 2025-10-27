@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Plus, Eye, Edit, Download, Trash2, FileText, Calendar, Check, X } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 // Archive threshold: invoices older than this many days will only appear in archive
 const ARCHIVE_THRESHOLD_DAYS = 365; // 1 year
@@ -41,6 +42,7 @@ export default function InvoiceList({
   onDownloadInvoice
 }: InvoiceListProps) {
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -82,11 +84,11 @@ export default function InvoiceList({
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      draft: { label: 'Taslak', class: 'bg-gray-100 text-gray-800' },
-      sent: { label: 'Gönderildi', class: 'bg-blue-100 text-blue-800' },
-      paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' },
-      overdue: { label: 'Gecikmiş', class: 'bg-red-100 text-red-800' },
-      cancelled: { label: 'İptal', class: 'bg-red-100 text-red-800' }
+      draft: { label: t('status.draft'), class: 'bg-gray-100 text-gray-800' },
+      sent: { label: t('status.sent'), class: 'bg-blue-100 text-blue-800' },
+      paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
+      overdue: { label: t('status.overdue'), class: 'bg-red-100 text-red-800' },
+      cancelled: { label: t('status.cancelled'), class: 'bg-red-100 text-red-800' }
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || { label: status, class: 'bg-gray-100 text-gray-800' };
@@ -134,9 +136,9 @@ export default function InvoiceList({
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Faturalar</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('invoices.title')}</h2>
             <p className="text-sm text-gray-500">
-              {currentInvoices.length} fatura kayıtlı • {invoices.length - currentInvoices.length} arşivde
+              {currentInvoices.length} {t('invoices.invoicesRegistered')} • {invoices.length - currentInvoices.length} {t('invoices.inArchive')}
             </p>
           </div>
           <button
@@ -144,7 +146,7 @@ export default function InvoiceList({
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>Yeni Fatura</span>
+            <span>{t('invoices.newInvoice')}</span>
           </button>
         </div>
 
@@ -154,7 +156,7 @@ export default function InvoiceList({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Fatura numarası veya müşteri ara..."
+              placeholder={t('invoices.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -165,12 +167,12 @@ export default function InvoiceList({
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Tüm Durumlar</option>
-            <option value="draft">Taslak</option>
-            <option value="sent">Gönderildi</option>
-            <option value="paid">Ödendi</option>
-            <option value="overdue">Gecikmiş</option>
-            <option value="cancelled">İptal</option>
+            <option value="all">{t('invoices.filterAll')}</option>
+            <option value="draft">{t('status.draft')}</option>
+            <option value="sent">{t('status.sent')}</option>
+            <option value="paid">{t('status.paid')}</option>
+            <option value="overdue">{t('status.overdue')}</option>
+            <option value="cancelled">{t('status.cancelled')}</option>
           </select>
         </div>
       </div>
@@ -183,12 +185,12 @@ export default function InvoiceList({
               <FileText className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || statusFilter !== 'all' ? 'Fatura bulunamadı' : 'Henüz fatura yok'}
+              {searchTerm || statusFilter !== 'all' ? t('invoices.noInvoicesFound') : t('invoices.noInvoices')}
             </h3>
             <p className="text-gray-500 mb-4">
               {searchTerm || statusFilter !== 'all'
-                ? 'Arama kriterlerinize uygun fatura bulunamadı.'
-                : 'İlk faturanızı oluşturarak başlayın.'
+                ? t('invoices.noInvoicesFoundDesc')
+                : t('invoices.noInvoicesDesc')
               }
             </p>
             {!searchTerm && statusFilter === 'all' && (
@@ -196,7 +198,7 @@ export default function InvoiceList({
                 onClick={onAddInvoice}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                İlk Faturayı Oluştur
+                {t('invoices.createFirstInvoice')}
               </button>
             )}
           </div>
@@ -206,25 +208,25 @@ export default function InvoiceList({
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fatura
+                    {t('invoices.invoiceNumber')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Müşteri
+                    {t('invoices.customer')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Açıklama
+                    {t('common.description')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tutar
+                    {t('invoices.amount')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Durum
+                    {t('invoices.status')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tarih
+                    {t('invoices.date')}
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    İşlemler
+                    {t('invoices.actions')}
                   </th>
                 </tr>
               </thead>
@@ -241,7 +243,7 @@ export default function InvoiceList({
                             <button
                               onClick={() => onViewInvoice(invoice)}
                               className="text-blue-600 hover:text-blue-800 font-medium transition-colors cursor-pointer"
-                              title="Faturayı görüntüle"
+                              title={t('invoices.viewInvoice')}
                             >
                               {invoice.invoiceNumber}
                             </button>
@@ -315,10 +317,10 @@ export default function InvoiceList({
                             onChange={(e) => setTempValue(e.target.value)}
                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           >
-                            <option value="draft">Taslak</option>
-                            <option value="sent">Gönderildi</option>
-                            <option value="paid">Ödendi</option>
-                            <option value="overdue">Gecikmiş</option>
+                            <option value="draft">{t('status.draft')}</option>
+                            <option value="sent">{t('status.sent')}</option>
+                            <option value="paid">{t('status.paid')}</option>
+                            <option value="overdue">{t('status.overdue')}</option>
                           </select>
                           <button
                             onClick={() => handleSaveInlineEdit(invoice)}
@@ -369,7 +371,7 @@ export default function InvoiceList({
                           onClick={() => handleInlineEdit(invoice.id, 'dueDate', invoice.dueDate)}
                           className="cursor-pointer hover:bg-gray-50 rounded p-1"
                         >
-                          Vade: {formatDate(invoice.dueDate)}
+                          {t('common.dueDate')}: {formatDate(invoice.dueDate)}
                         </div>
                       )}
                     </td>
@@ -378,14 +380,14 @@ export default function InvoiceList({
                         <button 
                           onClick={() => onViewInvoice(invoice)}
                           className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Görüntüle"
+                          title={t('invoices.view')}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => onEditInvoice(invoice)}
                           className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Düzenle"
+                          title={t('invoices.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -396,14 +398,14 @@ export default function InvoiceList({
                             }
                           }}
                           className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                          title="İndir"
+                          title={t('invoices.download')}
                         >
                           <Download className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => onDeleteInvoice(invoice.id)}
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Sil"
+                          title={t('invoices.delete')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

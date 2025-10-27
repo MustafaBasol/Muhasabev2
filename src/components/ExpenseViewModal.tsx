@@ -1,5 +1,7 @@
 import { X, Download, Edit, Calendar, Building2, Tag, Receipt } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
+import { useMemo } from 'react';
 
 interface Expense {
   id: string;
@@ -35,6 +37,15 @@ export default function ExpenseViewModal({
   onDownload 
 }: ExpenseViewModalProps) {
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
+
+  const statusConfig = useMemo(() => ({
+    draft: { label: t('status.draft'), class: 'bg-gray-100 text-gray-800' },
+    approved: { label: t('status.approved'), class: 'bg-blue-100 text-blue-800' },
+    paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
+    pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
+    rejected: { label: t('status.rejected'), class: 'bg-red-100 text-red-800' }
+  }), [t]);
   
   if (!isOpen || !expense) return null;
 
@@ -68,14 +79,6 @@ export default function ExpenseViewModal({
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      draft: { label: 'Taslak', class: 'bg-gray-100 text-gray-800' },
-      approved: { label: 'Onaylandı', class: 'bg-blue-100 text-blue-800' },
-      paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' },
-      pending: { label: 'Beklemede', class: 'bg-yellow-100 text-yellow-800' },
-      rejected: { label: 'Reddedildi', class: 'bg-red-100 text-red-800' }
-    };
-    
     const config = statusConfig[status as keyof typeof statusConfig] || { 
       label: status || 'Bilinmeyen', 
       class: 'bg-gray-100 text-gray-800' 
@@ -95,7 +98,7 @@ export default function ExpenseViewModal({
           <div className="flex items-center space-x-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{expense.expenseNumber}</h2>
-              <p className="text-sm text-gray-500">Gider Detayları</p>
+              <p className="text-sm text-gray-500">{t('expense.details')}</p>
             </div>
             {getStatusBadge(expense.status)}
           </div>
@@ -106,7 +109,7 @@ export default function ExpenseViewModal({
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Download className="w-4 h-4" />
-                <span>PDF İndir</span>
+                <span>{t('invoice.downloadPdf')}</span>
               </button>
             )}
             <button
@@ -117,7 +120,7 @@ export default function ExpenseViewModal({
               className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               <Edit className="w-4 h-4" />
-              <span>Düzenle</span>
+              <span>{t('common.edit')}</span>
             </button>
             <button
               onClick={onClose}
@@ -132,27 +135,27 @@ export default function ExpenseViewModal({
           {/* Expense Header */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Gider Bilgileri</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('expense.information')}</h3>
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">Gider Tarihi:</span>
+                  <span className="text-gray-600">{t('expense.date')}:</span>
                   <span className="ml-2 font-medium">{formatDate(expense.expenseDate)}</span>
                 </div>
                 <div className="flex items-center text-sm">
                   <Tag className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">Kategori:</span>
+                  <span className="text-gray-600">{t('expense.category')}:</span>
                   <span className="ml-2 font-medium">{getCategoryLabel(expense.category)}</span>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Tedarikçi Bilgileri</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('expense.supplier')}</h3>
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <Building2 className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">Tedarikçi:</span>
+                  <span className="text-gray-600">{t('expense.supplier')}:</span>
                   <span className="ml-2 font-medium">{expense.supplier?.name || 'Tedarikçi Yok'}</span>
                 </div>
                 {expense.supplier?.email && (
@@ -173,7 +176,7 @@ export default function ExpenseViewModal({
 
           {/* Description */}
           <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Açıklama</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('invoice.description')}</h3>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-gray-700">{expense.description}</p>
             </div>
@@ -181,10 +184,10 @@ export default function ExpenseViewModal({
 
           {/* Amount */}
           <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Tutar Bilgileri</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('expense.amount')}</h3>
             <div className="bg-red-50 rounded-lg p-6 border border-red-200">
               <div className="flex justify-between items-center">
-                <span className="text-red-800 font-medium text-lg">Toplam Gider:</span>
+                <span className="text-red-800 font-medium text-lg">{t('expense.amount')}:</span>
                 <span className="text-2xl font-bold text-red-600">
                   {formatAmount(expense.amount)}
                 </span>
@@ -195,7 +198,7 @@ export default function ExpenseViewModal({
           {/* Receipt */}
           {expense.receiptUrl && (
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Fiş/Fatura</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('expense.receipt')}</h3>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center space-x-3">
                   <Receipt className="w-5 h-5 text-blue-600" />
@@ -205,7 +208,7 @@ export default function ExpenseViewModal({
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-700 font-medium underline"
                   >
-                    Fiş/Faturayı Görüntüle
+                    {t('expense.viewReceipt')}
                   </a>
                 </div>
               </div>
@@ -215,7 +218,7 @@ export default function ExpenseViewModal({
           {/* Notes */}
           {expense.notes && (
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Notlar</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('invoice.notes')}</h3>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-gray-700">{expense.notes}</p>
               </div>

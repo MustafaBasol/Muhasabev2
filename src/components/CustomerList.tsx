@@ -9,6 +9,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface Customer {
   id?: string | number;
@@ -44,6 +45,7 @@ export default function CustomerList({
   onImportCustomers,
   selectionMode = false,
 }: CustomerListProps) {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -91,10 +93,10 @@ export default function CustomerList({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">
-            {selectionMode ? 'Müşteri Seç' : 'Müşteriler'}
+            {selectionMode ? 'Müşteri Seç' : t('customers.title')}
           </h2>
           <p className="text-sm text-gray-500">
-            {safeCustomers.length} müşteri kayıtlı
+            {safeCustomers.length} {t('customers.customersRegistered')}
           </p>
         </div>
         {!selectionMode && (
@@ -113,7 +115,7 @@ export default function CustomerList({
               disabled={!onImportCustomers}
             >
               <Upload className="h-4 w-4" />
-              <span>CSV/Excel İçe Aktar</span>
+              <span>{t('customers.importCSV')}</span>
             </button>
             <button
               type="button"
@@ -121,7 +123,7 @@ export default function CustomerList({
               className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700"
             >
               <Plus className="h-4 w-4" />
-              <span>Yeni Müşteri</span>
+              <span>{t('customers.newCustomer')}</span>
             </button>
           </div>
         )}
@@ -133,7 +135,7 @@ export default function CustomerList({
           type="text"
           value={searchTerm}
           onChange={event => setSearchTerm(event.target.value)}
-          placeholder="Müşteri ara..."
+          placeholder={t('customers.search')}
           className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
         />
       </div>
@@ -146,12 +148,12 @@ export default function CustomerList({
         <Building2 className="h-8 w-8 text-gray-400" />
       </div>
       <h3 className="mb-2 text-lg font-medium text-gray-900">
-        {searchTerm ? 'Müşteri bulunamadı' : 'Henüz müşteri yok'}
+        {searchTerm ? t('customers.noCustomersFound') : t('customers.noCustomers')}
       </h3>
       <p className="mb-4 text-gray-500">
         {searchTerm
-          ? 'Arama kriterlerinize uygun müşteri bulunamadı.'
-          : 'İlk müşterinizi ekleyerek başlayın.'}
+          ? t('customers.noCustomersFoundDesc')
+          : t('customers.noCustomersDesc')}
       </p>
       {!selectionMode && !searchTerm && (
         <button
@@ -159,7 +161,7 @@ export default function CustomerList({
           onClick={onAddCustomer}
           className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
         >
-          İlk Müşteriyi Ekle
+          {t('customers.createFirstCustomer')}
         </button>
       )}
     </div>

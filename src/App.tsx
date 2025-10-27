@@ -2,6 +2,8 @@
 import { Users, FileText, CreditCard, TrendingUp } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
 import { CurrencyProvider, useCurrency } from "./contexts/CurrencyContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
+import { useTranslation } from "react-i18next";
 
 import type { CompanyProfile } from "./utils/pdfGenerator";
 import type { 
@@ -125,6 +127,7 @@ const formatPercentage = (value: number) =>
 const AppContent: React.FC = () => {
   const { isAuthenticated, user: authUser, logout } = useAuth();
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
   
   const [currentPage, setCurrentPage] = useState("dashboard");
   
@@ -159,7 +162,6 @@ const AppContent: React.FC = () => {
   });
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [language, setLanguage] = useState<"tr" | "en" | "fr">("tr");
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showSupplierModal, setShowSupplierModal] = useState(false);
@@ -2350,7 +2352,7 @@ const AppContent: React.FC = () => {
 
     const statsCards = [
       {
-        title: "Toplam Gelir",
+        title: t('dashboard.totalRevenue'),
         value: formatCurrency(totalRevenue),
         change: formatPercentage(percentChange(revenuePrevious, revenueCurrent)),
         changeType: changeDirection(revenuePrevious, revenueCurrent),
@@ -2358,7 +2360,7 @@ const AppContent: React.FC = () => {
         color: "green" as const,
       },
       {
-        title: "Toplam Gider",
+        title: t('dashboard.totalExpense'),
         value: formatCurrency(totalExpense),
         change: formatPercentage(percentChange(expensePrevious, expenseCurrent)),
         changeType: changeDirection(expensePrevious, expenseCurrent),
@@ -2366,7 +2368,7 @@ const AppContent: React.FC = () => {
         color: "red" as const,
       },
       {
-        title: "Bekleyen Faturalar",
+        title: t('dashboard.pendingInvoices'),
         value: formatCurrency(outstandingAmount),
         change: formatPercentage(percentChange(outstandingPrevious, outstandingCurrent)),
         changeType: changeDirection(outstandingPrevious, outstandingCurrent),
@@ -2374,7 +2376,7 @@ const AppContent: React.FC = () => {
         color: "purple" as const,
       },
       {
-        title: "Aktif Müsteri",
+        title: t('dashboard.activeCustomers'),
         value: String(customers.length),
         change: formatPercentage(percentChange(customersPrevious, customersCurrent)),
         changeType: changeDirection(customersPrevious, customersCurrent),
@@ -2388,7 +2390,7 @@ const AppContent: React.FC = () => {
       outstandingAmount,
       totalCash,
     };
-  }, [invoices, expenses, sales, customers, bankAccounts]);
+  }, [invoices, expenses, sales, customers, bankAccounts, t]);
 
   const handleExportData = () => {
     const payload = {
@@ -2707,7 +2709,6 @@ const AppContent: React.FC = () => {
             onCompanyUpdate={handleCompanyUpdate}
             onExportData={handleExportData}
             onImportData={handleImportData}
-            language={language}
           />
         );
       case "admin":
@@ -3017,8 +3018,6 @@ const AppContent: React.FC = () => {
             onLogout={handleLogout}
             onNewInvoice={() => openInvoiceModal()}
             onNewSale={() => openSaleModal()}
-            language={language}
-            onLanguageChange={setLanguage}
             activePage={currentPage}
             onToggleSidebar={handleToggleSidebar}
             notifications={notifications}
@@ -3043,9 +3042,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <CurrencyProvider>
-      <AppContent />
-    </CurrencyProvider>
+    <LanguageProvider>
+      <CurrencyProvider>
+        <AppContent />
+      </CurrencyProvider>
+    </LanguageProvider>
   );
 };
 

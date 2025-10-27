@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { X, FileText, Calendar, DollarSign } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface CustomerHistoryModalProps {
   isOpen: boolean;
@@ -22,8 +23,16 @@ export default function CustomerHistoryModal({
   onCreateInvoice
 }: CustomerHistoryModalProps) {
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
   
   if (!isOpen || !customer) return null;
+
+  const statusLabels = useMemo(() => ({
+    paid: `✅ ${t('status.paid')}`,
+    sent: `📤 ${t('status.sent')}`,
+    overdue: `⚠️ ${t('status.overdue')}`,
+    draft: `📝 ${t('status.draft')}`
+  }), [t]);
   
   // Filter sales for this customer
   const customerSales = sales.filter(sale => {
@@ -47,10 +56,10 @@ export default function CustomerHistoryModal({
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">
-              {customer.name} - İşlem Geçmişi
+              {customer.name} - {t('customer.history')}
             </h2>
             <p className="text-sm text-gray-500">
-              {invoices.length + customerSales.length} işlem bulundu
+              {invoices.length + customerSales.length} {t('customer.transactions')}
             </p>
           </div>
           <button
@@ -68,20 +77,20 @@ export default function CustomerHistoryModal({
                 <FileText className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Henüz İşlem Geçmişi Yok
+                {t('customer.noHistory')}
               </h3>
               <p className="text-gray-500 mb-6">
-                {customer.name} için henüz fatura veya işlem kaydı bulunmuyor.
+                {customer.name} {t('customer.noHistoryDesc')}
               </p>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  💡 <strong>İpucu:</strong> Bu müşteri için yeni bir fatura oluşturarak işlem geçmişi başlatabilirsiniz.
+                  💡 <strong>{t('customer.tip')}</strong> {t('customer.tipDesc')}
                 </p>
                 <button
                   onClick={() => onCreateInvoice?.(customer)}
                   className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                 >
-                  Fatura Oluştur
+                  {t('customer.createInvoice')}
                 </button>
               </div>
             </div>
@@ -111,7 +120,7 @@ export default function CustomerHistoryModal({
                         +{formatAmount(sale.amount)}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {sale.status === 'completed' ? '✅ Tamamlandı' : '⏳ Bekliyor'}
+                        {sale.status === 'completed' ? `✅ ${t('customer.completed')}` : `⏳ ${t('customer.waiting')}`}
                       </div>
                     </div>
                   </div>
@@ -145,9 +154,7 @@ export default function CustomerHistoryModal({
                         {formatAmount(invoice.total)}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {invoice.status === 'paid' ? '✅ Ödendi' : 
-                         invoice.status === 'sent' ? '📤 Gönderildi' : 
-                         invoice.status === 'overdue' ? '⚠️ Gecikmiş' : '📝 Taslak'}
+                        {statusLabels[invoice.status as keyof typeof statusLabels] || invoice.status}
                       </div>
                     </div>
                   </div>

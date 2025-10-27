@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BookOpen, Plus, Trash2, Search, FolderOpen, Folder, X, Check } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface Account {
   id: string;
@@ -31,6 +32,7 @@ export default function ChartOfAccountsPage({
   customers = []
 }: ChartOfAccountsPageProps) {
   const { formatCurrency, getCurrencySymbol } = useCurrency();
+  const { t } = useTranslation();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -752,7 +754,7 @@ export default function ChartOfAccountsPage({
               }`}
               title="Durumu değiştirmek için tıklayın"
             >
-              {account.isActive ? 'Aktif' : 'Pasif'}
+              {account.isActive ? t('chartOfAccounts.active') : t('chartOfAccounts.passive')}
             </button>
           </td>
           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -823,16 +825,16 @@ export default function ChartOfAccountsPage({
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
               <BookOpen className="w-8 h-8 text-blue-600 mr-3" />
-              Hesap Planı
+              {t('chartOfAccounts.title')}
             </h1>
-            <p className="text-gray-600">Muhasebe hesap planınızı yönetin</p>
+            <p className="text-gray-600">{t('chartOfAccounts.subtitle')}</p>
           </div>
           <button 
             onClick={() => addNewAccount()}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>Yeni Ana Hesap</span>
+            <span>{t('chartOfAccounts.newAccount')}</span>
           </button>
         </div>
 
@@ -876,7 +878,7 @@ export default function ChartOfAccountsPage({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Hesap kodu veya adı ara..."
+              placeholder={t('chartOfAccounts.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -904,7 +906,7 @@ export default function ChartOfAccountsPage({
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Hesap Listesi</h3>
               <p className="text-sm text-gray-500">
-                {currentAccounts.length} hesap kayıtlı • Düzenlemek için hesap adı, kodu veya bakiyeye tıklayın
+                {currentAccounts.length} {t('chartOfAccounts.accountsRegistered')} • {t('chartOfAccounts.clickToEdit')}
               </p>
             </div>
             <div className="text-xs text-gray-500 bg-blue-50 px-3 py-2 rounded-lg">
@@ -918,19 +920,19 @@ export default function ChartOfAccountsPage({
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Hesap
+                  {t('chartOfAccounts.accountName')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tür
+                  {t('chartOfAccounts.type')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Bakiye
+                  {t('chartOfAccounts.balance')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Durum
+                  {t('chartOfAccounts.status')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  İşlemler
+                  {t('chartOfAccounts.actions')}
                 </th>
               </tr>
             </thead>
@@ -942,7 +944,7 @@ export default function ChartOfAccountsPage({
                       <BookOpen className="w-8 h-8 text-gray-400" />
                     </div>
                     <p className="text-gray-500 text-lg mb-2">Henüz hesap bulunmuyor</p>
-                    <p className="text-gray-400 text-sm">Yeni hesap eklemek için yukarıdaki butonu kullanın</p>
+                    <p className="text-gray-400 text-sm">{t('chartOfAccounts.addAccountTip')}</p>
                   </td>
                 </tr>
               ) : (

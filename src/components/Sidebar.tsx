@@ -15,6 +15,7 @@ import {
   Receipt,
   X
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface SidebarProps {
   currentPage: string;
@@ -33,6 +34,8 @@ export default function Sidebar({
   isOpen = false,
   onClose,
 }: SidebarProps) {
+  const { t } = useTranslation();
+  
   const activeInvoiceCount = invoices.filter(invoice =>
     invoice.status !== 'paid' && invoice.status !== 'overdue'
   ).length;
@@ -42,19 +45,19 @@ export default function Sidebar({
   ).length;
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
-    { icon: FileText, label: 'Faturalar', page: 'invoices', badge: activeInvoiceCount > 0 ? activeInvoiceCount : null },
-    { icon: Receipt, label: 'Giderler', page: 'expenses', badge: pendingExpenseCount > 0 ? pendingExpenseCount : null },
-    { icon: Users, label: 'Müşteriler', page: 'customers' },
-    { icon: Package, label: 'Ürünler', page: 'products' },
-    { icon: Building2, label: 'Tedarikçiler', page: 'suppliers' },
-    { icon: CreditCard, label: 'Bankalar', page: 'banks' },
-    { icon: TrendingUp, label: 'Satışlar', page: 'sales' },
-    { icon: PieChart, label: 'Raporlar', page: 'reports' },
-    { icon: Calculator, label: 'Muhasebe', page: 'general-ledger' },
-    { icon: BookOpen, label: 'Hesap Planı', page: 'chart-of-accounts' },
-    { icon: Archive, label: 'Arşiv', page: 'archive' },
-    { icon: Settings, label: 'Ayarlar', page: 'settings' },
+    { icon: LayoutDashboard, label: t('sidebar.dashboard'), page: 'dashboard' },
+    { icon: FileText, label: t('sidebar.invoices'), page: 'invoices', badge: activeInvoiceCount > 0 ? activeInvoiceCount : null },
+    { icon: Receipt, label: t('sidebar.expenses'), page: 'expenses', badge: pendingExpenseCount > 0 ? pendingExpenseCount : null },
+    { icon: Users, label: t('sidebar.customers'), page: 'customers' },
+    { icon: Package, label: t('sidebar.products'), page: 'products' },
+    { icon: Building2, label: t('sidebar.suppliers'), page: 'suppliers' },
+    { icon: CreditCard, label: t('sidebar.banks'), page: 'banks' },
+    { icon: TrendingUp, label: t('sidebar.sales'), page: 'sales' },
+    { icon: PieChart, label: t('sidebar.reports'), page: 'reports' },
+    { icon: Calculator, label: t('sidebar.accounting'), page: 'general-ledger' },
+    { icon: BookOpen, label: t('sidebar.chartOfAccounts'), page: 'chart-of-accounts' },
+    { icon: Archive, label: t('sidebar.archive'), page: 'archive' },
+    { icon: Settings, label: t('sidebar.settings'), page: 'settings' },
   ];
 
   const handleNavigation = (page: string) => {
@@ -86,8 +89,8 @@ export default function Sidebar({
                 <Calculator className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">MoneyFlow</h1>
-                <p className="text-sm text-gray-500">Muhasebe Sistemi</p>
+                <h1 className="text-xl font-bold text-gray-900">{t('app.name')}</h1>
+                <p className="text-sm text-gray-500">{t('app.subtitle')}</p>
               </div>
             </div>
             {onClose && (
@@ -95,7 +98,7 @@ export default function Sidebar({
                 type="button"
                 onClick={onClose}
                 className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 md:hidden"
-                aria-label="Kapat"
+                aria-label={t('sidebar.close')}
               >
                 <X className="h-5 w-5" />
               </button>

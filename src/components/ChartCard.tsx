@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface ChartCardProps {
   sales?: any[];
@@ -10,6 +11,7 @@ interface ChartCardProps {
 
 export default function ChartCard({ sales = [], expenses = [], invoices = [] }: ChartCardProps) {
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(true);
   
   // Get current date - use real date
@@ -17,16 +19,19 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
 
   const getLast6Months = () => {
     const months = [];
-    const monthNames = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+    // Month names will use translation
     
     // Start from current month (i=0) and go back 5 months
     // This will show: current month, -1 month, -2 months, ... -5 months
     for (let i = 0; i <= 5; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthIndex = date.getMonth();
+      // Use translation keys for month names
+      const monthKey = `months.short.${['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'][monthIndex]}`;
       months.push({
-        month: monthNames[date.getMonth()],
+        month: t(monthKey),
         year: date.getFullYear(),
-        monthIndex: date.getMonth()
+        monthIndex: monthIndex
       });
     }
     return months;
@@ -85,22 +90,22 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Aylık Gelir/Gider</h3>
-          <p className="text-sm text-gray-500">Son 6 aylık performans (yeni → eski)</p>
+          <h3 className="text-lg font-semibold text-gray-900">{t('common.monthlyIncomeExpense')}</h3>
+          <p className="text-sm text-gray-500">{t('common.last6MonthsPerformance')}</p>
         </div>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-            <span className="text-sm text-gray-600">Gelir</span>
+            <span className="text-sm text-gray-600">{t('common.income')}</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <span className="text-sm text-gray-600">Gider</span>
+            <span className="text-sm text-gray-600">{t('common.expense')}</span>
           </div>
           <button
             onClick={() => setIsVisible(!isVisible)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title={isVisible ? "Tabloyu Gizle" : "Tabloyu Göster"}
+            title={isVisible ? t('common.hideChart') : t('common.showChart')}
           >
             {isVisible ? (
               <EyeOff className="w-4 h-4 text-gray-600" />
@@ -145,7 +150,7 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
       {!isVisible && (
         <div className="text-center py-8 text-gray-400">
           <Eye className="w-8 h-8 mx-auto mb-2" />
-          <p className="text-sm">Tablo gizlendi</p>
+          <p className="text-sm">{t('common.chartHidden')}</p>
         </div>
       )}
     </div>

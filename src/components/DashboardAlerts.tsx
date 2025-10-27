@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, Clock, CheckCircle, TrendingUp, Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface DashboardAlertsProps {
   invoices?: any[];
@@ -14,6 +15,8 @@ export default function DashboardAlerts({
   onViewOverdueInvoices,
   onViewPendingExpenses
 }: DashboardAlertsProps) {
+  const { t } = useTranslation();
+  
   // Calculate alerts
   const overdueInvoices = invoices.filter(inv => inv.status === 'overdue').length;
   const pendingExpenses = expenses.filter(exp => exp.status === 'draft').length;
@@ -31,9 +34,9 @@ export default function DashboardAlerts({
   const alerts = [
     {
       type: 'error',
-      title: 'Gecikmiş Faturalar',
+      title: t('alerts.overdueInvoices'),
       count: overdueInvoices,
-      description: 'Vadesi geçmiş fatura',
+      description: t('alerts.overdueDesc'),
       icon: AlertTriangle,
       color: 'bg-red-50 border-red-200 text-red-800',
       iconColor: 'text-red-600',
@@ -41,9 +44,9 @@ export default function DashboardAlerts({
     },
     {
       type: 'warning',
-      title: 'Yaklaşan Vadeler',
+      title: t('alerts.dueSoon'),
       count: dueSoonInvoices,
-      description: '7 gün içinde vadesi dolacak',
+      description: t('alerts.dueSoonDesc'),
       icon: Clock,
       color: 'bg-yellow-50 border-yellow-200 text-yellow-800',
       iconColor: 'text-yellow-600',
@@ -51,9 +54,9 @@ export default function DashboardAlerts({
     },
     {
       type: 'info',
-      title: 'Bekleyen Giderler',
+      title: t('alerts.pendingExpenses'),
       count: pendingExpenses,
-      description: 'Onay bekleyen gider',
+      description: t('alerts.pendingExpensesDesc'),
       icon: Calendar,
       color: 'bg-blue-50 border-blue-200 text-blue-800',
       iconColor: 'text-blue-600',
@@ -71,8 +74,8 @@ export default function DashboardAlerts({
             <CheckCircle className="w-6 h-6 text-green-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Her Şey Yolunda!</h3>
-            <p className="text-sm text-gray-500">Bekleyen işlem veya uyarı bulunmuyor.</p>
+            <h3 className="text-lg font-semibold text-gray-900">{t('alerts.allGood')}</h3>
+            <p className="text-sm text-gray-500">{t('alerts.noAlerts')}</p>
           </div>
         </div>
       </div>
@@ -83,7 +86,7 @@ export default function DashboardAlerts({
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
         <AlertTriangle className="w-5 h-5 text-orange-500 mr-2" />
-        Dikkat Gereken Konular
+        {t('alerts.attentionRequired')}
       </h3>
       <div className="space-y-3">
         {activeAlerts.map((alert, index) => (

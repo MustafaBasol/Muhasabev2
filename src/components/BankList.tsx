@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Plus, Edit, Trash2, CreditCard, Building2, Eye, DollarSign } from 'lucide-react';
 import { formatCurrency as formatCurrencyUtil, type Currency } from '../utils/currencyFormatter';
+import { useTranslation } from 'react-i18next';
 
 interface Bank {
   id: string;
@@ -30,6 +31,7 @@ export default function BankList({
   onDeleteBank,
   onViewBank
 }: BankListProps) {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -83,9 +85,9 @@ export default function BankList({
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Banka Hesapları</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('banks.title')}</h2>
             <p className="text-sm text-gray-500">
-              {bankAccounts.length} hesap kayıtlı • Toplam bakiye: {formatAmount(totalBalance)}
+              {bankAccounts.length} {t('banks.accountsRegistered')} • {t('banks.totalBalance')}: {formatAmount(totalBalance)}
             </p>
           </div>
           <button
@@ -93,7 +95,7 @@ export default function BankList({
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>Yeni Hesap</span>
+            <span>{t('banks.newAccount')}</span>
           </button>
         </div>
 
@@ -103,7 +105,7 @@ export default function BankList({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Banka adı, hesap adı veya hesap numarası ara..."
+              placeholder={t('banks.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -114,9 +116,9 @@ export default function BankList({
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
           >
-            <option value="all">Tüm Hesaplar</option>
-            <option value="active">Aktif</option>
-            <option value="inactive">Pasif</option>
+            <option value="all">{t('banks.filterAll')}</option>
+            <option value="active">{t('chartOfAccounts.active')}</option>
+            <option value="inactive">{t('chartOfAccounts.passive')}</option>
           </select>
         </div>
       </div>
@@ -129,12 +131,12 @@ export default function BankList({
               <CreditCard className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || statusFilter !== 'all' ? 'Hesap bulunamadı' : 'Henüz banka hesabı yok'}
+              {searchTerm || statusFilter !== 'all' ? t('banks.noBanksFound') : t('banks.noBanks')}
             </h3>
             <p className="text-gray-500 mb-4">
               {searchTerm || statusFilter !== 'all'
-                ? 'Arama kriterlerinize uygun hesap bulunamadı.'
-                : 'İlk banka hesabınızı ekleyerek başlayın.'
+                ? t('banks.noBanksFoundDesc')
+                : t('banks.noBanksDesc')
               }
             </p>
             {!searchTerm && statusFilter === 'all' && (
@@ -142,7 +144,7 @@ export default function BankList({
                 onClick={onAddBank}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
-                İlk Hesabı Ekle
+                {t('banks.createFirstAccount')}
               </button>
             )}
           </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface StatsCardProps {
   title: string;
@@ -11,6 +12,8 @@ interface StatsCardProps {
 }
 
 export default function StatsCard({ title, value, change, changeType, icon: Icon, color }: StatsCardProps) {
+  const { t } = useTranslation();
+  
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-600 border-blue-200',
     green: 'bg-green-50 text-green-600 border-green-200',
@@ -46,7 +49,7 @@ export default function StatsCard({ title, value, change, changeType, icon: Icon
         <span className={`text-sm font-medium ${changeType === 'increase' ? 'text-green-600' : 'text-red-600'}`}>
           {change}
         </span>
-        <span className="text-gray-500 text-sm">bu ay</span>
+        <span className="text-gray-500 text-sm">{t('stats.thisMonth')}</span>
       </div>
     </div>
   );

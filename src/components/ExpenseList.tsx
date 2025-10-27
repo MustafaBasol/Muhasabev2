@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface Expense {
   id: string;
@@ -40,6 +41,7 @@ export default function ExpenseList({
   onDownloadExpense
 }: ExpenseListProps) {
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -84,10 +86,10 @@ export default function ExpenseList({
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      pending: { label: 'Beklemede', class: 'bg-yellow-100 text-yellow-800' },
-      approved: { label: 'Onaylandı', class: 'bg-blue-100 text-blue-800' },
-      paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' },
-      rejected: { label: 'Reddedildi', class: 'bg-red-100 text-red-800' }
+      pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
+      approved: { label: t('status.approved'), class: 'bg-blue-100 text-blue-800' },
+      paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
+      rejected: { label: t('status.rejected'), class: 'bg-red-100 text-red-800' }
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || { label: status, class: 'bg-gray-100 text-gray-800' };
@@ -134,9 +136,9 @@ export default function ExpenseList({
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Giderler</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('expenses.title')}</h2>
             <p className="text-sm text-gray-500">
-              {expenses.length} gider kaydı
+              {expenses.length} {t('expenses.expensesRegistered')}
             </p>
           </div>
           <button
@@ -144,7 +146,7 @@ export default function ExpenseList({
             className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>Yeni Gider</span>
+            <span>{t('expenses.newExpense')}</span>
           </button>
         </div>
 
@@ -154,7 +156,7 @@ export default function ExpenseList({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Gider numarası, açıklama veya tedarikçi ara..."
+              placeholder={t('expenses.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -165,18 +167,18 @@ export default function ExpenseList({
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           >
-            <option value="all">Tüm Durumlar</option>
-            <option value="pending">Beklemede</option>
-            <option value="approved">Onaylandı</option>
-            <option value="paid">Ödendi</option>
-            <option value="rejected">Reddedildi</option>
+            <option value="all">{t('expenses.filterAll')}</option>
+            <option value="pending">{t('status.pending')}</option>
+            <option value="approved">{t('status.approved')}</option>
+            <option value="paid">{t('status.paid')}</option>
+            <option value="rejected">{t('status.rejected')}</option>
           </select>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           >
-            <option value="all">Tüm Kategoriler</option>
+            <option value="all">{t('common.allCategories')}</option>
             {categories.map(category => (
               <option key={category} value={category}>{getCategoryLabel(category)}</option>
             ))}
@@ -192,12 +194,12 @@ export default function ExpenseList({
               <Receipt className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all' ? 'Gider bulunamadı' : 'Henüz gider yok'}
+              {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all' ? t('expenses.noExpensesFound') : t('expenses.noExpenses')}
             </h3>
             <p className="text-gray-500 mb-4">
               {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all'
-                ? 'Arama kriterlerinize uygun gider bulunamadı.'
-                : 'İlk giderinizi ekleyerek başlayın.'
+                ? t('expenses.noExpensesFoundDesc')
+                : t('expenses.noExpensesDesc')
               }
             </p>
             {!searchTerm && statusFilter === 'all' && categoryFilter === 'all' && (
@@ -205,7 +207,7 @@ export default function ExpenseList({
                 onClick={onAddExpense}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
-                İlk Gideri Ekle
+                {t('expenses.createFirstExpense')}
               </button>
             )}
           </div>
@@ -215,25 +217,25 @@ export default function ExpenseList({
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Gider
+                    {t('expenses.description')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tedarikçi
+                    {t('expenses.supplier')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Kategori
+                    {t('expenses.category')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tutar
+                    {t('expenses.amount')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Durum
+                    {t('expenses.status')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tarih
+                    {t('expenses.date')}
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    İşlemler
+                    {t('expenses.actions')}
                   </th>
                 </tr>
               </thead>
@@ -250,7 +252,7 @@ export default function ExpenseList({
                             <button
                               onClick={() => onViewExpense(expense)}
                               className="text-red-600 hover:text-red-800 font-medium transition-colors cursor-pointer"
-                              title="Gideri görüntüle"
+                              title={t('expenses.viewExpense')}
                             >
                               {expense.expenseNumber}
                             </button>
@@ -284,10 +286,10 @@ export default function ExpenseList({
                             onChange={(e) => setTempValue(e.target.value)}
                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-500"
                           >
-                            <option value="pending">Beklemede</option>
-                            <option value="approved">Onaylandı</option>
-                            <option value="paid">Ödendi</option>
-                            <option value="rejected">Reddedildi</option>
+                            <option value="pending">{t('status.pending')}</option>
+                            <option value="approved">{t('status.approved')}</option>
+                            <option value="paid">{t('status.paid')}</option>
+                            <option value="rejected">{t('status.rejected')}</option>
                           </select>
                           <button
                             onClick={() => handleSaveInlineEdit(expense)}
@@ -345,14 +347,14 @@ export default function ExpenseList({
                         <button 
                           onClick={() => onViewExpense(expense)}
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Görüntüle"
+                          title={t('expenses.view')}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => onEditExpense(expense)}
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Düzenle"
+                          title={t('expenses.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -363,14 +365,14 @@ export default function ExpenseList({
                             }
                           }}
                           className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                          title="İndir"
+                          title={t('expenses.download')}
                         >
                           <Download className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => onDeleteExpense(expense.id)}
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Sil"
+                          title={t('expenses.delete')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

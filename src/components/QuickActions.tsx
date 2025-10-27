@@ -8,6 +8,7 @@ import {
   CreditCard,
   Package
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface QuickActionsProps {
   onNewInvoice: () => void;
@@ -40,40 +41,41 @@ export default function QuickActions({
   banks = [],
   products = [],
 }: QuickActionsProps) {
+  const { t } = useTranslation();
   const productCount = products.length;
 
   const quickActions = [
     {
-      title: 'Yeni Fatura',
-      description: 'Müşteri faturası oluştur',
+      title: t('quickActions.newInvoice'),
+      description: t('quickActions.newInvoiceDesc'),
       icon: FileText,
       color: 'bg-blue-500 hover:bg-blue-600',
       onClick: onNewInvoice,
     },
     {
-      title: 'Yeni Gider',
-      description: 'Gider kaydı ekle',
+      title: t('quickActions.newExpense'),
+      description: t('quickActions.newExpenseDesc'),
       icon: Receipt,
       color: 'bg-red-500 hover:bg-red-600',
       onClick: onNewExpense,
     },
     {
-      title: 'Yeni Satış',
-      description: 'Satış işlemi kaydet',
+      title: t('quickActions.newSale'),
+      description: t('quickActions.newSaleDesc'),
       icon: TrendingUp,
       color: 'bg-green-500 hover:bg-green-600',
       onClick: onNewSale,
     },
     {
-      title: 'Yeni Müşteri',
-      description: 'Müşteri bilgisi ekle',
+      title: t('quickActions.newCustomer'),
+      description: t('quickActions.newCustomerDesc'),
       icon: Users,
       color: 'bg-purple-500 hover:bg-purple-600',
       onClick: onNewCustomer,
     },
     {
-      title: 'Yeni Ürün',
-      description: 'Ürün bilgisi ekle',
+      title: t('quickActions.newProduct'),
+      description: t('quickActions.newProductDesc'),
       icon: Package,
       color: 'bg-amber-500 hover:bg-amber-600',
       onClick: onNewProduct,
@@ -82,39 +84,37 @@ export default function QuickActions({
 
   const shortcuts = [
     {
-      label: 'Müşteriler',
+      label: t('quickActions.customers'),
       value: customers.length,
       icon: Users,
       accent: 'text-purple-600',
       onClick: onViewCustomers,
     },
     {
-      label: 'Tedarikçiler',
+      label: t('quickActions.suppliers'),
       value: suppliers.length,
       icon: Building2,
       accent: 'text-orange-500',
       onClick: onViewSuppliers,
     },
     {
-      label: 'Bankalar',
+      label: t('quickActions.banks'),
       value: banks.length,
       icon: CreditCard,
       accent: 'text-emerald-500',
       onClick: onViewBanks,
     },
     {
-      label: 'Ürünler',
+      label: t('quickActions.products'),
       value: productCount,
       icon: Package,
       accent: 'text-amber-500',
       onClick: onViewProducts,
     },
-  ];
-
-  return (
+  ];  return (
     <div className="space-y-6">
       <div className="rounded-xl border border-gray-200 bg-white p-6">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900">Hızlı İşlemler</h3>
+        <h3 className="mb-4 text-lg font-semibold text-gray-900">{t('dashboard.quickActions')}</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {quickActions.map((action, index) => (
             <button
@@ -139,7 +139,7 @@ export default function QuickActions({
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6">
-        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">Hızlı erişim</h4>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">{t('dashboard.quickAccess')}</h4>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {shortcuts.map((item, index) => (
             <button

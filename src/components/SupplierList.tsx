@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Plus, Edit, Trash2, Mail, Phone, Building2, MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Supplier {
   id: string;
@@ -32,6 +33,7 @@ export default function SupplierList({
   onSelectSupplier,
   selectionMode = false
 }: SupplierListProps) {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
@@ -55,10 +57,10 @@ export default function SupplierList({
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">
-              {selectionMode ? 'Tedarikçi Seç' : 'Tedarikçiler'}
+              {selectionMode ? 'Tedarikçi Seç' : t('suppliers.title')}
             </h2>
             <p className="text-sm text-gray-500">
-              {suppliers.length} tedarikçi kayıtlı
+              {suppliers.length} {t('suppliers.suppliersRegistered')}
             </p>
           </div>
           {!selectionMode && (
@@ -67,7 +69,7 @@ export default function SupplierList({
               className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              <span>Yeni Tedarikçi</span>
+              <span>{t('suppliers.newSupplier')}</span>
             </button>
           )}
         </div>
@@ -78,7 +80,7 @@ export default function SupplierList({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Tedarikçi ara..."
+              placeholder={t('suppliers.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -89,7 +91,7 @@ export default function SupplierList({
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
           >
-            <option value="all">Tüm Kategoriler</option>
+            <option value="all">{t('common.allCategories')}</option>
             {categories.map(category => (
               <option key={category} value={category}>{category}</option>
             ))}
@@ -105,20 +107,19 @@ export default function SupplierList({
               <Building2 className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || categoryFilter !== 'all' ? 'Tedarikçi bulunamadı' : 'Henüz tedarikçi yok'}
+              {searchTerm || categoryFilter !== 'all' ? t('suppliers.noSuppliersFound') : t('suppliers.noSuppliers')}
             </h3>
             <p className="text-gray-500 mb-4">
               {searchTerm || categoryFilter !== 'all'
-                ? 'Arama kriterlerinize uygun tedarikçi bulunamadı.'
-                : 'İlk tedarikçinizi ekleyerek başlayın.'
-              }
+                ? t('suppliers.noSuppliersFoundDesc')
+                : t('suppliers.noSuppliersDesc')}
             </p>
             {!selectionMode && !searchTerm && categoryFilter === 'all' && (
               <button
                 onClick={onAddSupplier}
                 className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
               >
-                İlk Tedarikçiyi Ekle
+                {t('suppliers.createFirstSupplier')}
               </button>
             )}
           </div>

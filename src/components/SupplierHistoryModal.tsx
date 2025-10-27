@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { X, Receipt, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface SupplierHistoryModalProps {
   isOpen: boolean;
@@ -22,6 +23,13 @@ export default function SupplierHistoryModal({
   if (!isOpen || !supplier) return null;
 
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
+
+  const statusLabels = useMemo(() => ({
+    paid: `✅ ${t('status.paid')}`,
+    approved: `📋 ${t('status.approved')}`,
+    draft: `📝 ${t('status.draft')}`
+  }), [t]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR');
@@ -38,10 +46,10 @@ export default function SupplierHistoryModal({
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">
-              {supplier.name} - Gider Geçmişi
+              {supplier.name} - {t('supplier.expenseHistory')}
             </h2>
             <p className="text-sm text-gray-500">
-              {expenses.length} gider bulundu
+              {expenses.length} {t('supplier.expensesFound')}
             </p>
           </div>
           <button
@@ -59,20 +67,20 @@ export default function SupplierHistoryModal({
                 <Receipt className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Henüz Gider Geçmişi Yok
+                {t('supplier.noExpenseHistory')}
               </h3>
               <p className="text-gray-500 mb-6">
-                {supplier.name} için henüz gider kaydı bulunmuyor.
+                {supplier.name} {t('supplier.noExpenseHistoryDesc')}
               </p>
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-sm text-red-800">
-                  💡 <strong>İpucu:</strong> Bu tedarikçi için yeni bir gider oluşturarak işlem geçmişi başlatabilirsiniz.
+                  💡 <strong>{t('supplier.tip')}</strong> {t('supplier.tipDesc')}
                 </p>
                 <button
                   onClick={() => onCreateExpense?.(supplier)}
                   className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
                 >
-                  Gider Oluştur
+                  {t('supplier.createExpense')}
                 </button>
               </div>
             </div>
@@ -89,7 +97,7 @@ export default function SupplierHistoryModal({
                         <button
                           onClick={() => onViewExpense?.(expense)}
                           className="font-medium text-red-600 hover:text-red-800 transition-colors cursor-pointer"
-                          title="Gideri görüntüle"
+                          title={t('supplier.viewExpense')}
                         >
                           {expense.expenseNumber}
                         </button>
@@ -105,8 +113,7 @@ export default function SupplierHistoryModal({
                         -{formatAmount(expense.amount)}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {expense.status === 'paid' ? '✅ Ödendi' : 
-                         expense.status === 'approved' ? '📋 Onaylandı' : '📝 Taslak'}
+                        {statusLabels[expense.status as keyof typeof statusLabels] || expense.status}
                       </div>
                     </div>
                   </div>

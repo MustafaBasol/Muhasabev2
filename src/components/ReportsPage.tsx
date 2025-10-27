@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-
+import { useTranslation } from 'react-i18next';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -100,7 +100,10 @@ export default function ReportsPage({
   sales = [],
   customers = []
 }: ReportsPageProps) {
+  const { t } = useTranslation();
   const { formatCurrency } = useCurrency();
+  const currentDate = new Date(); // Current date for report display
+  
   // DEBUG: Gider verisi ve toplamı logla
   console.log('DEBUG expenses (first 5):', expenses.slice(0, 5));
   
@@ -116,18 +119,24 @@ export default function ReportsPage({
     setCollapsedSections(newCollapsed);
   };
 
-  const getCurrentDate = () => new Date(); // Use actual current date
-  const currentDate = getCurrentDate();
-
   const getLast6Months = () => {
+    const currentDate = new Date(); // Get current date dynamically each time
+    console.log(`Generating last 6 months from: ${currentDate.toLocaleDateString('tr-TR')}`);
+    
     const months = [];
-    const monthNames = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+    const monthNames = [
+      t('months.short.jan'), t('months.short.feb'), t('months.short.mar'),
+      t('months.short.apr'), t('months.short.may'), t('months.short.jun'),
+      t('months.short.jul'), t('months.short.aug'), t('months.short.sep'),
+      t('months.short.oct'), t('months.short.nov'), t('months.short.dec')
+    ];
     
     // Son 6 ayı sondan başa doğru oluştur (en üstte içinde bulunduğumuz ay)
     for (let i = 0; i < 6; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
       const monthIndex = date.getMonth();
       const year = date.getFullYear();
+      console.log(`  Month ${i}: ${monthNames[monthIndex]} ${year} (index: ${monthIndex})`);
       
       // Get paid invoices for this month
       const monthInvoices = invoices.filter(invoice => {
@@ -174,7 +183,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
     return months;
   };
 
-  const last6Months = getLast6Months();
+  const last6Months = useMemo(() => getLast6Months(), [invoices, expenses, sales, t]);
 
   // Calculate metrics
   // Calculate total revenue from paid invoices
@@ -377,28 +386,28 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
   // KPI calculations
   const kpiData = [
     {
-      title: 'Büyüme Oranı',
+      title: t('reports.growthRate'),
       value: `${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}%`,
       change: growthRate >= 0 ? 'increase' : 'decrease',
       color: 'blue',
       icon: TrendingUp
     },
     {
-      title: 'Kar Marjı',
+      title: t('reports.profitMargin'),
       value: `${profitMargin.toFixed(1)}%`,
       change: profitMargin >= 20 ? 'increase' : 'decrease',
       color: 'green',
       icon: Target
     },
     {
-      title: 'Ortalama Satış',
+      title: t('reports.averageSale'),
       value: formatAmount(averageSale),
       change: 'increase',
       color: 'purple',
       icon: DollarSign
     },
     {
-      title: 'Aktif Müşteri',
+      title: t('reports.activeCustomers'),
       value: customerAnalysis.length.toString(),
       change: 'increase',
       color: 'orange',
@@ -418,12 +427,12 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
               <BarChart3 className="w-8 h-8 text-blue-600 mr-3" />
-              Raporlar
+              {t('reports.title')}
             </h1>
-            <p className="text-gray-600">İşletmenizin detaylı analiz raporları</p>
+            <p className="text-gray-600">{t('reports.subtitle')}</p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-500">Rapor Tarihi</p>
+            <p className="text-sm text-gray-500">{t('reports.reportDate')}</p>
             <p className="text-lg font-semibold text-gray-900">
               {currentDate.toLocaleDateString('tr-TR')}
             </p>
@@ -440,7 +449,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <Activity className="w-6 h-6 text-blue-600 mr-3" />
-              Genel Bakış
+              {t('reports.overview')}
             </h2>
             {collapsedSections.has('overview') ? (
               <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -458,7 +467,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
               onClick={() => toggleSection('basic-metrics')}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Temel Metrikler</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('reports.basicMetrics')}</h3>
                 {collapsedSections.has('basic-metrics') ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 ) : (
@@ -472,7 +481,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                     <div className="flex items-center">
                       <TrendingUp className="w-8 h-8 text-green-600 mr-3" />
                       <div>
-                        <p className="text-sm text-green-600">Toplam Gelir</p>
+                        <p className="text-sm text-green-600">{t('reports.totalIncome')}</p>
                         <p className="text-xl font-bold text-green-700">
                           {formatAmount(totalRevenue)}
                         </p>
@@ -483,7 +492,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                     <div className="flex items-center">
                       <TrendingDown className="w-8 h-8 text-red-600 mr-3" />
                       <div>
-                        <p className="text-sm text-red-600">Toplam Gider</p>
+                        <p className="text-sm text-red-600">{t('reports.totalExpense')}</p>
                         <p className="text-xl font-bold text-red-700">
                           {formatAmount(totalExpenses)}
                         </p>
@@ -494,7 +503,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                     <div className="flex items-center">
                       <DollarSign className="w-8 h-8 text-blue-600 mr-3" />
                       <div>
-                        <p className="text-sm text-blue-600">Net Kar</p>
+                        <p className="text-sm text-blue-600">{t('reports.netProfit')}</p>
                         <p className={`text-xl font-bold ${netProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                           {formatAmount(netProfit)}
                         </p>
@@ -505,7 +514,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                     <div className="flex items-center">
                       <Users className="w-8 h-8 text-purple-600 mr-3" />
                       <div>
-                        <p className="text-sm text-purple-600">Toplam Müşteri</p>
+                        <p className="text-sm text-purple-600">{t('reports.totalCustomers')}</p>
                         <p className="text-xl font-bold text-purple-700">
                           {customers.length}
                         </p>
@@ -522,7 +531,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
               onClick={() => toggleSection('monthly-chart')}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Son 6 Aylık Performans</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('reports.last6MonthsPerformance')}</h3>
                 {collapsedSections.has('monthly-chart') ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 ) : (
@@ -537,7 +546,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-700">{data.month}</span>
                         <div className="text-xs text-gray-500">
-                          Net: {formatAmount(data.net)}
+                          {t('reports.net')}: {formatAmount(data.net)}
                         </div>
                       </div>
                       
@@ -553,8 +562,8 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       </div>
                       
                       <div className="flex justify-between text-xs text-gray-500">
-                        <span>Gelir: {formatAmount(data.income)}</span>
-                        <span>Gider: {formatAmount(data.expense)}</span>
+                        <span>{t('common.income')}: {formatAmount(data.income)}</span>
+                        <span>{t('common.expense')}: {formatAmount(data.expense)}</span>
                       </div>
                     </div>
                   ))}
@@ -568,7 +577,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
               onClick={() => toggleSection('financial-health')}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Finansal Sağlık</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('reports.financialHealth')}</h3>
                 {collapsedSections.has('financial-health') ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 ) : (
@@ -621,7 +630,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
               onClick={() => toggleSection('payment-status')}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Ödeme Durumu Analizi</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('reports.paymentStatusAnalysis')}</h3>
                 {collapsedSections.has('payment-status') ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 ) : (
@@ -632,16 +641,10 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
               {!collapsedSections.has('payment-status') && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-3">Fatura Durumları</h4>
+                    <h4 className="font-medium text-gray-900 mb-3">{t('reports.invoiceStatuses')}</h4>
                     <div className="space-y-2">
                       {['paid', 'sent', 'draft', 'overdue'].map(status => {
                         const count = invoices.filter(inv => inv.status === status).length;
-                        const statusLabels = {
-                          paid: 'Ödendi',
-                          sent: 'Gönderildi', 
-                          draft: 'Taslak',
-                          overdue: 'Gecikmiş'
-                        };
                         const colors = {
                           paid: 'bg-green-100 text-green-800',
                           sent: 'bg-blue-100 text-blue-800',
@@ -651,7 +654,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                         return (
                           <div key={status} className="flex justify-between items-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors]}`}>
-                              {statusLabels[status as keyof typeof statusLabels]}
+                              {t(`status.${status}`)}
                             </span>
                             <span className="font-medium">{count}</span>
                           </div>
@@ -660,15 +663,10 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-3">Gider Durumları</h4>
+                    <h4 className="font-medium text-gray-900 mb-3">{t('reports.expenseStatuses')}</h4>
                     <div className="space-y-2">
                       {['paid', 'approved', 'draft'].map(status => {
                         const count = expenses.filter(exp => exp.status === status).length;
-                        const statusLabels = {
-                          paid: 'Ödendi',
-                          approved: 'Onaylandı',
-                          draft: 'Taslak'
-                        };
                         const colors = {
                           paid: 'bg-green-100 text-green-800',
                           approved: 'bg-blue-100 text-blue-800',
@@ -677,7 +675,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                         return (
                           <div key={status} className="flex justify-between items-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors]}`}>
-                              {statusLabels[status as keyof typeof statusLabels]}
+                              {t(`status.${status}`)}
                             </span>
                             <span className="font-medium">{count}</span>
                           </div>
@@ -701,7 +699,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <TrendingUp className="w-6 h-6 text-green-600 mr-3" />
-              Gelir Analizi
+              {t('reports.revenueAnalysis')}
             </h2>
             {collapsedSections.has('revenue') ? (
               <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -715,18 +713,18 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div className="p-6 space-y-6">
             {/* Product Sales */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Ürün Bazında Satışlar</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.productBasedSales')}</h3>
               <div className="space-y-3">
                 {productSales.map((product, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium text-gray-900">{product.name}</div>
-                      <div className="text-sm text-gray-500">{product.count} satış</div>
+                      <div className="text-sm text-gray-500">{product.count} {t('reports.sales')}</div>
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-green-600">{formatAmount(product.total)}</div>
                       <div className="text-xs text-gray-500">
-                        Ort: {formatAmount(product.total / product.count)}
+                        {t('reports.avg')}: {formatAmount(product.total / product.count)}
                       </div>
                     </div>
                   </div>
@@ -736,7 +734,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
             {/* Monthly Revenue Trend */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Aylık Gelir Trendi</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.monthlyRevenueTrend')}</h3>
               <div className="space-y-3">
                 {displayMonthlyData.map((data, index) => (
                   <div key={index} className="flex items-center justify-between">
@@ -769,7 +767,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <Receipt className="w-6 h-6 text-red-600 mr-3" />
-              Gider Analizi
+              {t('reports.expenseAnalysis')}
             </h2>
             {collapsedSections.has('expenses') ? (
               <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -783,18 +781,18 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div className="p-6 space-y-6">
             {/* Expense Categories */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Kategori Bazında Giderler</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.categoryBasedExpenses')}</h3>
               <div className="space-y-3">
                 {expenseCategories.map((category, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium text-gray-900">{category.category}</div>
-                      <div className="text-sm text-gray-500">{category.count} gider</div>
+                      <div className="text-sm text-gray-500">{category.count} {t('reports.expenses')}</div>
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-red-600">{formatAmount(category.total)}</div>
                       <div className="text-xs text-gray-500">
-                        Ort: {formatAmount(category.total / category.count)}
+                        {t('reports.avg')}: {formatAmount(category.total / category.count)}
                       </div>
                     </div>
                   </div>
@@ -804,7 +802,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
             {/* Monthly Expense Trend */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Aylık Gider Trendi</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.monthlyExpenseTrend')}</h3>
               <div className="space-y-3">
                 {displayMonthlyData.map((data, index) => (
                   <div key={index} className="flex items-center justify-between">
@@ -827,7 +825,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
             {/* Top Suppliers by Expense */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">En Çok Gider Yapılan Tedarikçiler</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.topSuppliers')}</h3>
               <div className="space-y-3">
                 {(() => {
                   const supplierMap = new Map();
@@ -874,16 +872,16 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                         </span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{supplier.name || "Tedarikçi Yok"}</div>
+                        <div className="font-medium text-gray-900">{supplier.name || t('reports.noSupplier')}</div>
                         <div className="text-sm text-gray-500">
-                          {supplier.count} gider • Son: {formatDate(supplier.lastExpense)}
+                          {supplier.count} {t('reports.expenses')} • {t('reports.last')}: {formatDate(supplier.lastExpense)}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-red-600">{formatAmount(supplier.total)}</div>
                       <div className="text-xs text-gray-500">
-                        Ort: {formatAmount(supplier.total / supplier.count)}
+                        {t('reports.avg')}: {formatAmount(supplier.total / supplier.count)}
                       </div>
                     </div>
                   </div>
@@ -893,7 +891,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
             {/* Recent Expenses */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Son Giderler</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.recentExpenses')}</h3>
               <div className="space-y-2">
                 {expenses
                   .filter(expense => expense.status === 'paid')
@@ -915,7 +913,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
             {/* Expense vs Budget Analysis */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Gider Kategorisi Dağılımı</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.expenseCategoryDistribution')}</h3>
               <div className="space-y-3">
                 {expenseCategories.slice(0, 6).map((category, index) => {
                   const percentage = totalExpenses > 0 ? (category.total / totalExpenses * 100) : 0;
@@ -951,7 +949,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <Users className="w-6 h-6 text-purple-600 mr-3" />
-              Müşteri Analizi
+              {t('reports.customerAnalysis')}
             </h2>
             {collapsedSections.has('customers') ? (
               <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -965,7 +963,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div className="p-6 space-y-6">
             {/* Top Customers */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">En Değerli Müşteriler</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.topCustomers')}</h3>
               <div className="space-y-3">
                 {customerAnalysis.map((customer, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -976,16 +974,16 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                         </span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{customer.name || "Müşteri Yok"}</div>
+                        <div className="font-medium text-gray-900">{customer.name || t('reports.noCustomer')}</div>
                         <div className="text-sm text-gray-500">
-                          {customer.count} alışveriş • Son: {formatDate(customer.lastPurchase)}
+                          {customer.count} {t('reports.purchases')} • {t('reports.last')}: {formatDate(customer.lastPurchase)}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-purple-600">{formatAmount(customer.total)}</div>
                       <div className="text-xs text-gray-500">
-                        Ort: {formatAmount(customer.total / customer.count)}
+                        {t('reports.avg')}: {formatAmount(customer.total / customer.count)}
                       </div>
                     </div>
                   </div>
@@ -995,39 +993,39 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
             {/* Customer Statistics */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Müşteri İstatistikleri</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.customerStatistics')}</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="bg-purple-50 rounded-lg p-4">
                   <div className="text-2xl font-bold text-purple-600">{customers.length}</div>
-                  <div className="text-sm text-purple-600">Toplam Müşteri</div>
+                  <div className="text-sm text-purple-600">{t('reports.totalCustomers')}</div>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
                   <div className="text-2xl font-bold text-green-600">{customerAnalysis.length}</div>
-                  <div className="text-sm text-green-600">Aktif Müşteri</div>
+                  <div className="text-sm text-green-600">{t('reports.activeCustomersCount')}</div>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-4">
                   <div className="text-2xl font-bold text-blue-600">
                     {formatAmount(customerAnalysis.length > 0 ? totalRevenue / customerAnalysis.length : 0)}
                   </div>
-                  <div className="text-sm text-blue-600">Müşteri Başına Gelir</div>
+                  <div className="text-sm text-blue-600">{t('reports.revenuePerCustomer')}</div>
                 </div>
                 <div className="bg-orange-50 rounded-lg p-4">
                   <div className="text-2xl font-bold text-orange-600">
                     {customerAnalysis.length > 0 ? (totalTransactions / customerAnalysis.length).toFixed(1) : '0'}
                   </div>
-                  <div className="text-sm text-orange-600">Müşteri Başına Satış</div>
+                  <div className="text-sm text-orange-600">{t('reports.salesPerCustomer')}</div>
                 </div>
                 <div className="bg-indigo-50 rounded-lg p-4">
                   <div className="text-2xl font-bold text-indigo-600">
                     {customerAnalysis.length > 0 ? Math.round(totalTransactions / customerAnalysis.length) : 0}
                   </div>
-                  <div className="text-sm text-indigo-600">Ortalama Alışveriş</div>
+                  <div className="text-sm text-indigo-600">{t('reports.averagePurchases')}</div>
                 </div>
                 <div className="bg-pink-50 rounded-lg p-4">
                   <div className="text-2xl font-bold text-pink-600">
                     {customerAnalysis.length > 0 ? Math.max(...customerAnalysis.map(c => c.count)) : 0}
                   </div>
-                  <div className="text-sm text-pink-600">En Çok Alışveriş</div>
+                  <div className="text-sm text-pink-600">{t('reports.maxPurchases')}</div>
                 </div>
               </div>
             </div>
@@ -1044,7 +1042,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <Target className="w-6 h-6 text-orange-600 mr-3" />
-              Performans Raporları
+              {t('reports.performanceReports')}
             </h2>
             {collapsedSections.has('performance') ? (
               <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -1058,7 +1056,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
           <div className="p-6 space-y-6">
             {/* KPI Dashboard */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">KPI Dashboard</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.kpiDashboard')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {kpiData.map((kpi, index) => (
                   <div key={index} className={`bg-${kpi.color}-50 rounded-lg p-4 border border-${kpi.color}-200`}>
@@ -1076,7 +1074,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                         <TrendingDown className="w-4 h-4 text-red-500 mr-1" />
                       )}
                       <span className={`text-xs ${kpi.change === 'increase' ? 'text-green-600' : 'text-red-600'}`}>
-                        {kpi.change === 'increase' ? 'Artış' : 'Azalış'}
+                        {kpi.change === 'increase' ? t('reports.increase') : t('reports.decrease')}
                       </span>
                     </div>
                   </div>
@@ -1086,7 +1084,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
             {/* Monthly Performance Table */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Aylık Performans Tablosu</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.monthlyPerformanceTable')}</h3>
               <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-green-50 p-3 rounded-lg">
                   <div className="text-sm text-green-600 mb-1">Toplam Gelir (6 Ay)</div>
@@ -1113,12 +1111,12 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                 <table className="w-full border border-gray-200 rounded-lg">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Ay</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Gelir</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Gider</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Kar</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Kar Marjı</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Gider Oranı</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">{t('reports.month')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">{t('common.income')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">{t('common.expense')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">{t('reports.profit')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">{t('reports.profitMarginPercent')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">{t('reports.expenseRatio')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -1153,10 +1151,10 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
             {/* Expense Efficiency Analysis */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Gider Verimliliği Analizi</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.expenseEfficiency')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Gider Kategorisi Performansı</h4>
+                  <h4 className="font-medium text-gray-900 mb-3">{t('reports.expenseCategoryPerformance')}</h4>
                   <div className="space-y-2">
                     {expenseCategories.slice(0, 5).map((category, index) => {
                       const percentage = totalExpenses > 0 ? (category.total / totalExpenses * 100) : 0;

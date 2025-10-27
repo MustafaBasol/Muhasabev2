@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Eye, Edit, Download } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface RecentTransactionsProps {
   invoices?: any[];
@@ -35,9 +36,10 @@ export default function RecentTransactions({
 }: RecentTransactionsProps) {
   
   const { formatCurrency } = useCurrency();
+  const { t, i18n } = useTranslation();
   
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR', {
+    return new Date(dateString).toLocaleDateString(i18n.language, {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
@@ -96,14 +98,14 @@ export default function RecentTransactions({
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' },
-      completed: { label: 'Tamamlandı', class: 'bg-green-100 text-green-800' },
-      pending: { label: 'Bekliyor', class: 'bg-yellow-100 text-yellow-800' },
-      overdue: { label: 'Gecikmiş', class: 'bg-red-100 text-red-800' },
-      draft: { label: 'Taslak', class: 'bg-gray-100 text-gray-800' },
-      sent: { label: 'Gönderildi', class: 'bg-blue-100 text-blue-800' },
-      approved: { label: 'Onaylandı', class: 'bg-blue-100 text-blue-800' },
-      cancelled: { label: 'İptal', class: 'bg-red-100 text-red-800' }
+      paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
+      completed: { label: t('status.completed'), class: 'bg-green-100 text-green-800' },
+      pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
+      overdue: { label: t('status.overdue'), class: 'bg-red-100 text-red-800' },
+      draft: { label: t('status.draft'), class: 'bg-gray-100 text-gray-800' },
+      sent: { label: t('status.sent'), class: 'bg-blue-100 text-blue-800' },
+      approved: { label: t('status.approved'), class: 'bg-blue-100 text-blue-800' },
+      cancelled: { label: t('status.cancelled'), class: 'bg-red-100 text-red-800' }
     };
     
     const config = statusConfig[status as keyof typeof statusConfig];
@@ -177,15 +179,15 @@ export default function RecentTransactions({
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Son İşlemler</h3>
-            <p className="text-sm text-gray-500">Son 3 işleminiz</p>
+            <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.recentTransactions')}</h3>
+            <p className="text-sm text-gray-500">{t('dashboard.lastTransactions', { count: 3 })}</p>
           </div>
           {onViewAllTransactions && (
             <button
               onClick={onViewAllTransactions}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
-              Tümünü Gör →
+              {t('dashboard.viewAll')} →
             </button>
           )}
         </div>
@@ -196,22 +198,22 @@ export default function RecentTransactions({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                İşlem
+                {t('transactions.transaction')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Müşteri/Açıklama
+                {t('transactions.customerDescription')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Tutar
+                {t('transactions.amount')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Durum
+                {t('transactions.status')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Tarih
+                {t('transactions.date')}
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                İşlemler
+                {t('transactions.actions')}
               </th>
             </tr>
           </thead>
@@ -219,7 +221,7 @@ export default function RecentTransactions({
             {transactions.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                  Henüz işlem bulunmuyor
+                  {t('transactions.noTransactions')}
                 </td>
               </tr>
             ) : (

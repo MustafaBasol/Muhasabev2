@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TrendingUp, Plus, Calendar, DollarSign, User, Package, Search, Eye, Edit, Trash2, Download, Check, X, FileText, CheckCircle } from 'lucide-react';
 import SaleModal from './SaleModal';
 import type { Product } from './ProductList';
@@ -42,6 +43,7 @@ interface SimpleSalesPageProps {
 }
 
 export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale }: SimpleSalesPageProps) {
+  const { t } = useTranslation();
   const { formatCurrency } = useCurrency();
   
   const [showSaleModal, setShowSaleModal] = useState(false);
@@ -163,7 +165,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   };
 
   const handleDeleteSale = (saleId: string) => {
-    if (confirm('Bu satışı silmek istediğinizden emin misiniz?')) {
+    if (confirm(t('sales.deleteConfirm'))) {
       const updatedSales = sales.filter(sale => sale.id !== saleId);
       if (onSalesUpdate) {
         onSalesUpdate(updatedSales);
@@ -210,9 +212,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      completed: { label: 'Tamamlandı', class: 'bg-green-100 text-green-800' },
-      pending: { label: 'Bekliyor', class: 'bg-yellow-100 text-yellow-800' },
-      cancelled: { label: 'İptal', class: 'bg-red-100 text-red-800' }
+      completed: { label: t('status.completed'), class: 'bg-green-100 text-green-800' },
+      pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
+      cancelled: { label: t('status.cancelled'), class: 'bg-red-100 text-red-800' }
     };
     
     const config = statusConfig[status as keyof typeof statusConfig];
@@ -481,9 +483,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
               <TrendingUp className="w-8 h-8 text-green-600 mr-3" />
-              Satışlar
+              {t('sidebar.sales')}
             </h1>
-            <p className="text-gray-600">Satış kayıtlarınızı yönetin</p>
+            <p className="text-gray-600">{t('sales.subtitle')}</p>
           </div>
           <button
             onClick={() => {
@@ -494,7 +496,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>Yeni Satış</span>
+            <span>{t('sales.newSale')}</span>
           </button>
         </div>
 
@@ -504,7 +506,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             <div className="flex items-center">
               <DollarSign className="w-8 h-8 text-green-600 mr-3" />
               <div>
-                <p className="text-sm text-green-600">Toplam Satış</p>
+                <p className="text-sm text-green-600">{t('sales.totalSales')}</p>
                 <p className="text-xl font-bold text-green-700">{formatAmount(totalSales)}</p>
               </div>
             </div>
@@ -513,7 +515,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             <div className="flex items-center">
               <Package className="w-8 h-8 text-blue-600 mr-3" />
               <div>
-                <p className="text-sm text-blue-600">Toplam Satış Sayısı</p>
+                <p className="text-sm text-blue-600">{t('sales.totalSalesCount')}</p>
                 <p className="text-xl font-bold text-blue-700">{sales.length}</p>
               </div>
             </div>
@@ -522,7 +524,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             <div className="flex items-center">
               <User className="w-8 h-8 text-purple-600 mr-3" />
               <div>
-                <p className="text-sm text-purple-600">Tamamlanan</p>
+                <p className="text-sm text-purple-600">{t('sales.completed')}</p>
                 <p className="text-xl font-bold text-purple-700">{completedSales}</p>
               </div>
             </div>
@@ -534,9 +536,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Satış Listesi</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t('sales.salesList')}</h3>
             <p className="text-sm text-gray-500">
-              {sales.length} satış kayıtlı
+              {sales.length} {t('sales.salesRegistered')}
             </p>
           </div>
 
@@ -546,7 +548,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Satış numarası, müşteri veya ürün ara..."
+                placeholder={t('sales.search')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -557,10 +559,10 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <option value="all">Tüm Durumlar</option>
-              <option value="completed">Tamamlandı</option>
-              <option value="pending">Bekliyor</option>
-              <option value="cancelled">İptal</option>
+              <option value="all">{t('common.allStatuses')}</option>
+              <option value="completed">{t('status.completed')}</option>
+              <option value="pending">{t('status.pending')}</option>
+              <option value="cancelled">{t('status.cancelled')}</option>
             </select>
           </div>
         </div>
@@ -572,12 +574,12 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 <TrendingUp className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm || statusFilter !== 'all' ? 'Satış bulunamadı' : 'Henüz satış yok'}
+                {searchTerm || statusFilter !== 'all' ? t('sales.noSalesFound') : t('sales.noSales')}
               </h3>
               <p className="text-gray-500 mb-4">
                 {searchTerm || statusFilter !== 'all'
-                  ? 'Arama kriterlerinize uygun satış bulunamadı.'
-                  : 'İlk satışınızı ekleyerek başlayın.'
+                  ? t('sales.noSalesFoundDesc')
+                  : t('sales.noSalesDesc')
                 }
               </p>
               {!searchTerm && statusFilter === 'all' && (
@@ -589,7 +591,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                   }}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
-                  İlk Satışı Ekle
+                  {t('sales.createFirstSale')}
                 </button>
               )}
             </div>
@@ -599,25 +601,25 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Satış
+                      {t('sales.sale')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Müşteri
+                      {t('sales.customer')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ürün/Hizmet
+                      {t('sales.productService')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tutar
+                      {t('sales.amount')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Durum
+                      {t('sales.status')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tarih
+                      {t('sales.date')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      İşlemler
+                      {t('sales.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -634,7 +636,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                               <button
                                 onClick={() => handleViewSale(sale)}
                                 className="text-green-600 hover:text-green-800 font-medium transition-colors cursor-pointer"
-                                title="Satışı görüntüle"
+                                title={t('sales.viewSale')}
                               >
                                 {sale.saleNumber || `SAL-${sale.id}`}
                               </button>
@@ -727,9 +729,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                               onChange={(e) => setTempValue(e.target.value)}
                               className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-green-500"
                             >
-                              <option value="completed">Tamamlandı</option>
-                              <option value="pending">Bekliyor</option>
-                              <option value="cancelled">İptal</option>
+                              <option value="completed">{t('status.completed')}</option>
+                              <option value="pending">{t('status.pending')}</option>
+                              <option value="cancelled">{t('status.cancelled')}</option>
                             </select>
                             <button
                               onClick={() => handleSaveInlineEdit(sale)}
@@ -748,7 +750,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           <div 
                             onClick={() => handleInlineEdit(sale.id, 'status', sale.status)}
                             className="cursor-pointer hover:opacity-80 transition-opacity inline-block"
-                            title="Durumu düzenlemek için tıklayın"
+                            title={t('sales.editSale')}
                           >
                             {getStatusBadge(sale.status)}
                           </div>
@@ -761,9 +763,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                         </div>
                         {sale.paymentMethod && (
                           <div className="text-xs text-gray-400">
-                            {sale.paymentMethod === 'cash' ? 'Nakit' :
-                             sale.paymentMethod === 'card' ? 'Kart' :
-                             sale.paymentMethod === 'transfer' ? 'Transfer' : 'Çek'}
+                            {sale.paymentMethod === 'cash' ? t('common.cash') :
+                             sale.paymentMethod === 'card' ? t('common.card') :
+                             sale.paymentMethod === 'transfer' ? t('common.transfer') : t('common.check')}
                           </div>
                         )}
                       </td>
@@ -772,21 +774,21 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           <button 
                             onClick={() => handleViewSale(sale)}
                             className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="Görüntüle"
+                            title={t('sales.viewSale')}
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleEditSale(sale)}
                             className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="Düzenle"
+                            title={t('sales.editSale')}
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => onDownloadSale?.(sale)}
                             className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="PDF İndir"
+                            title={t('sales.download')}
                           >
                             <Download className="w-4 h-4" />
                           </button>
@@ -805,8 +807,8 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                                 (inv.saleId && String(inv.saleId) === String(sale.id)) ||
                                 (sale.invoiceId && String(sale.invoiceId) === String(inv.id))
                               )
-                                ? 'Faturayı Görüntüle'
-                                : 'Fatura Oluştur'
+                                ? t('sales.viewSale')
+                                : t('sales.createInvoice')
                             }
                           >
                             <FileText className="w-4 h-4" />
@@ -814,7 +816,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           <button 
                             onClick={() => handleDeleteSale(sale.id)}
                             className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Sil"
+                            title={t('sales.deleteSale')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -869,8 +871,8 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                   <CheckCircle className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Satış Tamamlandı!</h2>
-                  <p className="text-sm text-gray-500">Fatura oluşturmak istiyor musunuz?</p>
+                  <h2 className="text-xl font-semibold text-gray-900">{t('sales.saleCompleted')}</h2>
+                  <p className="text-sm text-gray-500">{t('sales.createInvoiceQuestion')}</p>
                 </div>
               </div>
             </div>
@@ -878,18 +880,18 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             <div className="p-6">
               {/* Sale Summary */}
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <h3 className="font-medium text-gray-900 mb-2">Satış Özeti</h3>
+                <h3 className="font-medium text-gray-900 mb-2">{t('sales.saleSummary')}</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Müşteri:</span>
+                    <span className="text-gray-600">{t('sales.customer')}:</span>
                     <span className="font-medium">{pendingSale.customerName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Ürün/Hizmet:</span>
+                    <span className="text-gray-600">{t('sales.productService')}:</span>
                     <span className="font-medium">{pendingSale.productName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Tutar:</span>
+                    <span className="text-gray-600">{t('sales.amount')}:</span>
                     <span className="font-bold text-green-600">
                       {formatAmount(pendingSale.total || 0)}
                     </span>
@@ -901,10 +903,10 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                   <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-blue-800 mb-1">
-                      Bu satış için fatura oluşturmak istiyor musunuz?
+                      {t('sales.createInvoiceQuestion')}
                     </p>
                     <p className="text-xs text-blue-600">
-                      Fatura oluşturulursa otomatik olarak PDF formatında indirilecektir.
+                      {t('sales.invoiceWillBeDownloaded')}
                     </p>
                   </div>
                 </div>
@@ -972,8 +974,8 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                   <FileText className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Fatura Oluştur</h2>
-                  <p className="text-sm text-gray-500">Bu satış için fatura oluşturmak istiyor musunuz?</p>
+                  <h2 className="text-xl font-semibold text-gray-900">{t('invoice.createInvoice')}</h2>
+                  <p className="text-sm text-gray-500">{t('sales.createInvoiceQuestion')}</p>
                 </div>
               </div>
               <button
@@ -991,16 +993,16 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                   <TrendingUp className="w-5 h-5 text-green-600 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-gray-800 mb-2">
-                      Satış Detayları
+                      {t('sales.saleSummary')}
                     </p>
                     <p className="text-xs text-gray-600 mb-1">
-                      <strong>Müşteri:</strong> {selectedSaleForInvoice.customerName}
+                      <strong>{t('sales.customer')}:</strong> {selectedSaleForInvoice.customerName}
                     </p>
                     <p className="text-xs text-gray-600 mb-1">
-                      <strong>Ürün/Hizmet:</strong> {selectedSaleForInvoice.productName}
+                      <strong>{t('sales.productService')}:</strong> {selectedSaleForInvoice.productName}
                     </p>
                     <p className="text-xs text-gray-600">
-                      <strong>Tutar:</strong> {formatAmount(selectedSaleForInvoice.amount)}
+                      <strong>{t('sales.amount')}:</strong> {formatAmount(selectedSaleForInvoice.amount)}
                     </p>
                   </div>
                 </div>
@@ -1012,10 +1014,10 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                   <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-blue-800 mb-1">
-                      Fatura oluşturulsun mu?
+                      {t('sales.confirmInvoiceCreation')}
                     </p>
                     <p className="text-xs text-blue-600">
-                      Fatura oluşturulduktan sonra görüntüleme penceresinde açılacaktır.
+                      {t('sales.invoiceWillOpen')}
                     </p>
                   </div>
                 </div>

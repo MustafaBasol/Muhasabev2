@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 import ProductCategoryModal from './ProductCategoryModal';
 import { productCategoriesApi } from '../api/product-categories';
 import type { ProductCategory } from '../types';
@@ -75,6 +76,7 @@ export default function ProductList({
   onBulkAction,
 }: ProductListProps) {
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -371,31 +373,31 @@ export default function ProductList({
   };
 
   const categoryOptions = [
-    { value: 'all', label: 'Tum kategoriler' },
+    { value: 'all', label: t('products.allCategories') },
     ...availableCategories.map(category => ({ value: category, label: category })),
   ];
 
   const stockFilterLabels: Record<string, string> = {
-    all: 'Tum stoklar',
-    low: 'Dusuk stok',
-    out: 'Stokta yok',
-    overstock: 'Yuksek stok',
+    all: t('products.allStock'),
+    low: t('products.lowStockFilter'),
+    out: t('products.outOfStock'),
+    overstock: t('products.overstock'),
   };
 
   const sortOptionLabels: Record<string, string> = {
-    recent: 'En yeni',
-    'price-desc': 'Fiyat: Yuksekten dusuge',
-    'price-asc': 'Fiyat: Dusukten yuksege',
-    'stock-desc': 'Stok: Yuksekten dusuge',
-    'stock-asc': 'Stok: Dusukten yuksege',
+    recent: t('products.newest'),
+    'price-desc': t('products.priceHighLow'),
+    'price-asc': t('products.priceLowHigh'),
+    'stock-desc': t('products.stockHighLow'),
+    'stock-asc': t('products.stockLowHigh'),
   };
 
   const filterDefinitions: FilterDefinition[] = [
     {
       id: 'category',
-      label: 'Kategori',
+      label: t('products.category'),
       value: categoryFilter,
-      display: categoryFilter === 'all' ? 'Tum kategoriler' : categoryFilter,
+      display: categoryFilter === 'all' ? t('products.allCategories') : categoryFilter,
       options: categoryOptions,
       onChange: setCategoryFilter,
       defaultValue: 'all',
@@ -507,37 +509,37 @@ export default function ProductList({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-500">Toplam Urun</h3>
+            <h3 className="text-sm font-medium text-gray-500">{t('products.totalProducts')}</h3>
             <Package className="h-5 w-5 text-indigo-500" />
           </div>
           <p className="mt-3 text-2xl font-semibold text-gray-900">{inventorySnapshot.activeCount}</p>
-          <p className="text-xs text-gray-500">Aktif olarak satilan urun sayisi</p>
+          <p className="text-xs text-gray-500">{t('products.activeProductsDesc')}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-500">Stok Degeri</h3>
+            <h3 className="text-sm font-medium text-gray-500">{t('products.stockValue')}</h3>
             <BarChart2 className="h-5 w-5 text-emerald-500" />
           </div>
           <p className="mt-3 text-2xl font-semibold text-gray-900">
             {formatCurrency(inventorySnapshot.totalValue || 0)}
           </p>
-          <p className="text-xs text-gray-500">Tahmini toplam stok maliyeti</p>
+          <p className="text-xs text-gray-500">{t('products.totalStockCostDesc')}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-500">Toplam Stok</h3>
+            <h3 className="text-sm font-medium text-gray-500">{t('products.totalStock')}</h3>
             <Layers className="h-5 w-5 text-blue-500" />
           </div>
           <p className="mt-3 text-2xl font-semibold text-gray-900">{inventorySnapshot.totalStock.toLocaleString('tr-TR')} adet</p>
-          <p className="text-xs text-gray-500">Depodaki toplam birim sayisi</p>
+          <p className="text-xs text-gray-500">{t('products.totalUnitsDesc')}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-500">Dusuk Stok</h3>
+            <h3 className="text-sm font-medium text-gray-500">{t('products.lowStock')}</h3>
             <AlertTriangle className="h-5 w-5 text-orange-500" />
           </div>
           <p className="mt-3 text-2xl font-semibold text-gray-900">{inventorySnapshot.lowStock}</p>
-          <p className="text-xs text-gray-500">Kritik seviyenin altindaki urun</p>
+          <p className="text-xs text-gray-500">{t('products.criticalLevelDesc')}</p>
         </div>
       </div>
 
@@ -546,9 +548,9 @@ export default function ProductList({
           <div className="rounded-xl border border-gray-200 bg-white p-4 lg:sticky lg:top-24">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Urun Kategorileri</h3>
+                <h3 className="text-sm font-semibold text-gray-900">{t('products.productCategories')}</h3>
                 <p className="text-xs text-gray-500">
-                  {availableCategories.length} kategori - {products.length} urun
+                  {availableCategories.length} {t('products.categoriesCount')} - {products.length} {t('products.productsCount')}
                 </p>
               </div>
               <button
@@ -560,7 +562,7 @@ export default function ProductList({
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
               >
                 <Tag className="h-4 w-4" />
-                Kategori ekle
+                {t('products.addCategory')}
               </button>
             </div>
             <div className="mt-4 space-y-2">
@@ -638,9 +640,9 @@ export default function ProductList({
           <div className="rounded-xl border border-gray-200 bg-white p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Urunler</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{t('products.title')}</h2>
                 <p className="text-sm text-gray-500">
-                  {filteredProducts.length} urun listeleniyor - Toplam {products.length}
+                  {filteredProducts.length} {t('products.title').toLowerCase()} - {t('invoice.total')}: {products.length}
                 </p>
               </div>
               <button
@@ -649,7 +651,7 @@ export default function ProductList({
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 lg:hidden"
               >
                 <Tag className="h-4 w-4" />
-                {isCategoryPanelOpen ? 'Kategorileri gizle' : 'Kategorileri goster'}
+                {isCategoryPanelOpen ? t('common.close') : t('products.manageCategories')}
               </button>
             </div>
           </div>
@@ -664,7 +666,7 @@ export default function ProductList({
                       type="text"
                       value={searchTerm}
                       onChange={(event) => setSearchTerm(event.target.value)}
-                      placeholder="Urun ara..."
+                      placeholder={t('products.search')}
                       className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
@@ -674,7 +676,7 @@ export default function ProductList({
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
                   >
                     <Plus className="h-4 w-4" />
-                    Yeni Urun
+                    {t('products.newProduct')}
                   </button>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -798,22 +800,22 @@ export default function ProductList({
                       onClick={onAddProduct}
                       className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
                     >
-                      Ilk urunu ekle
+                      {t('products.addFirstProduct')}
                     </button>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center space-y-3 py-16">
                     <Package className="h-12 w-12 text-gray-300" />
-                    <h3 className="text-lg font-semibold text-gray-900">Eslesme yok</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{t('products.noProducts')}</h3>
                     <p className="max-w-md text-center text-sm text-gray-500">
-                      Secili kategori ve filtrelere uyan urun bulunmuyor. Filtreleri temizleyerek tum urunleri goruntuleyebilirsiniz.
+                      {t('transactions.noTransactions')}
                     </p>
                     <button
                       type="button"
                       onClick={handleClearFilters}
                       className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-100"
                     >
-                      Filtreleri temizle
+                      {t('common.search')}
                     </button>
                   </div>
                 )
@@ -828,27 +830,27 @@ export default function ProductList({
                             type="checkbox"
                             checked={visibleProductIds.length > 0 && allVisibleSelected}
                             onChange={toggleSelectAllVisible}
-                            aria-label="Tumunu sec"
+                            aria-label={t('common.yes')}
                             className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                           />
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Urun
+                          {t('products.name')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Kategori
+                          {t('products.category')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Fiyat
+                          {t('products.price')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Stok
+                          {t('products.stock')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Durum
+                          {t('products.status')}
                         </th>
                         <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Islemler
+                          {t('products.actions')}
                         </th>
                       </tr>
                     </thead>
@@ -857,7 +859,7 @@ export default function ProductList({
                         const isSelected = selectedProductIds.includes(product.id);
                         const isOutOfStock = product.stockQuantity === 0;
                         const isCritical = !isOutOfStock && product.stockQuantity < product.reorderLevel;
-                        const statusLabel = isOutOfStock ? 'Tukendi' : isCritical ? 'Kritik' : 'Stokta';
+                        const statusLabel = isOutOfStock ? t('products.depleted') : isCritical ? t('products.critical') : t('products.inStock');
                         const statusTone = isOutOfStock ? 'danger' : isCritical ? 'warning' : 'success';
                         const statusClass =
                           statusTone === 'danger'
@@ -913,12 +915,12 @@ export default function ProductList({
                             </td>
                             <td
                               className="whitespace-nowrap px-6 py-4 text-sm text-gray-900"
-                              title={`Min stok: ${Math.floor(product.reorderLevel)}`}
+                              title={`${t('products.minStock')}: ${Math.floor(product.reorderLevel)}`}
                             >
                               <div className="font-semibold">
                                 {Math.floor(product.stockQuantity)} {product.unit}
                               </div>
-                              <div className="text-xs text-gray-500">Min stok: {Math.floor(product.reorderLevel)}</div>
+                              <div className="text-xs text-gray-500">{t('products.minStock')}: {Math.floor(product.reorderLevel)}</div>
                             </td>
                             <td className="whitespace-nowrap px-6 py-4 text-sm">
                               <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}>
@@ -931,7 +933,7 @@ export default function ProductList({
                                   type="button"
                                   onClick={() => onViewProduct(product)}
                                   className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-indigo-600"
-                                  title="Urunu goruntule"
+                                  title={t('products.viewProduct')}
                                 >
                                   <Eye className="h-4 w-4" />
                                 </button>
@@ -939,7 +941,7 @@ export default function ProductList({
                                   type="button"
                                   onClick={() => onEditProduct(product)}
                                   className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-blue-600"
-                                  title="Urunu duzenle"
+                                  title={t('products.edit')}
                                 >
                                   <Edit className="h-4 w-4" />
                                 </button>
@@ -947,7 +949,7 @@ export default function ProductList({
                                   type="button"
                                   onClick={() => onDeleteProduct(product.id)}
                                   className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
-                                  title="Urunu sil"
+                                  title={t('products.delete')}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
