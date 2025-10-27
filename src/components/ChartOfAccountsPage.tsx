@@ -274,14 +274,8 @@ export default function ChartOfAccountsPage({
   });
 
   const getAccountTypeLabel = (type: string) => {
-    const types = {
-      asset: 'Varlık',
-      liability: 'Yükümlülük',
-      equity: 'Özkaynak',
-      revenue: 'Gelir',
-      expense: 'Gider'
-    };
-    return types[type as keyof typeof types] || type;
+    const typeKey = type as 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
+    return t(`chartOfAccounts.accountTypes.${typeKey}`, type);
   };
 
   const getAccountTypeColor = (type: string) => {
@@ -719,7 +713,7 @@ export default function ChartOfAccountsPage({
                       {formatAmount(getDisplayBalance(account))}
                     </div>
                     <div className="text-xs text-gray-500">
-                      (Alt hesaplar toplamı)
+                      ({t('chartOfAccounts.allSummed')})
                     </div>
                   </div>
                 ) : (
@@ -754,7 +748,7 @@ export default function ChartOfAccountsPage({
               }`}
               title="Durumu değiştirmek için tıklayın"
             >
-              {account.isActive ? t('chartOfAccounts.active') : t('chartOfAccounts.passive')}
+              {account.isActive ? t('chartOfAccounts.statusLabels.active') : t('chartOfAccounts.statusLabels.inactive')}
             </button>
           </td>
           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -841,31 +835,31 @@ export default function ChartOfAccountsPage({
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 rounded-lg p-4">
-            <div className="text-sm text-blue-600 mb-1">Varlıklar</div>
+            <div className="text-sm text-blue-600 mb-1">{t('chartOfAccounts.accountTypesPlural.asset')}</div>
             <div className="text-lg font-bold text-blue-700 truncate" title={formatAmount(totals.asset || 0)}>
               {formatAmountCompact(totals.asset || 0)}
             </div>
           </div>
           <div className="bg-red-50 rounded-lg p-4">
-            <div className="text-sm text-red-600 mb-1">Yükümlülükler</div>
+            <div className="text-sm text-red-600 mb-1">{t('chartOfAccounts.accountTypesPlural.liability')}</div>
             <div className="text-lg font-bold text-red-700 truncate" title={formatAmount(totals.liability || 0)}>
               {formatAmountCompact(totals.liability || 0)}
             </div>
           </div>
           <div className="bg-purple-50 rounded-lg p-4">
-            <div className="text-sm text-purple-600 mb-1">Özkaynaklar</div>
+            <div className="text-sm text-purple-600 mb-1">{t('chartOfAccounts.accountTypesPlural.equity')}</div>
             <div className="text-lg font-bold text-purple-700 truncate" title={formatAmount(totals.equity || 0)}>
               {formatAmountCompact(totals.equity || 0)}
             </div>
           </div>
           <div className="bg-green-50 rounded-lg p-4">
-            <div className="text-sm text-green-600 mb-1">Gelirler</div>
+            <div className="text-sm text-green-600 mb-1">{t('chartOfAccounts.accountTypesPlural.revenue')}</div>
             <div className="text-lg font-bold text-green-700 truncate" title={formatAmount(totals.revenue || 0)}>
               {formatAmountCompact(totals.revenue || 0)}
             </div>
           </div>
           <div className="bg-orange-50 rounded-lg p-4">
-            <div className="text-sm text-orange-600 mb-1">Giderler</div>
+            <div className="text-sm text-orange-600 mb-1">{t('chartOfAccounts.accountTypesPlural.expense')}</div>
             <div className="text-lg font-bold text-orange-700 truncate" title={formatAmount(totals.expense || 0)}>
               {formatAmountCompact(totals.expense || 0)}
             </div>
@@ -889,12 +883,12 @@ export default function ChartOfAccountsPage({
             onChange={(e) => setTypeFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Tüm Hesap Türleri</option>
-            <option value="asset">Varlıklar</option>
-            <option value="liability">Yükümlülükler</option>
-            <option value="equity">Özkaynaklar</option>
-            <option value="revenue">Gelirler</option>
-            <option value="expense">Giderler</option>
+            <option value="all">{t('chartOfAccounts.accountTypes.all')}</option>
+            <option value="asset">{t('chartOfAccounts.accountTypesPlural.asset')}</option>
+            <option value="liability">{t('chartOfAccounts.accountTypesPlural.liability')}</option>
+            <option value="equity">{t('chartOfAccounts.accountTypesPlural.equity')}</option>
+            <option value="revenue">{t('chartOfAccounts.accountTypesPlural.revenue')}</option>
+            <option value="expense">{t('chartOfAccounts.accountTypesPlural.expense')}</option>
           </select>
         </div>
       </div>
@@ -904,13 +898,13 @@ export default function ChartOfAccountsPage({
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Hesap Listesi</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('chartOfAccounts.title')}</h3>
               <p className="text-sm text-gray-500">
                 {currentAccounts.length} {t('chartOfAccounts.accountsRegistered')} • {t('chartOfAccounts.clickToEdit')}
               </p>
             </div>
             <div className="text-xs text-gray-500 bg-blue-50 px-3 py-2 rounded-lg">
-              💡 İpucu: Hesapları düzenlemek için üzerine tıklayın
+              {t('chartOfAccounts.tooltips.editHint')}
             </div>
           </div>
         </div>

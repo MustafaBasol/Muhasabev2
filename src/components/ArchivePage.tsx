@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Archive, 
   Search, 
-  Calendar, 
-  Filter,
+  Calendar,
   Eye, 
   Download,
   FileText,
@@ -17,6 +16,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface ArchivePageProps {
   invoices?: any[];
@@ -50,6 +50,7 @@ export default function ArchivePage({
   onDownloadSale
 }: ArchivePageProps) {
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -92,23 +93,19 @@ export default function ArchivePage({
   };
 
   const getStatusBadge = (status: string, type: string) => {
-    const statusConfig = {
+    const statusColors = {
       // Invoice statuses
-      paid: { label: 'Ödendi', class: 'bg-green-100 text-green-800' },
-      overdue: { label: 'Gecikmiş', class: 'bg-red-100 text-red-800' },
+      paid: 'bg-green-100 text-green-800',
+      overdue: 'bg-red-100 text-red-800',
       // Sale statuses
-      completed: { label: 'Tamamlandı', class: 'bg-green-100 text-green-800' },
-      cancelled: { label: 'İptal', class: 'bg-red-100 text-red-800' }
+      completed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-100 text-red-800'
     };
     
-    const config = statusConfig[status as keyof typeof statusConfig];
-    return config ? (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.class}`}>
-        {config.label}
-      </span>
-    ) : (
-      <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-        {status}
+    const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colorClass}`}>
+        {t(`status.${status}`, status)}
       </span>
     );
   };
@@ -143,11 +140,11 @@ export default function ArchivePage({
   const totalArchivedExpenses = archivedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
   const tabs = [
-    { id: 'all', label: 'Tümü', count: filteredInvoices.length + filteredExpenses.length + filteredSales.length },
-    { id: 'invoices', label: 'Faturalar', count: filteredInvoices.length },
-    { id: 'expenses', label: 'Giderler', count: filteredExpenses.length },
-    { id: 'sales', label: 'Satışlar', count: filteredSales.length },
-    { id: 'contacts', label: 'Kişiler', count: filteredCustomers.length + filteredSuppliers.length }
+    { id: 'all', label: t('archive.tabs.all'), count: filteredInvoices.length + filteredExpenses.length + filteredSales.length },
+    { id: 'invoices', label: t('archive.tabs.invoices'), count: filteredInvoices.length },
+    { id: 'expenses', label: t('archive.tabs.expenses'), count: filteredExpenses.length },
+    { id: 'sales', label: t('archive.tabs.sales'), count: filteredSales.length },
+    { id: 'contacts', label: t('archive.tabs.contacts'), count: filteredCustomers.length + filteredSuppliers.length }
   ];
 
   const shouldShowSection = (sectionId: string) => {
@@ -163,12 +160,12 @@ export default function ArchivePage({
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
               <Archive className="w-8 h-8 text-gray-600 mr-3" />
-              Arşiv
+              {t('archive.title')}
             </h1>
-            <p className="text-gray-600">Tamamlanmış ve eski kayıtlarınız</p>
+            <p className="text-gray-600">{t('archive.subtitle')}</p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-500">Toplam Arşiv</p>
+            <p className="text-sm text-gray-500">{t('archive.totalArchive')}</p>
             <p className="text-2xl font-bold text-gray-900">
               {archivedInvoices.length + archivedExpenses.length + archivedSales.length + archivedCustomers.length + archivedSuppliers.length}
             </p>
@@ -181,7 +178,7 @@ export default function ArchivePage({
             <div className="flex items-center">
               <FileText className="w-6 h-6 text-blue-600 mr-3" />
               <div>
-                <p className="text-sm text-blue-600">Arşiv Faturalar</p>
+                <p className="text-sm text-blue-600">{t('archive.archivedInvoices')}</p>
                 <p className="text-lg font-bold text-blue-700">{archivedInvoices.length}</p>
               </div>
             </div>
@@ -190,7 +187,7 @@ export default function ArchivePage({
             <div className="flex items-center">
               <Receipt className="w-6 h-6 text-red-600 mr-3" />
               <div>
-                <p className="text-sm text-red-600">Arşiv Giderler</p>
+                <p className="text-sm text-red-600">{t('archive.archivedExpenses')}</p>
                 <p className="text-lg font-bold text-red-700">{archivedExpenses.length}</p>
               </div>
             </div>
@@ -199,7 +196,7 @@ export default function ArchivePage({
             <div className="flex items-center">
               <TrendingUp className="w-6 h-6 text-green-600 mr-3" />
               <div>
-                <p className="text-sm text-green-600">Arşiv Satışlar</p>
+                <p className="text-sm text-green-600">{t('archive.archivedSales')}</p>
                 <p className="text-lg font-bold text-green-700">{archivedSales.length}</p>
               </div>
             </div>
@@ -208,7 +205,7 @@ export default function ArchivePage({
             <div className="flex items-center">
               <Users className="w-6 h-6 text-purple-600 mr-3" />
               <div>
-                <p className="text-sm text-purple-600">Toplam Kişi</p>
+                <p className="text-sm text-purple-600">{t('archive.totalContacts')}</p>
                 <p className="text-lg font-bold text-purple-700">{archivedCustomers.length + archivedSuppliers.length}</p>
               </div>
             </div>
@@ -221,7 +218,7 @@ export default function ArchivePage({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Arşivde ara..."
+              placeholder={t('archive.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
@@ -243,7 +240,7 @@ export default function ArchivePage({
             }}
             className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
           >
-            Filtreleri Temizle
+            {t('archive.clearFilters')}
           </button>
         </div>
       </div>
@@ -281,7 +278,7 @@ export default function ArchivePage({
               >
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <FileText className="w-5 h-5 text-blue-600 mr-2" />
-                  Arşivlenmiş Faturalar ({filteredInvoices.length})
+                  {t('archive.sections.archivedInvoices')} ({filteredInvoices.length})
                 </h3>
                 {expandedSections.has('invoices') ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -295,20 +292,20 @@ export default function ArchivePage({
                   {filteredInvoices.length === 0 ? (
                     <div className="p-6 text-center">
                       <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-gray-500">Arşivlenmiş fatura bulunmuyor</p>
-                      <p className="text-sm text-gray-400">Ödenmiş veya gecikmiş faturalar burada görünecek</p>
+                      <p className="text-gray-500">{t('archive.empty.invoices')}</p>
+                      <p className="text-sm text-gray-400">{t('archive.empty.invoicesHelper')}</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-blue-100">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">Fatura</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">Müşteri</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">Tutar</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">Durum</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">Tarih</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-blue-800 uppercase">İşlemler</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.invoice')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.customer')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.amount')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.status')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.date')}</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-blue-800 uppercase">{t('archive.table.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-blue-100">
@@ -337,14 +334,14 @@ export default function ArchivePage({
                                   <button 
                                     onClick={() => onViewInvoice?.(invoice)}
                                     className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                    title="Görüntüle"
+                                    title={t('archive.actions.view')}
                                   >
                                     <Eye className="w-4 h-4" />
                                   </button>
                                   <button 
                                     onClick={() => onDownloadInvoice?.(invoice)}
                                     className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                                    title="İndir"
+                                    title={t('archive.actions.download')}
                                   >
                                     <Download className="w-4 h-4" />
                                   </button>
@@ -370,7 +367,7 @@ export default function ArchivePage({
               >
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <Receipt className="w-5 h-5 text-red-600 mr-2" />
-                  Arşivlenmiş Giderler ({filteredExpenses.length})
+                  {t('archive.sections.archivedExpenses')} ({filteredExpenses.length})
                 </h3>
                 {expandedSections.has('expenses') ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -384,20 +381,20 @@ export default function ArchivePage({
                   {filteredExpenses.length === 0 ? (
                     <div className="p-6 text-center">
                       <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-gray-500">Arşivlenmiş gider bulunmuyor</p>
-                      <p className="text-sm text-gray-400">Ödenmiş giderler burada görünecek</p>
+                      <p className="text-gray-500">{t('archive.empty.expenses')}</p>
+                      <p className="text-sm text-gray-400">{t('archive.empty.expensesHelper')}</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-red-100">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">Gider</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">Tedarikçi</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">Kategori</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">Tutar</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">Tarih</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-red-800 uppercase">İşlemler</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.expense')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.supplier')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.category')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.amount')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.date')}</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-red-800 uppercase">{t('archive.table.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-red-100">
@@ -429,14 +426,14 @@ export default function ArchivePage({
                                   <button 
                                     onClick={() => onViewExpense?.(expense)}
                                     className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                    title="Görüntüle"
+                                    title={t('archive.actions.view')}
                                   >
                                     <Eye className="w-4 h-4" />
                                   </button>
                                   <button 
                                     onClick={() => onDownloadExpense?.(expense)}
                                     className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                                    title="İndir"
+                                    title={t('archive.actions.download')}
                                   >
                                     <Download className="w-4 h-4" />
                                   </button>
@@ -462,7 +459,7 @@ export default function ArchivePage({
               >
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <TrendingUp className="w-5 h-5 text-green-600 mr-2" />
-                  Arşivlenmiş Satışlar ({filteredSales.length})
+                  {t('archive.sections.archivedSales')} ({filteredSales.length})
                 </h3>
                 {expandedSections.has('sales') ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -476,21 +473,21 @@ export default function ArchivePage({
                   {filteredSales.length === 0 ? (
                     <div className="p-6 text-center">
                       <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-gray-500">Arşivlenmiş satış bulunmuyor</p>
-                      <p className="text-sm text-gray-400">Tamamlanmış satışlar burada görünecek</p>
+                      <p className="text-gray-500">{t('archive.empty.sales')}</p>
+                      <p className="text-sm text-gray-400">{t('archive.empty.salesHelper')}</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-green-100">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">Satış</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">Müşteri</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">Ürün/Hizmet</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">Tutar</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">Durum</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">Tarih</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-green-800 uppercase">İşlemler</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.sale')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.customer')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.product')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.amount')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.status')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.date')}</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-green-800 uppercase">{t('archive.table.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-green-100">
@@ -520,14 +517,14 @@ export default function ArchivePage({
                                   <button 
                                     onClick={() => onViewSale?.(sale)}
                                     className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                                    title="Görüntüle"
+                                    title={t('archive.actions.view')}
                                   >
                                     <Eye className="w-4 h-4" />
                                   </button>
                                   <button 
                                     onClick={() => onDownloadSale?.(sale)}
                                     className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                                    title="İndir"
+                                    title={t('archive.actions.download')}
                                   >
                                     <Download className="w-4 h-4" />
                                   </button>
@@ -553,7 +550,7 @@ export default function ArchivePage({
               >
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <Users className="w-5 h-5 text-purple-600 mr-2" />
-                  Müşteriler ({filteredCustomers.length})
+                  {t('archive.sections.customers')} ({filteredCustomers.length})
                 </h3>
                 {expandedSections.has('customers') ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -567,7 +564,7 @@ export default function ArchivePage({
                   {filteredCustomers.length === 0 ? (
                     <div className="p-6 text-center">
                       <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-gray-500">Müşteri bulunmuyor</p>
+                      <p className="text-gray-500">{t('archive.empty.customers')}</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-purple-100">
@@ -595,12 +592,12 @@ export default function ArchivePage({
                             </div>
                             <div className="text-right">
                               <div className="text-sm text-gray-500">
-                                Kayıt: {formatDate(customer.createdAt)}
+                                {t('archive.table.registered')}: {formatDate(customer.createdAt)}
                               </div>
                               <button 
                                 onClick={() => onViewCustomer?.(customer)}
                                 className="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors mt-1"
-                                title="Görüntüle"
+                                title={t('archive.actions.view')}
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
@@ -624,7 +621,7 @@ export default function ArchivePage({
               >
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <Building2 className="w-5 h-5 text-orange-600 mr-2" />
-                  Tedarikçiler ({filteredSuppliers.length})
+                  {t('archive.sections.suppliers')} ({filteredSuppliers.length})
                 </h3>
                 {expandedSections.has('suppliers') ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -638,7 +635,7 @@ export default function ArchivePage({
                   {filteredSuppliers.length === 0 ? (
                     <div className="p-6 text-center">
                       <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-gray-500">Tedarikçi bulunmuyor</p>
+                      <p className="text-gray-500">{t('archive.empty.suppliers')}</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-orange-100">
@@ -671,12 +668,12 @@ export default function ArchivePage({
                             </div>
                             <div className="text-right">
                               <div className="text-sm text-gray-500">
-                                Kayıt: {formatDate(supplier.createdAt)}
+                                {t('archive.table.registered')}: {formatDate(supplier.createdAt)}
                               </div>
                               <button 
                                 onClick={() => onViewSupplier?.(supplier)}
                                 className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors mt-1"
-                                title="Görüntüle"
+                                title={t('archive.actions.view')}
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
@@ -696,22 +693,22 @@ export default function ArchivePage({
             <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Clock className="w-5 h-5 text-gray-600 mr-2" />
-                Arşiv Özeti
+                {t('archive.sections.archiveSummary')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Finansal Özet</h4>
+                  <h4 className="font-medium text-gray-900 mb-3">{t('archive.summary.financial')}</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Toplam Arşiv Gelir:</span>
+                      <span className="text-gray-600">{t('archive.summary.totalIncome')}:</span>
                       <span className="font-semibold text-green-600">{formatAmount(totalArchivedAmount)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Toplam Arşiv Gider:</span>
+                      <span className="text-gray-600">{t('archive.summary.totalExpense')}:</span>
                       <span className="font-semibold text-red-600">{formatAmount(totalArchivedExpenses)}</span>
                     </div>
                     <div className="flex justify-between border-t border-gray-300 pt-2">
-                      <span className="text-gray-900 font-medium">Net Arşiv:</span>
+                      <span className="text-gray-900 font-medium">{t('archive.summary.netArchive')}:</span>
                       <span className={`font-bold ${totalArchivedAmount - totalArchivedExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {formatAmount(totalArchivedAmount - totalArchivedExpenses)}
                       </span>
@@ -719,22 +716,22 @@ export default function ArchivePage({
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Kayıt Sayıları</h4>
+                  <h4 className="font-medium text-gray-900 mb-3">{t('archive.summary.recordCounts')}</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Arşiv Faturalar:</span>
+                      <span className="text-gray-600">{t('archive.archivedInvoices')}:</span>
                       <span className="font-medium">{archivedInvoices.length}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Arşiv Giderler:</span>
+                      <span className="text-gray-600">{t('archive.archivedExpenses')}:</span>
                       <span className="font-medium">{archivedExpenses.length}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Arşiv Satışlar:</span>
+                      <span className="text-gray-600">{t('archive.archivedSales')}:</span>
                       <span className="font-medium">{archivedSales.length}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Toplam Kişi:</span>
+                      <span className="text-gray-600">{t('archive.totalContacts')}:</span>
                       <span className="font-medium">{archivedCustomers.length + archivedSuppliers.length}</span>
                     </div>
                   </div>
@@ -748,11 +745,9 @@ export default function ArchivePage({
             <div className="flex items-start space-x-3">
               <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-blue-800">Arşiv Hakkında</h4>
+                <h4 className="font-medium text-blue-800">{t('archive.info.title')}</h4>
                 <p className="text-sm text-blue-700 mt-1">
-                  Arşiv sayfası tamamlanmış işlemlerinizi saklar. Ödenmiş faturalar, onaylanmış giderler ve 
-                  tamamlanmış satışlar otomatik olarak burada listelenir. Bu kayıtlar salt okunur durumdadır 
-                  ve geçmiş analiz ile denetim amaçlı kullanılabilir.
+                  {t('archive.info.description')}
                 </p>
               </div>
             </div>

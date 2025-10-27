@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
@@ -13,11 +13,9 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(true);
-  
-  // Get current date - use real date
-  const currentDate = new Date();
 
   const getLast6Months = () => {
+    const currentDate = new Date(); // Get current date dynamically each time
     const months = [];
     // Month names will use translation
     
@@ -37,7 +35,7 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
     return months;
   };
 
-  const last6Months = getLast6Months();
+  const last6Months = useMemo(() => getLast6Months(), [t]);
 
   // Calculate monthly data from actual sales and expenses
   const monthlyData = last6Months.map(monthInfo => {

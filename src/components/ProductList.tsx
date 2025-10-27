@@ -20,6 +20,22 @@ import ProductCategoryModal from './ProductCategoryModal';
 import { productCategoriesApi } from '../api/product-categories';
 import type { ProductCategory } from '../types';
 
+// Ana kategori isimlerini çeviren yardımcı fonksiyon
+const translateCategoryName = (categoryName: string, t: (key: string) => string): string => {
+  const normalizedName = categoryName.trim();
+  
+  // Ana kategoriler için çeviri
+  if (normalizedName === 'Ürünler') {
+    return t('products.mainCategories.products');
+  }
+  if (normalizedName === 'Hizmetler') {
+    return t('products.mainCategories.services');
+  }
+  
+  // Diğer kategoriler için orijinal ismi döndür
+  return categoryName;
+};
+
 export interface Product {
   id: string;
   name: string;
@@ -601,7 +617,7 @@ export default function ProductList({
                         }`}
                       >
                         <span className="truncate flex items-center gap-1">
-                          {category}
+                          {translateCategoryName(category, t)}
                           {isProtected && <span className="text-xs text-amber-500" title="Ana kategori">🔒</span>}
                         </span>
                         <span className="text-xs text-gray-500">{usage}</span>

@@ -253,7 +253,11 @@
     "cost": "Coût",
     "minStock": "Stock Min.",
     "view": "Voir",
-    "viewProduct": "Voir le produit"
+    "viewProduct": "Voir le produit",
+    "mainCategories": {
+      "products": "Produits",
+      "services": "Services"
+    }
   },
   "chartOfAccounts": {
     "title": "Plan Comptable",
@@ -478,6 +482,9 @@
     "decrease": "Diminution",
     "monthlyPerformanceTable": "Tableau de Performance Mensuelle",
     "total6Months": "Total (6 Mois)",
+    "totalIncome6Months": "Revenu Total (6 Mois)",
+    "totalExpense6Months": "Dépenses Totales (6 Mois)",
+    "netProfit6Months": "Bénéfice Net (6 Mois)",
     "month": "Mois",
     "profit": "Bénéfice",
     "profitMarginPercent": "Marge Bénéficiaire",
@@ -486,6 +493,72 @@
     "expenseCategoryPerformance": "Performance des Catégories de Dépenses",
     "noSupplier": "Aucun Fournisseur",
     "noCustomer": "Aucun Client"
+  },
+  "archive": {
+    "title": "Archive",
+    "subtitle": "Vos enregistrements terminés et historiques",
+    "totalArchive": "Archive Totale",
+    "archivedInvoices": "Factures Archivées",
+    "archivedExpenses": "Dépenses Archivées",
+    "archivedSales": "Ventes Archivées",
+    "totalContacts": "Contacts Totaux",
+    "searchPlaceholder": "Rechercher dans l'archive...",
+    "clearFilters": "Effacer les Filtres",
+    "tabs": {
+      "all": "Tout",
+      "invoices": "Factures",
+      "expenses": "Dépenses",
+      "sales": "Ventes",
+      "contacts": "Contacts"
+    },
+    "sections": {
+      "archivedInvoices": "Factures Archivées",
+      "archivedExpenses": "Dépenses Archivées",
+      "archivedSales": "Ventes Archivées",
+      "customers": "Clients",
+      "suppliers": "Fournisseurs",
+      "archiveSummary": "Résumé de l'Archive"
+    },
+    "empty": {
+      "invoices": "Aucune facture archivée",
+      "invoicesHelper": "Les factures payées ou en retard apparaîtront ici",
+      "expenses": "Aucune dépense archivée",
+      "expensesHelper": "Les dépenses payées apparaîtront ici",
+      "sales": "Aucune vente archivée",
+      "salesHelper": "Les ventes terminées apparaîtront ici",
+      "customers": "Aucun client trouvé",
+      "suppliers": "Aucun fournisseur trouvé"
+    },
+    "table": {
+      "invoice": "Facture",
+      "customer": "Client",
+      "amount": "Montant",
+      "status": "Statut",
+      "date": "Date",
+      "actions": "Actions",
+      "expense": "Dépense",
+      "supplier": "Fournisseur",
+      "category": "Catégorie",
+      "sale": "Vente",
+      "product": "Produit/Service",
+      "registered": "Enregistré"
+    },
+    "actions": {
+      "view": "Voir",
+      "download": "Télécharger"
+    },
+    "summary": {
+      "financial": "Résumé Financier",
+      "totalIncome": "Revenu Archivé Total",
+      "totalExpense": "Dépenses Archivées Totales",
+      "netArchive": "Archive Nette",
+      "recordCounts": "Nombre d'Enregistrements"
+    },
+    "info": {
+      "title": "À Propos de l'Archive",
+      "description": "La page d'archive stocke vos transactions terminées. Les factures payées, les dépenses approuvées et les ventes terminées sont automatiquement listées ici. Ces enregistrements sont en lecture seule et peuvent être utilisés pour l'analyse historique et à des fins d'audit."
+    }
   }
 }
+
 

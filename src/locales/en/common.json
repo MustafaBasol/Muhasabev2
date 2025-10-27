@@ -254,7 +254,11 @@
     "cost": "Cost",
     "minStock": "Min. Stock",
     "view": "View",
-    "viewProduct": "View product"
+    "viewProduct": "View product",
+    "mainCategories": {
+      "products": "Products",
+      "services": "Services"
+    }
   },
   "chartOfAccounts": {
     "title": "Chart of Accounts",
@@ -479,6 +483,9 @@
     "decrease": "Decrease",
     "monthlyPerformanceTable": "Monthly Performance Table",
     "total6Months": "Total (6 Months)",
+    "totalIncome6Months": "Total Income (6 Months)",
+    "totalExpense6Months": "Total Expense (6 Months)",
+    "netProfit6Months": "Net Profit (6 Months)",
     "month": "Month",
     "profit": "Profit",
     "profitMarginPercent": "Profit Margin",
@@ -487,6 +494,72 @@
     "expenseCategoryPerformance": "Expense Category Performance",
     "noSupplier": "No Supplier",
     "noCustomer": "No Customer"
+  },
+  "archive": {
+    "title": "Archive",
+    "subtitle": "Your completed and historical records",
+    "totalArchive": "Total Archive",
+    "archivedInvoices": "Archived Invoices",
+    "archivedExpenses": "Archived Expenses",
+    "archivedSales": "Archived Sales",
+    "totalContacts": "Total Contacts",
+    "searchPlaceholder": "Search in archive...",
+    "clearFilters": "Clear Filters",
+    "tabs": {
+      "all": "All",
+      "invoices": "Invoices",
+      "expenses": "Expenses",
+      "sales": "Sales",
+      "contacts": "Contacts"
+    },
+    "sections": {
+      "archivedInvoices": "Archived Invoices",
+      "archivedExpenses": "Archived Expenses",
+      "archivedSales": "Archived Sales",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "archiveSummary": "Archive Summary"
+    },
+    "empty": {
+      "invoices": "No archived invoices",
+      "invoicesHelper": "Paid or overdue invoices will appear here",
+      "expenses": "No archived expenses",
+      "expensesHelper": "Paid expenses will appear here",
+      "sales": "No archived sales",
+      "salesHelper": "Completed sales will appear here",
+      "customers": "No customers found",
+      "suppliers": "No suppliers found"
+    },
+    "table": {
+      "invoice": "Invoice",
+      "customer": "Customer",
+      "amount": "Amount",
+      "status": "Status",
+      "date": "Date",
+      "actions": "Actions",
+      "expense": "Expense",
+      "supplier": "Supplier",
+      "category": "Category",
+      "sale": "Sale",
+      "product": "Product/Service",
+      "registered": "Registered"
+    },
+    "actions": {
+      "view": "View",
+      "download": "Download"
+    },
+    "summary": {
+      "financial": "Financial Summary",
+      "totalIncome": "Total Archived Income",
+      "totalExpense": "Total Archived Expense",
+      "netArchive": "Net Archive",
+      "recordCounts": "Record Counts"
+    },
+    "info": {
+      "title": "About Archive",
+      "description": "The archive page stores your completed transactions. Paid invoices, approved expenses, and completed sales are automatically listed here. These records are read-only and can be used for historical analysis and audit purposes."
+    }
   }
 }
+
 

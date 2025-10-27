@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Settings,
   User,
@@ -34,13 +35,13 @@ interface SettingsPageProps {
   onCompanyUpdate?: (company: CompanyProfile) => void;
   onExportData?: () => void;
   onImportData?: (data: any) => void;
-  language?: 'tr' | 'en' | 'fr';
+  language?: 'tr' | 'en' | 'fr' | 'de';
 }
 
 // Yalnızca ekranda önizleme için (CompanyProfile + logoFile)
 type LocalCompanyState = CompanyProfile & { logoFile?: File | null };
 
-const SUPPORTED_LANGUAGES = ['tr', 'en', 'fr'] as const;
+const SUPPORTED_LANGUAGES = ['tr', 'en', 'fr', 'de'] as const;
 type SettingsLanguage = typeof SUPPORTED_LANGUAGES[number];
 
 type NotificationKey =
@@ -598,13 +599,153 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       closeAccount: 'Fermer le compte',
     },
   },
-};
-
-const ensureLanguage = (value?: string): SettingsLanguage => {
-  if (value && (SUPPORTED_LANGUAGES as readonly string[]).includes(value)) {
-    return value as SettingsLanguage;
-  }
-  return 'tr';
+  de: {
+    header: {
+      title: 'Einstellungen',
+      subtitle: 'System- und Kontoeinstellungen verwalten',
+      unsavedChanges: 'Ungespeicherte Änderungen',
+      save: 'Speichern',
+    },
+    tabs: {
+      profile: 'Profil',
+      company: 'Unternehmen',
+      notifications: 'Benachrichtigungen',
+      system: 'System',
+      security: 'Sicherheit',
+      data: 'Datenverwaltung',
+    },
+    profile: {
+      title: 'Profilinformationen',
+      fields: {
+        name: 'Vollständiger Name',
+        email: 'E-Mail-Adresse',
+        phone: 'Telefon',
+      },
+      passwordTitle: 'Passwort ändern',
+      passwordFields: {
+        current: 'Aktuelles Passwort',
+        new: 'Neues Passwort',
+        confirm: 'Passwort bestätigen',
+      },
+    },
+    company: {
+      title: 'Unternehmensinformationen',
+      logo: {
+        label: 'Unternehmenslogo',
+        upload: 'Logo hochladen',
+        remove: 'Entfernen',
+        helper: 'Sie können PNG-, JPG- oder GIF-Dateien bis 5 MB hochladen.',
+        uploaded: ({ name, sizeKB }) => `Logo ${name} (${sizeKB} KB)`,
+      },
+      fields: {
+        name: 'Unternehmensname',
+        address: 'Adresse',
+        taxNumber: 'Steuernummer',
+        taxOffice: 'Finanzamt',
+        phone: 'Telefon',
+        email: 'E-Mail',
+        website: 'Webseite',
+      },
+      iban: {
+        sectionTitle: 'IBAN für Rechnungen',
+        bankOption: 'Aus registrierten Bankkonten auswählen',
+        noBanks: '(Keine Bankkonten registriert)',
+        bankSelectPlaceholder: 'Bank auswählen',
+        manualOption: 'IBAN manuell eingeben',
+        ibanPlaceholder: 'DE00 0000 0000 0000 0000 00',
+        bankNamePlaceholder: 'Bankname (z.B. Deutsche Bank)',
+        preview: value => `Vorschau: ${value}`,
+        previewExample: 'z.B.: DExx xxxx xxxx xxxx xxxx xx',
+      },
+    },
+    notifications: {
+      title: 'Benachrichtigungseinstellungen',
+      labels: {
+        emailNotifications: 'E-Mail-Benachrichtigungen',
+        invoiceReminders: 'Rechnungserinnerungen',
+        expenseAlerts: 'Ausgabenwarnungen',
+        paymentNotifications: 'Zahlungsbenachrichtigungen',
+        weeklyReports: 'Wöchentliche Berichte',
+        monthlyReports: 'Monatliche Berichte',
+      },
+    },
+    system: {
+      title: 'Systemeinstellungen',
+      currencyLabel: 'Währung',
+      dateFormatLabel: 'Datumsformat',
+      timezoneLabel: 'Zeitzone',
+      currencies: {
+        TRY: '₺ Türkische Lira',
+        USD: '$ US-Dollar',
+        EUR: '€ Euro',
+      },
+      timezones: {
+        'Europe/Istanbul': 'Istanbul',
+        UTC: 'UTC',
+        'America/New_York': 'New York',
+      },
+      backup: {
+        title: 'Sicherungen',
+        toggleLabel: 'Automatische Sicherung',
+        toggleDescription: 'Sichern Sie Ihre Daten automatisch',
+        frequencyLabel: 'Sicherungshäufigkeit',
+        options: {
+          daily: 'Täglich',
+          weekly: 'Wöchentlich',
+          monthly: 'Monatlich',
+        },
+      },
+    },
+    security: {
+      tipsTitle: 'Sicherheitstipps',
+      tips: [
+        '• Verwenden Sie ein starkes Passwort (mindestens 8 Zeichen, Groß-/Kleinbuchstaben, Zahlen)',
+        '• Ändern Sie Ihr Passwort regelmäßig',
+        '• Aktivieren Sie die Zwei-Faktor-Authentifizierung',
+        '• Überwachen Sie verdächtige Aktivitäten',
+      ],
+      title: 'Sicherheitseinstellungen',
+      cards: {
+        twoFactor: {
+          title: 'Zwei-Faktor-Authentifizierung',
+          description: 'Eine zusätzliche Sicherheitsebene für Ihr Konto',
+          action: 'Aktivieren',
+        },
+        sessionHistory: {
+          title: 'Sitzungsverlauf',
+          description: 'Sehen Sie Ihre letzten Anmeldungen',
+          action: 'Anzeigen',
+        },
+        activeSessions: {
+          title: 'Aktive Sitzungen',
+          description: 'Verwalten Sie Sitzungen auf anderen Geräten',
+          action: 'Alle abmelden',
+        },
+      },
+    },
+    data: {
+      title: 'Daten Import / Export',
+      export: {
+        title: 'Daten exportieren',
+        description: 'Laden Sie alle Ihre Daten im JSON-Format herunter',
+        button: 'Daten exportieren',
+      },
+      import: {
+        title: 'Daten importieren',
+        description: 'Laden Sie Daten aus einer JSON-Datei hoch',
+      },
+    },
+    alerts: {
+      importSuccess: 'Daten erfolgreich importiert!',
+      importError: 'Ungültiges Dateiformat!',
+    },
+    dangerZone: {
+      title: 'Gefahrenzone',
+      description: 'Diese Aktionen sind irreversibel. Seien Sie vorsichtig.',
+      deleteAll: 'Alle Daten löschen',
+      closeAccount: 'Konto schließen',
+    },
+  },
 };
 
 export default function SettingsPage({
@@ -615,13 +756,23 @@ export default function SettingsPage({
   onCompanyUpdate,
   onExportData,
   onImportData,
-  language = 'tr',
-}: SettingsPageProps): JSX.Element {
+}: Omit<SettingsPageProps, 'language'>): JSX.Element {
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
-  const currentLanguage = ensureLanguage(language);
+  // i18next entegrasyonu
+  const { i18n } = useTranslation();
+  
+  // i18next dilini kullan (tr/en/fr/de formatında)
+  const i18nLanguage = i18n.language.toLowerCase().substring(0, 2);
+  
+  // SettingsPage için dil mapping
+  const currentLanguage: SettingsLanguage = 
+    (SUPPORTED_LANGUAGES.includes(i18nLanguage as any)) 
+      ? i18nLanguage as SettingsLanguage 
+      : 'tr'; // default Turkish
+  
   const text = settingsTranslations[currentLanguage];
   const notificationLabels = text.notifications.labels;
   

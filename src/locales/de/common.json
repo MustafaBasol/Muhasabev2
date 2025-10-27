@@ -254,7 +254,11 @@
     "cost": "Kosten",
     "minStock": "Min. Bestand",
     "view": "Anzeigen",
-    "viewProduct": "Produkt anzeigen"
+    "viewProduct": "Produkt anzeigen",
+    "mainCategories": {
+      "products": "Produkte",
+      "services": "Dienstleistungen"
+    }
   },
   "chartOfAccounts": {
     "title": "Kontenplan",
@@ -479,6 +483,9 @@
     "decrease": "Abnahme",
     "monthlyPerformanceTable": "Monatliche Leistungstabelle",
     "total6Months": "Gesamt (6 Monate)",
+    "totalIncome6Months": "Gesamteinkommen (6 Monate)",
+    "totalExpense6Months": "Gesamtausgaben (6 Monate)",
+    "netProfit6Months": "Nettogewinn (6 Monate)",
     "month": "Monat",
     "profit": "Gewinn",
     "profitMarginPercent": "Gewinnmarge",
@@ -487,6 +494,72 @@
     "expenseCategoryPerformance": "Ausgabenkategorieleistung",
     "noSupplier": "Kein Lieferant",
     "noCustomer": "Kein Kunde"
+  },
+  "archive": {
+    "title": "Archiv",
+    "subtitle": "Ihre abgeschlossenen und historischen Aufzeichnungen",
+    "totalArchive": "Gesamtarchiv",
+    "archivedInvoices": "Archivierte Rechnungen",
+    "archivedExpenses": "Archivierte Ausgaben",
+    "archivedSales": "Archivierte Verkäufe",
+    "totalContacts": "Gesamtkontakte",
+    "searchPlaceholder": "Im Archiv suchen...",
+    "clearFilters": "Filter Löschen",
+    "tabs": {
+      "all": "Alle",
+      "invoices": "Rechnungen",
+      "expenses": "Ausgaben",
+      "sales": "Verkäufe",
+      "contacts": "Kontakte"
+    },
+    "sections": {
+      "archivedInvoices": "Archivierte Rechnungen",
+      "archivedExpenses": "Archivierte Ausgaben",
+      "archivedSales": "Archivierte Verkäufe",
+      "customers": "Kunden",
+      "suppliers": "Lieferanten",
+      "archiveSummary": "Archivzusammenfassung"
+    },
+    "empty": {
+      "invoices": "Keine archivierten Rechnungen",
+      "invoicesHelper": "Bezahlte oder überfällige Rechnungen erscheinen hier",
+      "expenses": "Keine archivierten Ausgaben",
+      "expensesHelper": "Bezahlte Ausgaben erscheinen hier",
+      "sales": "Keine archivierten Verkäufe",
+      "salesHelper": "Abgeschlossene Verkäufe erscheinen hier",
+      "customers": "Keine Kunden gefunden",
+      "suppliers": "Keine Lieferanten gefunden"
+    },
+    "table": {
+      "invoice": "Rechnung",
+      "customer": "Kunde",
+      "amount": "Betrag",
+      "status": "Status",
+      "date": "Datum",
+      "actions": "Aktionen",
+      "expense": "Ausgabe",
+      "supplier": "Lieferant",
+      "category": "Kategorie",
+      "sale": "Verkauf",
+      "product": "Produkt/Dienstleistung",
+      "registered": "Registriert"
+    },
+    "actions": {
+      "view": "Ansehen",
+      "download": "Herunterladen"
+    },
+    "summary": {
+      "financial": "Finanzielle Zusammenfassung",
+      "totalIncome": "Gesamtarchiviertes Einkommen",
+      "totalExpense": "Gesamtarchivierte Ausgaben",
+      "netArchive": "Nettoarchiv",
+      "recordCounts": "Datensatzanzahl"
+    },
+    "info": {
+      "title": "Über Archiv",
+      "description": "Die Archivseite speichert Ihre abgeschlossenen Transaktionen. Bezahlte Rechnungen, genehmigte Ausgaben und abgeschlossene Verkäufe werden hier automatisch aufgelistet. Diese Aufzeichnungen sind schreibgeschützt und können für historische Analysen und Prüfungszwecke verwendet werden."
+    }
   }
 }
+
 

@@ -1,6 +1,23 @@
 import React from 'react';
 import { X, Tag, PlusCircle, Percent, Layers } from 'lucide-react';
 import type { ProductCategory } from '../types';
+import { useTranslation } from 'react-i18next';
+
+// Ana kategori isimlerini çeviren yardımcı fonksiyon
+const translateCategoryName = (categoryName: string, t: (key: string) => string): string => {
+  const normalizedName = categoryName.trim();
+  
+  // Ana kategoriler için çeviri
+  if (normalizedName === 'Ürünler') {
+    return t('products.mainCategories.products');
+  }
+  if (normalizedName === 'Hizmetler') {
+    return t('products.mainCategories.services');
+  }
+  
+  // Diğer kategoriler için orijinal ismi döndür
+  return categoryName;
+};
 
 interface ProductCategoryModalProps {
   isOpen: boolean;
@@ -22,6 +39,7 @@ export default function ProductCategoryModal({
   categoryObjects = [],
   editingCategory,
 }: ProductCategoryModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = React.useState('');
   const [taxRate, setTaxRate] = React.useState('18');
   const [parentId, setParentId] = React.useState('');
@@ -148,7 +166,7 @@ export default function ProductCategoryModal({
               >
                 {parentCategories.map(cat => (
                   <option key={cat.id} value={cat.id}>
-                    {cat.name}
+                    {translateCategoryName(cat.name, t)}
                   </option>
                 ))}
               </select>

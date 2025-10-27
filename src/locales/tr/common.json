@@ -254,7 +254,11 @@
     "cost": "Maliyet",
     "minStock": "Min. Stok",
     "view": "Görüntüle",
-    "viewProduct": "Ürünü görüntüle"
+    "viewProduct": "Ürünü görüntüle",
+    "mainCategories": {
+      "products": "Ürünler",
+      "services": "Hizmetler"
+    }
   },
   "chartOfAccounts": {
     "title": "Hesap Planı",
@@ -479,6 +483,9 @@
     "decrease": "Azalış",
     "monthlyPerformanceTable": "Aylık Performans Tablosu",
     "total6Months": "Toplam (6 Ay)",
+    "totalIncome6Months": "Toplam Gelir (6 Ay)",
+    "totalExpense6Months": "Toplam Gider (6 Ay)",
+    "netProfit6Months": "Net Kar (6 Ay)",
     "month": "Ay",
     "profit": "Kar",
     "profitMarginPercent": "Kar Marjı",
@@ -487,6 +494,128 @@
     "expenseCategoryPerformance": "Gider Kategorisi Performansı",
     "noSupplier": "Tedarikçi Yok",
     "noCustomer": "Müşteri Yok"
+  },
+  "archive": {
+    "title": "Arşiv",
+    "subtitle": "Tamamlanmış ve eski kayıtlarınız",
+    "totalArchive": "Toplam Arşiv",
+    "archivedInvoices": "Arşiv Faturalar",
+    "archivedExpenses": "Arşiv Giderler",
+    "archivedSales": "Arşiv Satışlar",
+    "totalContacts": "Toplam Kişi",
+    "searchPlaceholder": "Arşivde ara...",
+    "clearFilters": "Filtreleri Temizle",
+    "tabs": {
+      "all": "Tümü",
+      "invoices": "Faturalar",
+      "expenses": "Giderler",
+      "sales": "Satışlar",
+      "contacts": "Kişiler"
+    },
+    "sections": {
+      "archivedInvoices": "Arşivlenmiş Faturalar",
+      "archivedExpenses": "Arşivlenmiş Giderler",
+      "archivedSales": "Arşivlenmiş Satışlar",
+      "customers": "Müşteriler",
+      "suppliers": "Tedarikçiler",
+      "archiveSummary": "Arşiv Özeti"
+    },
+    "empty": {
+      "invoices": "Arşivlenmiş fatura bulunmuyor",
+      "invoicesHelper": "Ödenmiş veya gecikmiş faturalar burada görünecek",
+      "expenses": "Arşivlenmiş gider bulunmuyor",
+      "expensesHelper": "Ödenmiş giderler burada görünecek",
+      "sales": "Arşivlenmiş satış bulunmuyor",
+      "salesHelper": "Tamamlanmış satışlar burada görünecek",
+      "customers": "Müşteri bulunmuyor",
+      "suppliers": "Tedarikçi bulunmuyor"
+    },
+    "table": {
+      "invoice": "Fatura",
+      "customer": "Müşteri",
+      "amount": "Tutar",
+      "status": "Durum",
+      "date": "Tarih",
+      "actions": "İşlemler",
+      "expense": "Gider",
+      "supplier": "Tedarikçi",
+      "category": "Kategori",
+      "sale": "Satış",
+      "product": "Ürün/Hizmet",
+      "registered": "Kayıt"
+    },
+    "actions": {
+      "view": "Görüntüle",
+      "download": "İndir"
+    },
+    "summary": {
+      "financial": "Finansal Özet",
+      "totalIncome": "Toplam Arşiv Gelir",
+      "totalExpense": "Toplam Arşiv Gider",
+      "netArchive": "Net Arşiv",
+      "recordCounts": "Kayıt Sayıları"
+    },
+    "info": {
+      "title": "Arşiv Hakkında",
+      "description": "Arşiv sayfası tamamlanmış işlemlerinizi saklar. Ödenmiş faturalar, onaylanmış giderler ve tamamlanmış satışlar otomatik olarak burada listelenir. Bu kayıtlar salt okunur durumdadır ve geçmiş analiz ile denetim amaçlı kullanılabilir."
+    }
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "subtitle": "Sistem ve hesap ayarlarınızı yönetin",
+    "unsavedChanges": "Kaydedilmemiş değişiklikler var",
+    "saveChanges": "Değişiklikleri Kaydet",
+    "tabs": {
+      "profile": "Profil",
+      "company": "Şirket",
+      "notifications": "Bildirimler",
+      "system": "Sistem",
+      "security": "Güvenlik",
+      "data": "Veri"
+    }
+  },
+  "chartOfAccounts": {
+    "title": "Hesap Planı",
+    "subtitle": "Muhasebe hesap planınızı yönetin",
+    "search": "Hesap kodu veya adına göre ara...",
+    "accountsRegistered": "hesap kayıtlı",
+    "clickToEdit": "Düzenlemek için hesap adı, kodu veya bakiyeye tıklayın",
+    "accountName": "Hesap Adı",
+    "type": "Tür",
+    "balance": "Bakiye",
+    "status": "Durum",
+    "actions": "İşlemler",
+    "addAccountTip": "Yeni hesap eklemek için yukarıdaki butonu kullanın",
+    "allSummed": "Alt hesaplar toplamı",
+    "accountTypes": {
+      "all": "Tüm Hesap Türleri",
+      "asset": "Varlık",
+      "liability": "Yükümlülük",
+      "equity": "Özkaynak",
+      "revenue": "Gelir",
+      "expense": "Gider"
+    },
+    "accountTypesPlural": {
+      "asset": "Varlıklar",
+      "liability": "Yükümlülükler",
+      "equity": "Özkaynaklar",
+      "revenue": "Gelirler",
+      "expense": "Giderler"
+    },
+    "statusLabels": {
+      "active": "Aktif",
+      "inactive": "Pasif"
+    },
+    "tooltips": {
+      "editHint": "İpucu: Hesapları düzenlemek için üzerine tıklayın"
+    }
   }
 }
+
+
+
+
+
+
+
 

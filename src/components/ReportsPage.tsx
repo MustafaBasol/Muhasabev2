@@ -590,7 +590,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                   <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 text-white">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-green-100 text-sm">Kar Marjı</p>
+                        <p className="text-green-100 text-sm">{t('reports.profitMargin')}</p>
                         <p className="text-2xl font-bold">
                           {profitMargin.toFixed(1)}%
                         </p>
@@ -601,7 +601,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                   <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-4 text-white">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-blue-100 text-sm">Büyüme Oranı</p>
+                        <p className="text-blue-100 text-sm">{t('reports.growthRate')}</p>
                         <p className="text-2xl font-bold">
                           {`${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}`}%
                         </p>
@@ -612,7 +612,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                   <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 text-white">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-purple-100 text-sm">Ortalama Satış</p>
+                        <p className="text-purple-100 text-sm">{t('reports.averageSale')}</p>
                         <p className="text-2xl font-bold">
                           {formatAmount(averageSale)}
                         </p>
@@ -1087,19 +1087,19 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.monthlyPerformanceTable')}</h3>
               <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-green-50 p-3 rounded-lg">
-                  <div className="text-sm text-green-600 mb-1">Toplam Gelir (6 Ay)</div>
+                  <div className="text-sm text-green-600 mb-1">{t('reports.totalIncome6Months')}</div>
                   <div className="text-lg font-bold text-green-700">
                     {formatAmount(displayMonthlyData.reduce((sum, data) => sum + data.income, 0))}
                   </div>
                 </div>
                 <div className="bg-red-50 p-3 rounded-lg">
-                  <div className="text-sm text-red-600 mb-1">Toplam Gider (6 Ay)</div>
+                  <div className="text-sm text-red-600 mb-1">{t('reports.totalExpense6Months')}</div>
                   <div className="text-lg font-bold text-red-700">
                     {formatAmount(displayMonthlyData.reduce((sum, data) => sum + data.expense, 0))}
                   </div>
                 </div>
                 <div className="bg-blue-50 p-3 rounded-lg">
-                  <div className="text-sm text-blue-600 mb-1">Net Kar (6 Ay)</div>
+                  <div className="text-sm text-blue-600 mb-1">{t('reports.netProfit6Months')}</div>
                   <div className={`text-lg font-bold ${
                     displayMonthlyData.reduce((sum, data) => sum + data.net, 0) >= 0 ? 'text-blue-700' : 'text-red-700'
                   }`}>
