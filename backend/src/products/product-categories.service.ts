@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProductCategory } from './entities/product-category.entity';
@@ -58,6 +58,11 @@ export class ProductCategoriesService {
     // Check if category exists
     const category = await this.findOne(id, tenantId);
 
+    // Korumalı kategorilerin ismini değiştirmeyi engelle
+    if (category.isProtected && updateCategoryDto.name && updateCategoryDto.name !== category.name) {
+      throw new BadRequestException(`Protected category "${category.name}" cannot be renamed`);
+    }
+
     // If name is being updated, check for duplicates
     if (updateCategoryDto.name && updateCategoryDto.name !== category.name) {
       const existing = await this.findByName(updateCategoryDto.name, tenantId);
@@ -75,6 +80,12 @@ export class ProductCategoriesService {
 
   async remove(id: string, tenantId: string): Promise<void> {
     const category = await this.findOne(id, tenantId);
+    
+    // Korumalı kategorileri silmeyi engelle
+    if (category.isProtected) {
+      throw new BadRequestException(`Protected category "${category.name}" cannot be deleted`);
+    }
+    
     // Soft delete by setting isActive to false
     await this.categoriesRepository.update(
       { id, tenantId },

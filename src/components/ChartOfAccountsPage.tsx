@@ -38,6 +38,41 @@ export default function ChartOfAccountsPage({
   const [inlineEditingAccount, setInlineEditingAccount] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValues, setTempValues] = useState<{[key: string]: string}>({});
+  const [showExpenseCategoryModal, setShowExpenseCategoryModal] = useState(false);
+  const [pendingParentId, setPendingParentId] = useState<string | null>(null);
+
+  // Gider kategorileri (ExpenseModal ile aynı)
+  const expenseCategories = [
+    { label: 'Diğer', value: 'other' },
+    { label: 'Ekipman', value: 'equipment' },
+    { label: 'Faturalar (Elektrik, Su, İnternet)', value: 'utilities' },
+    { label: 'Kira', value: 'rent' },
+    { label: 'Maaşlar', value: 'salaries' },
+    { label: 'Malzemeler', value: 'supplies' },
+    { label: 'Pazarlama', value: 'marketing' },
+    { label: 'Personel', value: 'personnel' },
+    { label: 'Seyahat', value: 'travel' },
+    { label: 'Sigorta', value: 'insurance' },
+    { label: 'Vergiler', value: 'taxes' },
+  ];
+
+  // Kategori isminden değere eşleme
+  const categoryNameToValue: { [key: string]: string } = {
+    'Kira Giderleri': 'rent',
+    'Personel Giderleri': 'personnel',
+    'Fatura Giderleri': 'utilities',
+    'Diğer': 'other',
+    'Ekipman': 'equipment',
+    'Faturalar (Elektrik, Su, İnternet)': 'utilities',
+    'Kira': 'rent',
+    'Maaşlar': 'salaries',
+    'Malzemeler': 'supplies',
+    'Pazarlama': 'marketing',
+    'Personel': 'personnel',
+    'Seyahat': 'travel',
+    'Sigorta': 'insurance',
+    'Vergiler': 'taxes',
+  };
 
   // Gerçek verilerden hesap planı oluştur
   const defaultAccounts: Account[] = [
@@ -64,7 +99,7 @@ export default function ChartOfAccountsPage({
     { id: '16', code: '700', name: 'GİDERLER', type: 'expense', isActive: true, balance: 0, createdAt: '2024-01-01' },
     { id: '17', code: '701', name: 'Kira Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
     { id: '18', code: '702', name: 'Personel Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '19', code: '703', name: 'Elektrik Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '19', code: '703', name: 'Fatura Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
   ];
 
   const [currentAccounts, setCurrentAccounts] = useState<Account[]>(
@@ -99,30 +134,56 @@ export default function ChartOfAccountsPage({
       
       case '601': // Satış Gelirleri - Product invoices only (no duplicate counting)
         return invoices
-          .filter(invoice => (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && invoice.type === 'product')
+          .filter(invoice => 
+            invoice.type !== 'refund' && 
+            (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && 
+            invoice.type === 'product'
+          )
           .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
       case '602': // Hizmet Gelirleri - Service invoices only
         return invoices
-          .filter(invoice => (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && invoice.type === 'service')
+          .filter(invoice => 
+            invoice.type !== 'refund' && 
+            (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && 
+            invoice.type === 'service'
+          )
           .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
       case '701': // Kira Giderleri - Rent expenses (all statuses)
         return expenses
-          .filter(expense => expense.category === 'Kira')
+          .filter(expense => expense.category === 'rent')
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
       case '702': // Personel Giderleri - Personnel expenses (all statuses)
         return expenses
-          .filter(expense => expense.category === 'Personel')
+          .filter(expense => expense.category === 'personnel')
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
-      case '703': // Elektrik Giderleri - Electricity expenses (all statuses)
+      case '703': // Fatura Giderleri - Utilities expenses (all statuses)
         return expenses
-          .filter(expense => expense.category === 'Elektrik')
+          .filter(expense => expense.category === 'utilities')
+          .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
+      
+      case '700': // GİDERLER - All expenses total
+        return expenses
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
       default:
+        // Dinamik gider kategorileri için (704+)
+        if (account.type === 'expense' && account.parentId) {
+          const parent = currentAccounts.find(acc => acc.id === account.parentId);
+          if (parent?.code === '700') {
+            // Hesap isminden kategori değerini bul
+            const categoryValue = categoryNameToValue[account.name];
+            if (categoryValue) {
+              return expenses
+                .filter(expense => expense.category === categoryValue)
+                .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
+            }
+          }
+        }
+        
         // For other accounts, use the stored balance
         return account.balance;
     }
@@ -130,8 +191,48 @@ export default function ChartOfAccountsPage({
 
   // Check if account data comes from other pages (should not be editable)
   const isDataFromOtherPages = (account: Account): boolean => {
-    const dynamicAccountCodes = ['101', '102', '120', '201', '601', '602', '701', '702', '703'];
+    const dynamicAccountCodes = ['101', '102', '120', '201', '600', '601', '602', '700', '701', '702', '703'];
+    
+    // Dinamik gider kategorileri de kilitli olmalı
+    if (account.type === 'expense' && account.parentId) {
+      const parent = currentAccounts.find(acc => acc.id === account.parentId);
+      if (parent?.code === '700' && categoryNameToValue[account.name]) {
+        return true;
+      }
+    }
+    
     return dynamicAccountCodes.includes(account.code);
+  };
+
+  // Get tooltip text for locked accounts
+  const getLockedAccountTooltip = (account: Account): string => {
+    const code = account.code;
+    const tooltips: { [key: string]: string } = {
+      '101': 'Kasa: Ödenen faturaların nakit ödemeleri (Faturalar > Ödendi)',
+      '102': 'Bankalar: Ödenen faturaların banka/kart ödemeleri (Faturalar > Ödendi)',
+      '120': 'Alıcılar: Ödenmemiş faturalar (Faturalar > Gönderildi/Vadesi Geçti)',
+      '201': 'Satıcılar: Ödenmemiş giderler (Giderler > Onaylandı/Beklemede)',
+      '600': 'GELİRLER: Tüm gelirler toplamı (Faturalar sayfasından)',
+      '601': 'Satış Gelirleri: Ürün kategorili faturalar (Ürünler > Ürünler kategorisi)',
+      '602': 'Hizmet Gelirleri: Hizmet kategorili faturalar (Ürünler > Hizmetler kategorisi)',
+      '700': 'GİDERLER: Tüm giderler toplamı (Giderler sayfasından)',
+      '701': 'Kira Giderleri: Kira kategorili giderler (Giderler sayfasından)',
+      '702': 'Personel Giderleri: Personel kategorili giderler (Giderler sayfasından)',
+      '703': 'Fatura Giderleri: Fatura kategorili giderler (Giderler sayfasından)'
+    };
+    
+    // Dinamik kategoriler için
+    if (account.type === 'expense' && account.parentId) {
+      const parent = currentAccounts.find(acc => acc.id === account.parentId);
+      if (parent?.code === '700') {
+        const categoryValue = categoryNameToValue[account.name];
+        if (categoryValue) {
+          return `${account.name}: ${account.name} kategorili giderler (Giderler sayfasından)`;
+        }
+      }
+    }
+    
+    return tooltips[code] || 'Bu hesap diğer sayfalardan otomatik yönetilir';
   };
 
   // Update accounts with dynamic balances
@@ -286,6 +387,25 @@ export default function ChartOfAccountsPage({
   };
 
   const addNewAccount = (parentId?: string) => {
+    // Eğer parent 700 (GİDERLER) ise ve zaten alt kategorisi varsa, modal göster
+    if (parentId) {
+      const parent = currentAccounts.find(acc => acc.id === parentId);
+      
+      // Eğer parent'ın kendisi de bir child ise (yani alt kategoriye alt kategori eklemeye çalışıyorsa)
+      if (parent?.parentId) {
+        alert('Alt kategorilere tekrar alt kategori eklenemez. Sadece ana kategorilere alt kategori eklenebilir.');
+        return;
+      }
+      
+      // Eğer parent 700 (GİDERLER) ise, kategori seçimi modalını göster
+      if (parent?.code === '700') {
+        setPendingParentId(parentId);
+        setShowExpenseCategoryModal(true);
+        return;
+      }
+    }
+
+    // Normal hesap ekleme
     const newAccount: Account = {
       id: Date.now().toString(),
       code: '',
@@ -314,6 +434,58 @@ export default function ChartOfAccountsPage({
     return parent?.type || 'asset';
   };
 
+  // Gider kategorisi seçildiğinde yeni alt hesap ekle
+  const handleExpenseCategorySelected = (categoryValue: string, categoryLabel: string) => {
+    if (!pendingParentId) return;
+
+    // Aynı kategori değeri zaten var mı kontrol et (isim değil değer bazında)
+    const categoryExists = currentAccounts.some(acc => {
+      if (acc.parentId !== pendingParentId) return false;
+      
+      // Mevcut hesabın kategori değerini bul
+      const existingCategoryValue = categoryNameToValue[acc.name];
+      return existingCategoryValue === categoryValue;
+    });
+
+    if (categoryExists) {
+      alert(`"${categoryLabel}" kategorisi zaten eklenmiş. Her kategori sadece bir kez eklenebilir.`);
+      setShowExpenseCategoryModal(false);
+      setPendingParentId(null);
+      return;
+    }
+
+    // Kategori için yeni kod bul (704'ten başlayarak)
+    const existingExpenseCodes = currentAccounts
+      .filter(acc => acc.code.startsWith('70') && acc.parentId === pendingParentId)
+      .map(acc => parseInt(acc.code))
+      .filter(code => !isNaN(code));
+    
+    const nextCode = existingExpenseCodes.length > 0 
+      ? Math.max(...existingExpenseCodes) + 1 
+      : 704;
+
+    const newAccount: Account = {
+      id: Date.now().toString(),
+      code: nextCode.toString(),
+      name: categoryLabel,
+      type: 'expense',
+      parentId: pendingParentId,
+      isActive: true,
+      balance: 0,
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedAccounts = [...currentAccounts, newAccount];
+    setCurrentAccounts(updatedAccounts);
+    if (onAccountsUpdate) {
+      onAccountsUpdate(updatedAccounts);
+    }
+
+    // Modalı kapat
+    setShowExpenseCategoryModal(false);
+    setPendingParentId(null);
+  };
+
   // Calculate parent account balance from children
   const calculateParentBalance = (parentId: string): number => {
     const children = currentAccounts.filter(acc => acc.parentId === parentId);
@@ -339,6 +511,11 @@ export default function ChartOfAccountsPage({
 
   // Get display balance for account (calculated for parents, actual for children)
   const getDisplayBalance = (account: Account): number => {
+    // Özel durum: 700 ve 600 kodları için dinamik hesaplama kullan (alt hesapların toplamı değil)
+    if (account.code === '700' || account.code === '600') {
+      return calculateDynamicBalance(account);
+    }
+    
     const hasChildren = isParentAccount(account.id);
     if (hasChildren) {
       return calculateParentBalance(account.id);
@@ -443,7 +620,7 @@ export default function ChartOfAccountsPage({
                             : 'cursor-pointer hover:bg-blue-50'
                         }`}
                         title={isDataFromOtherPages(account) 
-                          ? 'Bu hesap diğer sayfalardan otomatik yönetilir' 
+                          ? getLockedAccountTooltip(account)
                           : 'Kodu düzenlemek için tıklayın'
                         }
                       >
@@ -488,7 +665,7 @@ export default function ChartOfAccountsPage({
                             : 'cursor-pointer hover:bg-gray-50'
                         }`}
                         title={isDataFromOtherPages(account) 
-                          ? 'Bu hesap diğer sayfalardan otomatik yönetilir' 
+                          ? getLockedAccountTooltip(account)
                           : 'Adı düzenlemek için tıklayın'
                         }
                       >
@@ -551,7 +728,10 @@ export default function ChartOfAccountsPage({
                         ? 'cursor-not-allowed opacity-60' 
                         : 'cursor-pointer hover:bg-gray-50'
                     }`}
-                    title={formatAmount(getDisplayBalance(account)) + (isDataFromOtherPages(account) ? ' (Otomatik hesaplanır)' : ' (Düzenlemek için tıklayın)')}
+                    title={isDataFromOtherPages(account) 
+                      ? `${formatAmount(getDisplayBalance(account))} - ${getLockedAccountTooltip(account)}`
+                      : `${formatAmount(getDisplayBalance(account))} (Düzenlemek için tıklayın)`
+                    }
                   >
                     {formatAmount(getDisplayBalance(account))}
                     {isDataFromOtherPages(account) && (
@@ -772,6 +952,77 @@ export default function ChartOfAccountsPage({
           </table>
         </div>
       </div>
+
+      {/* Gider Kategorisi Seçim Modalı */}
+      {showExpenseCategoryModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Gider Kategorisi Seçin
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowExpenseCategoryModal(false);
+                    setPendingParentId(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-4">
+                Giderler kategorisine eklenecek alt kategoriyi seçin. Bu kategori, giderler sayfasındaki kategorilerle otomatik eşleştirilecektir.
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">
+                {expenseCategories.map((category) => {
+                  // Kategori değeri zaten eklenmiş mi kontrol et (isim değil değer bazında)
+                  const isAlreadyAdded = currentAccounts.some(acc => {
+                    if (acc.parentId !== pendingParentId) return false;
+                    const existingCategoryValue = categoryNameToValue[acc.name];
+                    return existingCategoryValue === category.value;
+                  });
+                  
+                  return (
+                    <button
+                      key={category.value}
+                      onClick={() => !isAlreadyAdded && handleExpenseCategorySelected(category.value, category.label)}
+                      disabled={isAlreadyAdded}
+                      className={`px-4 py-3 text-left border rounded-lg transition-colors ${
+                        isAlreadyAdded
+                          ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed opacity-60'
+                          : 'border-gray-200 hover:bg-blue-50 hover:border-blue-300'
+                      }`}
+                    >
+                      <span className="text-sm font-medium flex items-center justify-between">
+                        {category.label}
+                        {isAlreadyAdded && (
+                          <Check className="w-4 h-4 text-green-500" />
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowExpenseCategoryModal(false);
+                    setPendingParentId(null);
+                  }}
+                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

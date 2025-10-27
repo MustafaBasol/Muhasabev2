@@ -39,6 +39,8 @@ export interface ProductCategory {
   name: string;
   taxRate: number; // Varsayılan KDV oranı (örn: 18 = %18)
   isActive: boolean;
+  parentId?: string; // Ana kategori ID'si (Hizmetler/Ürünler altında alt kategori için)
+  isProtected?: boolean; // Silinemeyen/değiştirilemeyen ana kategoriler
   createdAt: string;
   updatedAt: string;
 }

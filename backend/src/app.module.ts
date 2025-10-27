@@ -29,8 +29,8 @@ import { SeedService } from './database/seed.service';
       password: process.env.DATABASE_PASSWORD || 'moneyflow123',
       database: process.env.DATABASE_NAME || 'moneyflow_dev',
       autoLoadEntities: true,
-      synchronize: false, // Don't drop tables on restart - preserves data
-      logging: true,
+      synchronize: false, // IMPORTANT: Never drop tables - keeps your data safe
+      logging: false, // Reduce console noise in production
     }),
     AuthModule,
     UsersModule,

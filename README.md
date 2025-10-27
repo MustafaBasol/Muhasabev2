@@ -4,29 +4,28 @@ Modern, güvenli ve ölçeklenebilir multi-tenant muhasebe ve finans yönetim si
 
 ---
 
-## ⚡ GitHub Codespaces'te Hızlı Başlangıç
+## ⚡ HIZLI BAŞLATMA (Tek Komut!)
 
-**🚀 Tek komutla başlatma:**
 ```bash
-./start-dev-new.sh
+./start-safe.sh
 ```
 
-**🛡️ Port kapanma önleme (ÖNERİLEN):**
-```bash
-./port-monitor.sh
-```
+**Hepsi bu kadar!** Codespace açıldığında otomatik başlayacak şekilde ayarlandı.
 
-**📚 Detaylı rehberler:**
-- **[CODESPACE_QUICKSTART.md](./CODESPACE_QUICKSTART.md)** - 5 dakikalık hızlı başlangıç
-- **[CODESPACE_SETUP_GUIDE.md](./CODESPACE_SETUP_GUIDE.md)** - Kapsamlı kurulum rehberi
+**🌐 URL'ler:**
+- Frontend: https://damp-wraith-7q9x5r7j6qrcgg6-5173.app.github.dev
+- Backend: https://damp-wraith-7q9x5r7j6qrcgg6-3000.app.github.dev
 
-**🌐 Codespace URL'leri:**
-- Frontend: `https://[codespace-name]-5173.app.github.dev`
-- Backend: `https://[codespace-name]-3000.app.github.dev`
-
-**👤 Demo Login:**
-- E-posta: admin@test.com
+**👤 Giriş:**
+- Email: admin@test.com
 - Şifre: Test123456
+
+**💾 Yedekleme:**
+```bash
+./quick-backup.sh
+```
+
+**📖 Basit Kılavuz:** [BASLATMA.md](./BASLATMA.md)
 
 ---
 

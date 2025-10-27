@@ -1,11 +1,17 @@
 import React from 'react';
-import { X, Tag, PlusCircle, Percent } from 'lucide-react';
+import { X, Tag, PlusCircle, Percent, Layers } from 'lucide-react';
+import type { ProductCategory } from '../types';
 
 interface ProductCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (categoryName: string, taxRate: number) => void;
+  onSubmit: (categoryName: string, taxRate: number, parentId?: string) => void;
   categories: string[];
+  categoryObjects?: ProductCategory[];
+  editingCategory?: {
+    name: string;
+    taxRate: number;
+  } | null;
 }
 
 export default function ProductCategoryModal({
@@ -13,22 +19,44 @@ export default function ProductCategoryModal({
   onClose,
   onSubmit,
   categories,
+  categoryObjects = [],
+  editingCategory,
 }: ProductCategoryModalProps) {
   const [name, setName] = React.useState('');
   const [taxRate, setTaxRate] = React.useState('18');
+  const [parentId, setParentId] = React.useState('');
   const [error, setError] = React.useState('');
+
+  const isEditMode = !!editingCategory;
+
+  // Sadece korumalı (ana) kategorileri seç
+  const parentCategories = React.useMemo(
+    () => categoryObjects.filter(cat => cat.isProtected && cat.isActive),
+    [categoryObjects]
+  );
 
   React.useEffect(() => {
     if (!isOpen) {
       setName('');
       setTaxRate('18');
+      setParentId('');
       setError('');
       return;
     }
-    setName('');
-    setTaxRate('18');
+    if (editingCategory) {
+      setName(editingCategory.name);
+      setTaxRate(editingCategory.taxRate.toString());
+      setParentId('');
+    } else {
+      setName('');
+      setTaxRate('18');
+      // Varsayılan olarak ilk ana kategoriyi seç
+      if (parentCategories.length > 0) {
+        setParentId(parentCategories[0].id);
+      }
+    }
     setError('');
-  }, [isOpen]);
+  }, [isOpen, editingCategory, parentCategories]);
 
   if (!isOpen) {
     return null;
@@ -41,9 +69,22 @@ export default function ProductCategoryModal({
       return;
     }
 
+    // Yeni kategori ekleniyorsa parent ID zorunlu
+    if (!isEditMode && !parentId) {
+      setError('Ana kategori seçimi zorunludur');
+      return;
+    }
+
     const taxRateNum = parseFloat(taxRate);
     if (isNaN(taxRateNum) || taxRateNum < 0 || taxRateNum > 100) {
       setError('KDV oranı 0-100 arasında olmalıdır');
+      return;
+    }
+
+    // Düzenleme modunda ise ve isim değişmediyse, isim kontrolünü atla
+    if (isEditMode && editingCategory && normalized.toLocaleLowerCase('tr-TR') === editingCategory.name.toLocaleLowerCase('tr-TR')) {
+      onSubmit(normalized, taxRateNum);
+      onClose();
       return;
     }
 
@@ -56,21 +97,25 @@ export default function ProductCategoryModal({
       return;
     }
 
-    onSubmit(normalized, taxRateNum);
+    onSubmit(normalized, taxRateNum, parentId || undefined);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl pointer-events-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div className="flex items-center gap-2">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50">
               <PlusCircle className="h-5 w-5 text-indigo-600" />
             </span>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Kategori Ekle</h2>
-              <p className="text-sm text-gray-500">Yeni ürün kategorisini kaydedin.</p>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {isEditMode ? 'Kategori Düzenle' : 'Kategori Ekle'}
+              </h2>
+              <p className="text-sm text-gray-500">
+                {isEditMode ? 'Kategori bilgilerini güncelleyin.' : 'Yeni ürün kategorisini kaydedin.'}
+              </p>
             </div>
           </div>
           <button
@@ -84,7 +129,34 @@ export default function ProductCategoryModal({
         </div>
 
         <div className="px-6 py-5">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="category-name">
+          {!isEditMode && parentCategories.length > 0 && (
+            <>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="parent-category">
+                <Layers className="h-4 w-4 text-gray-400" />
+                Ana Kategori
+              </label>
+              <select
+                id="parent-category"
+                value={parentId}
+                onChange={event => {
+                  setParentId(event.target.value);
+                  if (error) {
+                    setError('');
+                  }
+                }}
+                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {parentCategories.map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Bu kategori hangi ana kategoriye ait olacak?</p>
+            </>
+          )}
+
+          <label className={`flex items-center gap-2 text-sm font-medium text-gray-700 ${!isEditMode && parentCategories.length > 0 ? 'mt-4' : ''}`} htmlFor="category-name">
             <Tag className="h-4 w-4 text-gray-400" />
             Kategori adı
           </label>
@@ -122,7 +194,11 @@ export default function ProductCategoryModal({
             className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             placeholder="Örn: 18"
           />
-          <p className="mt-1 text-xs text-gray-500">Bu kategorideki ürünler için varsayılan KDV oranı</p>
+          <p className="mt-1 text-xs text-gray-500">
+            {!isEditMode && parentCategories.length > 0 
+              ? 'Alt kategori KDV\'si varsa ana kategori KDV\'sini geçersiz kılar'
+              : 'Bu kategorideki ürünler için varsayılan KDV oranı'}
+          </p>
           
           {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         </div>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Package,
   Search,
@@ -15,6 +15,9 @@ import {
   X
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import ProductCategoryModal from './ProductCategoryModal';
+import { productCategoriesApi } from '../api/product-categories';
+import type { ProductCategory } from '../types';
 
 export interface Product {
   id: string;
@@ -67,7 +70,6 @@ export default function ProductList({
   onEditProduct,
   onDeleteProduct,
   onViewProduct,
-  onAddCategory,
   onEditCategory,
   onDeleteCategory,
   onBulkAction,
@@ -81,6 +83,22 @@ export default function ProductList({
   const [isCategoryPanelOpen, setIsCategoryPanelOpen] = useState(false);
   const [activeFilterMenu, setActiveFilterMenu] = useState<FilterId | null>(null);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [editingCategoryData, setEditingCategoryData] = useState<{ name: string; taxRate: number } | null>(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [categoryObjects, setCategoryObjects] = useState<ProductCategory[]>([]);
+
+  // Kategori bilgilerini backend'den çek
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await productCategoriesApi.getAll();
+        setCategoryObjects(data);
+      } catch (error) {
+        console.error('Kategoriler yüklenirken hata:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const categoryFilterMenuRef = React.useRef<HTMLDivElement | null>(null);
   const stockFilterMenuRef = React.useRef<HTMLDivElement | null>(null);
@@ -92,15 +110,15 @@ export default function ProductList({
     left.localeCompare(right, 'tr-TR', { sensitivity: 'accent' }) === 0;
 
   const availableCategories = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          categories
-            .map(category => category.trim())
-            .filter(category => Boolean(category))
-        )
-      ).sort((a, b) => a.localeCompare(b, 'tr-TR')),
-    [categories]
+    () => {
+      const cats = categoryObjects
+        .filter(cat => cat.isActive)
+        .map(cat => cat.name.trim())
+        .filter(name => Boolean(name))
+        .sort((a, b) => a.localeCompare(b, 'tr-TR'));
+      return cats;
+    },
+    [categoryObjects]
   );
 
   const categoryUsage = useMemo(() => {
@@ -219,29 +237,99 @@ export default function ProductList({
   }, [products, searchTerm, categoryFilter, stockFilter, sortOption]);
 
   const handleCategoryRename = (category: string) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const current = category.trim();
-    const nextValue = window.prompt('Kategori adini duzenleyin', current);
-    if (nextValue === null) {
-      return;
-    }
-    const updated = nextValue.trim();
-    if (!updated || categoriesEqual(updated, current)) {
-      return;
-    }
-    const hasDuplicate = availableCategories.some(
-      existing => !categoriesEqual(existing, current) && categoriesEqual(existing, updated)
+    // Kategori objesini bul ve gerçek KDV oranını al
+    const categoryObj = categoryObjects.find(cat => 
+      cat.name.localeCompare(category, 'tr-TR', { sensitivity: 'accent' }) === 0
     );
-    if (hasDuplicate) {
-      window.alert('Bu kategori adi zaten kullaniliyor.');
-      return;
-    }
-    onEditCategory(current, updated);
+    
+    setEditingCategoryData({ 
+      name: category.trim(), 
+      taxRate: categoryObj?.taxRate ?? 18 // Backend'den gelen değer veya varsayılan 18
+    });
   };
 
-  const handleCategoryDelete = (category: string) => {
+  const handleCategoryEditSubmit = async (newName: string, newTaxRate: number, parentId?: string) => {
+    if (!editingCategoryData) {
+      // Yeni kategori ekleniyor
+      try {
+        await productCategoriesApi.create({
+          name: newName.trim(),
+          taxRate: newTaxRate,
+          parentId,
+        });
+        
+        // Kategori listesini yenile
+        const updatedCategories = await productCategoriesApi.getAll();
+        setCategoryObjects(updatedCategories);
+        
+        // Modal'ı kapat
+        setIsCategoryModalOpen(false);
+        return;
+      } catch (error: any) {
+        console.error('Kategori eklenirken hata:', error);
+        if (error.response?.data?.message) {
+          alert(error.response.data.message);
+        }
+        return;
+      }
+    }
+    
+    // Mevcut kategori güncelleniyor
+    const currentName = editingCategoryData.name;
+    const updated = newName.trim();
+    
+    // Kategori objesini bul
+    const categoryObj = categoryObjects.find(cat => 
+      cat.name.localeCompare(currentName, 'tr-TR', { sensitivity: 'accent' }) === 0
+    );
+    
+    if (!categoryObj) {
+      console.error('Kategori bulunamadı:', currentName);
+      setEditingCategoryData(null);
+      return;
+    }
+    
+    // Korumalı kategorilerin ismini değiştirmeyi engelle
+    if (categoryObj.isProtected && updated !== currentName) {
+      alert(`"${currentName}" ana kategori olduğu için ismi değiştirilemez. Sadece KDV oranı güncellenebilir.`);
+      setEditingCategoryData(null);
+      return;
+    }
+    
+    try {
+      // Backend'e KDV oranı güncellemesini gönder
+      await productCategoriesApi.update(categoryObj.id, {
+        name: updated !== currentName ? updated : undefined,
+        taxRate: newTaxRate !== editingCategoryData.taxRate ? newTaxRate : undefined,
+      });
+      
+      // Kategori listesini yenile
+      const updatedCategories = await productCategoriesApi.getAll();
+      setCategoryObjects(updatedCategories);
+      
+      // İsim değiştiyse parent component'i bilgilendir
+      if (updated !== currentName) {
+        const hasDuplicate = availableCategories.some(
+          existing => !categoriesEqual(existing, currentName) && categoriesEqual(existing, updated)
+        );
+        
+        if (hasDuplicate) {
+          return; // Hata modal içinde gösterilecek
+        }
+        
+        onEditCategory(currentName, updated);
+      }
+      
+      setEditingCategoryData(null);
+    } catch (error: any) {
+      console.error('Kategori güncellenirken hata:', error);
+      if (error.response?.data?.message) {
+        alert(error.response.data.message);
+      }
+    }
+  };
+
+  const handleCategoryDelete = async (category: string) => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -249,13 +337,36 @@ export default function ProductList({
       window.alert('Genel kategorisi silinemez.');
       return;
     }
+    
+    // Kategori objesini bul ve korumalı mı kontrol et
+    const categoryObj = categoryObjects.find(cat => 
+      cat.name.localeCompare(category, 'tr-TR', { sensitivity: 'accent' }) === 0
+    );
+    
+    if (categoryObj?.isProtected) {
+      window.alert(`"${category}" ana kategori olduğu için silinemez.`);
+      return;
+    }
+    
     const usage = categoryUsage.get(category) ?? 0;
     const message =
       usage > 0
         ? `Bu kategoride ${usage} urun var. Silerseniz urunler "${defaultCategoryName}" kategorisine tasinacak. Devam etmek istiyor musunuz?`
         : 'Bu kategoriyi silmek istediginizden emin misiniz?';
     if (window.confirm(message)) {
-      onDeleteCategory(category);
+      try {
+        if (categoryObj) {
+          await productCategoriesApi.delete(categoryObj.id);
+          const updatedCategories = await productCategoriesApi.getAll();
+          setCategoryObjects(updatedCategories);
+        }
+        onDeleteCategory(category);
+      } catch (error: any) {
+        console.error('Kategori silinirken hata:', error);
+        if (error.response?.data?.message) {
+          alert(error.response.data.message);
+        }
+      }
     }
   };
 
@@ -442,7 +553,10 @@ export default function ProductList({
               </div>
               <button
                 type="button"
-                onClick={onAddCategory}
+                onClick={() => {
+                  setEditingCategoryData(null);
+                  setIsCategoryModalOpen(true);
+                }}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
               >
                 <Tag className="h-4 w-4" />
@@ -467,6 +581,11 @@ export default function ProductList({
                   const usage = categoryUsage.get(category) ?? 0;
                   const isActive = categoryFilter !== 'all' && categoriesEqual(category, categoryFilter);
                   const isDefault = categoriesEqual(category, defaultCategoryName);
+                  const categoryObj = categoryObjects.find(cat => 
+                    cat.name.localeCompare(category, 'tr-TR', { sensitivity: 'accent' }) === 0
+                  );
+                  const isProtected = categoryObj?.isProtected || false;
+                  
                   return (
                     <div
                       key={category}
@@ -479,7 +598,10 @@ export default function ProductList({
                           isActive ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'
                         }`}
                       >
-                        <span className="truncate">{category}</span>
+                        <span className="truncate flex items-center gap-1">
+                          {category}
+                          {isProtected && <span className="text-xs text-amber-500" title="Ana kategori">🔒</span>}
+                        </span>
                         <span className="text-xs text-gray-500">{usage}</span>
                       </button>
                       <div className="mt-1 flex items-center gap-2 px-2 text-[11px]">
@@ -487,6 +609,7 @@ export default function ProductList({
                           type="button"
                           onClick={() => handleCategoryRename(category)}
                           className="text-gray-400 transition-colors hover:text-gray-600"
+                          title={isProtected ? "Ana kategorilerin sadece KDV'si değiştirilebilir" : "Kategoriyi düzenle"}
                         >
                           Duzenle
                         </button>
@@ -494,11 +617,11 @@ export default function ProductList({
                         <button
                           type="button"
                           onClick={() => handleCategoryDelete(category)}
-                          disabled={isDefault}
+                          disabled={isDefault || isProtected}
                           className={`transition-colors ${
-                            isDefault ? 'cursor-not-allowed text-gray-300' : 'text-red-500 hover:text-red-600'
+                            isDefault || isProtected ? 'cursor-not-allowed text-gray-300' : 'text-red-500 hover:text-red-600'
                           }`}
-                          title={isDefault ? 'Genel kategorisi silinemez' : undefined}
+                          title={isDefault ? 'Genel kategorisi silinemez' : isProtected ? 'Ana kategori silinemez' : undefined}
                         >
                           Sil
                         </button>
@@ -841,6 +964,19 @@ export default function ProductList({
           </div>
         </div>
       </div>
+
+      {/* Kategori Düzenleme Modal */}
+      <ProductCategoryModal
+        isOpen={isCategoryModalOpen || !!editingCategoryData}
+        onClose={() => {
+          setEditingCategoryData(null);
+          setIsCategoryModalOpen(false);
+        }}
+        onSubmit={handleCategoryEditSubmit}
+        categories={availableCategories}
+        categoryObjects={categoryObjects}
+        editingCategory={editingCategoryData}
+      />
     </div>
   );
 }

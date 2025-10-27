@@ -23,6 +23,12 @@ export class ProductCategory {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ nullable: true })
+  parentId?: string; // Ana kategori (Hizmetler/Ürünler) altında alt kategori için
+
+  @Column({ default: false })
+  isProtected: boolean; // Silinemeyen/değiştirilemeyen ana kategoriler (Hizmetler, Ürünler)
+
   @ManyToOne(() => Tenant, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tenantId' })
   tenant: Tenant;

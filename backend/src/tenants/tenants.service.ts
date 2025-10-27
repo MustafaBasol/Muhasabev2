@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tenant, SubscriptionPlan, TenantStatus } from './entities/tenant.entity';
+import { ProductCategory } from '../products/entities/product-category.entity';
 
 export interface CreateTenantDto {
   name: string;
@@ -17,6 +18,8 @@ export class TenantsService {
   constructor(
     @InjectRepository(Tenant)
     private tenantsRepository: Repository<Tenant>,
+    @InjectRepository(ProductCategory)
+    private productCategoriesRepository: Repository<ProductCategory>,
   ) {}
 
   async findAll(): Promise<Tenant[]> {
@@ -69,7 +72,33 @@ export class TenantsService {
       },
     });
 
-    return this.tenantsRepository.save(tenant);
+    const savedTenant = await this.tenantsRepository.save(tenant);
+
+    // Otomatik olarak korumalı kategorileri oluştur
+    await this.createDefaultCategories(savedTenant);
+
+    return savedTenant;
+  }
+
+  private async createDefaultCategories(tenant: Tenant): Promise<void> {
+    const defaultCategories = [
+      {
+        name: 'Hizmetler',
+        taxRate: 18,
+        isProtected: true,
+        isActive: true,
+        tenant,
+      },
+      {
+        name: 'Ürünler',
+        taxRate: 18,
+        isProtected: true,
+        isActive: true,
+        tenant,
+      },
+    ];
+
+    await this.productCategoriesRepository.save(defaultCategories);
   }
 
   async update(id: string, updateData: Partial<Tenant>): Promise<Tenant> {

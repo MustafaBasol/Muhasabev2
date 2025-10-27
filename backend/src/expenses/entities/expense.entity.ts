@@ -3,16 +3,17 @@ import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Supplier } from '../../suppliers/entities/supplier.entity';
 
 export enum ExpenseCategory {
+  OTHER = 'other',
   RENT = 'rent',
   UTILITIES = 'utilities',
   SALARIES = 'salaries',
+  PERSONNEL = 'personnel',
   SUPPLIES = 'supplies',
+  EQUIPMENT = 'equipment',
   MARKETING = 'marketing',
   TRAVEL = 'travel',
-  EQUIPMENT = 'equipment',
   INSURANCE = 'insurance',
   TAXES = 'taxes',
-  OTHER = 'other',
 }
 
 export enum ExpenseStatus {

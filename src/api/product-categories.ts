@@ -5,6 +5,8 @@ import type { ProductCategory } from '../types';
 export interface CreateProductCategoryDto {
   name: string;
   taxRate: number;
+  parentId?: string;
+  isProtected?: boolean;
 }
 
 export interface UpdateProductCategoryDto {

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { AuthProvider } from './contexts/AuthContext';
 import App from './App';
 import './index.css';
+import './i18n/config'; // i18n konfigürasyonunu yükle
 
 console.log('🚀 MoneyFlow uygulaması başlatılıyor...');
 

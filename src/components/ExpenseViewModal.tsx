@@ -44,6 +44,7 @@ export default function ExpenseViewModal({
     'utilities': 'Faturalar (Elektrik, Su, İnternet)',
     'rent': 'Kira',
     'salaries': 'Maaşlar',
+    'personnel': 'Personel',
     'supplies': 'Malzemeler',
     'marketing': 'Pazarlama',
     'travel': 'Seyahat',
