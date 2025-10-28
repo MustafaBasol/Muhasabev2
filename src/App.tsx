@@ -74,6 +74,7 @@ import GeneralLedger from "./components/GeneralLedger";
 import SimpleSalesPage from "./components/SimpleSalesPage";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
+import LandingPage from "./components/landing/LandingPage";
 import * as ExcelJS from 'exceljs';
 
 const defaultCompany: CompanyProfile = {
@@ -660,8 +661,14 @@ const AppContent: React.FC = () => {
         console.log('Giriş sayfasına yönlendiriliyor...');
         setCurrentPage('login');
       } else if (hash === '') {
-        console.log('Ana sayfaya yönlendiriliyor...');
-        setCurrentPage('dashboard');
+        // If no hash, show landing page for non-authenticated users, dashboard for authenticated
+        if (isAuthenticated) {
+          console.log('Authenticated user - Ana sayfaya yönlendiriliyor...');
+          setCurrentPage('dashboard');
+        } else {
+          console.log('Non-authenticated user - Landing sayfasına yönlendiriliyor...');
+          setCurrentPage('landing');
+        }
       }
     };
 
@@ -675,7 +682,7 @@ const AppContent: React.FC = () => {
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const dismissToast = React.useCallback((toastId: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== toastId));
@@ -2996,6 +3003,17 @@ const AppContent: React.FC = () => {
     return <RegisterPage />;
   }
 
+  // Landing page for non-authenticated users at root path
+  if (currentPage === 'landing') {
+    return <LandingPage />;
+  }
+
+  // Login page for non-authenticated users trying to access protected routes
+  if (!isAuthenticated && currentPage === 'login') {
+    return <LoginPage />;
+  }
+
+  // Redirect non-authenticated users to landing page from protected routes
   if (!isAuthenticated) {
     return <LoginPage />;
   }

@@ -24,15 +24,16 @@ import type { ProductCategory } from '../types';
 const translateCategoryName = (categoryName: string, t: (key: string) => string): string => {
   const normalizedName = categoryName.trim();
   
-  // Ana kategoriler için çeviri
-  if (normalizedName === 'Ürünler') {
-    return t('products.mainCategories.products');
+  // Ana kategoriler için çeviri - Türkçe isimler ile eşleştir
+  switch (normalizedName) {
+    case 'Hizmetler':
+      return t('products.mainCategories.services');
+    case 'Ürünler':
+      return t('products.mainCategories.products');
+    default:
+      // Alt kategoriler veya diğer kategoriler için orijinal ismi döndür
+      return normalizedName;
   }
-  if (normalizedName === 'Hizmetler') {
-    return t('products.mainCategories.services');
-  }
-  
-  // Diğer kategoriler için orijinal ismi döndür
   return categoryName;
 };
 
@@ -82,7 +83,7 @@ interface FilterDefinition {
 
 export default function ProductList({
   products,
-  categories,
+  categories: _categories,
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
@@ -138,6 +139,55 @@ export default function ProductList({
     },
     [categoryObjects]
   );
+
+  // Kategori hiyerarşisini organize et
+  const categoryHierarchy = useMemo(() => {
+    // Ana kategorileri bul
+    const mainCategories = availableCategories.filter(category => {
+      const categoryObj = categoryObjects.find(cat => 
+        cat.name.localeCompare(category, 'tr-TR', { sensitivity: 'accent' }) === 0
+      );
+      return categoryObj?.isProtected || categoriesEqual(category, defaultCategoryName);
+    });
+
+    // Her ana kategori için alt kategorilerini organize et
+    const hierarchicalCategories = mainCategories.map(mainCategory => {
+      const categoryObj = categoryObjects.find(cat => 
+        cat.name.localeCompare(mainCategory, 'tr-TR', { sensitivity: 'accent' }) === 0
+      );
+      
+      // Bu ana kategorinin alt kategorilerini bul
+      const subCategories = availableCategories.filter(category => {
+        const subCategoryObj = categoryObjects.find(cat => 
+          cat.name.localeCompare(category, 'tr-TR', { sensitivity: 'accent' }) === 0
+        );
+        // Alt kategori ise ve bu ana kategoriye ait ise
+        return !subCategoryObj?.isProtected && 
+               !categoriesEqual(category, defaultCategoryName) &&
+               subCategoryObj?.parentId === categoryObj?.id;
+      });
+
+      return {
+        mainCategory,
+        subCategories,
+        categoryObj
+      };
+    });
+
+    // Orphan alt kategorileri (ana kategorisi olmayan) ayrı bir bölümde göster
+    const orphanSubCategories = availableCategories.filter(category => {
+      const categoryObj = categoryObjects.find(cat => 
+        cat.name.localeCompare(category, 'tr-TR', { sensitivity: 'accent' }) === 0
+      );
+      return !categoryObj?.isProtected && 
+             !categoriesEqual(category, defaultCategoryName) &&
+             !categoryObj?.parentId;
+    });
+
+    return { hierarchicalCategories, orphanSubCategories };
+  }, [availableCategories, categoryObjects, defaultCategoryName]);
+
+  const { hierarchicalCategories, orphanSubCategories } = categoryHierarchy;
 
   const categoryUsage = useMemo(() => {
     const usage = new Map<string, number>();
@@ -352,7 +402,7 @@ export default function ProductList({
       return;
     }
     if (categoriesEqual(category, defaultCategoryName)) {
-      window.alert('Genel kategorisi silinemez.');
+      window.alert(t('products.generalCategoryCannotDeleteAlert'));
       return;
     }
     
@@ -362,15 +412,15 @@ export default function ProductList({
     );
     
     if (categoryObj?.isProtected) {
-      window.alert(`"${category}" ana kategori olduğu için silinemez.`);
+      window.alert(t('products.categoryCannotDeleteProtected', { category }));
       return;
     }
     
     const usage = categoryUsage.get(category) ?? 0;
     const message =
       usage > 0
-        ? `Bu kategoride ${usage} urun var. Silerseniz urunler "${defaultCategoryName}" kategorisine tasinacak. Devam etmek istiyor musunuz?`
-        : 'Bu kategoriyi silmek istediginizden emin misiniz?';
+        ? t('products.deleteCategoryWithProducts', { count: usage, defaultCategory: defaultCategoryName })
+        : t('products.deleteCategoryConfirm');
     if (window.confirm(message)) {
       try {
         if (categoryObj) {
@@ -478,12 +528,11 @@ export default function ProductList({
 
   const hasSelection = visibleSelectedIds.length > 0;
   const hasProducts = products.length > 0;
-  const isFilteredEmpty = hasProducts && filteredProducts.length === 0;
   const bulkActions: { action: ProductBulkAction; label: string; tone?: 'danger' }[] = [
-    { action: 'update-price', label: 'Fiyat guncelle' },
-    { action: 'assign-category', label: 'Kategori ata' },
-    { action: 'archive', label: 'Arsivle' },
-    { action: 'delete', label: 'Sil', tone: 'danger' },
+    { action: 'update-price', label: t('products.updatePrice') },
+    { action: 'assign-category', label: t('products.assignCategory') },
+    { action: 'archive', label: t('products.archive') },
+    { action: 'delete', label: t('products.delete'), tone: 'danger' },
   ];
 
   const toggleSelectProduct = (productId: string) => {
@@ -546,7 +595,7 @@ export default function ProductList({
             <h3 className="text-sm font-medium text-gray-500">{t('products.totalStock')}</h3>
             <Layers className="h-5 w-5 text-blue-500" />
           </div>
-          <p className="mt-3 text-2xl font-semibold text-gray-900">{inventorySnapshot.totalStock.toLocaleString('tr-TR')} adet</p>
+          <p className="mt-3 text-2xl font-semibold text-gray-900">{inventorySnapshot.totalStock.toLocaleString('tr-TR')} {t('products.unit')}</p>
           <p className="text-xs text-gray-500">{t('products.totalUnitsDesc')}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -581,7 +630,7 @@ export default function ProductList({
                 {t('products.addCategory')}
               </button>
             </div>
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-1">
               <button
                 type="button"
                 onClick={() => handleCategorySelect('all')}
@@ -589,64 +638,160 @@ export default function ProductList({
                   categoryFilter === 'all' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                <span className="truncate">Tum urunler</span>
+                <span className="truncate">{t('products.allProducts')}</span>
                 <span className="text-xs text-gray-500">{products.length}</span>
               </button>
               {availableCategories.length === 0 ? (
-                <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">Henuz kategori yok.</p>
+                <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">{t('products.noCategories')}</p>
               ) : (
-                availableCategories.map(category => {
-                  const usage = categoryUsage.get(category) ?? 0;
-                  const isActive = categoryFilter !== 'all' && categoriesEqual(category, categoryFilter);
-                  const isDefault = categoriesEqual(category, defaultCategoryName);
-                  const categoryObj = categoryObjects.find(cat => 
-                    cat.name.localeCompare(category, 'tr-TR', { sensitivity: 'accent' }) === 0
-                  );
-                  const isProtected = categoryObj?.isProtected || false;
-                  
-                  return (
-                    <div
-                      key={category}
-                      className="rounded-lg border border-transparent px-2 py-2 transition-colors hover:border-gray-200"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => handleCategorySelect(category)}
-                        className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm transition-colors ${
-                          isActive ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="truncate flex items-center gap-1">
-                          {translateCategoryName(category, t)}
-                          {isProtected && <span className="text-xs text-amber-500" title="Ana kategori">🔒</span>}
-                        </span>
-                        <span className="text-xs text-gray-500">{usage}</span>
-                      </button>
-                      <div className="mt-1 flex items-center gap-2 px-2 text-[11px]">
-                        <button
-                          type="button"
-                          onClick={() => handleCategoryRename(category)}
-                          className="text-gray-400 transition-colors hover:text-gray-600"
-                          title={isProtected ? "Ana kategorilerin sadece KDV'si değiştirilebilir" : "Kategoriyi düzenle"}
-                        >
-                          Duzenle
-                        </button>
-                        <span className="text-gray-300">-</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCategoryDelete(category)}
-                          disabled={isDefault || isProtected}
-                          className={`transition-colors ${
-                            isDefault || isProtected ? 'cursor-not-allowed text-gray-300' : 'text-red-500 hover:text-red-600'
-                          }`}
-                          title={isDefault ? 'Genel kategorisi silinemez' : isProtected ? 'Ana kategori silinemez' : undefined}
-                        >
-                          Sil
-                        </button>
+                <>
+                  {/* Hiyerarşik Kategori Ağacı */}
+                  {hierarchicalCategories.map(({ mainCategory, subCategories, categoryObj }) => {
+                    const mainUsage = categoryUsage.get(mainCategory) ?? 0;
+                    const isMainActive = categoryFilter !== 'all' && categoriesEqual(mainCategory, categoryFilter);
+                    const isDefault = categoriesEqual(mainCategory, defaultCategoryName);
+                    const isProtected = categoryObj?.isProtected || false;
+                    
+                    return (
+                      <div key={mainCategory} className="space-y-1 mb-4">
+                        {/* Ana Kategori */}
+                        <div className="ml-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCategorySelect(mainCategory)}
+                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                              isMainActive ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className="truncate flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                              {translateCategoryName(mainCategory, t)}
+
+                            </span>
+                            <span className="text-xs text-gray-500">{mainUsage}</span>
+                          </button>
+                          <div className="mt-1 flex items-center gap-2 px-5 text-[11px]">
+                            <button
+                              type="button"
+                              onClick={() => handleCategoryRename(mainCategory)}
+                              className="text-gray-400 transition-colors hover:text-gray-600"
+                              title={isProtected ? t('products.mainCategoryEditTooltip') : t('products.editCategoryTooltip')}
+                            >
+                              {t('products.editCategory')}
+                            </button>
+                            <span className="text-gray-300">-</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCategoryDelete(mainCategory)}
+                              disabled={isDefault || isProtected}
+                              className={`transition-colors ${
+                                isDefault || isProtected ? 'cursor-not-allowed text-gray-300' : 'text-red-500 hover:text-red-600'
+                              }`}
+                              title={isDefault ? t('products.generalCategoryCannotDelete') : isProtected ? t('products.mainCategoryCannotDelete') : undefined}
+                            >
+                              {t('products.deleteCategory')}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Alt Kategoriler */}
+                        {subCategories.length > 0 && (
+                          <div className="ml-6 space-y-1">
+                            {subCategories.map(subCategory => {
+                              const subUsage = categoryUsage.get(subCategory) ?? 0;
+                              const isSubActive = categoryFilter !== 'all' && categoriesEqual(subCategory, categoryFilter);
+                              
+                              return (
+                                <div key={subCategory}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCategorySelect(subCategory)}
+                                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                                      isSubActive ? 'bg-gray-50 text-gray-700' : 'text-gray-600 hover:bg-gray-25'
+                                    }`}
+                                  >
+                                    <span className="truncate flex items-center gap-2">
+                                      <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+                                      {translateCategoryName(subCategory, t)}
+                                    </span>
+                                    <span className="text-xs text-gray-500">{subUsage}</span>
+                                  </button>
+                                  <div className="mt-1 flex items-center gap-2 px-5 text-[11px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCategoryRename(subCategory)}
+                                      className="text-gray-400 transition-colors hover:text-gray-600"
+                                      title={t('products.editCategoryTooltip')}
+                                    >
+                                      {t('products.editCategory')}
+                                    </button>
+                                    <span className="text-gray-300">-</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCategoryDelete(subCategory)}
+                                      className="text-red-500 transition-colors hover:text-red-600"
+                                    >
+                                      {t('products.deleteCategory')}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
+                    );
+                  })}
+
+                  {/* Orphan Alt Kategoriler (Ana kategorisi olmayan) */}
+                  {orphanSubCategories.length > 0 && (
+                    <div className="space-y-1 mt-4">
+                      <div className="px-2 py-1">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('products.subCategories')}</div>
+                      </div>
+                      {orphanSubCategories.map(category => {
+                        const usage = categoryUsage.get(category) ?? 0;
+                        const isActive = categoryFilter !== 'all' && categoriesEqual(category, categoryFilter);
+                        
+                        return (
+                          <div key={category} className="ml-4">
+                            <button
+                              type="button"
+                              onClick={() => handleCategorySelect(category)}
+                              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                                isActive ? 'bg-gray-50 text-gray-700' : 'text-gray-600 hover:bg-gray-25'
+                              }`}
+                            >
+                              <span className="truncate flex items-center gap-2">
+                                <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+                                {translateCategoryName(category, t)}
+                              </span>
+                              <span className="text-xs text-gray-500">{usage}</span>
+                            </button>
+                            <div className="mt-1 flex items-center gap-2 px-5 text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() => handleCategoryRename(category)}
+                                className="text-gray-400 transition-colors hover:text-gray-600"
+                                title={t('products.editCategoryTooltip')}
+                              >
+                                {t('products.editCategory')}
+                              </button>
+                              <span className="text-gray-300">-</span>
+                              <button
+                                type="button"
+                                onClick={() => handleCategoryDelete(category)}
+                                className="text-red-500 transition-colors hover:text-red-600"
+                              >
+                                {t('products.deleteCategory')}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -806,7 +951,7 @@ export default function ProductList({
                 !hasProducts ? (
                   <div className="flex flex-col items-center justify-center space-y-3 py-16">
                     <Package className="h-12 w-12 text-gray-300" />
-                    <h3 className="text-lg font-semibold text-gray-900">Henuz urun yok</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{t('products.noProductsYet')}</h3>
                     <p className="max-w-md text-center text-sm text-gray-500">
                       Urun ekleyerek envanterinizi takip etmeye baslayin. Fiyat, stok ve kategori bilgileriniz burada
                       gorunecek.
@@ -926,7 +1071,7 @@ export default function ProductList({
                                 {formatCurrency(product.unitPrice || 0)}
                               </div>
                               <div className="text-xs text-gray-500">
-                                Maliyet: {formatCurrency(product.costPrice || 0)}
+                                {t('products.costPrice')}: {formatCurrency(product.costPrice || 0)}
                               </div>
                             </td>
                             <td

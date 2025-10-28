@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus, Trash2, Search, FolderOpen, Folder, X, Check } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
@@ -77,36 +77,43 @@ export default function ChartOfAccountsPage({
   };
 
   // Gerçek verilerden hesap planı oluştur
-  const defaultAccounts: Account[] = [
+  const getDefaultAccounts = (): Account[] => [
     // VARLIKLAR (ASSETS)
-    { id: '1', code: '100', name: 'DÖNEN VARLIKLAR', type: 'asset', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '2', code: '101', name: 'Kasa', type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '3', code: '102', name: 'Bankalar', type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '4', code: '120', name: 'Alıcılar', type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '5', code: '150', name: 'DURAN VARLIKLAR', type: 'asset', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '1', code: '100', name: t('chartOfAccounts.accountNames.100'), type: 'asset', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '2', code: '101', name: t('chartOfAccounts.accountNames.101'), type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '3', code: '102', name: t('chartOfAccounts.accountNames.102'), type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '4', code: '120', name: t('chartOfAccounts.accountNames.120'), type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '5', code: '150', name: t('chartOfAccounts.accountNames.150'), type: 'asset', isActive: true, balance: 0, createdAt: '2024-01-01' },
     
     // YÜKÜMLÜLÜKLER (LIABILITIES)
-    { id: '7', code: '200', name: 'KISA VADELİ YÜKÜMLÜLÜKLER', type: 'liability', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '8', code: '201', name: 'Satıcılar', type: 'liability', parentId: '7', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '7', code: '200', name: t('chartOfAccounts.accountNames.200'), type: 'liability', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '8', code: '201', name: t('chartOfAccounts.accountNames.201'), type: 'liability', parentId: '7', isActive: true, balance: 0, createdAt: '2024-01-01' },
     
     // ÖZKAYNAKLAR (EQUITY)
-    { id: '10', code: '300', name: 'ÖZKAYNAKLAR', type: 'equity', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '10', code: '300', name: t('chartOfAccounts.accountNames.300'), type: 'equity', isActive: true, balance: 0, createdAt: '2024-01-01' },
     
     // GELİRLER (REVENUE)
-    { id: '13', code: '600', name: 'GELİRLER', type: 'revenue', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '14', code: '601', name: 'Satış Gelirleri', type: 'revenue', parentId: '13', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '15', code: '602', name: 'Hizmet Gelirleri', type: 'revenue', parentId: '13', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '13', code: '600', name: t('chartOfAccounts.accountNames.600'), type: 'revenue', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '14', code: '601', name: t('chartOfAccounts.accountNames.601'), type: 'revenue', parentId: '13', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '15', code: '602', name: t('chartOfAccounts.accountNames.602'), type: 'revenue', parentId: '13', isActive: true, balance: 0, createdAt: '2024-01-01' },
     
     // GİDERLER (EXPENSES)
-    { id: '16', code: '700', name: 'GİDERLER', type: 'expense', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '17', code: '701', name: 'Kira Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '18', code: '702', name: 'Personel Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
-    { id: '19', code: '703', name: 'Fatura Giderleri', type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '16', code: '700', name: t('chartOfAccounts.accountNames.700'), type: 'expense', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '17', code: '701', name: t('chartOfAccounts.accountNames.701'), type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '18', code: '702', name: t('chartOfAccounts.accountNames.702'), type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
+    { id: '19', code: '703', name: t('chartOfAccounts.accountNames.703'), type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
   ];
 
   const [currentAccounts, setCurrentAccounts] = useState<Account[]>(
-    accounts.length > 0 ? accounts : defaultAccounts
+    accounts.length > 0 ? accounts : getDefaultAccounts()
   );
+
+  // Update accounts when language changes
+  useEffect(() => {
+    if (accounts.length === 0) {
+      setCurrentAccounts(getDefaultAccounts());
+    }
+  }, [t]);
 
   // Calculate dynamic balances from actual data
   const calculateDynamicBalance = (account: Account): number => {
@@ -275,7 +282,7 @@ export default function ChartOfAccountsPage({
 
   const getAccountTypeLabel = (type: string) => {
     const typeKey = type as 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
-    return t(`chartOfAccounts.accountTypes.${typeKey}`, type);
+    return t(`chartOfAccounts.accountTypeLabels.${typeKey}`, type);
   };
 
   const getAccountTypeColor = (type: string) => {

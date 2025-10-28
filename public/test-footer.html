@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Footer Debug Test</title>
+</head>
+<body>
+    <h1>Footer i18n Debug Test</h1>
+    <p>Bu sayfa footer çevirilerinin çalışıp çalışmadığını test etmek için.</p>
+    
+    <script>
+        // Basic test
+        console.log('Testing footer translations...');
+        
+        // localStorage check
+        console.log('localStorage i18nextLng:', localStorage.getItem('i18nextLng'));
+        
+        // Force reload without cache
+        if (!sessionStorage.getItem('reloaded')) {
+            sessionStorage.setItem('reloaded', 'true');
+            location.reload(true);
+        }
+    </script>
+    
+    <p><a href="/">Ana sayfaya dön</a></p>
+    <p><strong>Hard refresh yapmayı deneyin: Ctrl+Shift+R (Windows) veya Cmd+Shift+R (Mac)</strong></p>
+</body>
+</html>
