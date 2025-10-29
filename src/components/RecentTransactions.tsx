@@ -180,7 +180,7 @@ export default function RecentTransactions({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.recentTransactions')}</h3>
-            <p className="text-sm text-gray-500">{t('dashboard.lastTransactions', { count: 3 })}</p>
+            <p className="text-sm text-gray-500">{t('dashboard.lastTransactions').replace('{count}', transactions.length.toString())}</p>
           </div>
           {onViewAllTransactions && (
             <button

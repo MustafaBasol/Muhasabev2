@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { X, Search, Calendar, User, DollarSign, FileText } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface Sale {
   id: string;
@@ -33,6 +34,7 @@ export default function ExistingSaleSelectionModal({
   existingInvoices
 }: ExistingSaleSelectionModalProps) {
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Fatura kesilmemiş satışları filtrele
@@ -72,8 +74,8 @@ export default function ExistingSaleSelectionModal({
               <FileText className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Mevcut Satış Seç</h2>
-              <p className="text-sm text-gray-500">Fatura kesilecek satışı seçin</p>
+              <h2 className="text-xl font-semibold text-gray-900">{t('sales.selectExistingSale')}</h2>
+              <p className="text-sm text-gray-500">{t('sales.selectSaleForInvoice')}</p>
             </div>
           </div>
           <button
@@ -92,7 +94,7 @@ export default function ExistingSaleSelectionModal({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Müşteri adı, ürün adı veya satış numarası ile ara..."
+              placeholder={t('sales.searchSalesPlaceholder')}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
@@ -106,12 +108,12 @@ export default function ExistingSaleSelectionModal({
                 <FileText className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm ? 'Satış bulunamadı' : 'Fatura kesilebilecek satış yok'}
+                {searchTerm ? t('sales.noSalesFound') : t('sales.noInvoiceableSales')}
               </h3>
               <p className="text-gray-500">
                 {searchTerm 
-                  ? 'Arama kriterlerinizi değiştirip tekrar deneyin'
-                  : 'Tüm satışlara fatura kesilmiş durumda'
+                  ? t('sales.changeSearchCriteria')
+                  : t('sales.allSalesInvoiced')
                 }
               </p>
             </div>
@@ -142,14 +144,14 @@ export default function ExistingSaleSelectionModal({
                         </h3>
                         {sale.saleNumber && (
                           <p className="text-sm text-gray-500">
-                            Satış No: {sale.saleNumber}
+                            {t('sales.saleNumber')}: {sale.saleNumber}
                           </p>
                         )}
                       </div>
 
                       {sale.quantity && sale.unitPrice && (
                         <div className="text-sm text-gray-600 mb-2">
-                          {sale.quantity} adet × {formatCurrency(sale.unitPrice)}
+                          {sale.quantity} {t('sales.pieces')} × {formatCurrency(sale.unitPrice)}
                         </div>
                       )}
 
@@ -167,7 +169,7 @@ export default function ExistingSaleSelectionModal({
                       </div>
                       
                       <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
-                        Fatura Kes
+                        {t('sales.createInvoice')}
                       </button>
                     </div>
                   </div>
@@ -181,13 +183,13 @@ export default function ExistingSaleSelectionModal({
         <div className="p-6 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-600">
-              {filteredSales.length} satış fatura bekliyor
+              {t('sales.salesWaitingForInvoice', { count: filteredSales.length })}
             </p>
             <button
               onClick={onClose}
               className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              İptal
+              {t('common.cancel')}
             </button>
           </div>
         </div>

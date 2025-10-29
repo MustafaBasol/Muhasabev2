@@ -50,27 +50,13 @@ export default function ExpenseList({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
 
-  // Kategori çeviri haritası
-  const categoryLabels: { [key: string]: string } = {
-    'equipment': 'Ekipman',
-    'utilities': 'Faturalar (Elektrik, Su, İnternet)',
-    'rent': 'Kira',
-    'salaries': 'Maaşlar',
-    'personnel': 'Personel',
-    'supplies': 'Malzemeler',
-    'marketing': 'Pazarlama',
-    'travel': 'Seyahat',
-    'insurance': 'Sigorta',
-    'taxes': 'Vergiler',
-    'other': 'Diğer'
-  };
+  // Kategori listesi
+  const categories = ['equipment', 'utilities', 'rent', 'salaries', 'personnel', 'supplies', 'marketing', 'travel', 'insurance', 'taxes', 'other'];
 
   // Kategori çeviri fonksiyonu
   const getCategoryLabel = (category: string): string => {
-    return categoryLabels[category] || category;
+    return t(`expenseCategories.${category}`) || category;
   };
-
-  const categories = Object.keys(categoryLabels);
 
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = 

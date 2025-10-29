@@ -8,6 +8,7 @@ import {
   DollarSign,
   FileText
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Product } from './ProductList';
 import type { ProductCategory } from '../types';
 
@@ -49,6 +50,7 @@ const defaultState: ProductFormState = {
 };
 
 export default function ProductModal({ isOpen, onClose, onSave, product, categories, categoryObjects: initialCategoryObjects }: ProductModalProps) {
+  const { t } = useTranslation();
   const [formState, setFormState] = React.useState<ProductFormState>(defaultState);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [categoryObjects, setCategoryObjects] = React.useState<ProductCategory[]>(initialCategoryObjects || []);
@@ -133,19 +135,19 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
     const nextErrors: Record<string, string> = {};
 
     if (!formState.name.trim()) {
-      nextErrors.name = 'Urun adi zorunlu';
+      nextErrors.name = t('validation.productNameRequired');
     }
     if (!formState.sku.trim()) {
-      nextErrors.sku = 'SKU zorunlu';
+      nextErrors.sku = t('validation.skuRequired');
     }
     if (categoryOptions.length > 0 && !formState.category.trim()) {
-      nextErrors.category = 'Kategori secin';
+      nextErrors.category = t('validation.categoryRequired');
     }
     if (!formState.unitPrice.trim() || Number.isNaN(Number(formState.unitPrice))) {
-      nextErrors.unitPrice = 'Gecerli bir fiyat girin';
+      nextErrors.unitPrice = t('validation.validPriceRequired');
     }
     if (!formState.stockQuantity.trim() || Number.isNaN(Number(formState.stockQuantity))) {
-      nextErrors.stockQuantity = 'Gecerli stok adedi girin';
+      nextErrors.stockQuantity = t('validation.validStockRequired');
     }
 
     setErrors(nextErrors);
@@ -228,16 +230,16 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {product ? 'Urunu duzenle' : 'Yeni urun ekle'}
+                {product ? (t('products.editProduct') || 'Urunu duzenle') : (t('products.newProduct') || 'Yeni urun ekle')}
               </h2>
-              <p className="text-sm text-gray-500">Urun bilgilerini doldurun ve stok durumunu guncelleyin</p>
+              <p className="text-sm text-gray-500">{t('products.enterProductInfo') || 'Urun bilgilerini doldurun ve stok durumunu guncelleyin'}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-            aria-label="Kapat"
+            aria-label={t('common.close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -245,12 +247,12 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
 
         <div className="space-y-8 p-6 overflow-y-auto flex-1">
           <section>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Genel Bilgiler</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('products.generalInfo')}</h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-name">
                   <Package className="h-4 w-4 text-gray-400" />
-                  Urun adi *
+                  {t('products.name')} *
                 </label>
                 <input
                   id="product-name"
@@ -258,7 +260,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                   value={formState.name}
                   onChange={(event) => handleChange('name', event.target.value)}
                   className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ornek: Akilli Telefon"
+                  placeholder={t('products.namePlaceholder')}
                 />
                 {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
               </div>
@@ -280,7 +282,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-category">
                   <Tag className="h-4 w-4 text-gray-400" />
-                  Kategori *
+                  {t('products.category')} *
                 </label>
                 <select
                   id="product-category"
@@ -290,7 +292,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                   disabled={categoryOptions.length === 0}
                 >
                   {categoryOptions.length === 0 ? (
-                    <option value="">Kategori bulunmuyor</option>
+                    <option value="">{t('products.noCategoriesFound')}</option>
                   ) : (
                     categoryOptions.map(option => (
                       <option key={option} value={option}>
@@ -301,7 +303,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                 </select>
                 {categoryOptions.length === 0 && (
                   <p className="mt-1 text-xs text-gray-500">
-                    Önce yeni bir kategori oluşturmanız gerekiyor.
+                    {t('products.createCategoryFirst')}
                   </p>
                 )}
                 {errors.category && <p className="mt-1 text-xs text-red-600">{errors.category}</p>}
@@ -309,7 +311,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-unit">
                   <Layers className="h-4 w-4 text-gray-400" />
-                  Birim
+                  {t('products.unit')}
                 </label>
                 <input
                   id="product-unit"
@@ -317,7 +319,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                   value={formState.unit}
                   onChange={(event) => handleChange('unit', event.target.value)}
                   className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="adet"
+                  placeholder={t('products.unitPlaceholder')}
                 />
               </div>
               <div className="md:col-span-2">
@@ -328,13 +330,13 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                     onChange={(event) => setFormState(prev => ({ ...prev, hasCustomTaxRate: event.target.checked }))}
                     className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
                   />
-                  Bu ürün için özel KDV oranı kullan (kategorinin KDV'sini geçersiz kılar)
+                  {t('products.useCustomTaxRate')}
                 </label>
                 {formState.hasCustomTaxRate && (
                   <div className="mt-3">
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-custom-tax">
                       <DollarSign className="h-4 w-4 text-gray-400" />
-                      Özel KDV Oranı (%)
+                      {t('products.customTaxRate')}
                     </label>
                     <input
                       id="product-custom-tax"
@@ -345,10 +347,10 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                       value={formState.categoryTaxRateOverride}
                       onChange={(event) => handleChange('categoryTaxRateOverride', event.target.value)}
                       className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="Örn: 18"
+                      placeholder={t('products.taxRatePlaceholder')}
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Bu ürün için özel KDV oranı. Kategorinin varsayılan KDV'si yerine bu oran kullanılacaktır.
+                      {t('products.customTaxRateHelper')}
                     </p>
                   </div>
                 )}
@@ -357,12 +359,12 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
           </section>
 
           <section>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Fiyat ve Stok</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('products.priceAndStock')}</h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-price">
                   <DollarSign className="h-4 w-4 text-gray-400" />
-                  Satis fiyati *
+                  {t('products.salePrice')} *
                 </label>
                 <input
                   id="product-price"
@@ -379,7 +381,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-cost">
                   <DollarSign className="h-4 w-4 text-gray-300" />
-                  Maliyet
+                  {t('products.cost')}
                 </label>
                 <input
                   id="product-cost"
@@ -395,7 +397,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-stock">
                   <Layers className="h-4 w-4 text-gray-400" />
-                  Stok adedi *
+                  {t('products.stockQuantity')} *
                 </label>
                 <input
                   id="product-stock"
@@ -412,7 +414,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-reorder">
                   <Layers className="h-4 w-4 text-gray-300" />
-                  Kritik stok
+                  {t('products.criticalStock')}
                 </label>
                 <input
                   id="product-reorder"
@@ -429,11 +431,11 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
           </section>
 
           <section>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Notlar</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('products.notes')}</h3>
             <div className="mt-4">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="product-description">
                 <FileText className="h-4 w-4 text-gray-400" />
-                Aciklama
+                {t('products.description')}
               </label>
               <textarea
                 id="product-description"
@@ -441,7 +443,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                 onChange={(event) => handleChange('description', event.target.value)}
                 rows={3}
                 className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Urun ozellikleri, garanti bilgisi vb."
+                placeholder={t('products.descriptionPlaceholder')}
               />
             </div>
           </section>
@@ -453,14 +455,14 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
             onClick={onClose}
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
           >
-            Vazgec
+            {t('common.cancel')}
           </button>
           <button
             type="button"
             onClick={handleSave}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
           >
-            Kaydet
+            {t('common.save')}
           </button>
         </div>
       </div>

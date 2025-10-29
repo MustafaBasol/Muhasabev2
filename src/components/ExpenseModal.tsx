@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Receipt, Calendar, Building2, Tag } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface Expense {
   id: string;
@@ -52,6 +53,11 @@ const categories = [
 
 export default function ExpenseModal({ isOpen, onClose, onSave, expense, suppliers = [], supplierInfo }: ExpenseModalProps) {
   const { formatCurrency } = useCurrency();
+  const { t, i18n } = useTranslation();
+
+  const getCategoryLabel = (category: string): string => {
+    return t(`expenseCategories.${category}`) || category;
+  };
   
   const [expenseData, setExpenseData] = useState({
     expenseNumber: expense?.expenseNumber || `EXP-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
@@ -108,15 +114,15 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
   const handleSave = () => {
     // Validation
     if (!expenseData.description?.trim()) {
-      alert('Lütfen açıklama girin');
+      alert(t('validation.descriptionRequired') || 'Lütfen açıklama girin');
       return;
     }
     if (!expenseData.amount || Number(expenseData.amount) <= 0) {
-      alert('Lütfen geçerli bir tutar girin');
+      alert(t('validation.amountRequired') || 'Lütfen geçerli bir tutar girin');
       return;
     }
     if (!expenseData.category) {
-      alert('Lütfen kategori seçin');
+      alert(t('validation.categoryRequired') || 'Lütfen kategori seçin');
       return;
     }
     
@@ -152,9 +158,9 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {expense ? 'Gideri Düzenle' : 'Yeni Gider Ekle'}
+                {expense ? (t('expenses.editExpense') || 'Gideri Düzenle') : (t('expenses.newExpense') || 'Yeni Gider Ekle')}
               </h2>
-              <p className="text-sm text-gray-500">Gider bilgilerini girin</p>
+              <p className="text-sm text-gray-500">{t('expenses.enterExpenseInfo') || 'Gider bilgilerini girin'}</p>
             </div>
           </div>
           <button
@@ -170,7 +176,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gider Numarası
+                {t('expenses.expenseNumber') || 'Gider Numarası'}
               </label>
               <input
                 type="text"
@@ -182,7 +188,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Tag className="w-4 h-4 inline mr-2" />
-                Kategori *
+                {t('expenses.category') || 'Kategori'} *
               </label>
               <select
                 value={expenseData.category}
@@ -191,7 +197,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
                 required
               >
                 {categories.map(cat => (
-                  <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  <option key={cat.value} value={cat.value}>{getCategoryLabel(cat.value)}</option>
                 ))}
               </select>
             </div>
@@ -200,14 +206,14 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Açıklama *
+              {t('common.description') || 'Açıklama'} *
             </label>
             <input
               type="text"
               value={expenseData.description}
               onChange={(e) => setExpenseData({...expenseData, description: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              placeholder="Gider açıklaması..."
+              placeholder={t('expenses.descriptionPlaceholder') || 'Gider açıklaması...'}
               required
             />
           </div>
@@ -217,7 +223,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Building2 className="w-4 h-4 inline mr-2" />
-                Tedarikçi/Firma
+                {t('expenses.supplier') || 'Tedarikçi/Firma'}
               </label>
               <div className="relative">
                 <input
@@ -249,7 +255,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
                     setTimeout(() => setShowSupplierDropdown(false), 200);
                   }}
                   className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                  placeholder="Tedarikçi adı yazın..."
+                  placeholder={t('expenses.supplierPlaceholder') || 'Tedarikçi adı yazın...'}
                 />
                 {/* Clear supplier button */}
                 {expenseData.supplier && (
@@ -296,7 +302,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tutar (₺) *
+                {t('expenses.amount') || 'Tutar'} (₺) *
               </label>
               <input
                 type="number"
@@ -316,40 +322,42 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Calendar className="w-4 h-4 inline mr-2" />
-                Gider Tarihi *
+                {t('expenses.expenseDate') || 'Gider Tarihi'} *
               </label>
               <input
                 type="date"
                 value={expenseData.expenseDate}
                 onChange={(e) => setExpenseData({...expenseData, expenseDate: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                lang={i18n.language}
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ödeme Tarihi
+                {t('expenses.paymentDate') || 'Ödeme Tarihi'}
               </label>
               <input
                 type="date"
                 value={expenseData.dueDate}
                 onChange={(e) => setExpenseData({...expenseData, dueDate: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                lang={i18n.language}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Durum
+                {t('common.status') || 'Durum'}
               </label>
               <select
                 value={expenseData.status}
                 onChange={(e) => setExpenseData({...expenseData, status: e.target.value as any})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               >
-                <option value="pending">Beklemede</option>
-                <option value="approved">Onaylandı</option>
-                <option value="paid">Ödendi</option>
-                <option value="rejected">Reddedildi</option>
+                <option value="pending">{t('status.pending') || 'Beklemede'}</option>
+                <option value="approved">{t('status.approved') || 'Onaylandı'}</option>
+                <option value="paid">{t('status.paid') || 'Ödendi'}</option>
+                <option value="rejected">{t('status.rejected') || 'Reddedildi'}</option>
               </select>
             </div>
           </div>
@@ -357,7 +365,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
           {/* Receipt URL */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fiş/Fatura URL'si
+              {t('expenses.receiptUrl')}
             </label>
             <input
               type="url"
@@ -367,14 +375,14 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               placeholder="https://example.com/receipt.pdf"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Fiş veya fatura görselinin/PDF'inin bağlantısını ekleyebilirsiniz
+              {t('expenses.receiptUrlHelper')}
             </p>
           </div>
 
           {/* Amount Summary */}
           <div className="bg-red-50 rounded-lg p-4 border border-red-200">
             <div className="flex justify-between items-center">
-              <span className="text-red-800 font-medium">Toplam Gider:</span>
+              <span className="text-red-800 font-medium">{t('expenses.totalExpense') || 'Toplam Gider'}:</span>
               <span className="text-xl font-bold text-red-600">
                 {formatCurrency(Number(expenseData.amount) || 0)}
               </span>
@@ -388,14 +396,14 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            İptal
+            {t('common.cancel') || 'İptal'}
           </button>
           <button
             onClick={handleSave}
             disabled={!expenseData.description || !expenseData.amount}
             className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {expense ? 'Güncelle' : 'Gider Ekle'}
+            {expense ? (t('common.update') || 'Güncelle') : (t('expenses.addExpense') || 'Gider Ekle')}
           </button>
         </div>
       </div>

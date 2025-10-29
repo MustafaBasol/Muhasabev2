@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   Building2,
+  Download,
   Edit,
   Mail,
   Phone,
@@ -88,6 +89,31 @@ export default function CustomerList({
     event.target.value = '';
   };
 
+  const downloadTemplate = () => {
+    // Create comprehensive CSV template with proper formatting
+    const csvContent = [
+      // Headers with required field indicators (* means required)
+      'Name,Email,Phone,Address,Company,TaxNumber',
+      // Sample data rows with realistic examples
+      'John Doe,john.doe@email.com,+1-555-123-4567,123 Main Street New York NY USA,Tech Solutions Inc,123456789',
+      'Jane Smith,jane.smith@company.com,+1-555-987-6543,456 Oak Avenue Los Angeles CA USA,Marketing Pro LLC,987654321',
+      'Michael Johnson,m.johnson@business.org,+1-555-456-7890,789 Pine Road Chicago IL USA,Johnson & Associates,456789123'
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'customer_import_template.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const renderHeader = () => (
     <div className="p-6 border-b border-gray-200">
       <div className="flex items-center justify-between mb-4">
@@ -108,6 +134,15 @@ export default function CustomerList({
               className="hidden"
               onChange={handleFileChange}
             />
+            <button
+              type="button"
+              onClick={downloadTemplate}
+              className="flex items-center gap-2 rounded-lg border border-blue-200 px-4 py-2 text-blue-600 transition-colors hover:bg-blue-50"
+              title={t('customers.downloadTemplate')}
+            >
+              <Download className="h-4 w-4" />
+              <span>{t('customers.downloadTemplate')}</span>
+            </button>
             <button
               type="button"
               onClick={handleFilePick}

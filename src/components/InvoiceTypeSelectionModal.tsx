@@ -1,4 +1,5 @@
 import { X, Plus, FileText, RotateCcw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface InvoiceTypeSelectionModalProps {
   isOpen: boolean;
@@ -15,6 +16,8 @@ export default function InvoiceTypeSelectionModal({
   onSelectExistingSale,
   onSelectReturn
 }: InvoiceTypeSelectionModalProps) {
+  const { t } = useTranslation();
+  
   if (!isOpen) return null;
 
   return (
@@ -27,8 +30,8 @@ export default function InvoiceTypeSelectionModal({
               <FileText className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Yeni Fatura</h2>
-              <p className="text-sm text-gray-500">Fatura türünü seçin</p>
+              <h2 className="text-xl font-semibold text-gray-900">{t('invoices.newInvoice')}</h2>
+              <p className="text-sm text-gray-500">{t('invoices.selectInvoiceType')}</p>
             </div>
           </div>
           <button
@@ -52,12 +55,12 @@ export default function InvoiceTypeSelectionModal({
                   <Plus className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Yeni Satış</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('invoices.newSale')}</h3>
                   <p className="text-sm text-gray-600">
-                    Yeni bir satış kaydı oluşturup fatura kesin
+                    {t('invoices.newSaleDescription')}
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
-                    Satış ve fatura otomatik olarak oluşturulur
+                    {t('invoices.newSaleNote')}
                   </p>
                 </div>
               </div>
@@ -73,12 +76,12 @@ export default function InvoiceTypeSelectionModal({
                   <FileText className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Mevcut Satış</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('invoices.existingSale')}</h3>
                   <p className="text-sm text-gray-600">
-                    Daha önce yapılmış satışlardan birine fatura kesin
+                    {t('invoices.existingSaleDescription')}
                   </p>
                   <p className="text-xs text-green-600 mt-1">
-                    Sadece fatura bilgileri düzenlenebilir
+                    {t('invoices.existingSaleNote')}
                   </p>
                 </div>
               </div>
@@ -94,12 +97,12 @@ export default function InvoiceTypeSelectionModal({
                   <RotateCcw className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">İade Faturası</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('invoices.returnInvoice')}</h3>
                   <p className="text-sm text-gray-600">
-                    Daha önce kesilen bir fatura için iade/iade faturası oluşturun
+                    {t('invoices.returnInvoiceDescription')}
                   </p>
                   <p className="text-xs text-red-600 mt-1">
-                    Mevcut faturadan seçim yaparak iade oluşturulur
+                    {t('invoices.returnInvoiceNote')}
                   </p>
                 </div>
               </div>
@@ -114,7 +117,7 @@ export default function InvoiceTypeSelectionModal({
               onClick={onClose}
               className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              İptal
+              {t('common.cancel')}
             </button>
           </div>
         </div>

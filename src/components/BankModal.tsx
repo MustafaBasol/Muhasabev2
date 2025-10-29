@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, CreditCard, Building2, User, Hash, Globe, DollarSign } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 interface Bank {
   id: string;
@@ -23,12 +24,7 @@ interface BankModalProps {
   bankAccount?: Bank | null;
 }
 
-const currencies = [
-  { code: 'TRY', name: 'Türk Lirası', symbol: '₺' },
-  { code: 'USD', name: 'Amerikan Doları', symbol: '$' },
-  { code: 'EUR', name: 'Euro', symbol: '€' },
-  { code: 'GBP', name: 'İngiliz Sterlini', symbol: '£' }
-];
+
 
 const bankNames = [
   'Türkiye İş Bankası',
@@ -49,7 +45,16 @@ const bankNames = [
 ];
 
 export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }: BankModalProps) {
+  const { t } = useTranslation();
   const { currency: defaultCurrency } = useCurrency();
+  
+  // Dynamic currency list with translations
+  const currencies = [
+    { code: 'TRY', name: t('currencies.TRY'), symbol: '₺' },
+    { code: 'USD', name: t('currencies.USD'), symbol: '$' },
+    { code: 'EUR', name: t('currencies.EUR'), symbol: '€' },
+    { code: 'GBP', name: t('currencies.GBP'), symbol: '£' }
+  ];
   
   // Use bankAccount if provided, otherwise use bank
   const initialBankData = bankAccount || bank;
@@ -134,9 +139,9 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {initialBankData ? 'Hesabı Düzenle' : 'Yeni Banka Hesabı'}
+                {initialBankData ? t('banks.editAccount') : t('banks.newAccount')}
               </h2>
-              <p className="text-sm text-gray-500">Banka hesap bilgilerini girin</p>
+              <p className="text-sm text-gray-500">{t('banks.enterAccountInfo')}</p>
             </div>
           </div>
           <button
@@ -153,7 +158,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Building2 className="w-4 h-4 inline mr-2" />
-                Banka Adı *
+                {t('banks.bankName')} *
               </label>
               <select
                 value={bankData.bankName}
@@ -161,7 +166,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 required
               >
-                <option value="">Banka seçin</option>
+                <option value="">{t('banks.selectBank')}</option>
                 {bankNames.map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
@@ -170,14 +175,14 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <User className="w-4 h-4 inline mr-2" />
-                Hesap Adı *
+                {t('banks.accountName')} *
               </label>
               <input
                 type="text"
                 value={bankData.accountName}
                 onChange={(e) => setBankData({...bankData, accountName: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Şirket Adı veya Kişi Adı"
+                placeholder={t('banks.accountNamePlaceholder')}
                 required
               />
             </div>
@@ -188,7 +193,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Hash className="w-4 h-4 inline mr-2" />
-                Hesap Numarası *
+                {t('banks.accountNumber')} *
               </label>
               <input
                 type="text"
@@ -201,16 +206,16 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hesap Türü
+                {t('banks.accountType')}
               </label>
               <select
                 value={bankData.accountType}
                 onChange={(e) => setBankData({...bankData, accountType: e.target.value as any})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                <option value="checking">Vadesiz Hesap</option>
-                <option value="savings">Vadeli Hesap</option>
-                <option value="business">Ticari Hesap</option>
+                <option value="checking">{t('banks.accountTypes.checking')}</option>
+                <option value="savings">{t('banks.accountTypes.savings')}</option>
+                <option value="business">{t('banks.accountTypes.business')}</option>
               </select>
             </div>
           </div>
@@ -231,7 +236,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              IBAN otomatik olarak formatlanacaktır
+              {t('banks.ibanAutoFormat')}
             </p>
           </div>
 
@@ -240,7 +245,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <DollarSign className="w-4 h-4 inline mr-2" />
-                Mevcut Bakiye
+                {t('banks.currentBalance')}
               </label>
               <input
                 type="number"
@@ -254,7 +259,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Para Birimi
+                {t('banks.currency')}
               </label>
               <select
                 value={bankData.currency}
@@ -280,7 +285,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
               className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
             />
             <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-              Hesap aktif
+              {t('banks.accountActive')}
             </label>
           </div>
         </div>
@@ -291,14 +296,14 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            İptal
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!bankData.bankName || !bankData.accountName || !bankData.accountNumber || !bankData.iban}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {initialBankData ? 'Güncelle' : 'Hesap Ekle'}
+            {initialBankData ? t('common.update') : t('banks.addAccount')}
           </button>
         </div>
       </div>

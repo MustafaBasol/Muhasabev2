@@ -901,28 +901,63 @@ const AppContent: React.FC = () => {
 
   const handleImportCustomers = async (file: File) => {
     try {
+      console.log('Starting customer import, file:', file.name, file.type);
       const data = await file.arrayBuffer();
-      const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(data);
       
-      const worksheet = workbook.worksheets[0];
-      if (!worksheet) {
-        if (typeof window !== "undefined") {
-          window.alert("Dosyada veri bulunamadi.");
+      let rows: Record<string, unknown>[] = [];
+      
+      // Handle CSV files separately
+      if (file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')) {
+        console.log('Processing as CSV file');
+        const text = new TextDecoder('utf-8').decode(data);
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          console.log('CSV file has insufficient data');
+          if (typeof window !== "undefined") {
+            window.alert(t('customers.import.noDataFound'));
+          }
+          return;
         }
-        return;
-      }
-      
-      const rows: Record<string, unknown>[] = [];
-      worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return; // Skip header
-        const rowData: Record<string, unknown> = {};
-        row.eachCell((cell, colNumber) => {
-          const header = worksheet.getRow(1).getCell(colNumber).value?.toString() || `col${colNumber}`;
-          rowData[header] = cell.value;
+        
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        console.log('CSV headers:', headers);
+        
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+          const rowData: Record<string, unknown> = {};
+          headers.forEach((header, index) => {
+            rowData[header] = values[index] || '';
+          });
+          rows.push(rowData);
+        }
+      } else {
+        // Handle Excel files
+        console.log('Processing as Excel file');
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(data);
+        
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) {
+          console.log('No worksheet found in file');
+          if (typeof window !== "undefined") {
+            window.alert(t('customers.import.noDataFound'));
+          }
+          return;
+        }
+        
+        console.log('Worksheet found, row count:', worksheet.rowCount);
+        
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // Skip header
+          const rowData: Record<string, unknown> = {};
+          row.eachCell((cell, colNumber) => {
+            const header = worksheet.getRow(1).getCell(colNumber).value?.toString() || `col${colNumber}`;
+            rowData[header] = cell.value;
+          });
+          rows.push(rowData);
         });
-        rows.push(rowData);
-      });
+      }
 
       const normalizeKey = (value: unknown) =>
         String(value ?? "")
@@ -1002,60 +1037,88 @@ const AppContent: React.FC = () => {
         })
         .filter((item): item is ImportedCustomer => Boolean(item));
 
+      console.log('Processed customers:', imported.length, imported);
+      
       if (imported.length === 0) {
+        console.log('No valid customers found after processing');
         if (typeof window !== "undefined") {
-          window.alert("Dosyada aktarilacak müsteri bulunamadi.");
+          window.alert(t('customers.import.noCustomersFound'));
         }
         return;
       }
 
-      setCustomers((prev) => {
-        const next = [...prev];
-        imported.forEach((customer, index) => {
-          const emailKey = customer.email ? customer.email.toLowerCase() : undefined;
-          const taxKey = customer.taxNumber || undefined;
-          const nameKey = customer.name.toLowerCase();
-
-          const existingIndex = next.findIndex((current) => {
-            const currentEmail = current.email ? current.email.toLowerCase() : undefined;
-            const currentTax = current.taxNumber || undefined;
-            const currentName = current.name ? current.name.toLowerCase() : undefined;
-
-            if (emailKey && currentEmail === emailKey) {
-              return true;
-            }
-            if (taxKey && currentTax === taxKey) {
-              return true;
-            }
-            return Boolean(currentName && currentName === nameKey);
-          });
-
-          if (existingIndex >= 0) {
-            next[existingIndex] = {
-              ...next[existingIndex],
-              ...customer,
-              id: next[existingIndex].id,
-              createdAt: customer.createdAt || next[existingIndex].createdAt,
-            };
-          } else {
-            next.push({
-              ...customer,
-              id: normalizeId(customer.id ?? `${Date.now()}-${index}`),
-              balance: 0,
-              createdAt: customer.createdAt || new Date().toISOString().split("T")[0],
+      // Persist imported customers to backend if possible
+      try {
+        console.log('Attempting to persist imported customers to backend...', imported);
+        const results = await Promise.allSettled(
+          imported.map((c, idx) => {
+            console.log('Requesting createCustomer for index', idx, c);
+            return customersApi.createCustomer({
+              name: c.name,
+              email: c.email || undefined,
+              phone: c.phone || undefined,
+              address: c.address || undefined,
+              taxNumber: c.taxNumber || undefined,
+              company: c.company || undefined,
+            }).then(res => {
+              console.log('createCustomer fulfilled for index', idx, res);
+              return res;
+            }).catch(err => {
+              console.error('createCustomer rejected for index', idx, err);
+              throw err;
             });
+          })
+        );
+
+        const created: any[] = [];
+        const failed: { index: number; reason: any }[] = [];
+
+        results.forEach((r, i) => {
+          if (r.status === 'fulfilled') {
+            created.push(r.value);
+          } else {
+            failed.push({ index: i, reason: r.reason });
           }
         });
-        return next;
-      });
 
-      if (typeof window !== "undefined") {
-        window.alert(imported.length + " müsteri basariyla içe aktarildi.");
+        // Add created customers to local state (backend already handles duplicates)
+        setCustomers(prev => {
+          const next = [...prev];
+          created.forEach((cust) => {
+            // Since backend returns unique IDs, check only by ID to avoid duplicates
+            const existingIndex = next.findIndex((current) => current.id === cust.id);
+            
+            if (existingIndex >= 0) {
+              // Update existing record with backend data
+              next[existingIndex] = { ...next[existingIndex], ...cust };
+            } else {
+              // Add new record
+              next.push(cust);
+            }
+          });
+          return next;
+        });
+
+        // Notify user about results
+        if (typeof window !== 'undefined') {
+          if (failed.length === 0) {
+            window.alert(t('customers.import.success', { count: created.length }));
+          } else {
+            const msg = `${created.length} ${t('customers.import.success', { count: created.length })}\n${failed.length} kayıt başarısız.`;
+            window.alert(msg);
+            console.error('Import failures:', failed);
+          }
+        }
+      } catch (err) {
+        console.error('Error while persisting imported customers', err);
+        if (typeof window !== 'undefined') {
+          window.alert(t('customers.import.error') + '\n\nDetay: ' + (err instanceof Error ? err.message : String(err)));
+        }
       }
     } catch (error) {
       console.error("Customer import failed", error);
       if (typeof window !== "undefined") {
-        window.alert("Dosya içe aktarilirken bir sorun olustu. Lütfen formati kontrol edin.");
+        window.alert(t('customers.import.error') + "\n\nDetay: " + (error instanceof Error ? error.message : String(error)));
       }
     }
   };

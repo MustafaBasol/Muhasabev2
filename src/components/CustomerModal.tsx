@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, User, Mail, Phone, MapPin, Building2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Customer {
   id: string;
@@ -20,6 +21,8 @@ interface CustomerModalProps {
 }
 
 export default function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerModalProps) {
+  const { t } = useTranslation();
+  
   const [customerData, setCustomerData] = useState({
     name: customer?.name || '',
     email: customer?.email || '',
@@ -90,9 +93,9 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {customer ? 'Müşteriyi Düzenle' : 'Yeni Müşteri Ekle'}
+                {customer ? (t('customers.editCustomer') || 'Müşteriyi Düzenle') : (t('customers.newCustomer') || 'Yeni Müşteri Ekle')}
               </h2>
-              <p className="text-sm text-gray-500">Müşteri bilgilerini girin</p>
+              <p className="text-sm text-gray-500">{t('customers.enterCustomerInfo') || 'Müşteri bilgilerini girin'}</p>
             </div>
           </div>
           <button
@@ -109,28 +112,28 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <User className="w-4 h-4 inline mr-2" />
-                Müşteri Adı *
+                {t('customers.name')} *
               </label>
               <input
                 type="text"
                 value={customerData.name}
                 onChange={(e) => setCustomerData({...customerData, name: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Ahmet Yılmaz"
+                placeholder={t('customers.namePlaceholder')}
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Building2 className="w-4 h-4 inline mr-2" />
-                Şirket Adı
+                {t('customers.company')}
               </label>
               <input
                 type="text"
                 value={customerData.company}
                 onChange={(e) => setCustomerData({...customerData, company: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="ABC Teknoloji Ltd."
+                placeholder={t('customers.companyPlaceholder')}
               />
             </div>
           </div>
@@ -169,7 +172,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
           {/* Tax Number */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Vergi Numarası
+              {t('customers.taxNumber')}
             </label>
             <input
               type="text"
@@ -191,7 +194,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
               onChange={(e) => setCustomerData({...customerData, address: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               rows={3}
-              placeholder="Tam adres bilgisi..."
+              placeholder={t('customers.addressPlaceholder')}
             />
           </div>
         </div>
@@ -209,7 +212,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
             disabled={!customerData.name || !customerData.email}
             className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {customer ? 'Güncelle' : 'Müşteri Ekle'}
+            {customer ? t('common.update') : t('customers.addCustomer')}
           </button>
         </div>
       </div>
