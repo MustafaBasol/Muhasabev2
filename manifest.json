@@ -1,0 +1,11 @@
+{
+  "exportDate": "2025-10-29T23:13:11.960Z",
+  "userId": "e311dc6b-7123-40af-98e1-1c997b27e3bd",
+  "email": "test@example.com",
+  "dataTypes": [
+    "profile",
+    "tenant"
+  ],
+  "retentionPolicy": "Personal data will be retained for 7 years as required by accounting regulations.",
+  "contact": "privacy@comptario.com"
+}

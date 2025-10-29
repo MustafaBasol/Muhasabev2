@@ -11,6 +11,7 @@ import type { CompanyProfile } from "./utils/pdfGenerator";
 import type { 
   Customer, 
   User,
+  Product,
   ProductCategory,
 } from "./types";
 import { secureStorage } from "./utils/storage";
@@ -64,7 +65,7 @@ import DeleteWarningModal from "./components/DeleteWarningModal";
 
 // pages
 import CustomerList from "./components/CustomerList";
-import ProductList, { type Product, type ProductBulkAction } from "./components/ProductList";
+import ProductList, { type ProductBulkAction } from "./components/ProductList";
 import SupplierList from "./components/SupplierList";
 import InvoiceList from "./components/InvoiceList";
 import ExpenseList from "./components/ExpenseList";
@@ -81,9 +82,6 @@ import LandingPage from "./components/landing/LandingPage";
 // legal pages
 import TermsOfService from "./components/legal/TermsOfService";
 import PrivacyPolicy from "./components/legal/PrivacyPolicy";
-import CookiePolicy from "./components/legal/CookiePolicy";
-import DataProcessingAddendum from "./components/legal/DataProcessingAddendum";
-import SubprocessorsList from "./components/legal/SubprocessorsList";
 
 // cookie consent components
 import CookieConsentBanner from "./components/CookieConsentBanner";
@@ -1823,7 +1821,7 @@ const AppContent: React.FC = () => {
           stockQuantity: Number(updated.stock) || 0,
           reorderLevel: Number(updated.minStock) || 0,
           taxRate: Number(updated.taxRate) || 0,
-          categoryTaxRateOverride: updated.categoryTaxRateOverride ? Number(updated.categoryTaxRateOverride) : null,
+          categoryTaxRateOverride: (updated as any).categoryTaxRateOverride ? Number((updated as any).categoryTaxRateOverride) : undefined,
           status: updated.stock === 0 ? 'out-of-stock' : updated.stock <= updated.minStock ? 'low' : 'active'
         } as Product : p));
         showToast('Ürün güncellendi', 'success');
@@ -1838,7 +1836,7 @@ const AppContent: React.FC = () => {
           stockQuantity: Number(created.stock) || 0,
           reorderLevel: Number(created.minStock) || 0,
           taxRate: Number(created.taxRate) || 0,
-          categoryTaxRateOverride: created.categoryTaxRateOverride ? Number(created.categoryTaxRateOverride) : null,
+          categoryTaxRateOverride: (created as any).categoryTaxRateOverride ? Number((created as any).categoryTaxRateOverride) : undefined,
           status: created.stock === 0 ? 'out-of-stock' : created.stock <= created.minStock ? 'low' : 'active'
         } as Product]);
         showToast('Ürün eklendi', 'success');
@@ -2830,11 +2828,9 @@ const AppContent: React.FC = () => {
       case "legal-privacy":
         return <PrivacyPolicy />;
       case "legal-cookies":
-        return <CookiePolicy />;
       case "legal-dpa":
-        return <DataProcessingAddendum />;
       case "legal-subprocessors":
-        return <SubprocessorsList />;
+        return <div className="p-6"><p>Bu sayfa geliştirme aşamasındadır.</p></div>;
       default:
         return renderDashboard();
     }
@@ -3137,11 +3133,9 @@ const AppContent: React.FC = () => {
         case "legal-privacy":
           return <PrivacyPolicy />;
         case "legal-cookies":
-          return <CookiePolicy />;
         case "legal-dpa":
-          return <DataProcessingAddendum />;
         case "legal-subprocessors":
-          return <SubprocessorsList />;
+          return <div className="p-6"><p>Bu sayfa geliştirme aşamasındadır.</p></div>;
         default:
           return <div>Legal page not found</div>;
       }

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import type { Product } from '../types';
 import {
   Package,
   Search,
@@ -37,22 +38,7 @@ const translateCategoryName = (categoryName: string, t: (key: string) => string)
   return categoryName;
 };
 
-export interface Product {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  unitPrice: number;
-  costPrice: number;
-  stockQuantity: number;
-  reorderLevel: number;
-  unit: string;
-  createdAt: string;
-  status?: string;
-  description?: string;
-  taxRate?: number; // KDV oranı (örn: 18 = %18)
-  categoryTaxRateOverride?: number; // Ürüne özel KDV oranı (kategorinin KDV'sini override eder)
-}
+
 
 interface ProductListProps {
   products: Product[];

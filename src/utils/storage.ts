@@ -213,10 +213,10 @@ export const secureStorage = {
   /**
    * JSON veriyi kaydet
    */
-  setJSON: <T>(key: string, value: T): void => {
+  setJSON: async <T>(key: string, value: T): Promise<void> => {
     try {
       const jsonString = JSON.stringify(value);
-      secureStorage.setItem(key, jsonString);
+      await secureStorage.setItem(key, jsonString);
     } catch (error) {
       console.error('Storage setJSON failed:', error);
     }
@@ -225,9 +225,9 @@ export const secureStorage = {
   /**
    * JSON veriyi oku
    */
-  getJSON: <T>(key: string): T | null => {
+  getJSON: async <T>(key: string): Promise<T | null> => {
     try {
-      const stored = secureStorage.getItem(key);
+      const stored = await secureStorage.getItem(key);
       if (!stored) return null;
       return JSON.parse(stored) as T;
     } catch (error) {
@@ -252,15 +252,16 @@ export const sessionManager = {
   /**
    * Login durumunu kaydet
    */
-  setLoggedIn: (value: boolean): void => {
-    secureStorage.setItem('isLoggedIn', value.toString());
+  setLoggedIn: async (value: boolean): Promise<void> => {
+    await secureStorage.setItem('isLoggedIn', value.toString());
   },
 
   /**
    * Login durumunu kontrol et
    */
-  isLoggedIn: (): boolean => {
-    return secureStorage.getItem('isLoggedIn') === 'true';
+  isLoggedIn: async (): Promise<boolean> => {
+    const result = await secureStorage.getItem('isLoggedIn');
+    return result === 'true';
   },
 
   /**

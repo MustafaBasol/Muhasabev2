@@ -27,10 +27,16 @@ export interface Product {
   sku: string;
   category: string;
   price: number;
+  unitPrice: number;
+  costPrice: number;
   stock: number;
+  stockQuantity: number;
+  reorderLevel: number;
   unit: string;
+  createdAt: string;
+  status?: string;
   description?: string;
-  taxRate?: number; // KDV oranı (örn: 0.18 = %18)
+  taxRate?: number; // KDV oranı (örn: 18 = %18)
   categoryTaxRateOverride?: number; // Ürüne özel KDV oranı (kategorinin KDV'sini override eder)
 }
 

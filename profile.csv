@@ -1,0 +1,2 @@
+id,email,firstName,lastName,role,createdAt,updatedAt,lastLoginAt
+"e311dc6b-7123-40af-98e1-1c997b27e3bd","test@example.com","Test","User","tenant_admin",Wed Oct 29 2025 23:12:54 GMT+0000 (Coordinated Universal Time),Wed Oct 29 2025 23:13:11 GMT+0000 (Coordinated Universal Time),Wed Oct 29 2025 23:13:11 GMT+0000 (Coordinated Universal Time)

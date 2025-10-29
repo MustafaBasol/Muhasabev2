@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "id": "e311dc6b-7123-40af-98e1-1c997b27e3bd",
+    "email": "test@example.com",
+    "firstName": "Test",
+    "lastName": "User",
+    "role": "tenant_admin",
+    "createdAt": "2025-10-29T23:12:54.636Z",
+    "updatedAt": "2025-10-29T23:13:11.942Z",
+    "lastLoginAt": "2025-10-29T23:13:11.942Z"
+  },
+  "tenant": {
+    "id": "90e89a71-a981-401b-8c7f-1b470cdc24dd",
+    "name": "Test User",
+    "slug": "test-user",
+    "companyName": null
+  }
+}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, User, Building2, ArrowLeft, UserPlus, Phone, MapPin } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Building2, ArrowLeft, UserPlus, Phone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function RegisterPage() {

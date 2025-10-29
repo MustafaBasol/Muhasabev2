@@ -6,6 +6,7 @@ import {
   Building2,
   Bell,
   Shield,
+  Lock,
   Database,
   Download,
   Upload,
@@ -65,6 +66,7 @@ type SettingsTranslations = {
     notifications: string;
     system: string;
     security: string;
+    privacy: string;
     data: string;
   };
   profile: {
@@ -140,6 +142,32 @@ type SettingsTranslations = {
       activeSessions: { title: string; description: string; action: string };
     };
   };
+  privacy: {
+    title: string;
+    gdpr: {
+      title: string;
+      description: string;
+      export: {
+        title: string;
+        description: string;
+        button: string;
+        disclaimer: string;
+      };
+      delete: {
+        title: string;
+        description: string;
+        button: string;
+        warning: string;
+        confirmDialog: {
+          title: string;
+          message: string;
+          retention: string;
+          confirm: string;
+          cancel: string;
+        };
+      };
+    };
+  };
   data: {
     title: string;
     export: { title: string; description: string; button: string };
@@ -171,6 +199,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       notifications: 'Bildirimler',
       system: 'Sistem',
       security: 'Güvenlik',
+      privacy: 'Gizlilik',
       data: 'Veri Yönetimi',
     },
     profile: {
@@ -298,6 +327,32 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       importSuccess: 'Veriler başarıyla içe aktarıldı!',
       importError: 'Dosya formatı hatalı!',
     },
+    privacy: {
+      title: 'GDPR ve Veri Hakları',
+      gdpr: {
+        title: 'Kişisel Veri Yönetimi',
+        description: 'GDPR uyumluluk kapsamında kişisel verilerinizi yönetin',
+        export: {
+          title: 'Verilerimi İndir',
+          description: 'Tüm kişisel verilerinizi ZIP formatında indirin',
+          button: 'Verilerimi İndir',
+          disclaimer: 'İndirilen dosya JSON ve CSV formatlarında verilerinizi içerir.',
+        },
+        delete: {
+          title: 'Hesabımı Sil',
+          description: 'Hesabınızı ve tüm kişisel verilerinizi kalıcı olarak silin',
+          button: 'Hesap Silme Talebi',
+          warning: 'Bu işlem geri alınamaz ve tüm verileriniz silinir.',
+          confirmDialog: {
+            title: 'Hesap Silme Onayı',
+            message: 'Hesabınızı silmek istediğinizden emin misiniz?',
+            retention: 'Not: Muhasebe kayıtları yasal gereklilikler nedeniyle 10 yıl süreyle saklanacaktır.',
+            confirm: 'Evet, Hesabımı Sil',
+            cancel: 'İptal',
+          },
+        },
+      },
+    },
     dangerZone: {
       title: 'Tehlikeli Bölge',
       description: 'Bu işlemler geri alınamaz. Lütfen dikkatli olun.',
@@ -318,6 +373,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       notifications: 'Notifications',
       system: 'System',
       security: 'Security',
+      privacy: 'Privacy',
       data: 'Data Management',
     },
     profile: {
@@ -445,6 +501,32 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       importSuccess: 'Data imported successfully!',
       importError: 'Invalid file format!',
     },
+    privacy: {
+      title: 'GDPR & Data Rights',
+      gdpr: {
+        title: 'Personal Data Management',
+        description: 'Manage your personal data under GDPR compliance',
+        export: {
+          title: 'Export My Data',
+          description: 'Download all your personal data in ZIP format',
+          button: 'Export My Data',
+          disclaimer: 'The downloaded file contains your data in JSON and CSV formats.',
+        },
+        delete: {
+          title: 'Delete My Account',
+          description: 'Permanently delete your account and all personal data',
+          button: 'Request Account Deletion',
+          warning: 'This action cannot be undone and will delete all your data.',
+          confirmDialog: {
+            title: 'Account Deletion Confirmation',
+            message: 'Are you sure you want to delete your account?',
+            retention: 'Note: Accounting records will be retained for 10 years due to legal requirements.',
+            confirm: 'Yes, Delete My Account',
+            cancel: 'Cancel',
+          },
+        },
+      },
+    },
     dangerZone: {
       title: 'Danger Zone',
       description: 'These actions cannot be undone. Proceed with caution.',
@@ -465,6 +547,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       notifications: 'Notifications',
       system: 'Système',
       security: 'Sécurité',
+      privacy: 'Confidentialité',
       data: 'Gestion des données',
     },
     profile: {
@@ -592,6 +675,32 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       importSuccess: 'Les données ont été importées avec succès !',
       importError: 'Format de fichier invalide !',
     },
+    privacy: {
+      title: 'RGPD et Droits des Données',
+      gdpr: {
+        title: 'Gestion des Données Personnelles',
+        description: 'Gérez vos données personnelles conformément au RGPD',
+        export: {
+          title: 'Exporter mes Données',
+          description: 'Téléchargez toutes vos données personnelles au format ZIP',
+          button: 'Exporter mes Données',
+          disclaimer: 'Le fichier téléchargé contient vos données aux formats JSON et CSV.',
+        },
+        delete: {
+          title: 'Supprimer mon Compte',
+          description: 'Supprimez définitivement votre compte et toutes vos données personnelles',
+          button: 'Demander la Suppression du Compte',
+          warning: 'Cette action est irréversible et supprimera toutes vos données.',
+          confirmDialog: {
+            title: 'Confirmation de Suppression du Compte',
+            message: 'Êtes-vous sûr de vouloir supprimer votre compte ?',
+            retention: 'Note : Les registres comptables seront conservés 10 ans pour des raisons légales.',
+            confirm: 'Oui, Supprimer mon Compte',
+            cancel: 'Annuler',
+          },
+        },
+      },
+    },
     dangerZone: {
       title: 'Zone dangereuse',
       description: 'Ces actions sont irréversibles. Faites preuve de prudence.',
@@ -612,6 +721,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       notifications: 'Benachrichtigungen',
       system: 'System',
       security: 'Sicherheit',
+      privacy: 'Datenschutz',
       data: 'Datenverwaltung',
     },
     profile: {
@@ -739,6 +849,32 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       importSuccess: 'Daten erfolgreich importiert!',
       importError: 'Ungültiges Dateiformat!',
     },
+    privacy: {
+      title: 'DSGVO & Datenrechte',
+      gdpr: {
+        title: 'Persönliche Datenverwaltung',
+        description: 'Verwalten Sie Ihre persönlichen Daten gemäß DSGVO',
+        export: {
+          title: 'Meine Daten Exportieren',
+          description: 'Laden Sie alle Ihre persönlichen Daten im ZIP-Format herunter',
+          button: 'Meine Daten Exportieren',
+          disclaimer: 'Die heruntergeladene Datei enthält Ihre Daten in JSON- und CSV-Formaten.',
+        },
+        delete: {
+          title: 'Mein Konto Löschen',
+          description: 'Löschen Sie Ihr Konto und alle persönlichen Daten dauerhaft',
+          button: 'Kontolöschung Beantragen',
+          warning: 'Diese Aktion kann nicht rückgängig gemacht werden und löscht alle Ihre Daten.',
+          confirmDialog: {
+            title: 'Bestätigung der Kontolöschung',
+            message: 'Sind Sie sicher, dass Sie Ihr Konto löschen möchten?',
+            retention: 'Hinweis: Buchhaltungsunterlagen werden aus rechtlichen Gründen 10 Jahre aufbewahrt.',
+            confirm: 'Ja, Mein Konto Löschen',
+            cancel: 'Abbrechen',
+          },
+        },
+      },
+    },
     dangerZone: {
       title: 'Gefahrenzone',
       description: 'Diese Aktionen sind irreversibel. Seien Sie vorsichtig.',
@@ -760,6 +896,11 @@ export default function SettingsPage({
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
+  
+  // Privacy tab states
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // i18next entegrasyonu
   const { i18n } = useTranslation();
@@ -857,6 +998,7 @@ export default function SettingsPage({
     { id: 'notifications', label: text.tabs.notifications, icon: Bell },
     { id: 'system', label: text.tabs.system, icon: Settings },
     { id: 'security', label: text.tabs.security, icon: Shield },
+    { id: 'privacy', label: text.tabs.privacy, icon: Lock },
     { id: 'data', label: text.tabs.data, icon: Database },
   ];
 
@@ -1495,6 +1637,152 @@ export default function SettingsPage({
     </div>
   );
 
+  const renderPrivacyTab = () => {
+    const handleExportData = async () => {
+      try {
+        setIsExporting(true);
+        const response = await fetch('http://localhost:3000/users/me/export', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Export failed');
+        }
+
+        // Download the ZIP file
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `my-data-${new Date().toISOString().split('T')[0]}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        alert('Data exported successfully!');
+      } catch (error) {
+        console.error('Export error:', error);
+        alert('Failed to export data. Please try again.');
+      } finally {
+        setIsExporting(false);
+      }
+    };
+
+    const handleDeleteAccount = async () => {
+      try {
+        setIsDeletingAccount(true);
+        const response = await fetch('http://localhost:3000/users/me/delete', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Account deletion request failed');
+        }
+
+        const result = await response.json();
+        alert(`Account deletion requested successfully. ${result.message}`);
+        setIsDeleteDialogOpen(false);
+      } catch (error) {
+        console.error('Account deletion error:', error);
+        alert('Failed to request account deletion. Please try again.');
+      } finally {
+        setIsDeletingAccount(false);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.privacy.title}</h3>
+          <p className="text-gray-600 mb-6">{text.privacy.gdpr.description}</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Export Data */}
+            <div className="p-6 border border-gray-200 rounded-lg">
+              <div className="flex items-center space-x-3 mb-4">
+                <Download className="w-6 h-6 text-blue-600" />
+                <div>
+                  <h4 className="font-medium text-gray-900">{text.privacy.gdpr.export.title}</h4>
+                  <p className="text-sm text-gray-500">{text.privacy.gdpr.export.description}</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">{text.privacy.gdpr.export.disclaimer}</p>
+              <button
+                onClick={handleExportData}
+                disabled={isExporting}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {isExporting ? 'Exporting...' : text.privacy.gdpr.export.button}
+              </button>
+            </div>
+
+            {/* Delete Account */}
+            <div className="p-6 border border-red-200 rounded-lg bg-red-50">
+              <div className="flex items-center space-x-3 mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+                <div>
+                  <h4 className="font-medium text-red-800">{text.privacy.gdpr.delete.title}</h4>
+                  <p className="text-sm text-red-600">{text.privacy.gdpr.delete.description}</p>
+                </div>
+              </div>
+              <p className="text-xs text-red-600 mb-4">{text.privacy.gdpr.delete.warning}</p>
+              <button
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                {text.privacy.gdpr.delete.button}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Delete Confirmation Dialog */}
+        {isDeleteDialogOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {text.privacy.gdpr.delete.confirmDialog.title}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {text.privacy.gdpr.delete.confirmDialog.message}
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-yellow-800">
+                  {text.privacy.gdpr.delete.confirmDialog.retention}
+                </p>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                  disabled={isDeletingAccount}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  {text.privacy.gdpr.delete.confirmDialog.cancel}
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeletingAccount}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {isDeletingAccount ? 'Processing...' : text.privacy.gdpr.delete.confirmDialog.confirm}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1554,6 +1842,7 @@ export default function SettingsPage({
           {activeTab === 'notifications' && renderNotificationsTab()}
           {activeTab === 'system' && renderSystemTab()}
           {activeTab === 'security' && renderSecurityTab()}
+          {activeTab === 'privacy' && renderPrivacyTab()}
           {activeTab === 'data' && renderDataTab()}
         </div>
       </div>

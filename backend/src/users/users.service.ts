@@ -5,6 +5,7 @@ import { User, UserRole } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import archiver from 'archiver';
 import { Readable } from 'stream';
+import { EmailService } from '../services/email.service';
 
 export interface CreateUserDto {
   email: string;
@@ -20,6 +21,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private emailService: EmailService,
   ) {}
 
   async findAll(): Promise<User[]> {
@@ -154,6 +156,16 @@ export class UsersService {
 
       archive.finalize();
     });
+    
+    // Send email notification after successful export
+    try {
+      await this.emailService.sendDataExportNotification(
+        user.email, 
+        `${user.firstName} ${user.lastName}`
+      );
+    } catch (error) {
+      console.log('⚠️  Failed to send export notification email:', error.message);
+    }
   }
 
   /**
@@ -170,8 +182,16 @@ export class UsersService {
       updatedAt: new Date(),
     });
 
-    // TODO: Send confirmation email
-    // await this.emailService.sendDeletionConfirmation(user.email);
+    // Send confirmation email
+    try {
+      await this.emailService.sendAccountDeletionConfirmation(
+        user.email,
+        `${user.firstName} ${user.lastName}`
+      );
+      console.log(`📧 Deletion confirmation email sent to ${user.email}`);
+    } catch (error) {
+      console.log('⚠️  Failed to send deletion confirmation email:', error.message);
+    }
     
     // TODO: Queue background job for actual deletion after retention period
     // await this.queueService.scheduleAccountDeletion(userId, 30); // 30 days
