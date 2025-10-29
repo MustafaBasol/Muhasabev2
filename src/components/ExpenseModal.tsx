@@ -45,7 +45,6 @@ const categories = [
   { label: 'Maaşlar', value: 'salaries' },
   { label: 'Malzemeler', value: 'supplies' },
   { label: 'Pazarlama', value: 'marketing' },
-  { label: 'Personel', value: 'personnel' },
   { label: 'Seyahat', value: 'travel' },
   { label: 'Sigorta', value: 'insurance' },
   { label: 'Vergiler', value: 'taxes' },
