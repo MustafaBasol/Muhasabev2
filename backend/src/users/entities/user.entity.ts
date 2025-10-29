@@ -46,6 +46,12 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   lastLoginAt: Date;
 
+  @Column({ type: 'timestamp', nullable: true })
+  deletionRequestedAt: Date;
+
+  @Column({ default: false })
+  isPendingDeletion: boolean;
+
   @ManyToOne(() => Tenant, (tenant) => tenant.users, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tenantId' })
   tenant: Tenant;

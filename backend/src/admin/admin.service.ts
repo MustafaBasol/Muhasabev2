@@ -12,6 +12,8 @@ import { ProductCategory } from '../products/entities/product-category.entity';
 
 @Injectable()
 export class AdminService {
+  private activeAdminTokens: Set<string> = new Set();
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
@@ -33,15 +35,60 @@ export class AdminService {
   ) {}
 
   async adminLogin(username: string, password: string) {
-    // Basit admin kontrolü - production'da daha güvenli yapın
-    if (username === 'admin' && password === 'admin123') {
-      return {
-        success: true,
-        message: 'Admin login successful',
-        adminToken: 'admin-access-granted',
-      };
+    // Güvenli admin kontrolü - environment variables'dan al
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+    
+    if (!adminPasswordHash) {
+      throw new UnauthorizedException('Admin credentials not configured');
     }
-    throw new UnauthorizedException('Invalid admin credentials');
+
+    if (username !== adminUsername) {
+      throw new UnauthorizedException('Invalid admin credentials');
+    }
+
+    // bcrypt ile hash kontrol et
+    const bcrypt = require('bcrypt');
+    const isPasswordValid = await bcrypt.compare(password, adminPasswordHash);
+    
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid admin credentials');
+    }
+
+    // Güvenli random token üret
+    const crypto = require('crypto');
+    const adminToken = crypto.randomBytes(32).toString('hex');
+    
+    // Token'ı geçici olarak cache'de sakla (Redis kullanılmalı)
+    // Şu an basit in-memory cache kullanıyoruz
+    this.activeAdminTokens = this.activeAdminTokens || new Set();
+    this.activeAdminTokens.add(adminToken);
+    
+    // 1 saat sonra token'ı geçersiz kıl
+    setTimeout(() => {
+      this.activeAdminTokens?.delete(adminToken);
+    }, 60 * 60 * 1000);
+
+    return {
+      success: true,
+      message: 'Admin login successful',
+      adminToken,
+      expiresIn: '1h',
+    };
+  }
+
+  /**
+   * Admin token doğrulama
+   */
+  isValidAdminToken(token: string): boolean {
+    return this.activeAdminTokens.has(token);
+  }
+
+  /**
+   * Admin token iptal et
+   */
+  revokeAdminToken(token: string): void {
+    this.activeAdminTokens.delete(token);
   }
 
   async getAllUsers() {

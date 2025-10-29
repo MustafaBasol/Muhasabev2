@@ -175,11 +175,11 @@
     "footer.gdpr": "GDPR",
     "footer.cookies": "Politique de cookies",
     "footer.description": "Logiciel de pré-comptabilité simple et sécurisé pour les entreprises modernes. Gérez factures, dépenses et TVA en toute confiance.",
+    "footer.stayUpdated": "Restez informé",
+    "footer.updatesDesc": "Recevez les dernières mises à jour sur les nouvelles fonctionnalités et les meilleures pratiques.",
     "footer.email": "support@comptario.com",
     "footer.languages": "Disponible en 4 langues",
     "footer.gdprCompliant": "Conforme GDPR",
-    "footer.stayUpdated": "Restez informé",
-    "footer.updatesDesc": "Recevez les dernières mises à jour sur les nouvelles fonctionnalités et les meilleures pratiques.",
     "footer.emailPlaceholder": "Entrez votre e-mail",
     "footer.subscribe": "S'abonner",
     "footer.copyright": "© {{year}} Comptario. Tous droits réservés.",
@@ -193,6 +193,7 @@
     "add": "Ajouter",
     "search": "Rechercher",
     "close": "Fermer",
+    "backToHome": "Retour à l'accueil",
     "yes": "Oui",
     "no": "Non",
     "loading": "Chargement...",
@@ -987,6 +988,364 @@
     "skuRequired": "SKU est requis",
     "validPriceRequired": "Veuillez entrer un prix valide",
     "validStockRequired": "Veuillez entrer une quantité de stock valide"
+  },
+  "legal": {
+    "terms": {
+      "title": "Conditions d'utilisation",
+      "lastUpdated": "Dernière mise à jour : {{date}}",
+      "section1": {
+        "title": "1. Présentation du service",
+        "content": "MoneyFlow est une plateforme logicielle de pré-comptabilité basée sur le cloud conçue pour aider les entreprises à gérer leurs factures, dépenses et opérations financières. La plateforme offre un support multi-devises, des calculs de TVA automatisés et des outils de reporting intégrés."
+      },
+      "section2": {
+        "title": "2. Comptes utilisateur et inscription",
+        "content": "Pour utiliser MoneyFlow, vous devez créer un compte en fournissant des informations exactes et complètes. Vous êtes responsable du maintien de la confidentialité de vos identifiants de compte et de toutes les activités qui se produisent sous votre compte."
+      },
+      "section3": {
+        "title": "3. Utilisation acceptable",
+        "content": "Vous acceptez d'utiliser MoneyFlow uniquement à des fins légales et conformément à ces Conditions. Vous ne pouvez pas utiliser le service pour vous engager dans des activités illégales, violer les droits de propriété intellectuelle ou perturber la fonctionnalité de la plateforme."
+      },
+      "section4": {
+        "title": "4. Propriété des données et confidentialité",
+        "content": "Vous conservez la propriété de toutes les données que vous saisissez dans MoneyFlow. Nous traitons vos données conformément à notre Politique de Confidentialité et aux lois applicables sur la protection des données, y compris le RGPD. Nous mettons en place des mesures de sécurité appropriées pour protéger vos informations."
+      },
+      "section5": {
+        "title": "5. Disponibilité du service",
+        "content": "Bien que nous nous efforcions de maintenir un temps de fonctionnement de 99,9%, MoneyFlow peut connaître des interruptions de service occasionnelles pour la maintenance, les mises à jour ou des problèmes techniques imprévus. Nous fournirons un préavis pour la maintenance planifiée chaque fois que possible."
+      },
+      "section6": {
+        "title": "6. Abonnement et facturation",
+        "content": "MoneyFlow propose divers plans d'abonnement avec différentes fonctionnalités et limites d'utilisation. La facturation est traitée automatiquement selon votre plan choisi. Vous pouvez mettre à niveau, rétrograder ou annuler votre abonnement à tout moment."
+      },
+      "section7": {
+        "title": "7. Sauvegarde et exportation des données",
+        "content": "Nous effectuons des sauvegardes automatisées régulières de vos données. Vous pouvez exporter vos données à tout moment dans des formats standard. À la résiliation du compte, nous conserverons vos données pendant 90 jours avant la suppression permanente, sauf si la loi l'exige autrement."
+      },
+      "section8": {
+        "title": "8. Limitation de responsabilité",
+        "content": "La responsabilité de MoneyFlow est limitée au montant que vous avez payé pour le service dans les 12 mois précédant toute réclamation. Nous ne sommes pas responsables des dommages indirects, accessoires ou consécutifs."
+      },
+      "section9": {
+        "title": "9. Propriété intellectuelle",
+        "content": "La plateforme MoneyFlow, y compris son logiciel, sa conception et son contenu, est protégée par les lois sur la propriété intellectuelle. Une licence limitée vous est accordée pour utiliser le service selon ces Conditions."
+      },
+      "section10": {
+        "title": "10. Résiliation",
+        "content": "Chaque partie peut résilier cet accord à tout moment. À la résiliation, votre accès au service cessera et nous supprimerons vos données selon notre politique de conservation des données."
+      },
+      "section11": {
+        "title": "11. Droit applicable",
+        "content": "Ces Conditions sont régies par les lois de l'Union européenne et la juridiction où MoneyFlow opère. Tous les litiges seront résolus par arbitrage contraignant."
+      },
+      "section12": {
+        "title": "12. Modifications des conditions",
+        "content": "Nous pouvons mettre à jour ces Conditions de temps à autre. Nous vous informerons des changements importants par e-mail ou via la plateforme. L'utilisation continue de MoneyFlow après les changements constitue l'acceptation des nouvelles Conditions."
+      }
+    },
+    "privacy": {
+      "title": "Politique de confidentialité",
+      "lastUpdated": "Dernière mise à jour : {{date}}",
+      "section1": {
+        "title": "1. Informations que nous collectons",
+        "content": "Nous collectons les informations que vous fournissez directement (détails de compte, données financières), les informations collectées automatiquement (données d'utilisation, adresses IP) et les informations de tiers (processeurs de paiement, intégrations)."
+      },
+      "section2": {
+        "title": "2. Comment nous utilisons vos informations",
+        "content": "Nous utilisons vos informations pour fournir et améliorer nos services, traiter les paiements, communiquer avec vous, assurer la sécurité et respecter les obligations légales."
+      },
+      "section3": {
+        "title": "3. Partage d'informations",
+        "content": "Nous ne vendons ni ne louons vos informations personnelles. Nous pouvons partager des informations avec des prestataires de services, pour la conformité légale ou avec votre consentement explicite."
+      },
+      "section4": {
+        "title": "4. Sécurité des données",
+        "content": "Nous mettons en place des mesures de sécurité standard de l'industrie, y compris le chiffrement en transit et au repos, des audits de sécurité réguliers, des contrôles d'accès et des centres de données sécurisés."
+      },
+      "section5": {
+        "title": "5. Vos droits (RGPD)",
+        "content": "Sous le RGPD, vous avez le droit d'accéder, de rectifier, d'effacer, de restreindre le traitement, de portabilité des données et de vous opposer au traitement de vos données personnelles. Vous pouvez également retirer votre consentement et déposer des plaintes auprès des autorités de contrôle."
+      },
+      "section6": {
+        "title": "6. Conservation des données",
+        "content": "Nous conservons vos données tant que votre compte est actif et pendant une période raisonnable par la suite à des fins légales et commerciales. Vous pouvez demander la suppression des données à tout moment."
+      },
+      "section7": {
+        "title": "7. Transferts internationaux",
+        "content": "Vos données sont principalement traitées au sein de l'UE. Tous les transferts internationaux sont protégés par des garanties appropriées telles que les Clauses Contractuelles Types."
+      },
+      "section8": {
+        "title": "8. Cookies et suivi",
+        "content": "Nous utilisons des cookies et des technologies similaires pour l'authentification, les préférences, l'analytique et la sécurité. Vous pouvez contrôler les paramètres des cookies via votre navigateur."
+      },
+      "section9": {
+        "title": "9. Services tiers",
+        "content": "Notre plateforme peut s'intégrer avec des services tiers. Leurs pratiques de confidentialité sont régies par leurs propres politiques de confidentialité, que nous vous encourageons à examiner."
+      },
+      "section10": {
+        "title": "10. Confidentialité des enfants",
+        "content": "MoneyFlow n'est pas destiné aux utilisateurs de moins de 18 ans. Nous ne collectons pas sciemment d'informations personnelles d'enfants de moins de 18 ans."
+      },
+      "section11": {
+        "title": "11. Informations de contact",
+        "content": "Pour les questions liées à la confidentialité ou pour exercer vos droits, contactez notre Délégué à la Protection des Données à privacy@moneyflow.com ou via notre portail de support."
+      }
+    },
+    "cookies": {
+      "title": "Politique de cookies",
+      "lastUpdated": "Dernière mise à jour : {{date}}",
+      "section1": {
+        "title": "1. Que sont les cookies",
+        "content": "Les cookies sont de petits fichiers texte stockés sur votre appareil lorsque vous visitez notre site web. Ils nous aident à vous offrir une meilleure expérience en se souvenant de vos préférences et en analysant l'utilisation du site."
+      },
+      "section2": {
+        "title": "2. Types de cookies que nous utilisons",
+        "content": "Nous utilisons des cookies essentiels (nécessaires pour la fonctionnalité de base), des cookies fonctionnels (se souviennent des préférences), des cookies d'analyse (comprennent les modèles d'utilisation) et des cookies de sécurité (protection contre les menaces)."
+      },
+      "section3": {
+        "title": "3. Cookies essentiels",
+        "content": "Ces cookies sont nécessaires au bon fonctionnement du site web. Ils permettent des fonctionnalités de base telles que l'authentification utilisateur, la gestion de session et les fonctionnalités de sécurité. Ils ne peuvent pas être désactivés."
+      },
+      "section4": {
+        "title": "4. Cookies fonctionnels",
+        "content": "Ces cookies se souviennent de vos préférences et choix pour fournir des fonctionnalités améliorées, telles que la sélection de langue, les paramètres de fuseau horaire et les personnalisations d'interface utilisateur."
+      },
+      "section5": {
+        "title": "5. Cookies d'analyse",
+        "content": "Nous utilisons des cookies d'analyse pour comprendre comment les visiteurs interagissent avec notre site web. Cela nous aide à améliorer nos services et l'expérience utilisateur. Toutes les données d'analyse sont agrégées et anonymisées."
+      },
+      "section6": {
+        "title": "6. Cookies tiers",
+        "content": "Certains cookies sont définis par des services tiers que nous utilisons, tels que les fournisseurs d'analyse ou les processeurs de paiement. Ceux-ci sont régis par les politiques de confidentialité respectives des tiers."
+      },
+      "section7": {
+        "title": "7. Durée des cookies",
+        "content": "Les cookies de session sont supprimés lorsque vous fermez votre navigateur. Les cookies persistants restent sur votre appareil pendant une période définie ou jusqu'à ce que vous les supprimiez manuellement."
+      },
+      "section8": {
+        "title": "8. Gestion des cookies",
+        "content": "Vous pouvez contrôler et gérer les cookies via les paramètres de votre navigateur. Vous pouvez supprimer les cookies existants et configurer votre navigateur pour accepter ou rejeter les cookies. Notez que la désactivation des cookies peut affecter la fonctionnalité du site web."
+      },
+      "section9": {
+        "title": "9. Consentement aux cookies",
+        "content": "En utilisant notre site web, vous consentez à l'utilisation de cookies comme décrit dans cette politique. Vous pouvez retirer votre consentement à tout moment en ajustant les paramètres de votre navigateur."
+      },
+      "section10": {
+        "title": "10. Mises à jour de la politique de cookies",
+        "content": "Nous pouvons mettre à jour cette Politique de Cookies de temps à autre. Nous vous informerons des changements importants en publiant la politique mise à jour sur notre site web avec une nouvelle date d'entrée en vigueur."
+      }
+    },
+    "dpa": {
+      "title": "Accord de traitement des données (DPA)",
+      "lastUpdated": "Dernière mise à jour : {{date}}",
+      "section1": {
+        "title": "1. Définitions et portée",
+        "content": "Cet Accord de Traitement des Données (\"DPA\") fait partie des Conditions d'Utilisation entre vous (\"Responsable du traitement\") et MoneyFlow (\"Sous-traitant\"). Il régit le traitement des données personnelles conformément au RGPD et autres lois applicables sur la protection des données."
+      },
+      "section2": {
+        "title": "2. Détails du traitement des données",
+        "content": "MoneyFlow traite les données personnelles uniquement sur instructions documentées du Responsable du traitement, aux fins de fournir les services de logiciel comptable, et conformément aux lois applicables sur la protection des données."
+      },
+      "section3": {
+        "title": "3. Catégories de données",
+        "content": "Nous traitons les catégories suivantes de données personnelles : informations de contact (noms, adresses, e-mails), données financières (factures, paiements, transactions), données de compte utilisateur (identifiants de connexion, préférences) et données d'utilisation (journaux d'accès, analyse)."
+      },
+      "section4": {
+        "title": "4. Droits des personnes concernées",
+        "content": "MoneyFlow aide le Responsable du traitement à satisfaire les demandes de droits des personnes concernées, y compris l'accès, la rectification, l'effacement, la restriction, la portabilité et l'objection. Nous fournissons les outils nécessaires et la coopération pour permettre la conformité."
+      },
+      "section5": {
+        "title": "5. Mesures de sécurité",
+        "content": "Nous mettons en place des mesures techniques et organisationnelles appropriées pour assurer la sécurité des données, y compris le chiffrement, les contrôles d'accès, les évaluations de sécurité régulières, la formation du personnel et les procédures de réponse aux incidents."
+      },
+      "section6": {
+        "title": "6. Sous-traitants ultérieurs",
+        "content": "MoneyFlow peut engager des sous-traitants ultérieurs pour aider à fournir des services. Tous les sous-traitants ultérieurs sont soumis à des obligations de protection des données équivalentes à celles de ce DPA. Une liste actuelle des sous-traitants ultérieurs est disponible sur demande."
+      },
+      "section7": {
+        "title": "7. Transferts de données",
+        "content": "Les données personnelles sont principalement traitées au sein de l'UE/EEE. Tous les transferts vers des pays tiers sont protégés par des garanties appropriées telles que les Clauses Contractuelles Types ou les décisions d'adéquation."
+      },
+      "section8": {
+        "title": "8. Notification de violation de données",
+        "content": "MoneyFlow notifiera le Responsable du traitement de toute violation de données personnelles sans délai injustifié et dans les 72 heures après avoir pris connaissance de la violation, fournissant toutes les informations pertinentes pour l'évaluation et les obligations de signalement."
+      },
+      "section9": {
+        "title": "9. Analyse d'impact sur la protection des données",
+        "content": "Sur demande, MoneyFlow fournira une assistance raisonnable au Responsable du traitement pour effectuer des Analyses d'Impact sur la Protection des Données (AIPD) et des consultations préalables avec les autorités de contrôle."
+      },
+      "section10": {
+        "title": "10. Audit et conformité",
+        "content": "MoneyFlow maintient des registres des activités de traitement et met à disposition du Responsable du traitement les informations nécessaires pour démontrer la conformité aux obligations de protection des données, y compris les droits d'audit soumis aux obligations de confidentialité."
+      },
+      "section11": {
+        "title": "11. Retour et suppression des données",
+        "content": "À la fin des services, MoneyFlow, au choix du Responsable du traitement, retournera ou supprimera toutes les données personnelles et copies existantes, sauf si la conservation est requise par la loi applicable."
+      },
+      "section12": {
+        "title": "12. Responsabilité et indemnisation",
+        "content": "La responsabilité de chaque partie est limitée aux dommages directement causés par sa violation de ce DPA. MoneyFlow indemnisera le Responsable du traitement contre les réclamations résultant de la violation par MoneyFlow de ses obligations de protection des données."
+      }
+    },
+    "subprocessors": {
+      "title": "Liste des sous-traitants ultérieurs",
+      "lastUpdated": "Dernière mise à jour : {{date}}",
+      "intro": "MoneyFlow peut engager les sous-traitants ultérieurs suivants pour aider à fournir nos services. Tous les sous-traitants ultérieurs sont soumis à des obligations strictes de protection des données.",
+      "section1": {
+        "title": "1. Fournisseurs d'infrastructure cloud",
+        "aws": {
+          "name": "Amazon Web Services (AWS)",
+          "location": "UE (Francfort)",
+          "purpose": "Services d'hébergement cloud et d'infrastructure",
+          "safeguards": "Conformité RGPD AWS, Résidence de données UE"
+        },
+        "digitalocean": {
+          "name": "DigitalOcean",
+          "location": "UE (Amsterdam)",
+          "purpose": "Services d'hébergement cloud et de sauvegarde supplémentaires",
+          "safeguards": "Clauses Contractuelles Types, hébergement UE"
+        }
+      },
+      "section2": {
+        "title": "2. Processeurs de paiement",
+        "stripe": {
+          "name": "Stripe",
+          "location": "UE/US",
+          "purpose": "Traitement des paiements et gestion des abonnements",
+          "safeguards": "Conformité PCI DSS, Clauses Contractuelles Types"
+        },
+        "paypal": {
+          "name": "PayPal",
+          "location": "UE/US",
+          "purpose": "Traitement de paiement alternatif",
+          "safeguards": "Conformité PCI DSS, successeur Privacy Shield"
+        }
+      },
+      "section3": {
+        "title": "3. Services de communication",
+        "sendgrid": {
+          "name": "SendGrid (Twilio)",
+          "location": "UE/US",
+          "purpose": "Livraison d'e-mails transactionnels",
+          "safeguards": "Clauses Contractuelles Types, traitement UE"
+        },
+        "intercom": {
+          "name": "Intercom",
+          "location": "UE/US",
+          "purpose": "Support client et communication",
+          "safeguards": "Clauses Contractuelles Types, conformité RGPD"
+        }
+      },
+      "section4": {
+        "title": "4. Services d'analyse et de surveillance",
+        "googleanalytics": {
+          "name": "Google Analytics",
+          "location": "UE/US",
+          "purpose": "Analyse de site web et surveillance des performances",
+          "safeguards": "Google Analytics 4 avec traitement de données UE"
+        },
+        "sentry": {
+          "name": "Sentry",
+          "location": "UE/US",
+          "purpose": "Surveillance des erreurs et performances d'application",
+          "safeguards": "Clauses Contractuelles Types, anonymisation des données"
+        }
+      },
+      "section5": {
+        "title": "5. Services de sécurité",
+        "cloudflare": {
+          "name": "Cloudflare",
+          "location": "Global (nœuds UE)",
+          "purpose": "CDN, protection DDoS et services de sécurité",
+          "safeguards": "Localisation des données UE, Clauses Contractuelles Types"
+        }
+      },
+      "section6": {
+        "title": "6. Services de sauvegarde et d'archivage",
+        "backblaze": {
+          "name": "Backblaze",
+          "location": "UE",
+          "purpose": "Services de sauvegarde et d'archivage de données",
+          "safeguards": "Chiffrement au repos et en transit, hébergement UE"
+        }
+      },
+      "notifications": {
+        "title": "Notifications de changement de sous-traitants ultérieurs",
+        "content": "Nous fournirons un préavis de 30 jours pour tout nouveau sous-traitant ultérieur ou changement aux existants. Vous pouvez vous opposer à de tels changements, et si nous ne pouvons pas résoudre vos préoccupations, vous pouvez résilier votre accord avec nous."
+      },
+      "contact": {
+        "title": "Questions sur les sous-traitants ultérieurs",
+        "content": "Si vous avez des questions sur nos sous-traitants ultérieurs ou avez besoin d'informations supplémentaires sur les garanties de protection des données, veuillez nous contacter à privacy@moneyflow.com."
+      }
+    },
+    "common": {
+      "backToApp": "← Retour à l'app",
+      "effectiveDate": "Date d'entrée en vigueur",
+      "tableOfContents": "Table des matières",
+      "printPage": "Imprimer cette page",
+      "downloadPdf": "Télécharger PDF",
+      "lastUpdated": "Dernière mise à jour",
+      "contactUs": "Contactez-nous à",
+      "questionsContact": "Si vous avez des questions sur ces {{document}}, veuillez nous contacter à {{email}}.",
+      "documentType": {
+        "terms": "Conditions d'utilisation",
+        "privacy": "Politique de confidentialité",
+        "cookies": "Politique de cookies",
+        "dpa": "Accord de traitement des données",
+        "subprocessors": "Liste des sous-traitants ultérieurs"
+      },
+      "navigation": {
+        "terms": "Conditions",
+        "privacy": "Confidentialité",
+        "cookies": "Cookies",
+        "dpa": "DPA",
+        "subprocessors": "Sous-traitants"
+      }
+    }
+  },
+  "cookie": {
+    "banner": {
+      "title": "Préférences de cookies",
+      "description": "Ce site web utilise des cookies pour améliorer votre expérience. Vous pouvez choisir quels cookies autoriser.",
+      "acceptAll": "Tout accepter",
+      "rejectAll": "Tout rejeter",
+      "managePreferences": "Gérer les préférences",
+      "savePreferences": "Enregistrer les préférences",
+      "close": "Fermer"
+    },
+    "modal": {
+      "title": "Préférences de cookies",
+      "description": "Vous pouvez examiner les catégories de cookies et définir vos préférences. Lisez la description de chaque catégorie pour décider quels cookies autoriser.",
+      "necessary": {
+        "title": "Cookies nécessaires",
+        "description": "Ces cookies sont essentiels au bon fonctionnement du site web et ne peuvent pas être désactivés. Ils sont généralement définis en réponse à des actions comme la connexion ou le remplissage de formulaires.",
+        "alwaysActive": "Toujours actif"
+      },
+      "analytics": {
+        "title": "Cookies analytiques",
+        "description": "Ces cookies nous aident à comprendre comment le site web est utilisé. Ils collectent des informations sur les pages les plus visitées et comment les utilisateurs naviguent sur le site.",
+        "enabled": "Activé",
+        "disabled": "Désactivé"
+      },
+      "marketing": {
+        "title": "Cookies marketing",
+        "description": "Ces cookies sont utilisés pour vous montrer des publicités plus pertinentes. Ils peuvent aider nos partenaires publicitaires à créer un profil de vos intérêts.",
+        "enabled": "Activé",
+        "disabled": "Désactivé"
+      },
+      "acceptSelected": "Accepter la sélection",
+      "acceptAll": "Tout accepter",
+      "rejectAll": "Tout rejeter",
+      "cancel": "Annuler"
+    },
+    "notice": {
+      "updated": "Vos préférences de cookies ont été mises à jour.",
+      "saved": "Préférences de cookies enregistrées."
+    },
+    "categories": {
+      "necessary": "Nécessaires",
+      "analytics": "Analytiques",
+      "marketing": "Marketing"
+    }
   }
 }
 

@@ -13,12 +13,18 @@ import { TenantsModule } from '../tenants/tenants.module';
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'default-secret',
-        signOptions: {
-          expiresIn: '7d',
-        },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const jwtSecret = configService.get<string>('JWT_SECRET');
+        if (!jwtSecret || jwtSecret === 'default-secret') {
+          throw new Error('JWT_SECRET environment variable must be set with a secure key');
+        }
+        return {
+          secret: jwtSecret,
+          signOptions: {
+            expiresIn: '15m', // 15 dakika - daha güvenli
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     UsersModule,

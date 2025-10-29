@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authService, type AuthResponse } from '../api/auth';
-import { usersApi } from '../api/users';
+import { authService, AuthResponse } from '../api/auth';
+import { secureStorage } from '../utils/storage';
 
 interface User {
   id: string;
@@ -67,9 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Sonra backend'den güncel bilgiyi al
           try {
             console.log('🔄 Backend\'den güncel user bilgisi çekiliyor...');
-            const updatedUser = await usersApi.getProfile();
+            const updatedUser = await authService.getProfile();
             setUser(updatedUser);
-            localStorage.setItem('user', JSON.stringify(updatedUser));
+            await secureStorage.setJSON('user', updatedUser);
             console.log('✅ User bilgisi backend\'den güncellendi:', updatedUser);
           } catch (error) {
             console.error('⚠️ Backend\'den user yüklenemedi, localStorage kullanılıyor:', error);
@@ -178,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       console.log('🔄 Backend\'den güncel user bilgisi alınıyor...');
-      const updatedUser = await usersApi.getProfile();
+      const updatedUser = await authService.getProfile();
       
       console.log('✅ User bilgisi backend\'den güncellendi:', updatedUser);
       console.log('📝 Detay - firstName:', updatedUser.firstName, 'lastName:', updatedUser.lastName);

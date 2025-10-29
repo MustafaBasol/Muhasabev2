@@ -193,10 +193,11 @@
     "add": "Hinzufügen",
     "search": "Suchen",
     "close": "Schließen",
+    "backToHome": "Zurück zur Startseite",
     "yes": "Ja",
     "no": "Nein",
     "loading": "Laden...",
-        "error": "Erreur",
+    "error": "Fehler",
     "success": "Succès",
     "warning": "Warnung",
     "ok": "OK",
@@ -988,5 +989,363 @@
     "skuRequired": "SKU ist erforderlich",
     "validPriceRequired": "Bitte geben Sie einen gültigen Preis ein",
     "validStockRequired": "Bitte geben Sie eine gültige Lagermenge ein"
+  },
+  "legal": {
+    "terms": {
+      "title": "Allgemeine Geschäftsbedingungen",
+      "lastUpdated": "Zuletzt aktualisiert: {{date}}",
+      "section1": {
+        "title": "1. Service-Übersicht",
+        "content": "MoneyFlow ist eine cloudbasierte Vorbuchhaltungs-Software-Plattform, die Unternehmen dabei hilft, ihre Rechnungen, Ausgaben und finanziellen Operationen zu verwalten. Die Plattform bietet Multi-Währungsunterstützung, automatisierte MwSt-Berechnungen und integrierte Berichtstools."
+      },
+      "section2": {
+        "title": "2. Benutzerkonten und Registrierung",
+        "content": "Um MoneyFlow zu nutzen, müssen Sie ein Konto erstellen, indem Sie genaue und vollständige Informationen bereitstellen. Sie sind verantwortlich für die Vertraulichkeit Ihrer Kontoanmeldedaten und für alle Aktivitäten, die unter Ihrem Konto stattfinden."
+      },
+      "section3": {
+        "title": "3. Akzeptable Nutzung",
+        "content": "Sie stimmen zu, MoneyFlow nur für rechtmäßige Zwecke und in Übereinstimmung mit diesen Bedingungen zu verwenden. Sie dürfen den Service nicht für illegale Aktivitäten, Verletzung von Urheberrechten oder Störung der Plattformfunktionalität verwenden."
+      },
+      "section4": {
+        "title": "4. Dateneigentum und Datenschutz",
+        "content": "Sie behalten das Eigentum an allen Daten, die Sie in MoneyFlow eingeben. Wir verarbeiten Ihre Daten in Übereinstimmung mit unserer Datenschutzrichtlinie und geltenden Datenschutzgesetzen, einschließlich GDPR. Wir implementieren angemessene Sicherheitsmaßnahmen zum Schutz Ihrer Informationen."
+      },
+      "section5": {
+        "title": "5. Service-Verfügbarkeit",
+        "content": "Während wir uns bemühen, 99,9% Betriebszeit aufrechtzuerhalten, kann MoneyFlow gelegentlich Service-Unterbrechungen für Wartung, Updates oder unvorhergesehene technische Probleme erleben. Wir werden im Voraus über geplante Wartungsarbeiten informieren, wann immer möglich."
+      },
+      "section6": {
+        "title": "6. Abonnement und Abrechnung",
+        "content": "MoneyFlow bietet verschiedene Abonnementpläne mit unterschiedlichen Funktionen und Nutzungslimits. Die Abrechnung wird automatisch entsprechend Ihrem gewählten Plan verarbeitet. Sie können Ihr Abonnement jederzeit upgraden, downgraden oder kündigen."
+      },
+      "section7": {
+        "title": "7. Datensicherung und Export",
+        "content": "Wir führen regelmäßige automatisierte Backups Ihrer Daten durch. Sie können Ihre Daten jederzeit in Standardformaten exportieren. Bei Kontokündigung behalten wir Ihre Daten 90 Tage lang, bevor sie dauerhaft gelöscht werden, es sei denn, das Gesetz verlangt etwas anderes."
+      },
+      "section8": {
+        "title": "8. Haftungsbeschränkung",
+        "content": "MoneyFlows Haftung ist auf den Betrag beschränkt, den Sie für den Service in den 12 Monaten vor einem Anspruch bezahlt haben. Wir haften nicht für indirekte, zufällige oder Folgeschäden."
+      },
+      "section9": {
+        "title": "9. Geistiges Eigentum",
+        "content": "Die MoneyFlow-Plattform, einschließlich ihrer Software, ihres Designs und ihrer Inhalte, ist durch Gesetze zum geistigen Eigentum geschützt. Ihnen wird eine begrenzte Lizenz zur Nutzung des Services gemäß diesen Bedingungen gewährt."
+      },
+      "section10": {
+        "title": "10. Kündigung",
+        "content": "Jede Partei kann diese Vereinbarung jederzeit kündigen. Bei Kündigung wird Ihr Zugang zum Service eingestellt und wir werden Ihre Daten gemäß unserer Datenaufbewahrungsrichtlinie löschen."
+      },
+      "section11": {
+        "title": "11. Geltendes Recht",
+        "content": "Diese Bedingungen unterliegen den Gesetzen der Europäischen Union und der Gerichtsbarkeit, wo MoneyFlow tätig ist. Alle Streitigkeiten werden durch verbindliche Schiedsverfahren gelöst."
+      },
+      "section12": {
+        "title": "12. Änderungen der Bedingungen",
+        "content": "Wir können diese Bedingungen von Zeit zu Zeit aktualisieren. Wir werden Sie über wichtige Änderungen per E-Mail oder über die Plattform benachrichtigen. Die fortgesetzte Nutzung von MoneyFlow nach Änderungen stellt die Annahme der neuen Bedingungen dar."
+      }
+    },
+    "privacy": {
+      "title": "Datenschutzrichtlinie",
+      "lastUpdated": "Zuletzt aktualisiert: {{date}}",
+      "section1": {
+        "title": "1. Informationen, die wir sammeln",
+        "content": "Wir sammeln Informationen, die Sie direkt bereitstellen (Kontodetails, Finanzdaten), automatisch gesammelte Informationen (Nutzungsdaten, IP-Adressen) und Informationen von Dritten (Zahlungsabwickler, Integrationen)."
+      },
+      "section2": {
+        "title": "2. Wie wir Ihre Informationen verwenden",
+        "content": "Wir verwenden Ihre Informationen, um unsere Services bereitzustellen und zu verbessern, Zahlungen zu verarbeiten, mit Ihnen zu kommunizieren, Sicherheit zu gewährleisten und rechtliche Verpflichtungen zu erfüllen."
+      },
+      "section3": {
+        "title": "3. Informationsaustausch",
+        "content": "Wir verkaufen oder vermieten Ihre persönlichen Informationen nicht. Wir können Informationen mit Serviceanbietern teilen, für rechtliche Compliance oder mit Ihrer ausdrücklichen Zustimmung."
+      },
+      "section4": {
+        "title": "4. Datensicherheit",
+        "content": "Wir implementieren branchenübliche Sicherheitsmaßnahmen einschließlich Verschlüsselung bei Übertragung und Speicherung, regelmäßige Sicherheitsaudits, Zugriffskontrollen und sichere Rechenzentren."
+      },
+      "section5": {
+        "title": "5. Ihre Rechte (GDPR)",
+        "content": "Unter GDPR haben Sie Rechte auf Zugang, Berichtigung, Löschung, Beschränkung der Verarbeitung, Datenportabilität und Widerspruch gegen die Verarbeitung Ihrer persönlichen Daten. Sie können auch die Einwilligung widerrufen und Beschwerden bei Aufsichtsbehörden einreichen."
+      },
+      "section6": {
+        "title": "6. Datenaufbewahrung",
+        "content": "Wir bewahren Ihre Daten so lange auf, wie Ihr Konto aktiv ist und für einen angemessenen Zeitraum danach für rechtliche und geschäftliche Zwecke. Sie können jederzeit die Löschung von Daten anfordern."
+      },
+      "section7": {
+        "title": "7. Internationale Übertragungen",
+        "content": "Ihre Daten werden hauptsächlich innerhalb der EU verarbeitet. Alle internationalen Übertragungen sind durch angemessene Schutzmaßnahmen wie Standardvertragsklauseln geschützt."
+      },
+      "section8": {
+        "title": "8. Cookies und Tracking",
+        "content": "Wir verwenden Cookies und ähnliche Technologien für Authentifizierung, Einstellungen, Analytik und Sicherheit. Sie können Cookie-Einstellungen über Ihren Browser steuern."
+      },
+      "section9": {
+        "title": "9. Drittanbieter-Services",
+        "content": "Unsere Plattform kann mit Drittanbieter-Services integriert werden. Ihre Datenschutzpraktiken unterliegen ihren eigenen Datenschutzrichtlinien, die wir Ihnen empfehlen zu überprüfen."
+      },
+      "section10": {
+        "title": "10. Datenschutz für Kinder",
+        "content": "MoneyFlow ist nicht für Nutzer unter 18 Jahren bestimmt. Wir sammeln wissentlich keine persönlichen Informationen von Kindern unter 18 Jahren."
+      },
+      "section11": {
+        "title": "11. Kontaktinformationen",
+        "content": "Für datenschutzbezogene Fragen oder zur Ausübung Ihrer Rechte kontaktieren Sie unseren Datenschutzbeauftragten unter privacy@moneyflow.com oder über unser Support-Portal."
+      }
+    },
+    "cookies": {
+      "title": "Cookie-Richtlinie",
+      "lastUpdated": "Zuletzt aktualisiert: {{date}}",
+      "section1": {
+        "title": "1. Was sind Cookies",
+        "content": "Cookies sind kleine Textdateien, die auf Ihrem Gerät gespeichert werden, wenn Sie unsere Website besuchen. Sie helfen uns, Ihnen ein besseres Erlebnis zu bieten, indem sie sich an Ihre Präferenzen erinnern und die Website-Nutzung analysieren."
+      },
+      "section2": {
+        "title": "2. Arten von Cookies, die wir verwenden",
+        "content": "Wir verwenden essenzielle Cookies (notwendig für grundlegende Funktionalität), funktionale Cookies (erinnern sich an Präferenzen), Analytik-Cookies (verstehen Nutzungsmuster) und Sicherheits-Cookies (Schutz vor Bedrohungen)."
+      },
+      "section3": {
+        "title": "3. Essenzielle Cookies",
+        "content": "Diese Cookies sind notwendig, damit die Website ordnungsgemäß funktioniert. Sie ermöglichen Kernfunktionalitäten wie Benutzerauthentifizierung, Sitzungsverwaltung und Sicherheitsfeatures. Diese können nicht deaktiviert werden."
+      },
+      "section4": {
+        "title": "4. Funktionale Cookies",
+        "content": "Diese Cookies erinnern sich an Ihre Präferenzen und Auswahlen, um erweiterte Funktionalität zu bieten, wie Sprachauswahl, Zeitzoneneinstellungen und Benutzeroberflächen-Anpassungen."
+      },
+      "section5": {
+        "title": "5. Analytik-Cookies",
+        "content": "Wir verwenden Analytik-Cookies, um zu verstehen, wie Besucher mit unserer Website interagieren. Dies hilft uns, unsere Services und Benutzererfahrung zu verbessern. Alle Analytikdaten werden aggregiert und anonymisiert."
+      },
+      "section6": {
+        "title": "6. Drittanbieter-Cookies",
+        "content": "Einige Cookies werden von Drittanbieter-Services gesetzt, die wir verwenden, wie Analytik-Anbieter oder Zahlungsabwickler. Diese unterliegen den jeweiligen Datenschutzrichtlinien der Drittanbieter."
+      },
+      "section7": {
+        "title": "7. Cookie-Dauer",
+        "content": "Sitzungs-Cookies werden gelöscht, wenn Sie Ihren Browser schließen. Dauerhafte Cookies bleiben für einen festgelegten Zeitraum auf Ihrem Gerät oder bis Sie sie manuell löschen."
+      },
+      "section8": {
+        "title": "8. Cookies verwalten",
+        "content": "Sie können Cookies über Ihre Browser-Einstellungen steuern und verwalten. Sie können bestehende Cookies löschen und Ihren Browser so einstellen, dass er Cookies akzeptiert oder ablehnt. Beachten Sie, dass das Deaktivieren von Cookies die Website-Funktionalität beeinträchtigen kann."
+      },
+      "section9": {
+        "title": "9. Cookie-Zustimmung",
+        "content": "Durch die Nutzung unserer Website stimmen Sie der Verwendung von Cookies zu, wie in dieser Richtlinie beschrieben. Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie Ihre Browser-Einstellungen anpassen."
+      },
+      "section10": {
+        "title": "10. Aktualisierungen der Cookie-Richtlinie",
+        "content": "Wir können diese Cookie-Richtlinie von Zeit zu Zeit aktualisieren. Wir werden Sie über wichtige Änderungen benachrichtigen, indem wir die aktualisierte Richtlinie mit einem neuen Gültigkeitsdatum auf unserer Website veröffentlichen."
+      }
+    },
+    "dpa": {
+      "title": "Datenverarbeitungsvereinbarung (DPA)",
+      "lastUpdated": "Zuletzt aktualisiert: {{date}}",
+      "section1": {
+        "title": "1. Definitionen und Geltungsbereich",
+        "content": "Diese Datenverarbeitungsvereinbarung (\"DPA\") ist Teil der Nutzungsbedingungen zwischen Ihnen (\"Verantwortlicher\") und MoneyFlow (\"Auftragsverarbeiter\"). Sie regelt die Verarbeitung personenbezogener Daten in Übereinstimmung mit GDPR und anderen anwendbaren Datenschutzgesetzen."
+      },
+      "section2": {
+        "title": "2. Einzelheiten der Datenverarbeitung",
+        "content": "MoneyFlow verarbeitet personenbezogene Daten nur auf dokumentierte Anweisungen des Verantwortlichen, für die Zwecke der Bereitstellung der Buchhaltungssoftware-Services und in Übereinstimmung mit geltenden Datenschutzgesetzen."
+      },
+      "section3": {
+        "title": "3. Datenkategorien",
+        "content": "Wir verarbeiten die folgenden Kategorien personenbezogener Daten: Kontaktinformationen (Namen, Adressen, E-Mails), Finanzdaten (Rechnungen, Zahlungen, Transaktionen), Benutzerkontodaten (Anmeldedaten, Präferenzen) und Nutzungsdaten (Zugriffsprotokolle, Analytik)."
+      },
+      "section4": {
+        "title": "4. Rechte der betroffenen Personen",
+        "content": "MoneyFlow unterstützt den Verantwortlichen bei der Erfüllung von Anträgen betroffener Personen, einschließlich Zugang, Berichtigung, Löschung, Einschränkung, Portabilität und Widerspruch. Wir stellen notwendige Tools und Kooperation zur Verfügung, um Compliance zu ermöglichen."
+      },
+      "section5": {
+        "title": "5. Sicherheitsmaßnahmen",
+        "content": "Wir implementieren angemessene technische und organisatorische Maßnahmen zur Gewährleistung der Datensicherheit, einschließlich Verschlüsselung, Zugriffskontrollen, regelmäßige Sicherheitsbewertungen, Mitarbeiterschulungen und Incident-Response-Verfahren."
+      },
+      "section6": {
+        "title": "6. Unterauftragsverarbeiter",
+        "content": "MoneyFlow kann Unterauftragsverarbeiter einsetzen, um bei der Bereitstellung von Services zu helfen. Alle Unterauftragsverarbeiter unterliegen Datenschutzverpflichtungen, die denen in dieser DPA entsprechen. Eine aktuelle Liste der Unterauftragsverarbeiter ist auf Anfrage verfügbar."
+      },
+      "section7": {
+        "title": "7. Datenübertragungen",
+        "content": "Personenbezogene Daten werden hauptsächlich innerhalb der EU/EWR verarbeitet. Alle Übertragungen in Drittländer sind durch angemessene Schutzmaßnahmen wie Standardvertragsklauseln oder Angemessenheitsbeschlüsse geschützt."
+      },
+      "section8": {
+        "title": "8. Benachrichtigung bei Datenschutzverletzungen",
+        "content": "MoneyFlow wird den Verantwortlichen über alle Verletzungen des Schutzes personenbezogener Daten unverzüglich und binnen 72 Stunden nach Bekanntwerden der Verletzung benachrichtigen und alle relevanten Informationen für die Beurteilung und Meldepflichten bereitstellen."
+      },
+      "section9": {
+        "title": "9. Datenschutz-Folgenabschätzung",
+        "content": "Auf Anfrage wird MoneyFlow angemessene Unterstützung beim Verantwortlichen bei der Durchführung von Datenschutz-Folgenabschätzungen (DSFA) und vorherigen Konsultationen mit Aufsichtsbehörden leisten."
+      },
+      "section10": {
+        "title": "10. Prüfung und Compliance",
+        "content": "MoneyFlow führt Aufzeichnungen über Verarbeitungstätigkeiten und stellt dem Verantwortlichen Informationen zur Verfügung, die notwendig sind, um die Einhaltung von Datenschutzverpflichtungen zu demonstrieren, einschließlich Prüfungsrechten vorbehaltlich Vertraulichkeitsverpflichtungen."
+      },
+      "section11": {
+        "title": "11. Datenrückgabe und Löschung",
+        "content": "Bei Beendigung der Services wird MoneyFlow nach Wahl des Verantwortlichen alle personenbezogenen Daten und bestehende Kopien zurückgeben oder löschen, es sei denn, die Aufbewahrung ist nach geltendem Recht erforderlich."
+      },
+      "section12": {
+        "title": "12. Haftung und Entschädigung",
+        "content": "Die Haftung jeder Partei ist auf Schäden beschränkt, die direkt durch ihre Verletzung dieser DPA verursacht wurden. MoneyFlow wird den Verantwortlichen gegen Ansprüche entschädigen, die aus MoneyFlows Verletzung seiner Datenschutzverpflichtungen resultieren."
+      }
+    },
+    "subprocessors": {
+      "title": "Liste der Unterauftragsverarbeiter",
+      "lastUpdated": "Zuletzt aktualisiert: {{date}}",
+      "intro": "MoneyFlow kann die folgenden Unterauftragsverarbeiter einsetzen, um bei der Bereitstellung unserer Services zu helfen. Alle Unterauftragsverarbeiter unterliegen strengen Datenschutzverpflichtungen.",
+      "section1": {
+        "title": "1. Cloud-Infrastruktur-Anbieter",
+        "aws": {
+          "name": "Amazon Web Services (AWS)",
+          "location": "EU (Frankfurt)",
+          "purpose": "Cloud-Hosting und Infrastrukturdienste",
+          "safeguards": "AWS GDPR-Compliance, EU-Datenresidenz"
+        },
+        "digitalocean": {
+          "name": "DigitalOcean",
+          "location": "EU (Amsterdam)",
+          "purpose": "Zusätzliche Cloud-Hosting und Backup-Services",
+          "safeguards": "Standardvertragsklauseln, EU-Hosting"
+        }
+      },
+      "section2": {
+        "title": "2. Zahlungsabwickler",
+        "stripe": {
+          "name": "Stripe",
+          "location": "EU/US",
+          "purpose": "Zahlungsabwicklung und Abonnementverwaltung",
+          "safeguards": "PCI DSS-Compliance, Standardvertragsklauseln"
+        },
+        "paypal": {
+          "name": "PayPal",
+          "location": "EU/US",
+          "purpose": "Alternative Zahlungsabwicklung",
+          "safeguards": "PCI DSS-Compliance, Privacy Shield-Nachfolger"
+        }
+      },
+      "section3": {
+        "title": "3. Kommunikationsdienste",
+        "sendgrid": {
+          "name": "SendGrid (Twilio)",
+          "location": "EU/US",
+          "purpose": "Transaktions-E-Mail-Zustellung",
+          "safeguards": "Standardvertragsklauseln, EU-Verarbeitung"
+        },
+        "intercom": {
+          "name": "Intercom",
+          "location": "EU/US",
+          "purpose": "Kundensupport und Kommunikation",
+          "safeguards": "Standardvertragsklauseln, GDPR-Compliance"
+        }
+      },
+      "section4": {
+        "title": "4. Analytik und Überwachung",
+        "googleanalytics": {
+          "name": "Google Analytics",
+          "location": "EU/US",
+          "purpose": "Website-Analytik und Leistungsüberwachung",
+          "safeguards": "Google Analytics 4 mit EU-Datenverarbeitung"
+        },
+        "sentry": {
+          "name": "Sentry",
+          "location": "EU/US",
+          "purpose": "Fehlerüberwachung und Anwendungsleistung",
+          "safeguards": "Standardvertragsklauseln, Datenanonymisierung"
+        }
+      },
+      "section5": {
+        "title": "5. Sicherheitsdienste",
+        "cloudflare": {
+          "name": "Cloudflare",
+          "location": "Global (EU-Knoten)",
+          "purpose": "CDN, DDoS-Schutz und Sicherheitsdienste",
+          "safeguards": "EU-Datenlokalisierung, Standardvertragsklauseln"
+        }
+      },
+      "section6": {
+        "title": "6. Backup- und Archivdienste",
+        "backblaze": {
+          "name": "Backblaze",
+          "location": "EU",
+          "purpose": "Datensicherung und Archivierungsdienste",
+          "safeguards": "Verschlüsselung in Ruhe und bei Übertragung, EU-Hosting"
+        }
+      },
+      "notifications": {
+        "title": "Benachrichtigungen über Änderungen bei Unterauftragsverarbeitern",
+        "content": "Wir werden 30 Tage im Voraus über neue Unterauftragsverarbeiter oder Änderungen bei bestehenden informieren. Sie können gegen solche Änderungen Einspruch erheben, und falls wir Ihre Bedenken nicht lösen können, können Sie Ihre Vereinbarung mit uns kündigen."
+      },
+      "contact": {
+        "title": "Fragen zu Unterauftragsverarbeitern",
+        "content": "Wenn Sie Fragen zu unseren Unterauftragsverarbeitern haben oder zusätzliche Informationen über Datenschutzschutzmaßnahmen benötigen, kontaktieren Sie uns bitte unter privacy@moneyflow.com."
+      }
+    },
+    "common": {
+      "backToApp": "← Zurück zur App",
+      "effectiveDate": "Gültigkeitsdatum",
+      "tableOfContents": "Inhaltsverzeichnis",
+      "printPage": "Diese Seite drucken",
+      "downloadPdf": "PDF herunterladen",
+      "lastUpdated": "Zuletzt aktualisiert",
+      "contactUs": "Kontaktieren Sie uns unter",
+      "questionsContact": "Wenn Sie Fragen zu diesen {{document}} haben, kontaktieren Sie uns bitte unter {{email}}.",
+      "documentType": {
+        "terms": "Allgemeine Geschäftsbedingungen",
+        "privacy": "Datenschutzrichtlinie",
+        "cookies": "Cookie-Richtlinie",
+        "dpa": "Datenverarbeitungsvereinbarung",
+        "subprocessors": "Unterauftragsverarbeiter-Liste"
+      },
+      "navigation": {
+        "terms": "AGB",
+        "privacy": "Datenschutz",
+        "cookies": "Cookies",
+        "dpa": "DPA",
+        "subprocessors": "Unterauftragsverarbeiter"
+      }
+    }
+  },
+  "cookie": {
+    "banner": {
+      "title": "Cookie-Einstellungen",
+      "description": "Diese Website verwendet Cookies, um Ihre Erfahrung zu verbessern. Sie können wählen, welche Cookies zugelassen werden sollen.",
+      "acceptAll": "Alle akzeptieren",
+      "rejectAll": "Alle ablehnen",
+      "managePreferences": "Einstellungen verwalten",
+      "savePreferences": "Einstellungen speichern",
+      "close": "Schließen"
+    },
+    "modal": {
+      "title": "Cookie-Einstellungen",
+      "description": "Sie können Cookie-Kategorien überprüfen und Ihre Präferenzen festlegen. Lesen Sie die Beschreibung jeder Kategorie, um zu entscheiden, welche Cookies zugelassen werden sollen.",
+      "necessary": {
+        "title": "Notwendige Cookies",
+        "description": "Diese Cookies sind für das ordnungsgemäße Funktionieren der Website unerlässlich und können nicht deaktiviert werden. Sie werden normalerweise als Reaktion auf Aktionen wie Anmelden oder Ausfüllen von Formularen gesetzt.",
+        "alwaysActive": "Immer aktiv"
+      },
+      "analytics": {
+        "title": "Analyse-Cookies",
+        "description": "Diese Cookies helfen uns zu verstehen, wie die Website genutzt wird. Sie sammeln Informationen darüber, welche Seiten am häufigsten besucht werden und wie Benutzer auf der Website navigieren.",
+        "enabled": "Aktiviert",
+        "disabled": "Deaktiviert"
+      },
+      "marketing": {
+        "title": "Marketing-Cookies",
+        "description": "Diese Cookies werden verwendet, um Ihnen relevantere Anzeigen zu zeigen. Sie können unseren Werbepartnern helfen, ein Profil Ihrer Interessen zu erstellen.",
+        "enabled": "Aktiviert",
+        "disabled": "Deaktiviert"
+      },
+      "acceptSelected": "Ausgewählte akzeptieren",
+      "acceptAll": "Alle akzeptieren",
+      "rejectAll": "Alle ablehnen",
+      "cancel": "Abbrechen"
+    },
+    "notice": {
+      "updated": "Ihre Cookie-Einstellungen wurden aktualisiert.",
+      "saved": "Cookie-Einstellungen gespeichert."
+    },
+    "categories": {
+      "necessary": "Notwendig",
+      "analytics": "Analyse",
+      "marketing": "Marketing"
+    }
   }
 }

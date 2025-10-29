@@ -194,6 +194,7 @@
     "add": "Ekle",
     "search": "Ara",
     "close": "Kapat",
+    "backToHome": "Anasayfaya Dön",
     "yes": "Evet",
     "no": "Hayır",
     "loading": "Yükleniyor...",
@@ -988,6 +989,466 @@
     "info": {
       "title": "Arşiv Hakkında",
       "description": "Arşiv sayfası tamamlanmış işlemlerinizi saklar. Ödenmiş faturalar, onaylanmış giderler ve tamamlanmış satışlar otomatik olarak burada listelenir. Bu kayıtlar salt okunur ve geçmiş analiz ve denetim amaçları için kullanılabilir."
+    }
+  },
+  "legal": {
+    "backToApp": "Uygulamaya Geri Dön",
+    "contact": {
+      "title": "İletişim Bilgileri",
+      "email": "E-posta",
+      "address": "Adres",
+      "addressValue": "Comptario GmbH, Musterstrasse 123, 10115 Berlin, Deutschland",
+      "company": "Şirket",
+      "companyValue": "Comptario GmbH"
+    },
+    "terms": {
+      "title": "Kullanım Şartları",
+      "subtitle": "Comptario hizmetlerini kullanırken uymanız gereken şartlar ve koşullar",
+      "lastUpdated": "Son güncelleme: 29 Ekim 2025",
+      "sections": {
+        "acceptance": {
+          "title": "Şartların Kabulü",
+          "content": "Bu hizmeti kullanarak, bu kullanım şartlarını kabul etmiş sayılırsınız. Bu şartları kabul etmiyorsanız, lütfen hizmeti kullanmayın."
+        },
+        "service": {
+          "title": "Hizmet Açıklaması",
+          "content": "Comptario, işletmeler için muhasebe ve finansal yönetim çözümleri sunan bir SaaS platformudur. Hizmetimiz şunları içerir:",
+          "features": {
+            "invoicing": "Fatura oluşturma ve yönetimi",
+            "expenses": "Gider takibi ve kategorilendirme",
+            "reporting": "Finansal raporlar ve analizler",
+            "multiTenant": "Çok kiracılı güvenli veri saklama"
+          }
+        },
+        "responsibilities": {
+          "title": "Kullanıcı Sorumlulukları",
+          "content": "Hizmeti kullanırken aşağıdaki sorumluluklarınız bulunmaktadır:",
+          "items": {
+            "accuracy": "Girdiğiniz verilerin doğruluğunu sağlamak",
+            "compliance": "Yerel yasalara ve düzenlemelere uymak",
+            "security": "Hesap güvenliğinizi korumak",
+            "backups": "Önemli verilerinizi yedeklemek"
+          }
+        },
+        "dataProtection": {
+          "title": "Veri Koruma",
+          "content": "Verilerinizin güvenliği ve gizliliği bizim için önceliklidir. GDPR ve diğer veri koruma düzenlemelerine tam uyum sağlıyoruz."
+        },
+        "liability": {
+          "title": "Sorumluluk Sınırları",
+          "content": "Hizmetimizi olduğu gibi sunuyoruz. Dolaylı zararlar için sorumlu değiliz. Toplam sorumluluğumuz ödenen ücretle sınırlıdır."
+        },
+        "termination": {
+          "title": "Hizmet Sonlandırma",
+          "content": "Bu anlaşmayı istediğiniz zaman sonlandırabilirsiniz. Hesabınızı kapattığınızda verileriniz güvenli şekilde silinir."
+        },
+        "changes": {
+          "title": "Şartlarda Değişiklik",
+          "content": "Bu şartları zaman zaman güncelleyebiliriz. Önemli değişiklikler için size bildirimde bulunacağız."
+        }
+      }
+    },
+    "privacy": {
+      "title": "Gizlilik Politikası",
+      "subtitle": "Kişisel verilerinizi nasıl topladığımız, kullandığımız ve koruduğumuz hakkında",
+      "sections": {
+        "introduction": {
+          "title": "Giriş",
+          "content": "Bu gizlilik politikası, Comptario olarak kişisel verilerinizi nasıl işlediğimizi açıklar. GDPR'ye tam uyum sağlıyoruz."
+        },
+        "dataCollection": {
+          "title": "Topladığımız Veriler",
+          "personal": {
+            "title": "Kişisel Bilgiler",
+            "name": "Ad ve soyadınız",
+            "email": "E-posta adresiniz",
+            "company": "Şirket bilgileriniz",
+            "phone": "Telefon numaranız (isteğe bağlı)"
+          },
+          "business": {
+            "title": "İş Verileri",
+            "invoices": "Fatura ve müşteri bilgileri",
+            "expenses": "Gider kayıtları",
+            "customers": "Müşteri veritabanı",
+            "financial": "Finansal işlem verileri"
+          },
+          "technical": {
+            "title": "Teknik Veriler",
+            "ip": "IP adresi ve konum bilgisi",
+            "browser": "Tarayıcı ve cihaz bilgisi",
+            "usage": "Hizmet kullanım istatistikleri",
+            "cookies": "Çerezler ve benzeri teknolojiler"
+          }
+        },
+        "dataUse": {
+          "title": "Verileri Nasıl Kullanıyoruz",
+          "service": "Hizmet sunumu ve hesap yönetimi",
+          "support": "Müşteri desteği ve teknik yardım",
+          "improvements": "Hizmet geliştirme ve optimizasyon",
+          "compliance": "Yasal yükümlülüklerin yerine getirilmesi",
+          "communications": "Önemli bildirimlerin gönderilmesi"
+        },
+        "legalBasis": {
+          "title": "Hukuki Dayanak (GDPR)",
+          "gdprNote": "GDPR Madde 6 uyarınca veri işleme dayanaklarımız:",
+          "contract": {
+            "title": "Sözleşme",
+            "desc": "Hizmet sunumu için gerekli işlemler"
+          },
+          "legitimate": {
+            "title": "Meşru Menfaat",
+            "desc": "Hizmet geliştirme ve güvenlik"
+          },
+          "consent": {
+            "title": "Rıza",
+            "desc": "Pazarlama ve isteğe bağlı özellikler"
+          },
+          "legal": {
+            "title": "Yasal Yükümlülük",
+            "desc": "Vergi ve muhasebe kayıtları"
+          }
+        },
+        "security": {
+          "title": "Veri Güvenliği",
+          "content": "Verilerinizi korumak için en ileri güvenlik önlemlerini kullanıyoruz:",
+          "measures": {
+            "encryption": "AES-256 şifreleme (aktarım ve depolama)",
+            "access": "Çok faktörlü kimlik doğrulama",
+            "monitoring": "7/24 güvenlik izleme",
+            "backups": "Şifrelenmiş otomatik yedeklemeler",
+            "incident": "Olay müdahale prosedürleri"
+          }
+        },
+        "rights": {
+          "title": "GDPR Haklarınız",
+          "access": {
+            "title": "Erişim Hakkı",
+            "desc": "Hangi verilerimizi işlediğimizi öğrenebilirsiniz"
+          },
+          "rectification": {
+            "title": "Düzeltme Hakkı",
+            "desc": "Yanlış verilerin düzeltilmesini isteyebilirsiniz"
+          },
+          "erasure": {
+            "title": "Silme Hakkı",
+            "desc": "Verilerinizin silinmesini talep edebilirsiniz"
+          },
+          "portability": {
+            "title": "Taşınabilirlik Hakkı",
+            "desc": "Verilerinizi başka platformlara aktarabilirsiniz"
+          },
+          "objection": {
+            "title": "İtiraz Hakkı",
+            "desc": "Belirli işlemlere itiraz edebilirsiniz"
+          }
+        },
+        "retention": {
+          "title": "Veri Saklama",
+          "content": "Verilerinizi yasal gereklilikler ve iş ihtiyaçları doğrultusunda saklarız. Hesabınızı kapattığınızda, verileriniz 30 gün içinde güvenli şekilde silinir."
+        },
+        "transfers": {
+          "title": "Uluslararası Veri Transferleri",
+          "content": "Verileriniz öncelikle AB içinde işlenir. AB dışına transfer gerektiğinde, uygun güvenceler (SCC, Adequacy Decision) kullanılır."
+        },
+        "contact": {
+          "title": "İletişim",
+          "dpo": "Veri Koruma Sorumlusu",
+          "email": "Gizlilik E-postası",
+          "address": "Posta Adresi"
+        }
+      }
+    },
+    "cookies": {
+      "title": "Çerez Politikası",
+      "subtitle": "Web sitemizde çerezleri nasıl kullandığımız ve tercihlerinizi nasıl yönetebileceğiniz",
+      "required": "Gerekli",
+      "preferences": {
+        "title": "Çerez Tercihleri",
+        "saved": "Çerez tercihleri kaydedildi!",
+        "acceptAll": "Tümünü Kabul Et",
+        "rejectAll": "Tümünü Reddet",
+        "savePreferences": "Tercihleri Kaydet"
+      },
+      "types": {
+        "necessary": {
+          "title": "Gerekli Çerezler",
+          "description": "Bu çerezler web sitesinin düzgün çalışması için gereklidir ve devre dışı bırakılamaz.",
+          "examples": "Oturum ID, güvenlik token'ları, dil tercihi"
+        },
+        "analytics": {
+          "title": "Analitik Çerezler",
+          "description": "Web sitesinin nasıl kullanıldığını anlamamıza yardımcı olur ve performansı iyileştirmemizi sağlar.",
+          "examples": "Google Analytics, sayfa görüntüleme istatistikleri"
+        },
+        "marketing": {
+          "title": "Pazarlama Çerezleri",
+          "description": "Size daha alakalı reklamlar göstermek için kullanılır.",
+          "examples": "Facebook Pixel, Google Ads çerezleri"
+        },
+        "preferences": {
+          "title": "Tercih Çerezleri",
+          "description": "Web sitesinin davranışını ve görünümünü tercihlerinize göre hatırlar.",
+          "examples": "Dil seçimi, tema tercihi, bölge ayarları"
+        }
+      },
+      "sections": {
+        "whatAre": {
+          "title": "Çerezler Nedir?",
+          "content": "Çerezler, web sitesini ziyaret ettiğinizde tarayıcınıza kaydedilen küçük metin dosyalarıdır. Web sitesinin sizi tanımasını ve tercihlerinizi hatırlamasını sağlar."
+        },
+        "howWeUse": {
+          "title": "Çerezleri Nasıl Kullanıyoruz?",
+          "content": "Çerezleri web sitesinin işlevselliğini sağlamak, güvenliği artırmak ve kullanıcı deneyimini iyileştirmek için kullanıyoruz."
+        },
+        "thirdParty": {
+          "title": "Üçüncü Taraf Çerezleri",
+          "content": "Bazı çerezler, web sitemizdeki hizmetleri sağlayan üçüncü taraf şirketler tarafından ayarlanır:",
+          "partners": {
+            "title": "İş Ortaklarımız",
+            "analytics": "Web sitesi analitikleri",
+            "payments": "Ödeme işlemleri",
+            "support": "Müşteri desteği"
+          }
+        },
+        "managing": {
+          "title": "Çerezleri Yönetme",
+          "content": "Çerez tercihlerinizi yukarıdaki panel üzerinden yönetebilir veya tarayıcı ayarlarınızdan değiştirebilirsiniz:",
+          "browsers": {
+            "chrome": "Ayarlar > Gizlilik ve güvenlik > Çerezler",
+            "firefox": "Seçenekler > Gizlilik ve Güvenlik > Çerezler",
+            "safari": "Tercihler > Gizlilik > Çerezleri yönet",
+            "edge": "Ayarlar > Site izinleri > Çerezler"
+          }
+        }
+      },
+      "contact": {
+        "title": "İletişim",
+        "email": "E-posta",
+        "cmp": "Onay Yönetim Platformu",
+        "cmpNote": "Bu sayfa basit bir onay yönetim arayüzü sağlar"
+      }
+    },
+    "dpa": {
+      "title": "Veri İşleme Sözleşmesi",
+      "subtitle": "GDPR Madde 28 uyarınca veri işleme koşulları ve güvenceleri",
+      "download": "DPA'yı İndir",
+      "acceptance": {
+        "title": "DPA Kabulü",
+        "description": "İşletme verilerini Comptario'da saklamak için bu Veri İşleme Sözleşmesi'ni kabul etmeniz gerekmektedir.",
+        "checkbox": "Veri İşleme Sözleşmesi'ni okudum ve kabul ediyorum",
+        "button": "DPA'yı Kabul Et",
+        "confirmed": "DPA başarıyla kabul edildi ve kaydedildi!",
+        "status": {
+          "accepted": "DPA Kabul Edildi",
+          "date": "Kabul Tarihi"
+        }
+      },
+      "sections": {
+        "introduction": {
+          "title": "Giriş",
+          "content": "Bu Veri İşleme Sözleşmesi (DPA), GDPR Madde 28 gereklilikleri uyarınca, Comptario ile müşteriler arasındaki veri işleme ilişkisini düzenler.",
+          "note": {
+            "title": "Önemli Not",
+            "content": "Bu sözleşme, müşterinin veri sorumlusu, Comptario'nun ise veri işleyicisi olduğu durumları kapsar."
+          }
+        },
+        "definitions": {
+          "title": "Tanımlar",
+          "controller": {
+            "title": "Veri Sorumlusu",
+            "desc": "Kişisel verilerin işlenme amaçlarını ve yöntemlerini belirleyen müşteri"
+          },
+          "processor": {
+            "title": "Veri İşleyicisi",
+            "desc": "Veri sorumlusu adına kişisel verileri işleyen Comptario"
+          },
+          "personalData": {
+            "title": "Kişisel Veri",
+            "desc": "Kimliği belirli veya belirlenebilir gerçek kişilere ilişkin her türlü bilgi"
+          }
+        },
+        "processing": {
+          "title": "İşleme Detayları",
+          "subject": {
+            "title": "İşleme Konusu",
+            "desc": "Muhasebe ve finansal yönetim hizmetleri"
+          },
+          "duration": {
+            "title": "İşleme Süresi",
+            "desc": "Hizmet sözleşmesi süresince ve sonrasında yasal saklama süreleri"
+          },
+          "purpose": {
+            "title": "İşleme Amaçları",
+            "service": "Comptario hizmetlerinin sunulması",
+            "support": "Teknik destek ve müşteri hizmetleri",
+            "security": "Veri güvenliği ve sistem korunması",
+            "compliance": "Yasal yükümlülüklerin yerine getirilmesi"
+          }
+        },
+        "dataCategories": {
+          "title": "Veri Kategorileri",
+          "personal": {
+            "title": "Kişisel Veriler",
+            "name": "Ad, soyad",
+            "email": "E-posta adresi",
+            "phone": "Telefon numarası",
+            "company": "Şirket bilgileri"
+          },
+          "technical": {
+            "title": "Teknik Veriler",
+            "ip": "IP adresi",
+            "logs": "Sistem günlükleri",
+            "usage": "Kullanım verileri",
+            "device": "Cihaz bilgileri"
+          }
+        },
+        "security": {
+          "title": "Güvenlik Önlemleri",
+          "content": "Comptario, kişisel verilerin güvenliğini sağlamak için aşağıdaki teknik ve organizasyonel önlemleri uygular:",
+          "measures": {
+            "technical": {
+              "title": "Teknik Önlemler",
+              "encryption": "AES-256 şifreleme",
+              "access": "Çok faktörlü kimlik doğrulama",
+              "monitoring": "Sürekli güvenlik izleme"
+            },
+            "organizational": {
+              "title": "Organizasyonel Önlemler",
+              "training": "Personel güvenlik eğitimi",
+              "policies": "Veri koruma politikaları",
+              "incident": "Olay müdahale prosedürleri"
+            }
+          }
+        },
+        "subprocessors": {
+          "title": "Alt İşleyiciler",
+          "content": "Comptario, belirli hizmetler için onaylanmış alt işleyiciler kullanabilir. Güncel liste aşağıdaki bağlantıda mevcuttur:",
+          "list": {
+            "title": "Alt İşleyici Listesi",
+            "desc": "Güncel listeyi görüntülemek için",
+            "link": "buraya tıklayın"
+          }
+        },
+        "dataSubjectRights": {
+          "title": "Veri Sahibi Hakları",
+          "content": "Comptario, veri sorumlusunun veri sahibi haklarına ilişkin taleplerine destek olur ve gerekli teknik önlemleri alır."
+        },
+        "dataBreach": {
+          "title": "Veri İhlali",
+          "content": "Kişisel veri ihlali durumunda Comptario, veri sorumlusunu gecikmeksizin bilgilendirir ve gerekli önlemleri alır.",
+          "notification": {
+            "title": "Bildirim Süresi",
+            "content": "Veri ihlali tespit edildiğinde 72 saat içinde bildirim yapılır"
+          }
+        }
+      }
+    },
+    "subprocessors": {
+      "title": "Alt İşleyiciler Listesi",
+      "subtitle": "Comptario hizmetlerinin sunulmasında kullanılan üçüncü taraf veri işleyicileri ve güvenceleri",
+      "lastUpdated": "Son güncelleme: 29 Ekim 2025",
+      "currentList": "Mevcut Alt İşleyiciler",
+      "overview": {
+        "title": "Genel Bakış",
+        "content": "Bu sayfa, Comptario hizmetlerinin sunulması sırasında kişisel verilerinizi işleyebilecek tüm alt işleyicileri listeler. Her alt işleyici GDPR gerekliliklerine uygun olarak seçilmiş ve sözleşmeye bağlanmıştır.",
+        "notification": {
+          "title": "Değişiklik Bildirimi",
+          "content": "Alt işleyici listesindeki değişiklikler için 30 gün önceden bildirimde bulunulur"
+        }
+      },
+      "list": {
+        "aws": {
+          "purpose": "Bulut altyapısı ve veri depolama"
+        },
+        "stripe": {
+          "purpose": "Ödeme işleme ve fatura yönetimi"
+        },
+        "sendgrid": {
+          "purpose": "E-posta gönderimi ve bildirimler"
+        },
+        "intercom": {
+          "purpose": "Müşteri desteği ve canlı sohbet"
+        },
+        "analytics": {
+          "purpose": "Web sitesi analitikleri ve performans izleme"
+        }
+      },
+      "safeguards": {
+        "title": "Güvenceler",
+        "adequacyDecision": "AB Yeterlilik Kararı",
+        "dataTransferAgreement": "Veri Transfer Sözleşmesi",
+        "dataMinimization": "Veri Minimizasyon İlkesi"
+      },
+      "dataTransfers": {
+        "title": "Veri Transferleri",
+        "content": "AB dışına veri transferleri için aşağıdaki hukuki mekanizmaları kullanıyoruz:",
+        "mechanisms": {
+          "adequacy": "AB Yeterlilik Kararları",
+          "scc": "Standart Sözleşme Hükümleri (SCC)",
+          "bcr": "Bağlayıcı Kurumsal Kurallar (BCR)"
+        }
+      },
+      "monitoring": {
+        "title": "İzleme ve Denetim",
+        "content": "Alt işleyicilerimizi düzenli olarak izler ve denetleriz:",
+        "activities": {
+          "audit": "Yıllık güvenlik denetimleri",
+          "certification": "ISO 27001, SOC 2 sertifikaları",
+          "review": "Üçüncü taraf güvenlik değerlendirmeleri"
+        }
+      },
+      "contact": {
+        "title": "İletişim",
+        "content": "Alt işleyicilerle ilgili sorularınız için bizimle iletişime geçebilirsiniz:",
+        "email": "E-posta",
+        "notificationPeriod": "Bildirim Süresi",
+        "notificationPeriodValue": "Değişiklikler için 30 gün önceden"
+      }
+    }
+  },
+  "cookie": {
+    "banner": {
+      "title": "Çerez Tercihleri",
+      "description": "Bu web sitesi deneyiminizi iyileştirmek için çerezler kullanır. Hangi çerezlerin kullanılacağını seçebilirsiniz.",
+      "acceptAll": "Tümünü Kabul Et",
+      "rejectAll": "Tümünü Reddet",
+      "managePreferences": "Tercihleri Yönet",
+      "savePreferences": "Tercihleri Kaydet",
+      "close": "Kapat"
+    },
+    "modal": {
+      "title": "Çerez Tercihleri",
+      "description": "Çerez kategorilerini inceleyip tercihlerinizi belirleyebilirsiniz. Her kategorinin açıklamasını okuyarak hangi çerezlerin kullanılacağına karar verebilirsiniz.",
+      "necessary": {
+        "title": "Zorunlu Çerezler",
+        "description": "Bu çerezler web sitesinin düzgün çalışması için gereklidir ve devre dışı bırakılamaz. Genellikle giriş yapma, form doldurma gibi işlemlerinize yanıt olarak ayarlanır.",
+        "alwaysActive": "Her zaman aktif"
+      },
+      "analytics": {
+        "title": "Analitik Çerezler",
+        "description": "Bu çerezler web sitesinin nasıl kullanıldığını anlamamıza yardımcı olur. Hangi sayfaların daha çok ziyaret edildiği ve kullanıcıların sitede nasıl gezindiği hakkında bilgi toplar.",
+        "enabled": "Etkin",
+        "disabled": "Devre dışı"
+      },
+      "marketing": {
+        "title": "Pazarlama Çerezler",
+        "description": "Bu çerezler size daha alakalı reklamlar göstermek için kullanılır. Reklam ortaklarımızın ilgi alanlarınız hakkında bir profil oluşturmasına yardımcı olabilir.",
+        "enabled": "Etkin",
+        "disabled": "Devre dışı"
+      },
+      "acceptSelected": "Seçilenleri Kabul Et",
+      "acceptAll": "Tümünü Kabul Et",
+      "rejectAll": "Tümünü Reddet",
+      "cancel": "İptal"
+    },
+    "notice": {
+      "updated": "Çerez tercihleriniz güncellendi.",
+      "saved": "Çerez tercihleri kaydedildi."
+    },
+    "categories": {
+      "necessary": "Zorunlu",
+      "analytics": "Analitik",
+      "marketing": "Pazarlama"
     }
   }
 }

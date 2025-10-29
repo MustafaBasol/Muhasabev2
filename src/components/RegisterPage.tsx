@@ -13,6 +13,7 @@ export default function RegisterPage() {
     phone: '',
     address: ''
   });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
@@ -36,6 +37,11 @@ export default function RegisterPage() {
 
     if (formData.password.length < 6) {
       setError('Şifre en az 6 karakter olmalıdır');
+      return;
+    }
+
+    if (!agreedToTerms) {
+      setError('Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz');
       return;
     }
 
@@ -232,6 +238,51 @@ export default function RegisterPage() {
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
+              </div>
+
+              {/* Terms and Privacy Checkbox */}
+              <div className="flex items-start space-x-3">
+                <input
+                  id="terms-checkbox"
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 text-blue-600 bg-white/5 border-white/10 rounded focus:ring-blue-500 focus:ring-2"
+                />
+                <label htmlFor="terms-checkbox" className="text-sm text-gray-300 leading-5">
+                  <a 
+                    href="#legal/terms" 
+                    target="_blank"
+                    className="underline hover:text-white transition-colors"
+                  >
+                    Kullanım Koşulları
+                  </a>
+                  {' ve '}
+                  <a 
+                    href="#legal/dpa" 
+                    target="_blank"
+                    className="underline hover:text-white transition-colors"
+                  >
+                    Veri İşleme Sözleşmesi
+                  </a>
+                  {'ni kabul ediyor, '}
+                  <a 
+                    href="#legal/privacy" 
+                    target="_blank"
+                    className="underline hover:text-white transition-colors"
+                  >
+                    Gizlilik Politikası
+                  </a>
+                  {' ve '}
+                  <a 
+                    href="#legal/cookies" 
+                    target="_blank"
+                    className="underline hover:text-white transition-colors"
+                  >
+                    Çerez Politikası
+                  </a>
+                  {'nı okuduğunuzu onaylıyorsunuz.'}
+                </label>
               </div>
 
               <button

@@ -3,6 +3,8 @@ import { Users, FileText, CreditCard, TrendingUp } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
 import { CurrencyProvider, useCurrency } from "./contexts/CurrencyContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
+import { CookieConsentProvider } from "./contexts/CookieConsentContext";
+import { analyticsManager } from "./utils/analyticsManager";
 import { useTranslation } from "react-i18next";
 
 import type { CompanyProfile } from "./utils/pdfGenerator";
@@ -75,6 +77,21 @@ import SimpleSalesPage from "./components/SimpleSalesPage";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
 import LandingPage from "./components/landing/LandingPage";
+
+// legal pages
+import TermsOfService from "./components/legal/TermsOfService";
+import PrivacyPolicy from "./components/legal/PrivacyPolicy";
+import CookiePolicy from "./components/legal/CookiePolicy";
+import DataProcessingAddendum from "./components/legal/DataProcessingAddendum";
+import SubprocessorsList from "./components/legal/SubprocessorsList";
+
+// cookie consent components
+import CookieConsentBanner from "./components/CookieConsentBanner";
+import CookiePreferencesModal from "./components/CookiePreferencesModal";
+
+// legal header
+import LegalHeader from "./components/LegalHeader";
+
 import * as ExcelJS from 'exceljs';
 
 const defaultCompany: CompanyProfile = {
@@ -136,6 +153,26 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     console.log('CurrentPage değişti:', currentPage);
   }, [currentPage]);
+
+  // Configure analytics on app startup
+  useEffect(() => {
+    analyticsManager.setConfig({
+      googleAnalytics: {
+        measurementId: 'G-XXXXXXXXXX', // Replace with your GA measurement ID
+        enabled: true
+      },
+      matomo: {
+        siteId: '1',
+        url: 'https://your-matomo-domain.com', // Replace with your Matomo URL
+        enabled: false // Enable if you use Matomo
+      },
+      hotjar: {
+        hjid: '0000000', // Replace with your Hotjar ID
+        hjsv: '6',
+        enabled: false // Enable if you use Hotjar
+      }
+    });
+  }, []);
   const [user, setUser] = useState<User>({ name: authUser?.firstName || "User", email: authUser?.email || "" });
   const [accounts, setAccounts] = useState<any[]>([]);
   const [company, setCompany] = useState<CompanyProfile>(() => {
@@ -660,6 +697,11 @@ const AppContent: React.FC = () => {
       } else if (hash === 'login') {
         console.log('Giriş sayfasına yönlendiriliyor...');
         setCurrentPage('login');
+      } else if (hash.startsWith('legal/')) {
+        // Legal pages routing
+        const legalPage = hash.replace('legal/', '');
+        console.log('Legal sayfasına yönlendiriliyor:', legalPage);
+        setCurrentPage(`legal-${legalPage}`);
       } else if (hash === '') {
         // If no hash, show landing page for non-authenticated users, dashboard for authenticated
         if (isAuthenticated) {
@@ -2783,6 +2825,16 @@ const AppContent: React.FC = () => {
         );
       case "admin":
         return <AdminPage />;
+      case "legal-terms":
+        return <TermsOfService />;
+      case "legal-privacy":
+        return <PrivacyPolicy />;
+      case "legal-cookies":
+        return <CookiePolicy />;
+      case "legal-dpa":
+        return <DataProcessingAddendum />;
+      case "legal-subprocessors":
+        return <SubprocessorsList />;
       default:
         return renderDashboard();
     }
@@ -3076,6 +3128,33 @@ const AppContent: React.FC = () => {
     return <LoginPage />;
   }
 
+  // Allow access to legal pages without authentication
+  if (!isAuthenticated && currentPage.startsWith('legal-')) {
+    const renderLegalContent = () => {
+      switch (currentPage) {
+        case "legal-terms":
+          return <TermsOfService />;
+        case "legal-privacy":
+          return <PrivacyPolicy />;
+        case "legal-cookies":
+          return <CookiePolicy />;
+        case "legal-dpa":
+          return <DataProcessingAddendum />;
+        case "legal-subprocessors":
+          return <SubprocessorsList />;
+        default:
+          return <div>Legal page not found</div>;
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <LegalHeader />
+        {renderLegalContent()}
+      </div>
+    );
+  }
+
   // Redirect non-authenticated users to landing page from protected routes
   if (!isAuthenticated) {
     return <LoginPage />;
@@ -3117,6 +3196,10 @@ const AppContent: React.FC = () => {
 
       {renderToasts()}
       {renderModals()}
+      
+      {/* Cookie Consent Components */}
+      <CookieConsentBanner />
+      <CookiePreferencesModal />
     </div>
   );
 };
@@ -3125,7 +3208,9 @@ const App: React.FC = () => {
   return (
     <LanguageProvider>
       <CurrencyProvider>
-        <AppContent />
+        <CookieConsentProvider>
+          <AppContent />
+        </CookieConsentProvider>
       </CurrencyProvider>
     </LanguageProvider>
   );

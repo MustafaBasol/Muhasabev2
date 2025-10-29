@@ -9,8 +9,13 @@ export class AdminController {
 
   private checkAdminAuth(headers: any) {
     const adminToken = headers['admin-token'];
-    if (adminToken !== 'admin-access-granted') {
-      throw new UnauthorizedException('Admin access required');
+    if (!adminToken) {
+      throw new UnauthorizedException('Admin token required');
+    }
+    
+    // AdminService'den token doğrulama
+    if (!this.adminService.isValidAdminToken(adminToken)) {
+      throw new UnauthorizedException('Invalid or expired admin token');
     }
   }
 

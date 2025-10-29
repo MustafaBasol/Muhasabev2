@@ -194,6 +194,7 @@
     "add": "Add",
     "search": "Search",
     "close": "Close",
+    "backToHome": "Back to Home",
     "yes": "Yes",
     "no": "No",
     "loading": "Loading...",
@@ -984,6 +985,364 @@
     "info": {
       "title": "About Archive",
       "description": "The archive page stores your completed transactions. Paid invoices, approved expenses, and completed sales are automatically listed here. These records are read-only and can be used for historical analysis and audit purposes."
+    }
+  },
+  "legal": {
+    "terms": {
+      "title": "Terms of Service",
+      "lastUpdated": "Last updated: {{date}}",
+      "section1": {
+        "title": "1. Service Overview",
+        "content": "MoneyFlow is a cloud-based pre-accounting software platform designed to help businesses manage their invoices, expenses, and financial operations. The platform offers multi-currency support, automated VAT calculations, and integrated reporting tools."
+      },
+      "section2": {
+        "title": "2. User Accounts and Registration",
+        "content": "To use MoneyFlow, you must create an account by providing accurate and complete information. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account."
+      },
+      "section3": {
+        "title": "3. Acceptable Use",
+        "content": "You agree to use MoneyFlow only for lawful purposes and in accordance with these Terms. You may not use the service to engage in any illegal activities, violate intellectual property rights, or disrupt the platform's functionality."
+      },
+      "section4": {
+        "title": "4. Data Ownership and Privacy",
+        "content": "You retain ownership of all data you input into MoneyFlow. We process your data in accordance with our Privacy Policy and applicable data protection laws, including GDPR. We implement appropriate security measures to protect your information."
+      },
+      "section5": {
+        "title": "5. Service Availability",
+        "content": "While we strive to maintain 99.9% uptime, MoneyFlow may experience occasional service interruptions for maintenance, updates, or unforeseen technical issues. We will provide advance notice for planned maintenance whenever possible."
+      },
+      "section6": {
+        "title": "6. Subscription and Billing",
+        "content": "MoneyFlow offers various subscription plans with different features and usage limits. Billing is processed automatically according to your chosen plan. You may upgrade, downgrade, or cancel your subscription at any time."
+      },
+      "section7": {
+        "title": "7. Data Backup and Export",
+        "content": "We perform regular automated backups of your data. You can export your data at any time in standard formats. Upon account termination, we will retain your data for 90 days before permanent deletion, unless required otherwise by law."
+      },
+      "section8": {
+        "title": "8. Limitation of Liability",
+        "content": "MoneyFlow's liability is limited to the amount you have paid for the service in the 12 months preceding any claim. We are not liable for indirect, incidental, or consequential damages."
+      },
+      "section9": {
+        "title": "9. Intellectual Property",
+        "content": "The MoneyFlow platform, including its software, design, and content, is protected by intellectual property laws. You are granted a limited license to use the service according to these Terms."
+      },
+      "section10": {
+        "title": "10. Termination",
+        "content": "Either party may terminate this agreement at any time. Upon termination, your access to the service will cease, and we will delete your data according to our data retention policy."
+      },
+      "section11": {
+        "title": "11. Governing Law",
+        "content": "These Terms are governed by the laws of the European Union and the jurisdiction where MoneyFlow operates. Any disputes will be resolved through binding arbitration."
+      },
+      "section12": {
+        "title": "12. Changes to Terms",
+        "content": "We may update these Terms from time to time. We will notify you of significant changes via email or through the platform. Continued use of MoneyFlow after changes constitutes acceptance of the new Terms."
+      }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "lastUpdated": "Last updated: {{date}}",
+      "section1": {
+        "title": "1. Information We Collect",
+        "content": "We collect information you provide directly (account details, financial data), information automatically collected (usage data, IP addresses), and information from third parties (payment processors, integrations)."
+      },
+      "section2": {
+        "title": "2. How We Use Your Information",
+        "content": "We use your information to provide and improve our services, process payments, communicate with you, ensure security, and comply with legal obligations."
+      },
+      "section3": {
+        "title": "3. Information Sharing",
+        "content": "We do not sell or rent your personal information. We may share information with service providers, for legal compliance, or with your explicit consent."
+      },
+      "section4": {
+        "title": "4. Data Security",
+        "content": "We implement industry-standard security measures including encryption in transit and at rest, regular security audits, access controls, and secure data centers."
+      },
+      "section5": {
+        "title": "5. Your Rights (GDPR)",
+        "content": "Under GDPR, you have rights to access, rectify, erase, restrict processing, data portability, and object to processing of your personal data. You may also withdraw consent and file complaints with supervisory authorities."
+      },
+      "section6": {
+        "title": "6. Data Retention",
+        "content": "We retain your data as long as your account is active and for a reasonable period afterward for legal and business purposes. You may request data deletion at any time."
+      },
+      "section7": {
+        "title": "7. International Transfers",
+        "content": "Your data is primarily processed within the EU. Any international transfers are protected by appropriate safeguards such as Standard Contractual Clauses."
+      },
+      "section8": {
+        "title": "8. Cookies and Tracking",
+        "content": "We use cookies and similar technologies for authentication, preferences, analytics, and security. You can control cookie settings through your browser."
+      },
+      "section9": {
+        "title": "9. Third-Party Services",
+        "content": "Our platform may integrate with third-party services. Their privacy practices are governed by their own privacy policies, which we encourage you to review."
+      },
+      "section10": {
+        "title": "10. Children's Privacy",
+        "content": "MoneyFlow is not intended for users under 18. We do not knowingly collect personal information from children under 18."
+      },
+      "section11": {
+        "title": "11. Contact Information",
+        "content": "For privacy-related questions or to exercise your rights, contact our Data Protection Officer at privacy@moneyflow.com or through our support portal."
+      }
+    },
+    "cookies": {
+      "title": "Cookie Policy",
+      "lastUpdated": "Last updated: {{date}}",
+      "section1": {
+        "title": "1. What Are Cookies",
+        "content": "Cookies are small text files stored on your device when you visit our website. They help us provide you with a better experience by remembering your preferences and analyzing site usage."
+      },
+      "section2": {
+        "title": "2. Types of Cookies We Use",
+        "content": "We use essential cookies (necessary for basic functionality), functional cookies (remember preferences), analytics cookies (understand usage patterns), and security cookies (protect against threats)."
+      },
+      "section3": {
+        "title": "3. Essential Cookies",
+        "content": "These cookies are necessary for the website to function properly. They enable core functionality such as user authentication, session management, and security features. These cannot be disabled."
+      },
+      "section4": {
+        "title": "4. Functional Cookies",
+        "content": "These cookies remember your preferences and choices to provide enhanced functionality, such as language selection, timezone settings, and user interface customizations."
+      },
+      "section5": {
+        "title": "5. Analytics Cookies",
+        "content": "We use analytics cookies to understand how visitors interact with our website. This helps us improve our services and user experience. All analytics data is aggregated and anonymized."
+      },
+      "section6": {
+        "title": "6. Third-Party Cookies",
+        "content": "Some cookies are set by third-party services we use, such as analytics providers or payment processors. These are governed by the respective third parties' privacy policies."
+      },
+      "section7": {
+        "title": "7. Cookie Duration",
+        "content": "Session cookies are deleted when you close your browser. Persistent cookies remain on your device for a set period or until you delete them manually."
+      },
+      "section8": {
+        "title": "8. Managing Cookies",
+        "content": "You can control and manage cookies through your browser settings. You can delete existing cookies and set your browser to accept or reject cookies. Note that disabling cookies may affect website functionality."
+      },
+      "section9": {
+        "title": "9. Cookie Consent",
+        "content": "By using our website, you consent to the use of cookies as described in this policy. You can withdraw your consent at any time by adjusting your browser settings."
+      },
+      "section10": {
+        "title": "10. Updates to Cookie Policy",
+        "content": "We may update this Cookie Policy from time to time. We will notify you of significant changes by posting the updated policy on our website with a new effective date."
+      }
+    },
+    "dpa": {
+      "title": "Data Processing Addendum (DPA)",
+      "lastUpdated": "Last updated: {{date}}",
+      "section1": {
+        "title": "1. Definitions and Scope",
+        "content": "This Data Processing Addendum (\"DPA\") forms part of the Terms of Service between you (\"Controller\") and MoneyFlow (\"Processor\"). It governs the processing of personal data in accordance with GDPR and other applicable data protection laws."
+      },
+      "section2": {
+        "title": "2. Data Processing Details",
+        "content": "MoneyFlow processes personal data only on documented instructions from the Controller, for the purposes of providing the accounting software services, and in accordance with applicable data protection laws."
+      },
+      "section3": {
+        "title": "3. Categories of Data",
+        "content": "We process the following categories of personal data: contact information (names, addresses, emails), financial data (invoices, payments, transactions), user account data (login credentials, preferences), and usage data (access logs, analytics)."
+      },
+      "section4": {
+        "title": "4. Data Subject Rights",
+        "content": "MoneyFlow assists the Controller in fulfilling data subject rights requests, including access, rectification, erasure, restriction, portability, and objection. We provide necessary tools and cooperation to enable compliance."
+      },
+      "section5": {
+        "title": "5. Security Measures",
+        "content": "We implement appropriate technical and organizational measures to ensure data security, including encryption, access controls, regular security assessments, staff training, and incident response procedures."
+      },
+      "section6": {
+        "title": "6. Sub-processors",
+        "content": "MoneyFlow may engage sub-processors to assist in providing services. All sub-processors are subject to data protection obligations equivalent to those in this DPA. A current list of sub-processors is available upon request."
+      },
+      "section7": {
+        "title": "7. Data Transfers",
+        "content": "Personal data is primarily processed within the EU/EEA. Any transfers to third countries are protected by appropriate safeguards such as Standard Contractual Clauses or adequacy decisions."
+      },
+      "section8": {
+        "title": "8. Data Breach Notification",
+        "content": "MoneyFlow will notify the Controller of any personal data breaches without undue delay and within 72 hours of becoming aware of the breach, providing all relevant information for assessment and reporting obligations."
+      },
+      "section9": {
+        "title": "9. Data Protection Impact Assessment",
+        "content": "Upon request, MoneyFlow will provide reasonable assistance to the Controller in conducting Data Protection Impact Assessments (DPIAs) and prior consultations with supervisory authorities."
+      },
+      "section10": {
+        "title": "10. Audit and Compliance",
+        "content": "MoneyFlow maintains records of processing activities and makes available to the Controller information necessary to demonstrate compliance with data protection obligations, including audit rights subject to confidentiality obligations."
+      },
+      "section11": {
+        "title": "11. Data Return and Deletion",
+        "content": "Upon termination of services, MoneyFlow will, at the Controller's choice, return or delete all personal data and existing copies, unless retention is required by applicable law."
+      },
+      "section12": {
+        "title": "12. Liability and Indemnification",
+        "content": "Each party's liability is limited to damages directly caused by its breach of this DPA. MoneyFlow will indemnify the Controller against claims resulting from MoneyFlow's breach of its data protection obligations."
+      }
+    },
+    "subprocessors": {
+      "title": "List of Sub-processors",
+      "lastUpdated": "Last updated: {{date}}",
+      "intro": "MoneyFlow may engage the following sub-processors to assist in providing our services. All sub-processors are subject to strict data protection obligations.",
+      "section1": {
+        "title": "1. Cloud Infrastructure Providers",
+        "aws": {
+          "name": "Amazon Web Services (AWS)",
+          "location": "EU (Frankfurt)",
+          "purpose": "Cloud hosting and infrastructure services",
+          "safeguards": "AWS GDPR compliance, EU Data Residency"
+        },
+        "digitalocean": {
+          "name": "DigitalOcean",
+          "location": "EU (Amsterdam)",
+          "purpose": "Additional cloud hosting and backup services",
+          "safeguards": "Standard Contractual Clauses, EU hosting"
+        }
+      },
+      "section2": {
+        "title": "2. Payment Processors",
+        "stripe": {
+          "name": "Stripe",
+          "location": "EU/US",
+          "purpose": "Payment processing and subscription management",
+          "safeguards": "PCI DSS compliance, Standard Contractual Clauses"
+        },
+        "paypal": {
+          "name": "PayPal",
+          "location": "EU/US",
+          "purpose": "Alternative payment processing",
+          "safeguards": "PCI DSS compliance, Privacy Shield successor"
+        }
+      },
+      "section3": {
+        "title": "3. Communication Services",
+        "sendgrid": {
+          "name": "SendGrid (Twilio)",
+          "location": "EU/US",
+          "purpose": "Transactional email delivery",
+          "safeguards": "Standard Contractual Clauses, EU processing"
+        },
+        "intercom": {
+          "name": "Intercom",
+          "location": "EU/US",
+          "purpose": "Customer support and communication",
+          "safeguards": "Standard Contractual Clauses, GDPR compliance"
+        }
+      },
+      "section4": {
+        "title": "4. Analytics and Monitoring",
+        "googleanalytics": {
+          "name": "Google Analytics",
+          "location": "EU/US",
+          "purpose": "Website analytics and performance monitoring",
+          "safeguards": "Google Analytics 4 with EU data processing"
+        },
+        "sentry": {
+          "name": "Sentry",
+          "location": "EU/US",
+          "purpose": "Error monitoring and application performance",
+          "safeguards": "Standard Contractual Clauses, data anonymization"
+        }
+      },
+      "section5": {
+        "title": "5. Security Services",
+        "cloudflare": {
+          "name": "Cloudflare",
+          "location": "Global (EU nodes)",
+          "purpose": "CDN, DDoS protection, and security services",
+          "safeguards": "EU Data Localization, Standard Contractual Clauses"
+        }
+      },
+      "section6": {
+        "title": "6. Backup and Archive Services",
+        "backblaze": {
+          "name": "Backblaze",
+          "location": "EU",
+          "purpose": "Data backup and archival services",
+          "safeguards": "Encryption at rest and in transit, EU hosting"
+        }
+      },
+      "notifications": {
+        "title": "Sub-processor Change Notifications",
+        "content": "We will provide 30 days' advance notice of any new sub-processors or changes to existing ones. You may object to such changes, and if we cannot resolve your concerns, you may terminate your agreement with us."
+      },
+      "contact": {
+        "title": "Questions About Sub-processors",
+        "content": "If you have questions about our sub-processors or need additional information about data protection safeguards, please contact us at privacy@moneyflow.com."
+      }
+    },
+    "common": {
+      "backToApp": "← Back to App",
+      "effectiveDate": "Effective Date",
+      "tableOfContents": "Table of Contents",
+      "printPage": "Print this page",
+      "downloadPdf": "Download PDF",
+      "lastUpdated": "Last updated",
+      "contactUs": "Contact us at",
+      "questionsContact": "If you have any questions about this {{document}}, please contact us at {{email}}.",
+      "documentType": {
+        "terms": "Terms of Service",
+        "privacy": "Privacy Policy",
+        "cookies": "Cookie Policy",
+        "dpa": "Data Processing Addendum",
+        "subprocessors": "Sub-processors List"
+      },
+      "navigation": {
+        "terms": "Terms",
+        "privacy": "Privacy",
+        "cookies": "Cookies",
+        "dpa": "DPA",
+        "subprocessors": "Sub-processors"
+      }
+    }
+  },
+  "cookie": {
+    "banner": {
+      "title": "Cookie Preferences",
+      "description": "This website uses cookies to improve your experience. You can choose which cookies to allow.",
+      "acceptAll": "Accept All",
+      "rejectAll": "Reject All",
+      "managePreferences": "Manage Preferences",
+      "savePreferences": "Save Preferences",
+      "close": "Close"
+    },
+    "modal": {
+      "title": "Cookie Preferences",
+      "description": "You can review cookie categories and set your preferences. Read the description of each category to decide which cookies to allow.",
+      "necessary": {
+        "title": "Necessary Cookies",
+        "description": "These cookies are essential for the website to function properly and cannot be disabled. They are usually set in response to actions like logging in or filling out forms.",
+        "alwaysActive": "Always active"
+      },
+      "analytics": {
+        "title": "Analytics Cookies",
+        "description": "These cookies help us understand how the website is used. They collect information about which pages are visited most and how users navigate the site.",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "marketing": {
+        "title": "Marketing Cookies",
+        "description": "These cookies are used to show you more relevant ads. They may help our advertising partners build a profile of your interests.",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "acceptSelected": "Accept Selected",
+      "acceptAll": "Accept All",
+      "rejectAll": "Reject All",
+      "cancel": "Cancel"
+    },
+    "notice": {
+      "updated": "Your cookie preferences have been updated.",
+      "saved": "Cookie preferences saved."
+    },
+    "categories": {
+      "necessary": "Necessary",
+      "analytics": "Analytics",
+      "marketing": "Marketing"
     }
   }
 }
