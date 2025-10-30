@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calculator, Eye, EyeOff, Lock, Shield, Users, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Lock, Shield, Users, ArrowLeft } from 'lucide-react';
 import { adminApi } from '../api/admin';
 
 interface AdminLoginPageProps {
@@ -25,11 +25,11 @@ export default function AdminLoginPage({ onBack }: AdminLoginPageProps) {
       
       if (response.success) {
         // Store admin token
-        localStorage.setItem('admin-token', response.adminToken || 'admin-access-granted');
+        localStorage.setItem('admin-token', response.adminToken);
         localStorage.setItem('isAdminLoggedIn', 'true');
         localStorage.removeItem('showAdminLogin');
         
-        console.log('Admin login successful, reloading...');
+        console.log('Admin login successful, reloading...', { token: response.adminToken });
         // Navigate to admin panel
         window.location.hash = 'admin';
         window.location.reload();

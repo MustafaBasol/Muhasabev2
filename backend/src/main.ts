@@ -8,6 +8,7 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { SeedService } from './database/seed.service';
 import helmet from 'helmet';
+// import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -32,6 +33,9 @@ async function bootstrap() {
     crossOriginEmbedderPolicy: false, // API için gerekli
   }));
 
+  // Cookie parser for secure cookie handling
+  // app.use(cookieParser()); // Uncomment when cookie-parser is installed
+
   // Seed database if empty
   const seedService = app.get(SeedService);
   await seedService.seed();
@@ -50,12 +54,30 @@ async function bootstrap() {
       callback(null, true);
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'Access-Control-Allow-Origin'],
-    exposedHeaders: ['Authorization', 'Access-Control-Allow-Origin', 'Access-Control-Allow-Credentials'],
+    credentials: true, // Secure cookies için gerekli
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-CSRF-Token'],
+    exposedHeaders: ['Authorization', 'X-CSRF-Token'],
     maxAge: 86400,
     preflightContinue: false,
     optionsSuccessStatus: 204,
+  });
+
+  // Secure cookie configuration
+  app.use((req, res, next) => {
+    // Override cookie method for secure settings
+    const originalCookie = res.cookie;
+    res.cookie = function(name, value, options = {}) {
+      const secureOptions = {
+        httpOnly: true, // XSS koruması
+        secure: process.env.NODE_ENV === 'production', // HTTPS-only in production
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax' as const,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        path: '/',
+        ...options
+      };
+      return originalCookie.call(this, name, value, secureOptions);
+    };
+    next();
   });
 
   // Global validation pipe

@@ -85,6 +85,8 @@ import LandingPage from "./components/landing/LandingPage";
 // legal pages
 import TermsOfService from "./components/legal/TermsOfService";
 import PrivacyPolicy from "./components/legal/PrivacyPolicy";
+import SubprocessorsList from "./components/legal/SubprocessorsList";
+import DataProcessingAgreement from "./components/legal/DataProcessingAgreement";
 
 // cookie consent components
 import CookieConsentBanner from "./components/CookieConsentBanner";
@@ -2907,9 +2909,11 @@ const AppContent: React.FC = () => {
         return <TermsOfService />;
       case "legal-privacy":
         return <PrivacyPolicy />;
-      case "legal-cookies":
-      case "legal-dpa":
       case "legal-subprocessors":
+        return <SubprocessorsList />;
+      case "legal-dpa":
+        return <DataProcessingAgreement />;
+      case "legal-cookies":
         return <div className="p-6"><p>Bu sayfa geliştirme aşamasındadır.</p></div>;
       default:
         return renderDashboard();
@@ -3212,9 +3216,11 @@ const AppContent: React.FC = () => {
           return <TermsOfService />;
         case "legal-privacy":
           return <PrivacyPolicy />;
-        case "legal-cookies":
-        case "legal-dpa":
         case "legal-subprocessors":
+          return <SubprocessorsList />;
+        case "legal-dpa":
+          return <DataProcessingAgreement />;
+        case "legal-cookies":
           return <div className="p-6"><p>Bu sayfa geliştirme aşamasındadır.</p></div>;
         default:
           return <div>Legal page not found</div>;

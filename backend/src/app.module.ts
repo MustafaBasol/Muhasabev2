@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
@@ -17,9 +17,12 @@ import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { FiscalPeriodsModule } from './fiscal-periods/fiscal-periods.module';
 import { CommonModule } from './common/common.module';
+import { SubprocessorsModule } from './subprocessors/subprocessors.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { SeedService } from './database/seed.service';
+import { RateLimitMiddleware } from './common/rate-limit.middleware';
+import { CSRFMiddleware } from './common/csrf.middleware';
 
 @Module({
   imports: [
@@ -28,7 +31,7 @@ import { SeedService } from './database/seed.service';
     }),
     ThrottlerModule.forRoot([{
       ttl: 60000, // 1 dakika
-      limit: 100, // 60 saniyede maksimum 100 istek
+      limit: 5, // Auth endpoints için özel rate limit (middleware'de handle edilir)
     }]),
     TypeOrmModule.forRoot({
       type: 'postgres',
@@ -53,6 +56,7 @@ import { SeedService } from './database/seed.service';
     AuditModule,
     FiscalPeriodsModule,
     CommonModule,
+    SubprocessorsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -72,4 +76,14 @@ import { SeedService } from './database/seed.service';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RateLimitMiddleware)
+      .forRoutes('*'); // Tüm route'lara rate limiting uygula
+    
+    consumer
+      .apply(CSRFMiddleware)
+      .forRoutes('*'); // Tüm route'lara CSRF koruması uygula
+  }
+}

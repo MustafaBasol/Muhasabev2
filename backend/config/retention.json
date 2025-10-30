@@ -1,0 +1,65 @@
+{
+  "retentionPolicies": {
+    "account_basic": {
+      "description": "Basic account data retention after account closure",
+      "retentionPeriod": "12 months",
+      "retentionDays": 365,
+      "categories": ["customers", "suppliers", "products"],
+      "conditions": {
+        "tenantStatus": ["EXPIRED", "SUSPENDED"],
+        "closedAfter": true
+      },
+      "legalHold": false
+    },
+    "logs": {
+      "description": "System and audit logs retention",
+      "retentionPeriod": "9 months",
+      "retentionDays": 274,
+      "categories": ["audit_log"],
+      "conditions": {
+        "createdBefore": true
+      },
+      "legalHold": false
+    },
+    "backups": {
+      "description": "Database backup files retention",
+      "retentionPeriod": "30 days",
+      "retentionDays": 30,
+      "categories": ["backups"],
+      "conditions": {
+        "createdBefore": true
+      },
+      "legalHold": false
+    },
+    "accounting_docs": {
+      "description": "Accounting documents and financial records - legal hold",
+      "retentionPeriod": "10 years",
+      "retentionDays": 3650,
+      "categories": ["invoices", "expenses", "fiscal_periods"],
+      "conditions": {
+        "createdBefore": true
+      },
+      "legalHold": true,
+      "note": "Legal requirement - do not purge automatically"
+    }
+  },
+  "globalSettings": {
+    "enabled": true,
+    "dryRunByDefault": true,
+    "auditRetention": true,
+    "maxPurgeRecordsPerRun": 1000,
+    "safetyChecks": {
+      "requireConfirmation": true,
+      "minRecordsThreshold": 10,
+      "skipLegalHold": true
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "channels": ["log", "audit"],
+    "thresholds": {
+      "warningDays": 7,
+      "criticalDays": 1
+    }
+  }
+}

@@ -1,0 +1,225 @@
+{
+  "lastUpdated": "2025-01-01T00:00:00Z",
+  "version": "2.0",
+  "nextReview": "2025-04-01T00:00:00Z",
+  "notificationPeriod": 30,
+  "subprocessors": [
+    {
+      "id": "aws",
+      "name": "Amazon Web Services (AWS)",
+      "purpose": {
+        "en": "Cloud infrastructure and data storage",
+        "tr": "Bulut altyapısı ve veri depolama",
+        "de": "Cloud-Infrastruktur und Datenspeicherung",
+        "fr": "Infrastructure cloud et stockage de données"
+      },
+      "region": "EU (Frankfurt), US",
+      "website": "https://aws.amazon.com",
+      "dpaLink": "https://aws.amazon.com/service-terms/data-processing-addendum/",
+      "dataCategories": [
+        "Personal data",
+        "Financial records", 
+        "Metadata",
+        "Technical data"
+      ],
+      "safeguards": [
+        "EU Adequacy Decision",
+        "Data Transfer Agreement",
+        "ISO 27001",
+        "SOC 2 Type II"
+      ],
+      "certifications": ["ISO 27001", "SOC 2 Type II", "PCI DSS"],
+      "addedDate": "2024-01-01",
+      "status": "active"
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe",
+      "purpose": {
+        "en": "Payment processing and invoice management",
+        "tr": "Ödeme işlemleri ve fatura yönetimi",
+        "de": "Zahlungsabwicklung und Rechnungsmanagement",
+        "fr": "Traitement des paiements et gestion des factures"
+      },
+      "region": "EU, US",
+      "website": "https://stripe.com",
+      "dpaLink": "https://stripe.com/privacy/dpa",
+      "dataCategories": [
+        "Payment data",
+        "Customer information",
+        "Invoices",
+        "Financial records"
+      ],
+      "safeguards": [
+        "EU Adequacy Decision",
+        "PCI DSS Level 1",
+        "Data Transfer Agreement"
+      ],
+      "certifications": ["PCI DSS Level 1", "SOC 2"],
+      "addedDate": "2024-01-01",
+      "status": "active"
+    },
+    {
+      "id": "sendgrid",
+      "name": "SendGrid (Twilio)",
+      "purpose": {
+        "en": "Email delivery and communication",
+        "tr": "E-posta gönderimi ve iletişim",
+        "de": "E-Mail-Versand und Kommunikation",
+        "fr": "Livraison d'e-mails et communication"
+      },
+      "region": "EU, US", 
+      "website": "https://sendgrid.com",
+      "dpaLink": "https://www.twilio.com/legal/data-protection-addendum",
+      "dataCategories": [
+        "Email addresses",
+        "Communication logs",
+        "Contact data"
+      ],
+      "safeguards": [
+        "EU Adequacy Decision",
+        "SOC 2 Type II",
+        "Data Transfer Agreement"
+      ],
+      "certifications": ["SOC 2 Type II", "ISO 27001"],
+      "addedDate": "2024-01-01",
+      "status": "active"
+    },
+    {
+      "id": "intercom",
+      "name": "Intercom",
+      "purpose": {
+        "en": "Customer support and live chat",
+        "tr": "Müşteri desteği ve canlı sohbet",
+        "de": "Kundensupport und Live-Chat",
+        "fr": "Support client et chat en direct"
+      },
+      "region": "EU, US",
+      "website": "https://intercom.com",
+      "dpaLink": "https://www.intercom.com/legal/dpa",
+      "dataCategories": [
+        "Support tickets",
+        "Chat logs",
+        "User data",
+        "Communication data"
+      ],
+      "safeguards": [
+        "EU Adequacy Decision",
+        "ISO 27001",
+        "Data Transfer Agreement"
+      ],
+      "certifications": ["ISO 27001", "SOC 2"],
+      "addedDate": "2024-06-01",
+      "status": "active"
+    },
+    {
+      "id": "google-analytics",
+      "name": "Google Analytics",
+      "purpose": {
+        "en": "Website analytics and usage statistics",
+        "tr": "Web sitesi analitikleri ve kullanım istatistikleri",
+        "de": "Website-Analyse und Nutzungsstatistiken",
+        "fr": "Analyses de site web et statistiques d'utilisation"
+      },
+      "region": "EU, US",
+      "website": "https://analytics.google.com",
+      "dpaLink": "https://privacy.google.com/businesses/processorterms/",
+      "dataCategories": [
+        "Usage data",
+        "Analytics",
+        "Anonymized metrics",
+        "Technical data"
+      ],
+      "safeguards": [
+        "EU Adequacy Decision",
+        "Google Cloud DPA",
+        "Data Minimization"
+      ],
+      "certifications": ["ISO 27001", "SOC 2"],
+      "addedDate": "2024-01-01",
+      "status": "active"
+    }
+  ],
+  "changelog": [
+    {
+      "date": "2025-01-01",
+      "version": "2.0",
+      "changes": [
+        {
+          "type": "updated",
+          "description": "Added comprehensive data categories table"
+        },
+        {
+          "type": "added",
+          "description": "Detailed security certifications for each provider"
+        },
+        {
+          "type": "added", 
+          "description": "Monitoring and auditing schedule"
+        },
+        {
+          "type": "updated",
+          "description": "Enhanced DPA links and status tracking"
+        },
+        {
+          "type": "added",
+          "description": "CHANGELOG section for transparency"
+        }
+      ]
+    },
+    {
+      "date": "2024-12-01",
+      "version": "1.5",
+      "changes": [
+        {
+          "type": "updated",
+          "description": "Google Analytics configuration for enhanced privacy"
+        },
+        {
+          "type": "added",
+          "description": "Data minimization measures for analytics data"
+        },
+        {
+          "type": "updated",
+          "description": "SendGrid DPA link following Twilio acquisition"
+        }
+      ]
+    },
+    {
+      "date": "2024-06-01",
+      "version": "1.2",
+      "changes": [
+        {
+          "type": "added",
+          "description": "Intercom as customer support subprocessor"
+        },
+        {
+          "type": "updated",
+          "description": "AWS region specification (Frankfurt primary)"
+        },
+        {
+          "type": "enhanced",
+          "description": "Security certification details"
+        }
+      ]
+    },
+    {
+      "date": "2024-01-01",
+      "version": "1.0",
+      "changes": [
+        {
+          "type": "initial",
+          "description": "First version of subprocessors documentation"
+        },
+        {
+          "type": "added",
+          "description": "Core subprocessors (AWS, Stripe, SendGrid, Google Analytics)"
+        },
+        {
+          "type": "established",
+          "description": "Basic DPA framework and compliance structure"
+        }
+      ]
+    }
+  ]
+}

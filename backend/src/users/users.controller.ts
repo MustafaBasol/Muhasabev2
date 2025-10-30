@@ -9,10 +9,13 @@ import {
   HttpCode,
   HttpStatus,
   Res,
+  Param,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
+import { Enable2FADto, Verify2FADto, Disable2FADto } from './dto/enable-2fa.dto';
+import { TwoFactorSecretResponse } from '../common/two-factor.service';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -112,5 +115,57 @@ export class UsersController {
       status: 'pending_deletion',
       deletionDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
     };
+  }
+
+  /**
+   * 2FA kurulumu başlatır
+   */
+  @Post('2fa/setup')
+  async setupTwoFactor(@Request() req): Promise<TwoFactorSecretResponse> {
+    return this.usersService.setupTwoFactor(req.user.userId);
+  }
+
+  /**
+   * 2FA'yı aktif eder
+   */
+  @Post('2fa/enable')
+  async enableTwoFactor(
+    @Request() req,
+    @Body() dto: Enable2FADto
+  ): Promise<{ message: string; backupCodes: string[] }> {
+    return this.usersService.enableTwoFactor(req.user.userId, dto);
+  }
+
+  /**
+   * 2FA token doğrular
+   */
+  @Post('2fa/verify')
+  async verifyTwoFactor(
+    @Request() req,
+    @Body() dto: Verify2FADto
+  ): Promise<{ valid: boolean }> {
+    const valid = await this.usersService.verifyTwoFactor(req.user.userId, dto);
+    return { valid };
+  }
+
+  /**
+   * 2FA'yı deaktif eder
+   */
+  @Post('2fa/disable')
+  async disableTwoFactor(
+    @Request() req,
+    @Body() dto: Disable2FADto
+  ): Promise<{ message: string }> {
+    return this.usersService.disableTwoFactor(req.user.userId, dto);
+  }
+
+  /**
+   * 2FA durumunu kontrol eder
+   */
+  @Get('2fa/status')
+  async getTwoFactorStatus(
+    @Request() req
+  ): Promise<{ enabled: boolean; backupCodesCount: number }> {
+    return this.usersService.getTwoFactorStatus(req.user.userId);
   }
 }

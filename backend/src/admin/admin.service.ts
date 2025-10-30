@@ -9,6 +9,11 @@ import { Product } from '../products/entities/product.entity';
 import { Invoice } from '../invoices/entities/invoice.entity';
 import { Expense } from '../expenses/entities/expense.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
+import { AuditLog } from '../audit/entities/audit-log.entity';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { spawn } from 'child_process';
+import { SecurityService } from '../common/security.service';
 
 @Injectable()
 export class AdminService {
@@ -31,7 +36,10 @@ export class AdminService {
     private expenseRepository: Repository<Expense>,
     @InjectRepository(ProductCategory)
     private productCategoryRepository: Repository<ProductCategory>,
+    @InjectRepository(AuditLog)
+    private auditLogRepository: Repository<AuditLog>,
     private dataSource: DataSource,
+    private securityService: SecurityService,
   ) {}
 
   async adminLogin(username: string, password: string) {
@@ -47,17 +55,15 @@ export class AdminService {
       throw new UnauthorizedException('Invalid admin credentials');
     }
 
-    // bcrypt ile hash kontrol et
-    const bcrypt = require('bcrypt');
-    const isPasswordValid = await bcrypt.compare(password, adminPasswordHash);
+    // SecurityService ile hash kontrol et
+    const isPasswordValid = await this.securityService.comparePassword(password, adminPasswordHash);
     
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid admin credentials');
     }
 
     // Güvenli random token üret
-    const crypto = require('crypto');
-    const adminToken = crypto.randomBytes(32).toString('hex');
+    const adminToken = this.securityService.generateRandomString(32);
     
     // Token'ı geçici olarak cache'de sakla (Redis kullanılmalı)
     // Şu an basit in-memory cache kullanıyoruz
@@ -318,5 +324,223 @@ export class AdminService {
         hasMore: offset + limit < totalCount,
       },
     };
+  }
+
+  // Data Retention Methods
+  
+  async getRetentionConfig() {
+    try {
+      const configPath = join(process.cwd(), 'config', 'retention.json');
+      const configData = readFileSync(configPath, 'utf8');
+      const config = JSON.parse(configData);
+      
+      return {
+        success: true,
+        config,
+        configPath,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: 'Failed to load retention configuration: ' + error.message,
+      };
+    }
+  }
+
+  async getRetentionStatus() {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 274); // 9 months for logs
+
+      // Get audit logs eligible for purge
+      const eligibleAuditLogs = await this.auditLogRepository
+        .createQueryBuilder('audit')
+        .where('audit.createdAt < :cutoffDate', { cutoffDate })
+        .getCount();
+
+      // Get expired tenants
+      const expiredTenants = await this.tenantRepository
+        .createQueryBuilder('tenant')
+        .where('tenant.status IN (:...statuses)', { statuses: ['expired', 'suspended'] })
+        .andWhere('tenant.updatedAt < :cutoffDate', { 
+          cutoffDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // 1 year ago
+        })
+        .getCount();
+
+      // Check if backup directory exists and count files
+      let backupFileCount = 0;
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const backupDir = join(process.cwd(), 'backups');
+        
+        if (fs.existsSync(backupDir)) {
+          const files = fs.readdirSync(backupDir);
+          const cutoffDateBackup = new Date();
+          cutoffDateBackup.setDate(cutoffDateBackup.getDate() - 30); // 30 days
+          
+          backupFileCount = files.filter(file => {
+            const filePath = path.join(backupDir, file);
+            const stats = fs.statSync(filePath);
+            return stats.mtime < cutoffDateBackup;
+          }).length;
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+
+      return {
+        success: true,
+        statistics: {
+          eligibleAuditLogs,
+          expiredTenants,
+          expiredBackupFiles: backupFileCount,
+          totalEligibleRecords: eligibleAuditLogs + expiredTenants + backupFileCount,
+        },
+        lastUpdated: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: 'Failed to get retention status: ' + error.message,
+      };
+    }
+  }
+
+  async getRetentionHistory(limit = 50, offset = 0) {
+    try {
+      // Get retention-related audit logs
+      const history = await this.auditLogRepository
+        .createQueryBuilder('audit')
+        .where('audit.entity = :entity', { entity: 'data_retention' })
+        .orderBy('audit.createdAt', 'DESC')
+        .limit(limit)
+        .offset(offset)
+        .getMany();
+
+      const totalCount = await this.auditLogRepository
+        .createQueryBuilder('audit')
+        .where('audit.entity = :entity', { entity: 'data_retention' })
+        .getCount();
+
+      return {
+        success: true,
+        history: history.map(log => ({
+          id: log.id,
+          timestamp: log.createdAt,
+          action: log.action,
+          details: log.diff,
+          ip: log.ip,
+          userAgent: log.userAgent,
+        })),
+        pagination: {
+          total: totalCount,
+          limit,
+          offset,
+          hasMore: offset + limit < totalCount,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: 'Failed to get retention history: ' + error.message,
+      };
+    }
+  }
+
+  async executeRetentionDryRun() {
+    return new Promise((resolve, reject) => {
+      const scriptPath = join(process.cwd(), 'scripts', 'data-retention.ts');
+      
+      // Execute the retention script in dry-run mode
+      const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', scriptPath], {
+        cwd: process.cwd(),
+        stdio: 'pipe',
+      });
+
+      let output = '';
+      let errorOutput = '';
+
+      child.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve({
+            success: true,
+            output,
+            message: 'Dry-run completed successfully',
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          reject({
+            success: false,
+            error: errorOutput || 'Dry-run failed',
+            output,
+            exitCode: code,
+          });
+        }
+      });
+
+      child.on('error', (error) => {
+        reject({
+          success: false,
+          error: 'Failed to execute retention script: ' + error.message,
+        });
+      });
+    });
+  }
+
+  async executeRetention() {
+    return new Promise((resolve, reject) => {
+      const scriptPath = join(process.cwd(), 'scripts', 'data-retention.ts');
+      
+      // Execute the retention script in live mode
+      const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', scriptPath, '--execute', '--force'], {
+        cwd: process.cwd(),
+        stdio: 'pipe',
+      });
+
+      let output = '';
+      let errorOutput = '';
+
+      child.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve({
+            success: true,
+            output,
+            message: 'Live purge completed successfully',
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          reject({
+            success: false,
+            error: errorOutput || 'Live purge failed',
+            output,
+            exitCode: code,
+          });
+        }
+      });
+
+      child.on('error', (error) => {
+        reject({
+          success: false,
+          error: 'Failed to execute retention script: ' + error.message,
+        });
+      });
+    });
   }
 }

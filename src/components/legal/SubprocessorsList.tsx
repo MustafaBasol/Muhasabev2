@@ -1,306 +1,339 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { Server, Shield, Globe, Building2, Clock, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Server, Clock, CheckCircle, Globe } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Subprocessor {
+  id: string;
   name: string;
   purpose: string;
-  location: string;
-  website: string;
-  safeguards: string[];
+  region: string;
+  dataCategories: string[];
+  dpaLink: string;
+  lastUpdated: string;
+}
+
+interface SubprocessorsData {
+  subprocessors: Subprocessor[];
+  lastModified: string;
+  version: string;
+  changelog: any[];
 }
 
 const SubprocessorsList: React.FC = () => {
-  const { i18n } = useTranslation('common');
-  const currentLang = i18n.language;
+  const [subprocessorsData, setSubprocessorsData] = useState<SubprocessorsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { currentLanguage } = useLanguage();
 
-  // Content by language
-  const content = {
+  // Çoklu dil metinleri
+  const texts = {
     tr: {
-      title: "Alt İşleyici Listesi",
-      subtitle: "Comptario'nun kişisel veri işleme faaliyetlerinde kullandığı alt işleyicilerin tam listesi",
-      lastUpdated: "Son güncelleme: 1 Ocak 2024",
-      overview: {
-        title: "Genel Bakış",
-        content: "GDPR Madde 28 uyarınca, Comptario müşterilerinin kişisel verilerini işlemek için kullandığı tüm alt işleyicileri şeffaf bir şekilde listelemektedir.",
-        notification: {
-          title: "Bildirim",
-          content: "Alt işleyici listesinde yapılan değişiklikler 30 gün önceden e-posta ile bildirilir."
-        }
+      title: 'Alt İşlemci Listesi',
+      subtitle: 'Comptario tarafından kişisel veri işleme faaliyetleri için kullanılan alt işlemcilerin tam listesi',
+      lastUpdated: 'Son güncelleme',
+      loading: 'Alt işlemciler yükleniyor...',
+      error: 'Alt işlemciler yüklenirken hata oluştu',
+      retry: 'Tekrar Dene',
+      noData: 'Veri bulunamadi',
+      provider: 'Sağlayıcı',
+      purpose: 'Amaç',
+      region: 'Bölge',
+      dataCategories: 'Veri Kategorileri',
+      dpaStatus: 'DPA Durumu',
+      available: 'Mevcut',
+      purposes: {
+        hosting: 'Bulut barındırma ve altyapı hizmetleri',
+        payment: 'Ödeme işleme ve finansal hizmetler',
+        email: 'E-posta teslimat ve iletişim hizmetleri',
+        analytics: 'Web sitesi analitik ve performans izleme',
+        cdn: 'İçerik dağıtım ağı ve güvenlik hizmetleri'
       },
-      currentList: "Güncel Alt İşleyiciler",
-      processors: {
-        aws: { purpose: "Bulut altyapısı ve veri depolama" },
-        stripe: { purpose: "Ödeme işlemleri ve fatura yönetimi" },
-        sendgrid: { purpose: "E-posta gönderimi ve iletişim" },
-        intercom: { purpose: "Müşteri desteği ve canlı sohbet" },
-        analytics: { purpose: "Web sitesi analitikleri ve kullanım istatistikleri" }
-      },
-      safeguards: {
-        title: "Güvenlik Önlemleri",
-        adequacyDecision: "AB Yeterlilik Kararı",
-        dataTransferAgreement: "Veri Transfer Sözleşmesi",
-        dataMinimization: "Veri Minimizasyonu"
-      },
-      dataTransfers: {
-        title: "Uluslararası Veri Transferleri",
-        content: "Tüm uluslararası veri transferleri GDPR Bölüm V uyarınca aşağıdaki güvenlik mekanizmaları ile korunmaktadır:",
-        mechanisms: {
-          adequacy: "AB Yeterlilik Kararları",
-          scc: "Standart Sözleşme Hükümleri (SCC)",
-          bcr: "Bağlayıcı Kurumsal Kurallar (BCR)"
-        }
-      },
-      monitoring: {
-        title: "İzleme ve Denetim",
-        content: "Tüm alt işleyiciler düzenli olarak izlenir ve denetlenir:",
-        activities: {
-          audit: "Yıllık güvenlik denetimleri",
-          certification: "Uluslararası sertifikasyon kontrolü",
-          review: "Aylık uyumluluk gözden geçirmesi"
-        }
-      },
-      contact: {
-        title: "İletişim ve Bildirimler",
-        content: "Alt işleyici değişiklikleri hakkında bilgi almak veya sorularınız için:",
-        email: "E-posta",
-        notificationPeriod: "Bildirim Süresi",
-        notificationPeriodValue: "Değişikliklerden 30 gün önce"
-      },
-      backToApp: "Uygulamaya Geri Dön"
+      categories: {
+        technical: 'Teknik veri',
+        user: 'Kullanıcı verisi',
+        transaction: 'İşlem verisi',
+        payment: 'Ödeme verisi',
+        customer: 'Müşteri verisi',
+        email: 'E-posta adresleri',
+        communication: 'İletişim verisi',
+        usage: 'Kullanım verisi',
+        analytics: 'Analitik veri',
+        security: 'Güvenlik kayıtları'
+      }
     },
     en: {
-      title: "Subprocessors List",
-      subtitle: "Complete list of subprocessors used by Comptario in personal data processing activities",
-      lastUpdated: "Last updated: January 1, 2024",
-      overview: {
-        title: "Overview",
-        content: "Under GDPR Article 28, Comptario transparently lists all subprocessors used to process our customers' personal data.",
-        notification: {
-          title: "Notification",
-          content: "Changes to the subprocessor list are notified 30 days in advance via email."
-        }
+      title: 'Subprocessors List',
+      subtitle: 'Complete list of subprocessors used by Comptario for personal data processing activities',
+      lastUpdated: 'Last updated',
+      loading: 'Loading subprocessors...',
+      error: 'Error loading subprocessors',
+      retry: 'Retry',
+      noData: 'No data available',
+      provider: 'Provider',
+      purpose: 'Purpose',
+      region: 'Region',
+      dataCategories: 'Data Categories',
+      dpaStatus: 'DPA Status',
+      available: 'Available',
+      purposes: {
+        hosting: 'Cloud hosting and infrastructure services',
+        payment: 'Payment processing and financial services',
+        email: 'Email delivery and communication services',
+        analytics: 'Website analytics and performance monitoring',
+        cdn: 'Content delivery network and security services'
       },
-      currentList: "Current Subprocessors",
-      processors: {
-        aws: { purpose: "Cloud infrastructure and data storage" },
-        stripe: { purpose: "Payment processing and invoice management" },
-        sendgrid: { purpose: "Email delivery and communication" },
-        intercom: { purpose: "Customer support and live chat" },
-        analytics: { purpose: "Website analytics and usage statistics" }
-      },
-      safeguards: {
-        title: "Safeguards",
-        adequacyDecision: "EU Adequacy Decision",
-        dataTransferAgreement: "Data Transfer Agreement",
-        dataMinimization: "Data Minimization"
-      },
-      dataTransfers: {
-        title: "International Data Transfers",
-        content: "All international data transfers are protected under GDPR Chapter V with the following security mechanisms:",
-        mechanisms: {
-          adequacy: "EU Adequacy Decisions",
-          scc: "Standard Contractual Clauses (SCC)",
-          bcr: "Binding Corporate Rules (BCR)"
-        }
-      },
-      monitoring: {
-        title: "Monitoring and Auditing",
-        content: "All subprocessors are regularly monitored and audited:",
-        activities: {
-          audit: "Annual security audits",
-          certification: "International certification checks",
-          review: "Monthly compliance reviews"
-        }
-      },
-      contact: {
-        title: "Contact and Notifications",
-        content: "For information about subprocessor changes or questions:",
-        email: "Email",
-        notificationPeriod: "Notification Period",
-        notificationPeriodValue: "30 days before changes"
-      },
-      backToApp: "Back to App"
+      categories: {
+        technical: 'Technical data',
+        user: 'User data',
+        transaction: 'Transaction data',
+        payment: 'Payment data',
+        customer: 'Customer data',
+        email: 'Email addresses',
+        communication: 'Communication data',
+        usage: 'Usage data',
+        analytics: 'Analytics data',
+        security: 'Security logs'
+      }
     },
     de: {
-      title: "Unterauftragsverarbeiter-Liste",
-      subtitle: "Vollständige Liste der von Comptario bei der Verarbeitung personenbezogener Daten verwendeten Unterauftragsverarbeiter",
-      lastUpdated: "Zuletzt aktualisiert: 1. Januar 2024",
-      overview: {
-        title: "Überblick",
-        content: "Gemäß GDPR Artikel 28 listet Comptario transparent alle Unterauftragsverarbeiter auf, die zur Verarbeitung der personenbezogenen Daten unserer Kunden verwendet werden.",
-        notification: {
-          title: "Benachrichtigung",
-          content: "Änderungen an der Unterauftragsverarbeiter-Liste werden 30 Tage im Voraus per E-Mail mitgeteilt."
-        }
+      title: 'Auftragsverarbeiter Liste',
+      subtitle: 'Vollständige Liste der von Comptario für die Verarbeitung personenbezogener Daten verwendeten Auftragsverarbeiter',
+      lastUpdated: 'Zuletzt aktualisiert',
+      loading: 'Auftragsverarbeiter werden geladen...',
+      error: 'Fehler beim Laden der Auftragsverarbeiter',
+      retry: 'Wiederholen',
+      noData: 'Keine Daten verfügbar',
+      provider: 'Anbieter',
+      purpose: 'Zweck',
+      region: 'Region',
+      dataCategories: 'Datenkategorien',
+      dpaStatus: 'DPA Status',
+      available: 'Verfügbar',
+      purposes: {
+        hosting: 'Cloud-Hosting und Infrastrukturdienste',
+        payment: 'Zahlungsabwicklung und Finanzdienstleistungen',
+        email: 'E-Mail-Zustellung und Kommunikationsdienste',
+        analytics: 'Website-Analyse und Leistungsüberwachung',
+        cdn: 'Content Delivery Network und Sicherheitsdienste'
       },
-      currentList: "Aktuelle Unterauftragsverarbeiter",
-      processors: {
-        aws: { purpose: "Cloud-Infrastruktur und Datenspeicherung" },
-        stripe: { purpose: "Zahlungsabwicklung und Rechnungsmanagement" },
-        sendgrid: { purpose: "E-Mail-Versand und Kommunikation" },
-        intercom: { purpose: "Kundensupport und Live-Chat" },
-        analytics: { purpose: "Website-Analyse und Nutzungsstatistiken" }
-      },
-      safeguards: {
-        title: "Schutzmaßnahmen",
-        adequacyDecision: "EU-Angemessenheitsbeschluss",
-        dataTransferAgreement: "Datentransfer-Vereinbarung",
-        dataMinimization: "Datenminimierung"
-      },
-      dataTransfers: {
-        title: "Internationale Datentransfers",
-        content: "Alle internationalen Datentransfers werden unter GDPR Kapitel V mit folgenden Sicherheitsmechanismen geschützt:",
-        mechanisms: {
-          adequacy: "EU-Angemessenheitsbeschlüsse",
-          scc: "Standardvertragsklauseln (SCC)",
-          bcr: "Verbindliche interne Datenschutzvorschriften (BCR)"
-        }
-      },
-      monitoring: {
-        title: "Überwachung und Prüfung",
-        content: "Alle Unterauftragsverarbeiter werden regelmäßig überwacht und geprüft:",
-        activities: {
-          audit: "Jährliche Sicherheitsprüfungen",
-          certification: "Internationale Zertifizierungskontrollen",
-          review: "Monatliche Compliance-Überprüfungen"
-        }
-      },
-      contact: {
-        title: "Kontakt und Benachrichtigungen",
-        content: "Für Informationen über Änderungen bei Unterauftragsverarbeitern oder Fragen:",
-        email: "E-Mail",
-        notificationPeriod: "Benachrichtigungszeitraum",
-        notificationPeriodValue: "30 Tage vor Änderungen"
-      },
-      backToApp: "Zurück zur App"
+      categories: {
+        technical: 'Technische Daten',
+        user: 'Benutzerdaten',
+        transaction: 'Transaktionsdaten',
+        payment: 'Zahlungsdaten',
+        customer: 'Kundendaten',
+        email: 'E-Mail-Adressen',
+        communication: 'Kommunikationsdaten',
+        usage: 'Nutzungsdaten',
+        analytics: 'Analysedaten',
+        security: 'Sicherheitsprotokolle'
+      }
     },
     fr: {
-      title: "Liste des Sous-traitants Ultérieurs",
-      subtitle: "Liste complète des sous-traitants ultérieurs utilisés par Comptario dans les activités de traitement des données personnelles",
-      lastUpdated: "Dernière mise à jour : 1er janvier 2024",
-      overview: {
-        title: "Aperçu",
-        content: "Conformément à l'Article 28 du GDPR, Comptario liste de manière transparente tous les sous-traitants ultérieurs utilisés pour traiter les données personnelles de nos clients.",
-        notification: {
-          title: "Notification",
-          content: "Les modifications de la liste des sous-traitants ultérieurs sont notifiées 30 jours à l'avance par e-mail."
-        }
+      title: 'Liste des Sous-traitants',
+      subtitle: 'Liste complète des sous-traitants utilisés par Comptario pour les activités de traitement des données personnelles',
+      lastUpdated: 'Dernière mise à jour',
+      loading: 'Chargement des sous-traitants...',
+      error: 'Erreur lors du chargement des sous-traitants',
+      retry: 'Réessayer',
+      noData: 'Aucune donnée disponible',
+      provider: 'Fournisseur',
+      purpose: 'Objectif',
+      region: 'Région',
+      dataCategories: 'Catégories de Données',
+      dpaStatus: 'Statut DPA',
+      available: 'Disponible',
+      purposes: {
+        hosting: 'Services d\'hébergement cloud et d\'infrastructure',
+        payment: 'Services de traitement des paiements et financiers',
+        email: 'Services de livraison d\'e-mails et de communication',
+        analytics: 'Analyse de site web et surveillance des performances',
+        cdn: 'Réseau de diffusion de contenu et services de sécurité'
       },
-      currentList: "Sous-traitants Ultérieurs Actuels",
-      processors: {
-        aws: { purpose: "Infrastructure cloud et stockage de données" },
-        stripe: { purpose: "Traitement des paiements et gestion des factures" },
-        sendgrid: { purpose: "Livraison d'e-mails et communication" },
-        intercom: { purpose: "Support client et chat en direct" },
-        analytics: { purpose: "Analyses de site web et statistiques d'utilisation" }
-      },
-      safeguards: {
-        title: "Mesures de Protection",
-        adequacyDecision: "Décision d'Adéquation UE",
-        dataTransferAgreement: "Accord de Transfert de Données",
-        dataMinimization: "Minimisation des Données"
-      },
-      dataTransfers: {
-        title: "Transferts Internationaux de Données",
-        content: "Tous les transferts internationaux de données sont protégés sous le Chapitre V du GDPR avec les mécanismes de sécurité suivants :",
-        mechanisms: {
-          adequacy: "Décisions d'Adéquation UE",
-          scc: "Clauses Contractuelles Types (SCC)",
-          bcr: "Règles d'Entreprise Contraignantes (BCR)"
-        }
-      },
-      monitoring: {
-        title: "Surveillance et Audit",
-        content: "Tous les sous-traitants ultérieurs sont régulièrement surveillés et audités :",
-        activities: {
-          audit: "Audits de sécurité annuels",
-          certification: "Contrôles de certification internationale",
-          review: "Révisions de conformité mensuelles"
-        }
-      },
-      contact: {
-        title: "Contact et Notifications",
-        content: "Pour des informations sur les changements de sous-traitants ultérieurs ou des questions :",
-        email: "Email",
-        notificationPeriod: "Période de Notification",
-        notificationPeriodValue: "30 jours avant les changements"
-      },
-      backToApp: "Retour à l'application"
+      categories: {
+        technical: 'Données techniques',
+        user: 'Données utilisateur',
+        transaction: 'Données de transaction',
+        payment: 'Données de paiement',
+        customer: 'Données client',
+        email: 'Adresses e-mail',
+        communication: 'Données de communication',
+        usage: 'Données d\'utilisation',
+        analytics: 'Données analytiques',
+        security: 'Journaux de sécurité'
+      }
     }
   };
 
-  const activeContent = content[currentLang as keyof typeof content] || content.en;
+  useEffect(() => {
+    console.log('SubprocessorsList component mounted');
+    const fetchSubprocessors = async () => {
+      try {
+        console.log('Loading subprocessors data...');
+        // Hardcoded data for now - backend connection issues
+        const data: SubprocessorsData = {
+          subprocessors: [
+            {
+              id: '1',
+              name: 'Amazon Web Services (AWS)',
+              purpose: 'Cloud hosting and infrastructure services',
+              region: 'US, EU',
+              dataCategories: ['Technical data', 'User data', 'Transaction data'],
+              dpaLink: 'https://aws.amazon.com/service-terms/',
+              lastUpdated: '2025-10-30'
+            },
+            {
+              id: '2',
+              name: 'Stripe Inc.',
+              purpose: 'Payment processing and financial services',
+              region: 'US, EU',
+              dataCategories: ['Payment data', 'Transaction data', 'Customer data'],
+              dpaLink: 'https://stripe.com/privacy',
+              lastUpdated: '2025-10-30'
+            },
+            {
+              id: '3',
+              name: 'SendGrid Inc.',
+              purpose: 'Email delivery and communication services',
+              region: 'US',
+              dataCategories: ['Email addresses', 'Communication data'],
+              dpaLink: 'https://sendgrid.com/policies/privacy/',
+              lastUpdated: '2025-10-30'
+            },
+            {
+              id: '4',
+              name: 'Google Analytics',
+              purpose: 'Website analytics and performance monitoring',
+              region: 'US, EU',
+              dataCategories: ['Usage data', 'Analytics data', 'Technical data'],
+              dpaLink: 'https://privacy.google.com/businesses/processorterms/',
+              lastUpdated: '2025-10-30'
+            },
+            {
+              id: '5',
+              name: 'Cloudflare Inc.',
+              purpose: 'Content delivery network and security services',
+              region: 'Global',
+              dataCategories: ['Technical data', 'Security logs'],
+              dpaLink: 'https://www.cloudflare.com/cloudflare-customer-dpa/',
+              lastUpdated: '2025-10-30'
+            }
+          ],
+          lastModified: '2025-10-30T10:00:00Z',
+          version: '1.0',
+          changelog: [
+            {
+              date: '2025-10-30',
+              version: '1.0',
+              changes: ['Initial subprocessors list created'],
+              author: 'Legal Team'
+            }
+          ]
+        };
+        console.log('Using hardcoded data:', data);
+        setSubprocessorsData(data);
+      } catch (error) {
+        console.error('Error loading subprocessors:', error);
+        setError('Failed to load subprocessors');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Subprocessors data with localized purposes
-  const subprocessors: Subprocessor[] = [
-    {
-      name: 'Amazon Web Services (AWS)',
-      purpose: activeContent.processors.aws.purpose,
-      location: 'EU (Frankfurt), US',
-      website: 'https://aws.amazon.com',
-      safeguards: [
-        activeContent.safeguards.adequacyDecision,
-        activeContent.safeguards.dataTransferAgreement,
-        'ISO 27001, SOC 2 Type II'
-      ]
-    },
-    {
-      name: 'Stripe',
-      purpose: activeContent.processors.stripe.purpose,
-      location: 'EU, US',
-      website: 'https://stripe.com',
-      safeguards: [
-        activeContent.safeguards.adequacyDecision,
-        'PCI DSS Level 1',
-        activeContent.safeguards.dataTransferAgreement
-      ]
-    },
-    {
-      name: 'SendGrid (Twilio)',
-      purpose: activeContent.processors.sendgrid.purpose,
-      location: 'EU, US',
-      website: 'https://sendgrid.com',
-      safeguards: [
-        activeContent.safeguards.adequacyDecision,
-        'SOC 2 Type II',
-        activeContent.safeguards.dataTransferAgreement
-      ]
-    },
-    {
-      name: 'Intercom',
-      purpose: activeContent.processors.intercom.purpose,
-      location: 'EU, US',
-      website: 'https://intercom.com',
-      safeguards: [
-        activeContent.safeguards.adequacyDecision,
-        'ISO 27001',
-        activeContent.safeguards.dataTransferAgreement
-      ]
-    },
-    {
-      name: 'Google Analytics',
-      purpose: activeContent.processors.analytics.purpose,
-      location: 'EU, US',
-      website: 'https://analytics.google.com',
-      safeguards: [
-        activeContent.safeguards.adequacyDecision,
-        'Google Cloud DPA',
-        activeContent.safeguards.dataMinimization
-      ]
-    }
-  ];
+    fetchSubprocessors();
+  }, []);
 
   const getLocationIcon = (location: string) => {
     if (location.includes('EU')) return '🇪🇺';
     if (location.includes('US')) return '🇺🇸';
+    if (location.includes('Global')) return '🌍';
     return '🌍';
   };
 
+  const getTranslatedData = (processor: Subprocessor) => {
+    const translations = {
+      tr: {
+        'Amazon Web Services (AWS)': {
+          name: 'Amazon Web Services (AWS)',
+          purpose: 'Bulut barındırma ve altyapı hizmetleri',
+          categories: ['Teknik veri', 'Kullanıcı verisi', 'İşlem verisi']
+        },
+        'Stripe Inc.': {
+          name: 'Stripe Inc.',
+          purpose: 'Ödeme işleme ve finansal hizmetler',
+          categories: ['Ödeme verisi', 'İşlem verisi', 'Müşteri verisi']
+        },
+        'SendGrid Inc.': {
+          name: 'SendGrid Inc.',
+          purpose: 'E-posta teslimat ve iletişim hizmetleri',
+          categories: ['E-posta adresleri', 'İletişim verisi']
+        },
+        'Google Analytics': {
+          name: 'Google Analytics',
+          purpose: 'Web sitesi analitik ve performans izleme',
+          categories: ['Kullanım verisi', 'Analitik veri', 'Teknik veri']
+        },
+        'Cloudflare Inc.': {
+          name: 'Cloudflare Inc.',
+          purpose: 'İçerik dağıtım ağı ve güvenlik hizmetleri',
+          categories: ['Teknik veri', 'Güvenlik kayıtları']
+        }
+      }
+    };
+
+    if (currentLanguage === 'tr' && translations.tr[processor.name as keyof typeof translations.tr]) {
+      return translations.tr[processor.name as keyof typeof translations.tr];
+    }
+    
+    return {
+      name: processor.name,
+      purpose: processor.purpose,
+      categories: processor.dataCategories
+    };
+  };
+
+  const t = texts[currentLanguage];
+
+  if (loading) {
+    return (
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">{t.loading}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{t.error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+          >
+            {t.retry}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!subprocessorsData) {
+    return (
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">{t.noData}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
+    <div className="bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -308,167 +341,145 @@ const SubprocessorsList: React.FC = () => {
             </div>
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {activeContent.title}
+            {t.title}
           </h1>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            {activeContent.subtitle}
+            {t.subtitle}
           </p>
           <div className="flex items-center justify-center mt-6 text-sm text-gray-500">
             <Clock className="h-4 w-4 mr-2" />
-            <span>{activeContent.lastUpdated}</span>
+            <span>{t.lastUpdated}: {new Date(subprocessorsData.lastModified).toLocaleDateString()}</span>
           </div>
         </div>
 
-        {/* Introduction */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-8">
-          <div className="flex items-start space-x-4">
-            <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <Shield className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-                {activeContent.overview.title}
-              </h2>
-              <p className="text-gray-700 leading-relaxed mb-4">
-                {activeContent.overview.content}
-              </p>
-              <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                <p className="text-blue-800 text-sm">
-                  <strong>{activeContent.overview.notification.title}:</strong> {activeContent.overview.notification.content}
-                </p>
-              </div>
-            </div>
+        {/* Masaüstü - Tablo Görünümü */}
+        <div className="hidden lg:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {t.provider}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {t.purpose}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {t.region}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {t.dataCategories}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {t.dpaStatus}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {subprocessorsData.subprocessors.map((processor, index) => {
+                  const translated = getTranslatedData(processor);
+                  return (
+                    <tr key={processor.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {translated.name}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">{translated.purpose}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center text-sm text-gray-900">
+                          <span className="mr-2">{getLocationIcon(processor.region)}</span>
+                          {processor.region}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">
+                          {translated.categories.join(', ')}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                          <a
+                            href={processor.dpaLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-indigo-600 hover:text-indigo-800 underline"
+                          >
+                            {t.available}
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Subprocessors List */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-semibold text-gray-900 flex items-center">
-            <Building2 className="h-6 w-6 mr-2 text-gray-600" />
-            {activeContent.currentList}
-          </h2>
-          
-          <div className="grid gap-6">
-            {subprocessors.map((processor, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        {/* Mobile - Kart Görünümü */}
+        <div className="lg:hidden space-y-6">
+          {subprocessorsData.subprocessors.map((processor) => {
+            const translated = getTranslatedData(processor);
+            return (
+              <div key={processor.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                      {processor.name}
-                      <a
-                        href={processor.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2 text-blue-600 hover:text-blue-700"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">
+                      {translated.name}
                     </h3>
-                    <p className="text-gray-600 mt-1">{processor.purpose}</p>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Globe className="h-4 w-4 mr-1" />
+                      <span className="mr-2">{getLocationIcon(processor.region)}</span>
+                      {processor.region}
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <Globe className="h-4 w-4" />
-                    <span>{getLocationIcon(processor.location)} {processor.location}</span>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                    <Shield className="h-4 w-4 mr-1 text-green-600" />
-                    {activeContent.safeguards.title}
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {processor.safeguards.map((safeguard, safeguardIndex) => (
-                      <span
-                        key={safeguardIndex}
-                        className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium"
-                      >
-                        {safeguard}
-                      </span>
-                    ))}
+                  <div className="flex items-center">
+                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                    <a 
+                      href={processor.dpaLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-indigo-600 hover:text-indigo-800 underline"
+                    >
+                      DPA
+                    </a>
                   </div>
                 </div>
+                <div className="space-y-3">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">{t.purpose}</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{translated.purpose}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">{t.dataCategories}</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      <div className="flex flex-wrap gap-1">
+                        {translated.categories.map((category, idx) => (
+                          <span 
+                            key={idx} 
+                            className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded"
+                          >
+                            {category}
+                          </span>
+                        ))}
+                      </div>
+                    </dd>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        {/* Additional Information */}
-        <div className="mt-12 grid md:grid-cols-2 gap-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {activeContent.dataTransfers.title}
-            </h3>
-            <p className="text-gray-700 text-sm mb-4">
-              {activeContent.dataTransfers.content}
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                {activeContent.dataTransfers.mechanisms.adequacy}
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                {activeContent.dataTransfers.mechanisms.scc}
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                {activeContent.dataTransfers.mechanisms.bcr}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {activeContent.monitoring.title}
-            </h3>
-            <p className="text-gray-700 text-sm mb-4">
-              {activeContent.monitoring.content}
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                {activeContent.monitoring.activities.audit}
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                {activeContent.monitoring.activities.certification}
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                {activeContent.monitoring.activities.review}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Contact Information */}
-        <div className="bg-gray-100 rounded-lg p-8 mt-12">
-          <div className="text-center">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              {activeContent.contact.title}
-            </h3>
-            <p className="text-gray-700 mb-6 max-w-2xl mx-auto">
-              {activeContent.contact.content}
-            </p>
-            <div className="space-y-2 text-sm text-gray-600">
-              <p><strong>{activeContent.contact.email}:</strong> dpo@comptario.com</p>
-              <p><strong>{activeContent.contact.notificationPeriod}:</strong> {activeContent.contact.notificationPeriodValue}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Back to app link */}
-        <div className="text-center mt-8">
-          <a
-            href="#"
-            onClick={() => window.history.back()}
-            className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-          >
-            ← {activeContent.backToApp}
-          </a>
+        {/* Alt Bilgi */}
+        <div className="mt-12 text-center text-sm text-gray-500">
+          <p>
+            {t.lastUpdated}: {new Date(subprocessorsData.lastModified).toLocaleDateString()}
+          </p>
         </div>
       </div>
     </div>

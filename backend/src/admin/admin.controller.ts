@@ -79,4 +79,51 @@ export class AdminController {
     this.checkAdminAuth(headers);
     return this.adminService.getTableData(tableName, tenantId, limit, offset);
   }
+
+  @Get('retention/config')
+  @ApiOperation({ summary: 'Get data retention configuration' })
+  @ApiResponse({ status: 200, description: 'Retention configuration' })
+  async getRetentionConfig(@Headers() headers: any) {
+    this.checkAdminAuth(headers);
+    return this.adminService.getRetentionConfig();
+  }
+
+  @Get('retention/status')
+  @ApiOperation({ summary: 'Get retention job status and statistics' })
+  @ApiResponse({ status: 200, description: 'Retention status and stats' })
+  async getRetentionStatus(@Headers() headers: any) {
+    this.checkAdminAuth(headers);
+    return this.adminService.getRetentionStatus();
+  }
+
+  @Get('retention/history')
+  @ApiOperation({ summary: 'Get retention job execution history' })
+  @ApiResponse({ status: 200, description: 'Retention job history' })
+  async getRetentionHistory(
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Headers() headers?: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.adminService.getRetentionHistory(limit, offset);
+  }
+
+  @Post('retention/dry-run')
+  @ApiOperation({ summary: 'Execute retention job in dry-run mode' })
+  @ApiResponse({ status: 200, description: 'Dry-run results' })
+  async executeRetentionDryRun(@Headers() headers: any) {
+    this.checkAdminAuth(headers);
+    return this.adminService.executeRetentionDryRun();
+  }
+
+  @Post('retention/execute')
+  @ApiOperation({ summary: 'Execute retention job (live purge)' })
+  @ApiResponse({ status: 200, description: 'Live purge results' })
+  async executeRetention(@Headers() headers: any, @Body() body: { confirm?: boolean }) {
+    this.checkAdminAuth(headers);
+    if (!body.confirm) {
+      throw new UnauthorizedException('Confirmation required for live purge');
+    }
+    return this.adminService.executeRetention();
+  }
 }

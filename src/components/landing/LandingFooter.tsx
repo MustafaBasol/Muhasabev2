@@ -1,61 +1,181 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Calculator, Mail, Globe, Shield } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const LandingFooter: React.FC = () => {
-  const { t, ready } = useTranslation('common');
+  const { currentLanguage, changeLanguage, languages } = useLanguage();
   const currentYear = new Date().getFullYear();
 
-  // Don't render until translations are ready
-  if (!ready) {
-    return (
-      <footer id="contact" className="bg-gray-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center text-gray-400">
-            Loading footer...
-          </div>
-        </div>
-      </footer>
-    );
-  }
+  // Çeviri metinleri - dil bazında
+  const texts = {
+    tr: {
+      product: 'ÜRÜN',
+      features: 'Özellikler',
+      pricing: 'Fiyatlar',
+      security: 'Güvenlik',
+      api: 'API',
+      company: 'ŞİRKET',
+      about: 'Hakkında',
+      blog: 'Blog',
+      careers: 'Kariyer',
+      press: 'Basın',
+      support: 'DESTEK',
+      helpCenter: 'Yardım Merkezi',
+      contactUs: 'İletişim',
+      status: 'Durum',
+      community: 'Topluluk',
+      legal: 'HUKUKİ',
+      privacy: 'Gizlilik Politikası',
+      terms: 'Hizmet Şartları',
+      cookies: 'Çerez Politikası',
+      subprocessors: 'Alt İşleyiciler',
+      description: 'Modern işletmeler için basit, güvenli ön muhasebe yazılımı. Faturaları, giderleri ve KDV\'yi güvenle yönetin.',
+      email: 'support@comptario.com',
+      languages: '4 dilde mevcut',
+      gdprCompliant: 'GDPR Uyumlu',
+      stayUpdated: 'Güncel kalın',
+      updatesDesc: 'Yeni özellikler ve en iyi uygulamalar hakkında güncellemeler alın.',
+      emailPlaceholder: 'E-posta adresinizi girin',
+      subscribe: 'Abone Ol',
+      copyright: `© ${currentYear} Comptario. Tüm hakları saklıdır.`,
+      madeWith: 'Avrupa\'da ❤️ ile yapıldı'
+    },
+    en: {
+      product: 'PRODUCT',
+      features: 'Features',
+      pricing: 'Pricing',
+      security: 'Security',
+      api: 'API',
+      company: 'COMPANY',
+      about: 'About',
+      blog: 'Blog',
+      careers: 'Careers',
+      press: 'Press',
+      support: 'SUPPORT',
+      helpCenter: 'Help Center',
+      contactUs: 'Contact Us',
+      status: 'Status',
+      community: 'Community',
+      legal: 'LEGAL',
+      privacy: 'Privacy Policy',
+      terms: 'Terms of Service',
+      cookies: 'Cookie Policy',
+      subprocessors: 'Subprocessors',
+      description: 'Simple, secure pre-accounting software for modern businesses. Manage invoices, expenses, and VAT with confidence.',
+      email: 'support@comptario.com',
+      languages: 'Available in 4 languages',
+      gdprCompliant: 'GDPR Compliant',
+      stayUpdated: 'Stay updated',
+      updatesDesc: 'Get the latest updates on new features and best practices.',
+      emailPlaceholder: 'Enter your email',
+      subscribe: 'Subscribe',
+      copyright: `© ${currentYear} Comptario. All rights reserved.`,
+      madeWith: 'Made with ❤️ in Europe'
+    },
+    de: {
+      product: 'PRODUKT',
+      features: 'Funktionen',
+      pricing: 'Preise',
+      security: 'Sicherheit',
+      api: 'API',
+      company: 'UNTERNEHMEN',
+      about: 'Über uns',
+      blog: 'Blog',
+      careers: 'Karriere',
+      press: 'Presse',
+      support: 'SUPPORT',
+      helpCenter: 'Hilfe Center',
+      contactUs: 'Kontakt',
+      status: 'Status',
+      community: 'Community',
+      legal: 'RECHTLICHES',
+      privacy: 'Datenschutz',
+      terms: 'Nutzungsbedingungen',
+      cookies: 'Cookie-Richtlinie',
+      subprocessors: 'Unterauftragsverarbeiter',
+      description: 'Einfache, sichere Vorbuchhaltungssoftware für moderne Unternehmen. Verwalten Sie Rechnungen, Ausgaben und MwSt. mit Vertrauen.',
+      email: 'support@comptario.com',
+      languages: 'In 4 Sprachen verfügbar',
+      gdprCompliant: 'DSGVO-konform',
+      stayUpdated: 'Bleiben Sie auf dem Laufenden',
+      updatesDesc: 'Erhalten Sie die neuesten Updates zu neuen Funktionen und bewährten Praktiken.',
+      emailPlaceholder: 'E-Mail eingeben',
+      subscribe: 'Abonnieren',
+      copyright: `© ${currentYear} Comptario. Alle Rechte vorbehalten.`,
+      madeWith: 'Mit ❤️ in Europa gemacht'
+    },
+    fr: {
+      product: 'PRODUIT',
+      features: 'Fonctionnalités',
+      pricing: 'Prix',
+      security: 'Sécurité',
+      api: 'API',
+      company: 'ENTREPRISE',
+      about: 'À propos',
+      blog: 'Blog',
+      careers: 'Carrières',
+      press: 'Presse',
+      support: 'SUPPORT',
+      helpCenter: 'Centre d\'aide',
+      contactUs: 'Nous contacter',
+      status: 'Statut',
+      community: 'Communauté',
+      legal: 'JURIDIQUE',
+      privacy: 'Politique de confidentialité',
+      terms: 'Conditions de service',
+      cookies: 'Politique des cookies',
+      subprocessors: 'Sous-traitants',
+      description: 'Logiciel de pré-comptabilité simple et sécurisé pour les entreprises modernes. Gérez les factures, les dépenses et la TVA en toute confiance.',
+      email: 'support@comptario.com',
+      languages: 'Disponible en 4 langues',
+      gdprCompliant: 'Conforme RGPD',
+      stayUpdated: 'Restez informé',
+      updatesDesc: 'Recevez les dernières mises à jour sur les nouvelles fonctionnalités et les meilleures pratiques.',
+      emailPlaceholder: 'Entrez votre e-mail',
+      subscribe: 'S\'abonner',
+      copyright: `© ${currentYear} Comptario. Tous droits réservés.`,
+      madeWith: 'Fait avec ❤️ en Europe'
+    }
+  };
 
-
+  const t = texts[currentLanguage];
 
   const footerLinks = [
     {
-      title: t('footer.product', 'PRODUCT'),
+      title: t.product,
       links: [
-        { name: t('footer.features', 'Features'), href: '#features' },
-        { name: t('footer.pricing', 'Pricing'), href: '#pricing' },
-        { name: t('footer.security', 'Security'), href: '#security' },
-        { name: t('footer.api', 'API'), href: '#' }
+        { name: t.features, href: '#features' },
+        { name: t.pricing, href: '#pricing' },
+        { name: t.security, href: '#security' },
+        { name: t.api, href: '#' }
       ]
     },
     {
-      title: t('footer.company', 'COMPANY'),
+      title: t.company,
       links: [
-        { name: t('footer.about', 'About'), href: '#' },
-        { name: t('footer.blog', 'Blog'), href: '#' },
-        { name: t('footer.careers', 'Careers'), href: '#' },
-        { name: t('footer.press', 'Press'), href: '#' }
+        { name: t.about, href: '#' },
+        { name: t.blog, href: '#' },
+        { name: t.careers, href: '#' },
+        { name: t.press, href: '#' }
       ]
     },
     {
-      title: t('footer.support', 'SUPPORT'),
+      title: t.support,
       links: [
-        { name: t('footer.helpCenter', 'Help Center'), href: '#' },
-        { name: t('footer.contactUs', 'Contact Us'), href: 'mailto:support@comptario.com' },
-        { name: t('footer.status', 'Status'), href: '#' },
-        { name: t('footer.community', 'Community'), href: '#' }
+        { name: t.helpCenter, href: '#' },
+        { name: t.contactUs, href: 'mailto:support@comptario.com' },
+        { name: t.status, href: '#' },
+        { name: t.community, href: '#' }
       ]
     },
     {
-      title: t('footer.legal', 'LEGAL'),
+      title: t.legal,
       links: [
-        { name: t('footer.privacy', 'Privacy Policy'), href: '#legal/privacy' },
-        { name: t('footer.terms', 'Terms of Service'), href: '#legal/terms' },
-        { name: t('footer.cookies', 'Cookie Policy'), href: '#legal/cookies' },
-        { name: 'DPA', href: '#legal/dpa' }
+        { name: t.privacy, href: '#legal/privacy' },
+        { name: t.terms, href: '#legal/terms' },
+        { name: t.cookies, href: '#legal/cookies' },
+        { name: 'DPA', href: '#legal/dpa' },
+        { name: t.subprocessors, href: '#legal/subprocessors' }
       ]
     }
   ];  const scrollToSection = (href: string) => {
@@ -85,7 +205,7 @@ const LandingFooter: React.FC = () => {
               <span className="text-xl font-bold">Comptario</span>
             </div>
             <p className="text-gray-400 mb-6 leading-relaxed">
-              {t('footer.description', 'Simple, secure pre-accounting software for modern businesses. Manage invoices, expenses, and VAT with confidence.')}
+              {t.description}
             </p>
             
             {/* Contact info */}
@@ -93,16 +213,16 @@ const LandingFooter: React.FC = () => {
               <div className="flex items-center space-x-3 text-gray-400">
                 <Mail className="h-4 w-4" />
                 <a href="mailto:support@comptario.com" className="hover:text-white transition-colors">
-                  {t('footer.email', 'support@comptario.com')}
+                  {t.email}
                 </a>
               </div>
               <div className="flex items-center space-x-3 text-gray-400">
                 <Globe className="h-4 w-4" />
-                <span>{t('footer.languages', 'Available in 4 languages')}</span>
+                <span>{t.languages}</span>
               </div>
               <div className="flex items-center space-x-3 text-gray-400">
                 <Shield className="h-4 w-4" />
-                <span>{t('footer.gdprCompliant', 'GDPR Compliant')}</span>
+                <span>{t.gdprCompliant}</span>
               </div>
             </div>
           </div>
@@ -143,19 +263,19 @@ const LandingFooter: React.FC = () => {
         <div className="mt-12 pt-8 border-t border-gray-800">
           <div className="max-w-md">
             <h3 className="text-lg font-semibold text-white mb-2">
-              {t('footer.stayUpdated', 'Stay updated')}
+              {t.stayUpdated}
             </h3>
             <p className="text-gray-400 text-sm mb-4">
-              {t('footer.updatesDesc', 'Get the latest updates on new features and best practices.')}
+              {t.updatesDesc}
             </p>
             <div className="flex space-x-3">
               <input
                 type="email"
-                placeholder={t('footer.emailPlaceholder', 'Enter your email')}
+                placeholder={t.emailPlaceholder}
                 className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
               />
               <button className="bg-white text-gray-900 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors whitespace-nowrap">
-                {t('footer.subscribe', 'Subscribe')}
+                {t.subscribe}
               </button>
             </div>
           </div>
@@ -164,18 +284,33 @@ const LandingFooter: React.FC = () => {
         {/* Bottom bar */}
         <div className="mt-12 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center">
           <div className="text-gray-400 text-sm">
-            {t('footer.copyright', { year: currentYear, defaultValue: `© ${currentYear} Comptario. All rights reserved.` })}
+            {t.copyright}
           </div>
           
           <div className="flex items-center space-x-6 mt-4 md:mt-0">
             <div className="text-gray-400 text-sm">
-              {t('footer.madeWith', 'Made with ❤️ in Europe')}
+              {t.madeWith}
             </div>
             
-            {/* Language selector (simplified) */}
-            <div className="flex items-center space-x-2 text-gray-400 text-sm">
-              <Globe className="h-4 w-4" />
-              <span>🇬🇧 🇹🇷 🇩🇪 🇫🇷</span>
+            {/* Language selector */}
+            <div className="flex items-center space-x-2">
+              <Globe className="h-4 w-4 text-gray-400" />
+              <div className="flex items-center space-x-1">
+                {languages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => changeLanguage(lang.code)}
+                    className={`px-2 py-1 rounded text-sm transition-colors ${
+                      currentLanguage === lang.code
+                        ? 'bg-white text-gray-900'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    title={lang.name}
+                  >
+                    {lang.flag}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

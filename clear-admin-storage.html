@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Admin Storage</title>
+</head>
+<body>
+    <h1>Clearing Admin Storage...</h1>
+    <script>
+        console.log('Clearing localStorage admin data...');
+        localStorage.removeItem('admin-token');
+        localStorage.removeItem('isAdminLoggedIn');
+        localStorage.removeItem('showAdminLogin');
+        console.log('Admin storage cleared. Redirecting to admin page...');
+        setTimeout(() => {
+            window.location.href = 'http://localhost:5173/#admin';
+        }, 1000);
+    </script>
+    <p>Redirecting to admin page...</p>
+</body>
+</html>

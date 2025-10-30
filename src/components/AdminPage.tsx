@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '../api/admin';
 import { Edit, Trash2, ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
 import BackupManagementPage from './admin/BackupManagementPage';
+import DataRetentionPage from './admin/DataRetentionPage';
 
 interface User {
   id: string;
@@ -51,7 +52,7 @@ const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups' | 'retention'>('users');
   
   // Table visibility states
   const [visibleTables, setVisibleTables] = useState<{[key: string]: boolean}>({
@@ -73,7 +74,7 @@ const AdminPage: React.FC = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('admin-token');
-    if (token === 'admin-access-granted') {
+    if (token) {
       setIsAuthenticated(true);
       loadAllData();
     }
@@ -365,7 +366,7 @@ const AdminPage: React.FC = () => {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            🏢 Tenant'lar ({tenants.length})
+            🏢 Şirketler ({tenants.length})
           </button>
           <button
             onClick={() => setActiveTab('data')}
@@ -375,7 +376,7 @@ const AdminPage: React.FC = () => {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            📊 Veriler
+            📊 Veri Tabanı
           </button>
           <button
             onClick={() => setActiveTab('backups')}
@@ -387,9 +388,19 @@ const AdminPage: React.FC = () => {
           >
             💾 Yedekleme
           </button>
+          <button
+            onClick={() => setActiveTab('retention')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'retention'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🗑️ Veri Temizleme
+          </button>
         </div>
 
-        {/* Stats */}
+        {/* İstatistikler */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <div className="bg-blue-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">{stats.users}</div>
@@ -429,16 +440,16 @@ const AdminPage: React.FC = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        İsim
+                        Ad Soyad
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Email
+                        E-posta
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Şirket
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Rol
+                        Yetki
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Durum
@@ -466,7 +477,7 @@ const AdminPage: React.FC = () => {
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                           }`}>
-                            {user.role}
+                            {user.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -505,7 +516,7 @@ const AdminPage: React.FC = () => {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-800">🏢 Tenant Bilgileri</h2>
+                <h2 className="text-lg font-semibold text-gray-800">🏢 Şirket Bilgileri</h2>
               </div>
               <div className="p-6 space-y-6">
                 {tenants.map((tenant) => (
@@ -516,17 +527,17 @@ const AdminPage: React.FC = () => {
                         <p className="text-gray-600">{tenant.companyName || tenant.name}</p>
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-800">Slug</h3>
+                        <h3 className="font-semibold text-gray-800">URL Kodu</h3>
                         <p className="text-gray-600">@{tenant.slug}</p>
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-800">Abonelik</h3>
+                        <h3 className="font-semibold text-gray-800">Abonelik Planı</h3>
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           tenant.subscriptionPlan === 'premium' 
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {tenant.subscriptionPlan}
+                          {tenant.subscriptionPlan === 'premium' ? 'Premium' : 'Temel'}
                         </span>
                       </div>
                       <div>
@@ -536,7 +547,7 @@ const AdminPage: React.FC = () => {
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {tenant.status}
+                          {tenant.status === 'active' ? 'Aktif' : 'Pasif'}
                         </span>
                       </div>
                     </div>
@@ -550,7 +561,7 @@ const AdminPage: React.FC = () => {
         {activeTab === 'data' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">📊 Veriler</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">📊 Veri Tabanı Tabloları</h2>
               <p className="text-gray-600 mb-6">
                 Tablolar varsayılan olarak gizlidir. Görüntülemek için tablo başlığına tıklayın.
               </p>
@@ -566,6 +577,10 @@ const AdminPage: React.FC = () => {
 
         {activeTab === 'backups' && (
           <BackupManagementPage />
+        )}
+
+        {activeTab === 'retention' && (
+          <DataRetentionPage />
         )}
       </div>
     </div>

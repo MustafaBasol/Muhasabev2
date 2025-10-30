@@ -2,30 +2,14 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Globe } from 'lucide-react';
 import { Calculator } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const LegalHeader: React.FC = () => {
-  const { t, i18n } = useTranslation('common');
-
-  // Ensure language is loaded from localStorage on mount
-  React.useEffect(() => {
-    const savedLanguage = localStorage.getItem('i18nextLng');
-    if (savedLanguage && savedLanguage !== i18n.language) {
-      i18n.changeLanguage(savedLanguage);
-    }
-  }, [i18n]);
-
-  const languages = [
-    { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
-    { code: 'en', name: 'English', flag: '🇬🇧' },
-    { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-    { code: 'fr', name: 'Français', flag: '🇫🇷' }
-  ];
-
-
+  const { t } = useTranslation('common');
+  const { currentLanguage, changeLanguage, languages } = useLanguage();
 
   const handleLanguageChange = (langCode: string) => {
-    i18n.changeLanguage(langCode);
-    localStorage.setItem('i18nextLng', langCode);
+    changeLanguage(langCode as 'tr' | 'en' | 'de' | 'fr');
   };
 
   const handleBackToHome = () => {
@@ -61,7 +45,7 @@ const LegalHeader: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Globe className="h-4 w-4 text-gray-500" />
               <select
-                value={i18n.language}
+                value={currentLanguage}
                 onChange={(e) => handleLanguageChange(e.target.value)}
                 className="bg-transparent border-none text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded cursor-pointer pr-8"
               >

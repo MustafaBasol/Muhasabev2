@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Subprocessors API</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .changelog {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Subprocessors API Test</h1>
+    
+    <div class="container">
+        <h2>API Test</h2>
+        <button onclick="testAPI()">Test Subprocessors API</button>
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <div id="status" class="status loading">Ready to test...</div>
+    </div>
+
+    <div id="results" class="container" style="display: none;">
+        <h2>API Results</h2>
+        <div id="api-info"></div>
+        <table id="subprocessors-table">
+            <thead>
+                <tr>
+                    <th>Provider</th>
+                    <th>Purpose</th>
+                    <th>Region</th>
+                    <th>Data Categories</th>
+                    <th>DPA Link</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+            </tbody>
+        </table>
+    </div>
+
+    <div id="changelog-section" class="changelog" style="display: none;">
+        <h2>Changelog</h2>
+        <div id="changelog-content"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api/subprocessors';
+
+        function updateStatus(message, type = 'loading') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        async function testHealth() {
+            updateStatus('Testing health endpoint...', 'loading');
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                updateStatus(`Health check successful: ${data.status} - ${data.timestamp}`, 'success');
+            } catch (error) {
+                updateStatus(`Health check failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAPI() {
+            updateStatus('Fetching subprocessors data...', 'loading');
+            
+            try {
+                const response = await fetch(API_BASE);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    updateStatus(`API Error: ${data.error}`, 'error');
+                    return;
+                }
+                
+                displayResults(data);
+                updateStatus(`Successfully loaded ${data.subprocessors.length} subprocessors`, 'success');
+                
+            } catch (error) {
+                updateStatus(`API Request failed: ${error.message}`, 'error');
+                console.error('API Error:', error);
+            }
+        }
+
+        function displayResults(data) {
+            // Show results container
+            document.getElementById('results').style.display = 'block';
+            
+            // Display API info
+            const apiInfo = document.getElementById('api-info');
+            apiInfo.innerHTML = `
+                <p><strong>Last Updated:</strong> ${new Date(data.lastUpdated).toLocaleString()}</p>
+                <p><strong>Version:</strong> ${data.version}</p>
+                <p><strong>Total Subprocessors:</strong> ${data.subprocessors.length}</p>
+            `;
+            
+            // Populate table
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = '';
+            
+            data.subprocessors.forEach(subprocessor => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${subprocessor.provider}</strong></td>
+                    <td>${subprocessor.purpose}</td>
+                    <td>${subprocessor.region}</td>
+                    <td>${subprocessor.dataCategories}</td>
+                    <td><a href="${subprocessor.dpaLink}" target="_blank">View DPA</a></td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // Display changelog if exists
+            if (data.changelog && data.changelog.length > 0) {
+                document.getElementById('changelog-section').style.display = 'block';
+                const changelogContent = document.getElementById('changelog-content');
+                changelogContent.innerHTML = data.changelog.map(entry => `
+                    <div style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
+                        <h4>Version ${entry.version} - ${entry.date}</h4>
+                        <ul>
+                            ${entry.changes.map(change => `<li>${change}</li>`).join('')}
+                        </ul>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Test API on page load
+        window.onload = function() {
+            setTimeout(() => {
+                testHealth();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
