@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Period Lock ve Soft Delete Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        .response { background: #f5f5f5; padding: 10px; border-radius: 3px; white-space: pre-wrap; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+        input, select { margin: 5px; padding: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>🔒 Period Lock ve Soft Delete Test</h1>
+    
+    <div class="section">
+        <h2>🔐 Authentication</h2>
+        <input type="email" id="email" placeholder="E-posta" value="test@example.com">
+        <input type="password" id="password" placeholder="Şifre" value="test123">
+        <button onclick="login()">Giriş Yap</button>
+        <div id="auth-response" class="response"></div>
+    </div>
+
+    <div class="section">
+        <h2>📊 Fiscal Periods</h2>
+        <button onclick="getFiscalPeriods()">Dönemleri Listele</button>
+        <button onclick="createFiscalPeriod()">Test Dönemi Oluştur</button>
+        <div id="periods-response" class="response"></div>
+    </div>
+
+    <div class="section">
+        <h2>🔒 Period Lock Operations</h2>
+        <input type="text" id="periodId" placeholder="Period ID">
+        <input type="text" id="lockReason" placeholder="Kilit Sebebi" value="Aylık kapanış tamamlandı">
+        <button onclick="lockPeriod()">Dönemi Kilitle</button>
+        <button onclick="unlockPeriod()">Dönemi Aç</button>
+        <div id="lock-response" class="response"></div>
+    </div>
+
+    <div class="section">
+        <h2>📄 Invoice Soft Delete</h2>
+        <input type="text" id="invoiceId" placeholder="Invoice ID">
+        <input type="text" id="voidReason" placeholder="İptal Sebebi" value="Hatalı düzenleme">
+        <button onclick="voidInvoice()">Faturayı İptal Et</button>
+        <button onclick="restoreInvoice()">Faturayı Geri Yükle</button>
+        <div id="invoice-response" class="response"></div>
+    </div>
+
+    <div class="section">
+        <h2>💰 Expense Soft Delete</h2>
+        <input type="text" id="expenseId" placeholder="Expense ID">
+        <input type="text" id="expenseVoidReason" placeholder="İptal Sebebi" value="Yanlış giriş">
+        <button onclick="voidExpense()">Gideri İptal Et</button>
+        <button onclick="restoreExpense()">Gideri Geri Yükle</button>
+        <div id="expense-response" class="response"></div>
+    </div>
+
+    <div class="section">
+        <h2>🚫 Period Lock Test</h2>
+        <p>Kilitli döneme kayıt eklemeyi test et:</p>
+        <input type="date" id="testDate" placeholder="Test Tarihi">
+        <button onclick="testCreateInvoiceInLockedPeriod()">Kilitli Döneme Fatura Ekle</button>
+        <div id="lock-test-response" class="response"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://damp-wraith-7q9x5r7j6qrcgg6-3000.app.github.dev';
+        let authToken = '';
+
+        async function login() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.access_token;
+                    document.getElementById('auth-response').innerHTML = `✅ Giriş başarılı!\nToken: ${authToken.substring(0, 50)}...`;
+                    document.getElementById('auth-response').className = 'response success';
+                } else {
+                    document.getElementById('auth-response').innerHTML = `❌ Giriş hatası: ${JSON.stringify(data, null, 2)}`;
+                    document.getElementById('auth-response').className = 'response error';
+                }
+            } catch (error) {
+                document.getElementById('auth-response').innerHTML = `❌ Hata: ${error.message}`;
+                document.getElementById('auth-response').className = 'response error';
+            }
+        }
+
+        async function getFiscalPeriods() {
+            try {
+                const response = await fetch(`${API_BASE}/fiscal-periods`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                document.getElementById('periods-response').innerHTML = `📊 Fiscal Periods:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('periods-response').innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+
+        async function createFiscalPeriod() {
+            try {
+                const now = new Date();
+                const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                
+                const response = await fetch(`${API_BASE}/fiscal-periods`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')} Test Period`,
+                        periodStart: startDate.toISOString().split('T')[0],
+                        periodEnd: endDate.toISOString().split('T')[0]
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('periods-response').innerHTML = `✅ Period Created:\n${JSON.stringify(data, null, 2)}`;
+                
+                // Otomatik olarak period ID'sini doldur
+                if (data.id) {
+                    document.getElementById('periodId').value = data.id;
+                }
+            } catch (error) {
+                document.getElementById('periods-response').innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+
+        async function lockPeriod() {
+            try {
+                const periodId = document.getElementById('periodId').value;
+                const lockReason = document.getElementById('lockReason').value;
+                
+                const response = await fetch(`${API_BASE}/fiscal-periods/${periodId}/lock`, {
+                    method: 'PATCH',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ lockReason })
+                });
+                
+                const data = await response.json();
+                document.getElementById('lock-response').innerHTML = `🔒 Period Locked:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('lock-response').innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+
+        async function unlockPeriod() {
+            try {
+                const periodId = document.getElementById('periodId').value;
+                
+                const response = await fetch(`${API_BASE}/fiscal-periods/${periodId}/unlock`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                document.getElementById('lock-response').innerHTML = `🔓 Period Unlocked:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('lock-response').innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+
+        async function voidInvoice() {
+            try {
+                const invoiceId = document.getElementById('invoiceId').value;
+                const voidReason = document.getElementById('voidReason').value;
+                
+                const response = await fetch(`${API_BASE}/invoices/${invoiceId}/void`, {
+                    method: 'PATCH',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ reason: voidReason })
+                });
+                
+                const data = await response.json();
+                document.getElementById('invoice-response').innerHTML = `❌ Invoice Voided:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('invoice-response').innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+
+        async function restoreInvoice() {
+            try {
+                const invoiceId = document.getElementById('invoiceId').value;
+                
+                const response = await fetch(`${API_BASE}/invoices/${invoiceId}/restore`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                document.getElementById('invoice-response').innerHTML = `✅ Invoice Restored:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('invoice-response').innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+
+        async function voidExpense() {
+            try {
+                const expenseId = document.getElementById('expenseId').value;
+                const voidReason = document.getElementById('expenseVoidReason').value;
+                
+                const response = await fetch(`${API_BASE}/expenses/${expenseId}/void`, {
+                    method: 'PATCH',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ reason: voidReason })
+                });
+                
+                const data = await response.json();
+                document.getElementById('expense-response').innerHTML = `❌ Expense Voided:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('expense-response').innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+
+        async function restoreExpense() {
+            try {
+                const expenseId = document.getElementById('expenseId').value;
+                
+                const response = await fetch(`${API_BASE}/expenses/${expenseId}/restore`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                document.getElementById('expense-response').innerHTML = `✅ Expense Restored:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('expense-response').innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+
+        async function testCreateInvoiceInLockedPeriod() {
+            try {
+                const testDate = document.getElementById('testDate').value || new Date().toISOString().split('T')[0];
+                
+                const response = await fetch(`${API_BASE}/invoices`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        invoiceDate: testDate,
+                        customerId: '1',
+                        total: 100,
+                        items: [{
+                            productName: 'Test Product',
+                            quantity: 1,
+                            unitPrice: 100,
+                            taxRate: 18
+                        }]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('lock-test-response').innerHTML = `⚠️ Bu dönem kilitli değil, fatura oluşturuldu:\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    document.getElementById('lock-test-response').innerHTML = `🔒 Kilitli dönem koruması çalışıyor:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                document.getElementById('lock-test-response').innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+
+        // Sayfa yüklendiğinde bugünü test tarihine ayarla
+        window.onload = function() {
+            document.getElementById('testDate').value = new Date().toISOString().split('T')[0];
+        };
+    </script>
+</body>
+</html>

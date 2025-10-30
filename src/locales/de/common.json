@@ -1347,5 +1347,95 @@
       "analytics": "Analyse",
       "marketing": "Marketing"
     }
+  },
+  "fiscalPeriods": {
+    "title": "Geschäftsjahre",
+    "subtitle": "Verwalten Sie Ihre Geschäftsjahr-Einstellungen",
+    "newPeriod": "Neue Periode",
+    "search": "Perioden suchen...",
+    "periodsRegistered": "Perioden registriert",
+    "noPeriods": "Noch keine Geschäftsjahre",
+    "noPeriodsFound": "Keine Geschäftsjahre gefunden",
+    "noPeriodsDesc": "Beginnen Sie mit der Erstellung Ihres ersten Geschäftsjahrs.",
+    "noPeriodsFoundDesc": "Keine Geschäftsjahre entsprechen Ihren Suchkriterien.",
+    "createFirstPeriod": "Erstes Geschäftsjahr erstellen",
+    "periodName": "Periodenname",
+    "startDate": "Startdatum",
+    "endDate": "Enddatum",
+    "status": "Status",
+    "actions": "Aktionen",
+    "view": "Ansehen",
+    "edit": "Bearbeiten",
+    "lock": "Sperren",
+    "unlock": "Entsperren",
+    "delete": "Löschen",
+    "viewPeriod": "Geschäftsjahr ansehen",
+    "editPeriod": "Geschäftsjahr bearbeiten",
+    "addPeriod": "Geschäftsjahr hinzufügen",
+    "enterPeriodInfo": "Geschäftsjahr-Informationen eingeben",
+    "periodNamePlaceholder": "z.B.: Jahr 2024",
+    "periodDuration": "Periodendauer",
+    "days": "Tage",
+    "locked": "Gesperrt",
+    "active": "Aktiv",
+    "planned": "Geplant",
+    "statusLabels": {
+      "active": "Aktiv",
+      "locked": "Gesperrt",
+      "planned": "Geplant"
+    },
+    "lockPeriod": "Geschäftsjahr sperren",
+    "unlockPeriod": "Geschäftsjahr entsperren",
+    "lockConfirm": "Sind Sie sicher, dass Sie dieses Geschäftsjahr sperren möchten? Gesperrte Perioden können nicht bearbeitet werden.",
+    "unlockConfirm": "Sind Sie sicher, dass Sie dieses Geschäftsjahr entsperren möchten?",
+    "deleteConfirm": "Sind Sie sicher, dass Sie dieses Geschäftsjahr löschen möchten?",
+    "validation": {
+      "nameRequired": "Periodenname ist erforderlich",
+      "startDateRequired": "Startdatum ist erforderlich",
+      "endDateRequired": "Enddatum ist erforderlich",
+      "endDateAfterStart": "Enddatum muss nach dem Startdatum liegen",
+      "periodOverlap": "Diese Daten überschneiden sich mit einer bestehenden Periode",
+      "minimumDuration": "Geschäftsjahr muss mindestens 1 Tag dauern"
+    },
+    "errors": {
+      "createFailed": "Geschäftsjahr konnte nicht erstellt werden",
+      "updateFailed": "Geschäftsjahr konnte nicht aktualisiert werden",
+      "deleteFailed": "Geschäftsjahr konnte nicht gelöscht werden",
+      "lockFailed": "Geschäftsjahr konnte nicht gesperrt werden",
+      "unlockFailed": "Geschäftsjahr konnte nicht entsperrt werden",
+      "loadFailed": "Geschäftsjahre konnten nicht geladen werden",
+      "periodLocked": "Dieses Geschäftsjahr ist gesperrt und kann nicht geändert werden",
+      "periodNotFound": "Geschäftsjahr nicht gefunden",
+      "operationNotAllowed": "Diese Operation ist für gesperrte Geschäftsjahre nicht erlaubt"
+    },
+    "success": {
+      "created": "Geschäftsjahr erfolgreich erstellt",
+      "updated": "Geschäftsjahr erfolgreich aktualisiert",
+      "deleted": "Geschäftsjahr erfolgreich gelöscht",
+      "locked": "Geschäftsjahr erfolgreich gesperrt",
+      "unlocked": "Geschäftsjahr erfolgreich entsperrt"
+    },
+    "widget": {
+      "title": "Geschäftsjahre",
+      "activePeriod": "Aktive Periode",
+      "totalPeriods": "Gesamte Perioden",
+      "lockedPeriods": "Gesperrte Perioden",
+      "daysRemaining": "Verbleibende Tage",
+      "noActivePeriod": "Keine aktive Periode",
+      "periodsOverlapping": "Überschneidende Perioden vorhanden",
+      "allPeriodsLocked": "Alle Perioden sind gesperrt",
+      "createActivePeriod": "Aktive Periode erstellen",
+      "managePeriods": "Perioden verwalten",
+      "warnings": {
+        "overlapping": "Einige Geschäftsjahre überschneiden sich",
+        "noActive": "Derzeit kein aktives Geschäftsjahr",
+        "allLocked": "Alle Geschäftsjahre sind gesperrt"
+      }
+    },
+    "filters": {
+      "showVoided": "Stornierte anzeigen",
+      "hideVoided": "Stornierte ausblenden",
+      "voidedRecords": "stornierte Datensätze"
+    }
   }
 }

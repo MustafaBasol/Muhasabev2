@@ -1344,6 +1344,96 @@
       "analytics": "Analytics",
       "marketing": "Marketing"
     }
+  },
+  "fiscalPeriods": {
+    "title": "Fiscal Periods",
+    "subtitle": "Manage your fiscal period settings",
+    "newPeriod": "New Period",
+    "search": "Search periods...",
+    "periodsRegistered": "periods registered",
+    "noPeriods": "No fiscal periods yet",
+    "noPeriodsFound": "No fiscal periods found",
+    "noPeriodsDesc": "Start by creating your first fiscal period.",
+    "noPeriodsFoundDesc": "No fiscal periods match your search criteria.",
+    "createFirstPeriod": "Create First Fiscal Period",
+    "periodName": "Period Name",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "status": "Status",
+    "actions": "Actions",
+    "view": "View",
+    "edit": "Edit",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "delete": "Delete",
+    "viewPeriod": "View fiscal period",
+    "editPeriod": "Edit Fiscal Period",
+    "addPeriod": "Add Fiscal Period",
+    "enterPeriodInfo": "Enter fiscal period information",
+    "periodNamePlaceholder": "e.g: Year 2024",
+    "periodDuration": "period duration",
+    "days": "days",
+    "locked": "Locked",
+    "active": "Active",
+    "planned": "Planned",
+    "statusLabels": {
+      "active": "Active",
+      "locked": "Locked",
+      "planned": "Planned"
+    },
+    "lockPeriod": "Lock fiscal period",
+    "unlockPeriod": "Unlock fiscal period",
+    "lockConfirm": "Are you sure you want to lock this fiscal period? Locked periods cannot be edited.",
+    "unlockConfirm": "Are you sure you want to unlock this fiscal period?",
+    "deleteConfirm": "Are you sure you want to delete this fiscal period?",
+    "validation": {
+      "nameRequired": "Period name is required",
+      "startDateRequired": "Start date is required",
+      "endDateRequired": "End date is required",
+      "endDateAfterStart": "End date must be after start date",
+      "periodOverlap": "These dates overlap with an existing period",
+      "minimumDuration": "Fiscal period must be at least 1 day"
+    },
+    "errors": {
+      "createFailed": "Failed to create fiscal period",
+      "updateFailed": "Failed to update fiscal period",
+      "deleteFailed": "Failed to delete fiscal period",
+      "lockFailed": "Failed to lock fiscal period",
+      "unlockFailed": "Failed to unlock fiscal period",
+      "loadFailed": "Failed to load fiscal periods",
+      "periodLocked": "This fiscal period is locked and cannot be modified",
+      "periodNotFound": "Fiscal period not found",
+      "operationNotAllowed": "This operation is not allowed for locked fiscal period"
+    },
+    "success": {
+      "created": "Fiscal period created successfully",
+      "updated": "Fiscal period updated successfully",
+      "deleted": "Fiscal period deleted successfully",
+      "locked": "Fiscal period locked successfully",
+      "unlocked": "Fiscal period unlocked successfully"
+    },
+    "widget": {
+      "title": "Fiscal Periods",
+      "activePeriod": "Active Period",
+      "totalPeriods": "Total Periods",
+      "lockedPeriods": "Locked Periods",
+      "daysRemaining": "Days Remaining",
+      "noActivePeriod": "No active period",
+      "periodsOverlapping": "Overlapping periods exist",
+      "allPeriodsLocked": "All periods are locked",
+      "createActivePeriod": "Create active period",
+      "managePeriods": "Manage Periods",
+      "warnings": {
+        "overlapping": "Some fiscal periods overlap",
+        "noActive": "No active fiscal period currently",
+        "allLocked": "All fiscal periods are locked"
+      }
+    },
+    "filters": {
+      "showVoided": "Show voided",
+      "hideVoided": "Hide voided",
+      "voidedRecords": "voided records"
+    }
   }
 }
 

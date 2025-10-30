@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X, Ban, RotateCcw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +19,10 @@ interface Expense {
   expenseDate: string;
   notes?: string;
   receiptUrl?: string;
+  isVoided?: boolean;
+  voidReason?: string;
+  voidedAt?: string;
+  voidedBy?: string;
 }
 
 interface ExpenseListProps {
@@ -29,6 +33,8 @@ interface ExpenseListProps {
   onViewExpense: (expense: Expense) => void;
   onUpdateExpense: (expense: Expense) => void;
   onDownloadExpense?: (expense: Expense) => void;
+  onVoidExpense?: (expenseId: string, reason: string) => void;
+  onRestoreExpense?: (expenseId: string) => void;
 }
 
 export default function ExpenseList({ 
@@ -38,7 +44,9 @@ export default function ExpenseList({
   onDeleteExpense,
   onViewExpense,
   onUpdateExpense,
-  onDownloadExpense
+  onDownloadExpense,
+  onVoidExpense,
+  onRestoreExpense
 }: ExpenseListProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
@@ -46,9 +54,13 @@ export default function ExpenseList({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [showVoided, setShowVoided] = useState(false);
   const [editingExpense, setEditingExpense] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
+  const [showVoidModal, setShowVoidModal] = useState(false);
+  const [voidingExpense, setVoidingExpense] = useState<Expense | null>(null);
+  const [voidReason, setVoidReason] = useState('');
 
   // Kategori listesi
   const categories = ['equipment', 'utilities', 'rent', 'salaries', 'personnel', 'supplies', 'marketing', 'travel', 'insurance', 'taxes', 'other'];
@@ -67,10 +79,21 @@ export default function ExpenseList({
     const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
     const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
     
-    return matchesSearch && matchesStatus && matchesCategory;
+    // Void kontrolü - varsayılan olarak void edilmiş giderleri gizle
+    const matchesVoidFilter = showVoided || !expense.isVoided;
+    
+    return matchesSearch && matchesStatus && matchesCategory && matchesVoidFilter;
   });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isVoided?: boolean) => {
+    if (isVoided) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          İptal Edildi
+        </span>
+      );
+    }
+
     const statusConfig = {
       pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
       approved: { label: t('status.approved'), class: 'bg-blue-100 text-blue-800' },
@@ -114,6 +137,26 @@ export default function ExpenseList({
     setEditingExpense(null);
     setEditingField(null);
     setTempValue('');
+  };
+
+  const handleVoidExpense = (expense: Expense) => {
+    setVoidingExpense(expense);
+    setShowVoidModal(true);
+  };
+
+  const handleConfirmVoid = () => {
+    if (voidingExpense && onVoidExpense && voidReason.trim()) {
+      onVoidExpense(voidingExpense.id, voidReason);
+      setShowVoidModal(false);
+      setVoidingExpense(null);
+      setVoidReason('');
+    }
+  };
+
+  const handleRestoreExpense = (expenseId: string) => {
+    if (onRestoreExpense) {
+      onRestoreExpense(expenseId);
+    }
   };
 
   return (
@@ -169,6 +212,15 @@ export default function ExpenseList({
               <option key={category} value={category}>{getCategoryLabel(category)}</option>
             ))}
           </select>
+          <label className="flex items-center px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={showVoided}
+              onChange={(e) => setShowVoided(e.target.checked)}
+              className="mr-2"
+            />
+{showVoided ? t('fiscalPeriods.filters.hideVoided') : t('fiscalPeriods.filters.showVoided')}
+          </label>
         </div>
       </div>
 
@@ -292,10 +344,10 @@ export default function ExpenseList({
                         </div>
                       ) : (
                         <div 
-                          onClick={() => handleInlineEdit(expense.id, 'status', expense.status)}
-                          className="cursor-pointer hover:opacity-80 transition-opacity inline-block"
+                          onClick={() => !expense.isVoided && handleInlineEdit(expense.id, 'status', expense.status)}
+                          className={`${!expense.isVoided ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed'} transition-opacity inline-block`}
                         >
-                          {getStatusBadge(expense.status)}
+                          {getStatusBadge(expense.status, expense.isVoided)}
                         </div>
                       )}
                     </td>
@@ -339,8 +391,13 @@ export default function ExpenseList({
                         </button>
                         <button 
                           onClick={() => onEditExpense(expense)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title={t('expenses.edit')}
+                          disabled={expense.isVoided}
+                          className={`p-1 rounded transition-colors ${
+                            expense.isVoided 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                          }`}
+                          title={expense.isVoided ? 'İptal edilmiş gider düzenlenemez' : t('expenses.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -355,6 +412,23 @@ export default function ExpenseList({
                         >
                           <Download className="w-4 h-4" />
                         </button>
+                        {expense.isVoided ? (
+                          <button 
+                            onClick={() => handleRestoreExpense(expense.id)}
+                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title="Gideri geri yükle"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleVoidExpense(expense)}
+                            className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                            title="Gideri iptal et"
+                          >
+                            <Ban className="w-4 h-4" />
+                          </button>
+                        )}
                         <button 
                           onClick={() => onDeleteExpense(expense.id)}
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -371,6 +445,55 @@ export default function ExpenseList({
           </div>
         )}
       </div>
+
+      {/* Void Modal */}
+      {showVoidModal && voidingExpense && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Gideri İptal Et
+            </h3>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              <strong>{voidingExpense.description}</strong> giderini iptal etmek istediğinizden emin misiniz?
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                İptal Nedeni *
+              </label>
+              <textarea
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                rows={3}
+                placeholder="İptal nedenini açıklayın..."
+                required
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowVoidModal(false);
+                  setVoidingExpense(null);
+                  setVoidReason('');
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleConfirmVoid}
+                disabled={!voidReason.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Gideri İptal Et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

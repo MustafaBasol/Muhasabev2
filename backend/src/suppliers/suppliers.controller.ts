@@ -14,6 +14,8 @@ import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
+import { Audit } from '../audit/audit.interceptor';
+import { AuditAction } from '../audit/entities/audit-log.entity';
 
 @ApiTags('suppliers')
 @Controller('suppliers')
@@ -24,6 +26,7 @@ export class SuppliersController {
 
   @Post()
   @ApiOperation({ summary: 'Create supplier' })
+  @Audit('Supplier', AuditAction.CREATE)
   async create(
     @Body() createSupplierDto: CreateSupplierDto,
     @User() user: any,
@@ -45,6 +48,7 @@ export class SuppliersController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update supplier' })
+  @Audit('Supplier', AuditAction.UPDATE)
   async update(
     @Param('id') id: string,
     @Body() updateSupplierDto: UpdateSupplierDto,
@@ -55,6 +59,7 @@ export class SuppliersController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete supplier' })
+  @Audit('Supplier', AuditAction.DELETE)
   async remove(@Param('id') id: string, @User() user: any) {
     return this.suppliersService.remove(id, user.tenantId);
   }

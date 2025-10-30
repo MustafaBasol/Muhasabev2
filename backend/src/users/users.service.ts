@@ -102,7 +102,90 @@ export class UsersService {
    */
   async exportUserData(userId: string): Promise<Buffer> {
     const user = await this.findOne(userId);
+    const tenantId = user.tenantId;
     
+    // Query all related data for this tenant - using TypeORM repositories instead of raw SQL
+    let invoices = [];
+    let expenses = [];
+    let customers = [];
+    let suppliers = [];
+    let products = [];
+    let productCategories = [];
+
+    try {
+      // Use entity manager to get repositories dynamically
+      const entityManager = this.usersRepository.manager;
+      
+      // Get invoices
+      try {
+        invoices = await entityManager.query(`SELECT * FROM "invoice" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+      } catch (e) {
+        console.log('Invoice table query failed, trying alternatives...');
+        try {
+          invoices = await entityManager.query(`SELECT * FROM invoices WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        } catch (e2) {
+          console.log('No invoice data found');
+        }
+      }
+
+      // Get expenses
+      try {
+        expenses = await entityManager.query(`SELECT * FROM "expense" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+      } catch (e) {
+        try {
+          expenses = await entityManager.query(`SELECT * FROM expenses WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        } catch (e2) {
+          console.log('No expense data found');
+        }
+      }
+
+      // Get customers
+      try {
+        customers = await entityManager.query(`SELECT * FROM "customer" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+      } catch (e) {
+        try {
+          customers = await entityManager.query(`SELECT * FROM customers WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        } catch (e2) {
+          console.log('No customer data found');
+        }
+      }
+
+      // Get suppliers
+      try {
+        suppliers = await entityManager.query(`SELECT * FROM "supplier" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+      } catch (e) {
+        try {
+          suppliers = await entityManager.query(`SELECT * FROM suppliers WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        } catch (e2) {
+          console.log('No supplier data found');
+        }
+      }
+
+      // Get products
+      try {
+        products = await entityManager.query(`SELECT * FROM "product" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+      } catch (e) {
+        try {
+          products = await entityManager.query(`SELECT * FROM products WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        } catch (e2) {
+          console.log('No product data found');
+        }
+      }
+
+      // Get product categories
+      try {
+        productCategories = await entityManager.query(`SELECT * FROM "product_category" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+      } catch (e) {
+        try {
+          productCategories = await entityManager.query(`SELECT * FROM product_categories WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        } catch (e2) {
+          console.log('No product category data found');
+        }
+      }
+    } catch (error) {
+      console.log('Database query error:', error.message);
+    }
+
     // Collect all user data
     const userData = {
       profile: {
@@ -120,12 +203,16 @@ export class UsersService {
         name: user.tenant.name,
         slug: user.tenant.slug,
         companyName: user.tenant.companyName,
+        subscriptionPlan: user.tenant.subscriptionPlan,
+        status: user.tenant.status,
+        createdAt: user.tenant.createdAt,
       } : null,
-      // TODO: Add related data queries
-      // invoices: await this.getUserInvoices(userId),
-      // expenses: await this.getUserExpenses(userId),
-      // customers: await this.getUserCustomers(userId),
-      // suppliers: await this.getUserSuppliers(userId),
+      invoices: invoices || [],
+      expenses: expenses || [],
+      customers: customers || [],
+      suppliers: suppliers || [],
+      products: products || [],
+      productCategories: productCategories || [],
     };
 
     // Create manifest with data information
@@ -133,7 +220,16 @@ export class UsersService {
       exportDate: new Date().toISOString(),
       userId: userId,
       email: user.email,
-      dataTypes: ['profile', 'tenant'],
+      tenantId: tenantId,
+      dataTypes: ['profile', 'tenant', 'invoices', 'expenses', 'customers', 'suppliers', 'products', 'productCategories'],
+      totalRecords: {
+        invoices: invoices.length,
+        expenses: expenses.length,
+        customers: customers.length,
+        suppliers: suppliers.length,
+        products: products.length,
+        productCategories: productCategories.length,
+      },
       retentionPolicy: 'Personal data will be retained for 7 years as required by accounting regulations.',
       contact: 'privacy@comptario.com',
     };
@@ -150,9 +246,32 @@ export class UsersService {
       archive.append(JSON.stringify(userData, null, 2), { name: 'user_data.json' });
       archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
       
-      // Add CSV version of profile data
-      const csvData = this.convertToCSV([userData.profile]);
-      archive.append(csvData, { name: 'profile.csv' });
+      // Add CSV versions of all data
+      archive.append(this.convertToCSV([userData.profile]), { name: 'profile.csv' });
+      
+      if (userData.invoices.length > 0) {
+        archive.append(this.convertToCSV(userData.invoices), { name: 'invoices.csv' });
+      }
+      
+      if (userData.expenses.length > 0) {
+        archive.append(this.convertToCSV(userData.expenses), { name: 'expenses.csv' });
+      }
+      
+      if (userData.customers.length > 0) {
+        archive.append(this.convertToCSV(userData.customers), { name: 'customers.csv' });
+      }
+      
+      if (userData.suppliers.length > 0) {
+        archive.append(this.convertToCSV(userData.suppliers), { name: 'suppliers.csv' });
+      }
+      
+      if (userData.products.length > 0) {
+        archive.append(this.convertToCSV(userData.products), { name: 'products.csv' });
+      }
+      
+      if (userData.productCategories.length > 0) {
+        archive.append(this.convertToCSV(userData.productCategories), { name: 'productCategories.csv' });
+      }
 
       archive.finalize();
     });

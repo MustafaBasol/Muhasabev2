@@ -24,6 +24,10 @@ export interface Expense {
   } | string;
   receiptUrl?: string;
   notes?: string;
+  isVoided?: boolean;
+  voidReason?: string;
+  voidedAt?: string;
+  voidedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -99,4 +103,20 @@ export const updateExpenseStatus = async (
  */
 export const deleteExpense = async (id: string): Promise<void> => {
   await apiClient.delete(`/expenses/${id}`);
+};
+
+/**
+ * Gider iptal et (void)
+ */
+export const voidExpense = async (id: string, reason: string): Promise<Expense> => {
+  const response = await apiClient.patch(`/expenses/${id}/void`, { reason });
+  return response.data;
+};
+
+/**
+ * Gider geri yükle (restore)
+ */
+export const restoreExpense = async (id: string): Promise<Expense> => {
+  const response = await apiClient.patch(`/expenses/${id}/restore`);
+  return response.data;
 };

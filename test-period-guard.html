@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Period Lock Guard Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Period Lock Guard Test</h1>
+        
+        <div class="section">
+            <h3>1. Mali Dönem Oluştur</h3>
+            <input type="text" id="periodName" placeholder="Dönem Adı" value="Test Dönemi 2024">
+            <input type="date" id="periodStart" value="2024-01-01">
+            <input type="date" id="periodEnd" value="2024-12-31">
+            <button onclick="createPeriod()">Dönem Oluştur</button>
+        </div>
+
+        <div class="section">
+            <h3>2. Dönem Listesi</h3>
+            <button onclick="listPeriods()">Dönemleri Listele</button>
+            <div id="periodsList"></div>
+        </div>
+
+        <div class="section">
+            <h3>3. Dönem Kilitle/Aç</h3>
+            <input type="text" id="lockPeriodId" placeholder="Period ID">
+            <input type="text" id="lockReason" placeholder="Kilit Sebebi" value="Test amaçlı">
+            <button onclick="lockPeriod()">Dönem Kilitle</button>
+            <button onclick="unlockPeriod()">Dönem Aç</button>
+        </div>
+
+        <div class="section">
+            <h3>4. Kilitli Dönemde Fatura Oluşturma Testi</h3>
+            <input type="date" id="invoiceDate" value="2024-06-15">
+            <input type="text" id="invoiceCustomer" placeholder="Müşteri Adı" value="Test Müşteri">
+            <input type="number" id="invoiceAmount" placeholder="Tutar" value="100">
+            <button class="danger" onclick="testCreateInvoice()">Fatura Oluştur (Kilitli Dönemde)</button>
+        </div>
+
+        <div class="section">
+            <h3>5. Kilitli Dönemde Gider Oluşturma Testi</h3>
+            <input type="date" id="expenseDate" value="2024-06-15">
+            <input type="text" id="expenseDescription" placeholder="Gider Açıklaması" value="Test Gideri">
+            <input type="number" id="expenseAmount" placeholder="Tutar" value="50">
+            <button class="danger" onclick="testCreateExpense()">Gider Oluştur (Kilitli Dönemde)</button>
+        </div>
+
+        <div class="section">
+            <h3>6. Açık Dönemde İşlem Testi</h3>
+            <input type="date" id="openDate" value="2025-01-15">
+            <button onclick="testCreateInvoiceOpen()">Açık Dönemde Fatura</button>
+            <button onclick="testCreateExpenseOpen()">Açık Dönemde Gider</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3002';
+        let authToken = null;
+
+        // Auto login for testing
+        window.onload = async function() {
+            await autoLogin();
+        }
+
+        async function autoLogin() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'demo@example.com',
+                        password: 'password123'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    log('✓ Otomatik giriş başarılı', 'success');
+                } else {
+                    log('⚠ Otomatik giriş başarısız - Manuel giriş gerekli', 'error');
+                }
+            } catch (error) {
+                log('⚠ Bağlantı hatası: ' + error.message, 'error');
+            }
+        }
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                    }
+                };
+
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP ${response.status}`);
+                }
+
+                return data;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            results.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        async function createPeriod() {
+            try {
+                const name = document.getElementById('periodName').value;
+                const startDate = document.getElementById('periodStart').value;
+                const endDate = document.getElementById('periodEnd').value;
+
+                const result = await apiCall('/fiscal-periods', 'POST', {
+                    name,
+                    startDate,
+                    endDate
+                });
+
+                log(`✓ Dönem oluşturuldu: ${result.name} (${result.id})`, 'success');
+                await listPeriods();
+            } catch (error) {
+                log(`✗ Dönem oluşturma hatası: ${error.message}`, 'error');
+            }
+        }
+
+        async function listPeriods() {
+            try {
+                const periods = await apiCall('/fiscal-periods');
+                
+                let html = '<div style="margin-top: 10px;">';
+                periods.forEach(period => {
+                    const status = period.isLocked ? '🔒 KİLİTLİ' : '🔓 AÇIK';
+                    html += `<div style="padding: 5px; border: 1px solid #ccc; margin: 2px;">
+                        <strong>${period.name}</strong> (ID: ${period.id}) - ${status}<br>
+                        ${period.startDate} → ${period.endDate}
+                    </div>`;
+                });
+                html += '</div>';
+                
+                document.getElementById('periodsList').innerHTML = html;
+                log(`✓ ${periods.length} dönem listelendi`, 'success');
+            } catch (error) {
+                log(`✗ Dönem listeleme hatası: ${error.message}`, 'error');
+            }
+        }
+
+        async function lockPeriod() {
+            try {
+                const periodId = document.getElementById('lockPeriodId').value;
+                const reason = document.getElementById('lockReason').value;
+
+                await apiCall(`/fiscal-periods/${periodId}/lock`, 'POST', { reason });
+                log(`✓ Dönem kilitlendi: ${periodId}`, 'success');
+                await listPeriods();
+            } catch (error) {
+                log(`✗ Dönem kilitleme hatası: ${error.message}`, 'error');
+            }
+        }
+
+        async function unlockPeriod() {
+            try {
+                const periodId = document.getElementById('lockPeriodId').value;
+
+                await apiCall(`/fiscal-periods/${periodId}/unlock`, 'POST');
+                log(`✓ Dönem açıldı: ${periodId}`, 'success');
+                await listPeriods();
+            } catch (error) {
+                log(`✗ Dönem açma hatası: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCreateInvoice() {
+            try {
+                const invoiceDate = document.getElementById('invoiceDate').value;
+                const customer = document.getElementById('invoiceCustomer').value;
+                const amount = parseFloat(document.getElementById('invoiceAmount').value);
+
+                const result = await apiCall('/invoices', 'POST', {
+                    invoiceDate,
+                    customer: { name: customer },
+                    items: [{
+                        description: 'Test Item',
+                        quantity: 1,
+                        unitPrice: amount,
+                        total: amount
+                    }],
+                    subtotal: amount,
+                    taxAmount: amount * 0.18,
+                    total: amount * 1.18
+                });
+
+                log(`✓ Fatura oluşturuldu: ${result.invoiceNumber}`, 'success');
+            } catch (error) {
+                log(`✗ BEKLENEN HATA - Kilitli dönemde fatura: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCreateExpense() {
+            try {
+                const expenseDate = document.getElementById('expenseDate').value;
+                const description = document.getElementById('expenseDescription').value;
+                const amount = parseFloat(document.getElementById('expenseAmount').value);
+
+                const result = await apiCall('/expenses', 'POST', {
+                    expenseDate,
+                    description,
+                    amount,
+                    category: 'other'
+                });
+
+                log(`✓ Gider oluşturuldu: ${result.expenseNumber}`, 'success');
+            } catch (error) {
+                log(`✗ BEKLENEN HATA - Kilitli dönemde gider: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCreateInvoiceOpen() {
+            try {
+                const invoiceDate = document.getElementById('openDate').value;
+
+                const result = await apiCall('/invoices', 'POST', {
+                    invoiceDate,
+                    customer: { name: 'Test Müşteri - Açık Dönem' },
+                    items: [{
+                        description: 'Test Item - Açık Dönem',
+                        quantity: 1,
+                        unitPrice: 100,
+                        total: 100
+                    }],
+                    subtotal: 100,
+                    taxAmount: 18,
+                    total: 118
+                });
+
+                log(`✓ Açık dönemde fatura oluşturuldu: ${result.invoiceNumber}`, 'success');
+            } catch (error) {
+                log(`✗ Açık dönemde fatura hatası: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCreateExpenseOpen() {
+            try {
+                const expenseDate = document.getElementById('openDate').value;
+
+                const result = await apiCall('/expenses', 'POST', {
+                    expenseDate,
+                    description: 'Test Gideri - Açık Dönem',
+                    amount: 50,
+                    category: 'other'
+                });
+
+                log(`✓ Açık dönemde gider oluşturuldu: ${result.expenseNumber}`, 'success');
+            } catch (error) {
+                log(`✗ Açık dönemde gider hatası: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -14,7 +14,11 @@ import { ProductsModule } from './products/products.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { AdminModule } from './admin/admin.module';
+import { AuditModule } from './audit/audit.module';
+import { FiscalPeriodsModule } from './fiscal-periods/fiscal-periods.module';
+import { CommonModule } from './common/common.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
+import { AuditInterceptor } from './audit/audit.interceptor';
 import { SeedService } from './database/seed.service';
 
 @Module({
@@ -46,6 +50,9 @@ import { SeedService } from './database/seed.service';
     InvoicesModule,
     ExpensesModule,
     AdminModule,
+    AuditModule,
+    FiscalPeriodsModule,
+    CommonModule,
   ],
   controllers: [AppController],
   providers: [
@@ -54,6 +61,10 @@ import { SeedService } from './database/seed.service';
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
     },
     {
       provide: APP_GUARD,

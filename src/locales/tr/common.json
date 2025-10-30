@@ -185,6 +185,96 @@
     "footer.copyright": "© {{year}} Comptario. Tüm hakları saklıdır.",
     "footer.madeWith": "Avrupa'da ❤️ ile yapıldı"
   },
+  "fiscalPeriods": {
+    "title": "Mali Dönemler",
+    "subtitle": "Mali dönem ayarlarınızı yönetin",
+    "newPeriod": "Yeni Dönem",
+    "search": "Dönem ara...",
+    "periodsRegistered": "dönem kayıtlı",
+    "noPeriods": "Henüz mali dönem yok",
+    "noPeriodsFound": "Mali dönem bulunamadı",
+    "noPeriodsDesc": "İlk mali döneminizi oluşturarak başlayın.",
+    "noPeriodsFoundDesc": "Arama kriterlerinizle eşleşen mali dönem yok.",
+    "createFirstPeriod": "İlk Mali Dönem Oluştur",
+    "periodName": "Dönem Adı",
+    "startDate": "Başlangıç Tarihi",
+    "endDate": "Bitiş Tarihi",
+    "status": "Durum",
+    "actions": "İşlemler",
+    "view": "Görüntüle",
+    "edit": "Düzenle",
+    "lock": "Kilitle",
+    "unlock": "Kilit Aç",
+    "delete": "Sil",
+    "viewPeriod": "Mali dönemi görüntüle",
+    "editPeriod": "Mali Dönemi Düzenle",
+    "addPeriod": "Mali Dönem Ekle",
+    "enterPeriodInfo": "Mali dönem bilgilerini girin",
+    "periodNamePlaceholder": "Örn: 2024 Yılı",
+    "periodDuration": "dönem süresi",
+    "days": "gün",
+    "locked": "Kilitli",
+    "active": "Aktif",
+    "planned": "Planlı",
+    "statusLabels": {
+      "active": "Aktif",
+      "locked": "Kilitli",
+      "planned": "Planlı"
+    },
+    "lockPeriod": "Mali dönemi kilitle",
+    "unlockPeriod": "Mali dönem kilidini aç",
+    "lockConfirm": "Bu mali dönemi kilitlemek istediğinizden emin misiniz? Kilitlenmiş dönemler düzenlenemez.",
+    "unlockConfirm": "Bu mali dönemin kilidini açmak istediğinizden emin misiniz?",
+    "deleteConfirm": "Bu mali dönemi silmek istediğinizden emin misiniz?",
+    "validation": {
+      "nameRequired": "Dönem adı gereklidir",
+      "startDateRequired": "Başlangıç tarihi gereklidir",
+      "endDateRequired": "Bitiş tarihi gereklidir",
+      "endDateAfterStart": "Bitiş tarihi başlangıç tarihinden sonra olmalıdır",
+      "periodOverlap": "Bu tarihler mevcut bir dönemle çakışıyor",
+      "minimumDuration": "Mali dönem en az 1 gün olmalıdır"
+    },
+    "errors": {
+      "createFailed": "Mali dönem oluşturulamadı",
+      "updateFailed": "Mali dönem güncellenemedi",
+      "deleteFailed": "Mali dönem silinemedi",
+      "lockFailed": "Mali dönem kilitlenemedi",
+      "unlockFailed": "Mali dönem kilidi açılamadı",
+      "loadFailed": "Mali dönemler yüklenemedi",
+      "periodLocked": "Bu mali dönem kilitli ve değiştirilemez",
+      "periodNotFound": "Mali dönem bulunamadı",
+      "operationNotAllowed": "Bu işlem için mali dönem kilitli"
+    },
+    "success": {
+      "created": "Mali dönem başarıyla oluşturuldu",
+      "updated": "Mali dönem başarıyla güncellendi",
+      "deleted": "Mali dönem başarıyla silindi",
+      "locked": "Mali dönem başarıyla kilitlendi",
+      "unlocked": "Mali dönem kilidi başarıyla açıldı"
+    },
+    "widget": {
+      "title": "Mali Dönemler",
+      "activePeriod": "Aktif Dönem",
+      "totalPeriods": "Toplam Dönem",
+      "lockedPeriods": "Kilitli Dönem",
+      "daysRemaining": "Kalan Gün",
+      "noActivePeriod": "Aktif dönem yok",
+      "periodsOverlapping": "Çakışan dönemler var",
+      "allPeriodsLocked": "Tüm dönemler kilitli",
+      "createActivePeriod": "Aktif dönem oluşturun",
+      "managePeriods": "Dönemleri Yönet",
+      "warnings": {
+        "overlapping": "Bazı mali dönemler çakışıyor",
+        "noActive": "Şu anda aktif mali dönem yok",
+        "allLocked": "Tüm mali dönemler kilitli"
+      }
+    },
+    "filters": {
+      "showVoided": "İptal edilenleri göster",
+      "hideVoided": "İptal edilenleri gizle",
+      "voidedRecords": "iptal edilmiş kayıt"
+    }
+  },
   "common": {
     "save": "Kaydet",
     "cancel": "İptal",

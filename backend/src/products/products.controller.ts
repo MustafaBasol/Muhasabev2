@@ -14,6 +14,8 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
+import { Audit } from '../audit/audit.interceptor';
+import { AuditAction } from '../audit/entities/audit-log.entity';
 
 @ApiTags('products')
 @Controller('products')
@@ -24,6 +26,7 @@ export class ProductsController {
 
   @Post()
   @ApiOperation({ summary: 'Create product' })
+  @Audit('Product', AuditAction.CREATE)
   async create(
     @Body() createProductDto: CreateProductDto,
     @User() user: any,
@@ -51,6 +54,7 @@ export class ProductsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update product' })
+  @Audit('Product', AuditAction.UPDATE)
   async update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
@@ -61,6 +65,7 @@ export class ProductsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete product' })
+  @Audit('Product', AuditAction.DELETE)
   async remove(@Param('id') id: string, @User() user: any) {
     return this.productsService.remove(id, user.tenantId);
   }

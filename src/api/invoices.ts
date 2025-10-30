@@ -111,3 +111,19 @@ export const updateInvoiceStatus = async (
 export const deleteInvoice = async (id: string): Promise<void> => {
   await apiClient.delete(`/invoices/${id}`);
 };
+
+/**
+ * Fatura iptal et (void)
+ */
+export const voidInvoice = async (id: string, reason: string): Promise<Invoice> => {
+  const response = await apiClient.patch(`/invoices/${id}/void`, { reason });
+  return response.data;
+};
+
+/**
+ * Fatura geri yükle (restore)
+ */
+export const restoreInvoice = async (id: string): Promise<Invoice> => {
+  const response = await apiClient.patch(`/invoices/${id}/restore`);
+  return response.data;
+};

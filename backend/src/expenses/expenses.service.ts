@@ -29,16 +29,21 @@ export class ExpensesService {
 
   async findAll(tenantId: string): Promise<Expense[]> {
     return this.expensesRepository.find({
-      where: { tenantId },
+      where: { tenantId, isVoided: false },
       relations: ['supplier'],
       order: { expenseDate: 'DESC' },
     });
   }
 
-  async findOne(tenantId: string, id: string): Promise<Expense> {
+  async findOne(tenantId: string, id: string, includeVoided: boolean = false): Promise<Expense> {
+    const whereCondition: any = { id, tenantId };
+    if (!includeVoided) {
+      whereCondition.isVoided = false;
+    }
+
     const expense = await this.expensesRepository.findOne({
-      where: { id, tenantId },
-      relations: ['supplier'],
+      where: whereCondition,
+      relations: ['supplier', 'voidedByUser'],
     });
 
     if (!expense) {
@@ -88,6 +93,36 @@ export class ExpensesService {
   async remove(tenantId: string, id: string): Promise<void> {
     const expense = await this.findOne(tenantId, id);
     await this.expensesRepository.remove(expense);
+  }
+
+  async voidExpense(tenantId: string, id: string, userId: string, reason?: string): Promise<Expense> {
+    const expense = await this.findOne(tenantId, id, true);
+    
+    if (expense.isVoided) {
+      throw new Error('Expense is already voided');
+    }
+
+    expense.isVoided = true;
+    expense.voidReason = reason ?? null;
+    expense.voidedAt = new Date();
+    expense.voidedBy = userId;
+
+    return this.expensesRepository.save(expense);
+  }
+
+  async restoreExpense(tenantId: string, id: string): Promise<Expense> {
+    const expense = await this.findOne(tenantId, id, true);
+    
+    if (!expense.isVoided) {
+      throw new Error('Expense is not voided');
+    }
+
+    expense.isVoided = false;
+    expense.voidReason = null;
+    expense.voidedAt = null;
+    expense.voidedBy = null;
+
+    return this.expensesRepository.save(expense);
   }
 
   async updateStatus(tenantId: string, id: string, status: ExpenseStatus): Promise<Expense> {

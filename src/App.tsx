@@ -15,6 +15,7 @@ import type {
   ProductCategory,
 } from "./types";
 import { secureStorage } from "./utils/storage";
+import { handleApiError, getErrorMessage } from "./utils/errorHandler";
 
 // API imports
 import * as customersApi from "./api/customers";
@@ -75,6 +76,8 @@ import ChartOfAccountsPage from "./components/ChartOfAccountsPage";
 import ArchivePage from "./components/ArchivePage";
 import GeneralLedger from "./components/GeneralLedger";
 import SimpleSalesPage from "./components/SimpleSalesPage";
+import FiscalPeriodsPage from "./components/FiscalPeriodsPage";
+import FiscalPeriodsWidget from "./components/FiscalPeriodsWidget";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
 import LandingPage from "./components/landing/LandingPage";
@@ -1489,8 +1492,8 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
       console.error('Invoice upsert error:', error);
       console.error('Error details:', error.response?.data);
-      const errorMsg = error.response?.data?.message || error.message || 'Fatura kaydedilemedi';
-      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+      const errorMsg = getErrorMessage(error);
+      showToast(errorMsg, 'error');
     }
   };
 
@@ -1506,6 +1509,40 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
       console.error('Invoice delete error:', error);
       showToast(error.response?.data?.message || 'Fatura silinemedi', 'error');
+    }
+  };
+
+  const voidInvoice = async (invoiceId: string, reason: string) => {
+    try {
+      await invoicesApi.voidInvoice(invoiceId, reason);
+      const updatedInvoices = invoices.map(invoice => 
+        invoice.id === invoiceId 
+          ? { ...invoice, isVoided: true, voidReason: reason, voidedAt: new Date().toISOString() }
+          : invoice
+      );
+      setInvoices(updatedInvoices);
+      localStorage.setItem('invoices_cache', JSON.stringify(updatedInvoices));
+      showToast('Fatura iptal edildi', 'success');
+    } catch (error: any) {
+      console.error('Invoice void error:', error);
+      showToast(error.response?.data?.message || 'Fatura iptal edilemedi', 'error');
+    }
+  };
+
+  const restoreInvoice = async (invoiceId: string) => {
+    try {
+      await invoicesApi.restoreInvoice(invoiceId);
+      const updatedInvoices = invoices.map(invoice => 
+        invoice.id === invoiceId 
+          ? { ...invoice, isVoided: false, voidReason: undefined, voidedAt: undefined }
+          : invoice
+      );
+      setInvoices(updatedInvoices);
+      localStorage.setItem('invoices_cache', JSON.stringify(updatedInvoices));
+      showToast('Fatura geri yüklendi', 'success');
+    } catch (error: any) {
+      console.error('Invoice restore error:', error);
+      showToast(error.response?.data?.message || 'Fatura geri yüklenemedi', 'error');
     }
   };
 
@@ -1558,8 +1595,8 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
       console.error('Expense upsert error:', error);
       console.error('Error details:', error.response?.data);
-      const errorMsg = error.response?.data?.message || error.message || 'Gider kaydedilemedi';
-      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+      const errorMsg = getErrorMessage(error);
+      showToast(errorMsg, 'error');
     }
   };
 
@@ -1574,6 +1611,40 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
       console.error('Expense delete error:', error);
       showToast(error.response?.data?.message || 'Gider silinemedi', 'error');
+    }
+  };
+
+  const voidExpense = async (expenseId: string, reason: string) => {
+    try {
+      await expensesApi.voidExpense(expenseId, reason);
+      const updatedExpenses = expenses.map(expense => 
+        expense.id === expenseId 
+          ? { ...expense, isVoided: true, voidReason: reason, voidedAt: new Date().toISOString() }
+          : expense
+      );
+      setExpenses(updatedExpenses);
+      localStorage.setItem('expenses_cache', JSON.stringify(updatedExpenses));
+      showToast('Gider iptal edildi', 'success');
+    } catch (error: any) {
+      console.error('Expense void error:', error);
+      showToast(error.response?.data?.message || 'Gider iptal edilemedi', 'error');
+    }
+  };
+
+  const restoreExpense = async (expenseId: string) => {
+    try {
+      await expensesApi.restoreExpense(expenseId);
+      const updatedExpenses = expenses.map(expense => 
+        expense.id === expenseId 
+          ? { ...expense, isVoided: false, voidReason: undefined, voidedAt: undefined }
+          : expense
+      );
+      setExpenses(updatedExpenses);
+      localStorage.setItem('expenses_cache', JSON.stringify(updatedExpenses));
+      showToast('Gider geri yüklendi', 'success');
+    } catch (error: any) {
+      console.error('Expense restore error:', error);
+      showToast(error.response?.data?.message || 'Gider geri yüklenemedi', 'error');
     }
   };
 
@@ -2618,6 +2689,9 @@ const AppContent: React.FC = () => {
             banks={bankAccounts}
             products={products}
           />
+          <FiscalPeriodsWidget
+            onNavigateToFiscalPeriods={() => navigateTo("fiscal-periods")}
+          />
           <DashboardAlerts
             invoices={invoices}
             expenses={expenses}
@@ -2689,6 +2763,8 @@ const AppContent: React.FC = () => {
             }}
             onUpdateInvoice={updated => setInvoices(prev => prev.map(invoice => (invoice.id === updated.id ? updated : invoice)))}
             onDownloadInvoice={handleDownloadInvoice}
+            onVoidInvoice={voidInvoice}
+            onRestoreInvoice={restoreInvoice}
           />
         );
       case "expenses":
@@ -2704,6 +2780,8 @@ const AppContent: React.FC = () => {
             }}
             onUpdateExpense={updated => setExpenses(prev => prev.map(expense => (expense.id === updated.id ? updated : expense)))}
             onDownloadExpense={handleDownloadExpense}
+            onVoidExpense={voidExpense}
+            onRestoreExpense={restoreExpense}
           />
         );
       case "banks":
@@ -2821,6 +2899,8 @@ const AppContent: React.FC = () => {
             onImportData={handleImportData}
           />
         );
+      case "fiscal-periods":
+        return <FiscalPeriodsPage />;
       case "admin":
         return <AdminPage />;
       case "legal-terms":

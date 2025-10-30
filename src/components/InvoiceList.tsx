@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Eye, Edit, Download, Trash2, FileText, Calendar, Check, X } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Download, Trash2, FileText, Calendar, Check, X, Ban, RotateCcw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 
@@ -20,6 +20,10 @@ interface Invoice {
   issueDate: string;
   dueDate: string;
   items: any[];
+  isVoided?: boolean;
+  voidReason?: string;
+  voidedAt?: string;
+  voidedBy?: string;
 }
 
 interface InvoiceListProps {
@@ -30,6 +34,8 @@ interface InvoiceListProps {
   onViewInvoice: (invoice: Invoice) => void;
   onUpdateInvoice: (invoice: Invoice) => void;
   onDownloadInvoice?: (invoice: Invoice) => void;
+  onVoidInvoice?: (invoiceId: string, reason: string) => void;
+  onRestoreInvoice?: (invoiceId: string) => void;
 }
 
 export default function InvoiceList({ 
@@ -39,16 +45,22 @@ export default function InvoiceList({
   onDeleteInvoice,
   onViewInvoice,
   onUpdateInvoice,
-  onDownloadInvoice
+  onDownloadInvoice,
+  onVoidInvoice,
+  onRestoreInvoice
 }: InvoiceListProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showVoided, setShowVoided] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
+  const [showVoidModal, setShowVoidModal] = useState(false);
+  const [voidingInvoice, setVoidingInvoice] = useState<Invoice | null>(null);
+  const [voidReason, setVoidReason] = useState('');
 
   // Filter out archived invoices (older than threshold)
   const currentInvoices = invoices.filter(invoice => {
@@ -67,13 +79,16 @@ export default function InvoiceList({
       
       const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
       
+      // Void kontrolü - varsayılan olarak void edilmiş faturaları gizle
+      const matchesVoidFilter = showVoided || !invoice.isVoided;
+      
       // Only show invoices that are not archived (within threshold)
       const issueDate = new Date(invoice.issueDate);
       const thresholdDate = new Date();
       thresholdDate.setDate(thresholdDate.getDate() - ARCHIVE_THRESHOLD_DAYS);
       const isNotArchived = issueDate >= thresholdDate;
       
-      return matchesSearch && matchesStatus && isNotArchived;
+      return matchesSearch && matchesStatus && matchesVoidFilter && isNotArchived;
     })
     .sort((a, b) => {
       // En yeni faturalar en üstte (ID'ye göre ters sıralama)
@@ -82,7 +97,15 @@ export default function InvoiceList({
       return bId.localeCompare(aId);
     });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isVoided?: boolean) => {
+    if (isVoided) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          İptal Edildi
+        </span>
+      );
+    }
+
     const statusConfig = {
       draft: { label: t('status.draft'), class: 'bg-gray-100 text-gray-800' },
       sent: { label: t('status.sent'), class: 'bg-blue-100 text-blue-800' },
@@ -130,6 +153,26 @@ export default function InvoiceList({
     setTempValue('');
   };
 
+  const handleVoidInvoice = (invoice: Invoice) => {
+    setVoidingInvoice(invoice);
+    setShowVoidModal(true);
+  };
+
+  const handleConfirmVoid = () => {
+    if (voidingInvoice && onVoidInvoice && voidReason.trim()) {
+      onVoidInvoice(voidingInvoice.id, voidReason);
+      setShowVoidModal(false);
+      setVoidingInvoice(null);
+      setVoidReason('');
+    }
+  };
+
+  const handleRestoreInvoice = (invoiceId: string) => {
+    if (onRestoreInvoice) {
+      onRestoreInvoice(invoiceId);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl border border-gray-200">
       {/* Header */}
@@ -174,6 +217,15 @@ export default function InvoiceList({
             <option value="overdue">{t('status.overdue')}</option>
             <option value="cancelled">{t('status.cancelled')}</option>
           </select>
+          <label className="flex items-center px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={showVoided}
+              onChange={(e) => setShowVoided(e.target.checked)}
+              className="mr-2"
+            />
+{showVoided ? t('fiscalPeriods.filters.hideVoided') : t('fiscalPeriods.filters.showVoided')}
+          </label>
         </div>
       </div>
 
@@ -337,10 +389,10 @@ export default function InvoiceList({
                         </div>
                       ) : (
                         <div 
-                          onClick={() => handleInlineEdit(invoice.id, 'status', invoice.status)}
-                          className="cursor-pointer hover:opacity-80 transition-opacity inline-block"
+                          onClick={() => !invoice.isVoided && handleInlineEdit(invoice.id, 'status', invoice.status)}
+                          className={`${!invoice.isVoided ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed'} transition-opacity inline-block`}
                         >
-                          {getStatusBadge(invoice.status)}
+                          {getStatusBadge(invoice.status, invoice.isVoided)}
                         </div>
                       )}
                     </td>
@@ -386,8 +438,13 @@ export default function InvoiceList({
                         </button>
                         <button 
                           onClick={() => onEditInvoice(invoice)}
-                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title={t('invoices.edit')}
+                          disabled={invoice.isVoided}
+                          className={`p-1 rounded transition-colors ${
+                            invoice.isVoided 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                          }`}
+                          title={invoice.isVoided ? 'İptal edilmiş fatura düzenlenemez' : t('invoices.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -402,6 +459,23 @@ export default function InvoiceList({
                         >
                           <Download className="w-4 h-4" />
                         </button>
+                        {invoice.isVoided ? (
+                          <button 
+                            onClick={() => handleRestoreInvoice(invoice.id)}
+                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title="Faturayı geri yükle"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleVoidInvoice(invoice)}
+                            className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                            title="Faturayı iptal et"
+                          >
+                            <Ban className="w-4 h-4" />
+                          </button>
+                        )}
                         <button 
                           onClick={() => onDeleteInvoice(invoice.id)}
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -418,6 +492,55 @@ export default function InvoiceList({
           </div>
         )}
       </div>
+
+      {/* Void Modal */}
+      {showVoidModal && voidingInvoice && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Faturayı İptal Et
+            </h3>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              <strong>{voidingInvoice.invoiceNumber}</strong> numaralı faturayı iptal etmek istediğinizden emin misiniz?
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                İptal Nedeni *
+              </label>
+              <textarea
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                rows={3}
+                placeholder="İptal nedenini açıklayın..."
+                required
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowVoidModal(false);
+                  setVoidingInvoice(null);
+                  setVoidReason('');
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleConfirmVoid}
+                disabled={!voidReason.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Faturayı İptal Et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

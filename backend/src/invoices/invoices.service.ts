@@ -111,16 +111,21 @@ export class InvoicesService {
 
   async findAll(tenantId: string): Promise<Invoice[]> {
     return this.invoicesRepository.find({
-      where: { tenantId },
+      where: { tenantId, isVoided: false },
       relations: ['customer'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  async findOne(tenantId: string, id: string): Promise<Invoice> {
+  async findOne(tenantId: string, id: string, includeVoided: boolean = false): Promise<Invoice> {
+    const whereCondition: any = { id, tenantId };
+    if (!includeVoided) {
+      whereCondition.isVoided = false;
+    }
+
     const invoice = await this.invoicesRepository.findOne({
-      where: { id, tenantId },
-      relations: ['customer'],
+      where: whereCondition,
+      relations: ['customer', 'voidedByUser'],
     });
 
     if (!invoice) {
@@ -169,6 +174,36 @@ export class InvoicesService {
   async remove(tenantId: string, id: string): Promise<void> {
     const invoice = await this.findOne(tenantId, id);
     await this.invoicesRepository.remove(invoice);
+  }
+
+  async voidInvoice(tenantId: string, id: string, userId: string, reason?: string): Promise<Invoice> {
+    const invoice = await this.findOne(tenantId, id, true);
+    
+    if (invoice.isVoided) {
+      throw new Error('Invoice is already voided');
+    }
+
+    invoice.isVoided = true;
+    invoice.voidReason = reason ?? null;
+    invoice.voidedAt = new Date();
+    invoice.voidedBy = userId;
+
+    return this.invoicesRepository.save(invoice);
+  }
+
+  async restoreInvoice(tenantId: string, id: string): Promise<Invoice> {
+    const invoice = await this.findOne(tenantId, id, true);
+    
+    if (!invoice.isVoided) {
+      throw new Error('Invoice is not voided');
+    }
+
+    invoice.isVoided = false;
+    invoice.voidReason = null;
+    invoice.voidedAt = null;
+    invoice.voidedBy = null;
+
+    return this.invoicesRepository.save(invoice);
   }
 
   async updateStatus(tenantId: string, id: string, status: InvoiceStatus): Promise<Invoice> {

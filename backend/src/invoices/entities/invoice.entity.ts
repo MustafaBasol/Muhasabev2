@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Customer } from '../../customers/entities/customer.entity';
+import { User } from '../../users/entities/user.entity';
 
 export enum InvoiceStatus {
   DRAFT = 'draft',
@@ -75,6 +76,23 @@ export class Invoice {
 
   @Column({ type: 'jsonb', nullable: true })
   items: any[];
+
+  // Soft delete columns
+  @Column({ name: 'is_voided', type: 'boolean', default: false })
+  isVoided: boolean;
+
+  @Column({ name: 'void_reason', type: 'text', nullable: true })
+  voidReason: string | null;
+
+  @Column({ name: 'voided_at', type: 'timestamp', nullable: true })
+  voidedAt: Date | null;
+
+  @Column({ name: 'voided_by', type: 'uuid', nullable: true })
+  voidedBy: string | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'voided_by' })
+  voidedByUser: User | null;
 
   @CreateDateColumn()
   createdAt: Date;

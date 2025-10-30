@@ -14,6 +14,8 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
+import { Audit } from '../audit/audit.interceptor';
+import { AuditAction } from '../audit/entities/audit-log.entity';
 
 @ApiTags('customers')
 @Controller('customers')
@@ -24,6 +26,7 @@ export class CustomersController {
 
   @Post()
   @ApiOperation({ summary: 'Create customer' })
+  @Audit('Customer', AuditAction.CREATE)
   async create(
     @Body() createCustomerDto: CreateCustomerDto,
     @User() user: any,
@@ -45,6 +48,7 @@ export class CustomersController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update customer' })
+  @Audit('Customer', AuditAction.UPDATE)
   async update(
     @Param('id') id: string,
     @Body() updateCustomerDto: UpdateCustomerDto,
@@ -55,6 +59,7 @@ export class CustomersController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete customer' })
+  @Audit('Customer', AuditAction.DELETE)
   async remove(@Param('id') id: string, @User() user: any) {
     return this.customersService.remove(id, user.tenantId);
   }

@@ -13,6 +13,7 @@ import {
   BookOpen,
   Building2,
   Receipt,
+  Calendar,
   X
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -56,6 +57,7 @@ export default function Sidebar({
     { icon: PieChart, label: t('sidebar.reports'), page: 'reports' },
     { icon: Calculator, label: t('sidebar.accounting'), page: 'general-ledger' },
     { icon: BookOpen, label: t('sidebar.chartOfAccounts'), page: 'chart-of-accounts' },
+    { icon: Calendar, label: t('fiscalPeriods.title'), page: 'fiscal-periods' },
     { icon: Archive, label: t('sidebar.archive'), page: 'archive' },
     { icon: Settings, label: t('sidebar.settings'), page: 'settings' },
   ];

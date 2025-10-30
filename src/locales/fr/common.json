@@ -1346,6 +1346,96 @@
       "analytics": "Analytiques",
       "marketing": "Marketing"
     }
+  },
+  "fiscalPeriods": {
+    "title": "Périodes Fiscales",
+    "subtitle": "Gérez vos paramètres de période fiscale",
+    "newPeriod": "Nouvelle Période",
+    "search": "Rechercher des périodes...",
+    "periodsRegistered": "périodes enregistrées",
+    "noPeriods": "Aucune période fiscale encore",
+    "noPeriodsFound": "Aucune période fiscale trouvée",
+    "noPeriodsDesc": "Commencez par créer votre première période fiscale.",
+    "noPeriodsFoundDesc": "Aucune période fiscale ne correspond à vos critères de recherche.",
+    "createFirstPeriod": "Créer la Première Période Fiscale",
+    "periodName": "Nom de la Période",
+    "startDate": "Date de Début",
+    "endDate": "Date de Fin",
+    "status": "Statut",
+    "actions": "Actions",
+    "view": "Voir",
+    "edit": "Modifier",
+    "lock": "Verrouiller",
+    "unlock": "Déverrouiller",
+    "delete": "Supprimer",
+    "viewPeriod": "Voir la période fiscale",
+    "editPeriod": "Modifier la Période Fiscale",
+    "addPeriod": "Ajouter une Période Fiscale",
+    "enterPeriodInfo": "Entrez les informations de la période fiscale",
+    "periodNamePlaceholder": "ex: Année 2024",
+    "periodDuration": "durée de la période",
+    "days": "jours",
+    "locked": "Verrouillée",
+    "active": "Active",
+    "planned": "Planifiée",
+    "statusLabels": {
+      "active": "Active",
+      "locked": "Verrouillée",
+      "planned": "Planifiée"
+    },
+    "lockPeriod": "Verrouiller la période fiscale",
+    "unlockPeriod": "Déverrouiller la période fiscale",
+    "lockConfirm": "Êtes-vous sûr de vouloir verrouiller cette période fiscale ? Les périodes verrouillées ne peuvent pas être modifiées.",
+    "unlockConfirm": "Êtes-vous sûr de vouloir déverrouiller cette période fiscale ?",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette période fiscale ?",
+    "validation": {
+      "nameRequired": "Le nom de la période est requis",
+      "startDateRequired": "La date de début est requise",
+      "endDateRequired": "La date de fin est requise",
+      "endDateAfterStart": "La date de fin doit être postérieure à la date de début",
+      "periodOverlap": "Ces dates se chevauchent avec une période existante",
+      "minimumDuration": "La période fiscale doit durer au moins 1 jour"
+    },
+    "errors": {
+      "createFailed": "Échec de la création de la période fiscale",
+      "updateFailed": "Échec de la mise à jour de la période fiscale",
+      "deleteFailed": "Échec de la suppression de la période fiscale",
+      "lockFailed": "Échec du verrouillage de la période fiscale",
+      "unlockFailed": "Échec du déverrouillage de la période fiscale",
+      "loadFailed": "Échec du chargement des périodes fiscales",
+      "periodLocked": "Cette période fiscale est verrouillée et ne peut pas être modifiée",
+      "periodNotFound": "Période fiscale introuvable",
+      "operationNotAllowed": "Cette opération n'est pas autorisée pour une période fiscale verrouillée"
+    },
+    "success": {
+      "created": "Période fiscale créée avec succès",
+      "updated": "Période fiscale mise à jour avec succès",
+      "deleted": "Période fiscale supprimée avec succès",
+      "locked": "Période fiscale verrouillée avec succès",
+      "unlocked": "Période fiscale déverrouillée avec succès"
+    },
+    "widget": {
+      "title": "Périodes Fiscales",
+      "activePeriod": "Période Active",
+      "totalPeriods": "Total des Périodes",
+      "lockedPeriods": "Périodes Verrouillées",
+      "daysRemaining": "Jours Restants",
+      "noActivePeriod": "Aucune période active",
+      "periodsOverlapping": "Périodes qui se chevauchent",
+      "allPeriodsLocked": "Toutes les périodes sont verrouillées",
+      "createActivePeriod": "Créer une période active",
+      "managePeriods": "Gérer les Périodes",
+      "warnings": {
+        "overlapping": "Certaines périodes fiscales se chevauchent",
+        "noActive": "Aucune période fiscale active actuellement",
+        "allLocked": "Toutes les périodes fiscales sont verrouillées"
+      }
+    },
+    "filters": {
+      "showVoided": "Afficher les annulés",
+      "hideVoided": "Masquer les annulés",
+      "voidedRecords": "enregistrements annulés"
+    }
   }
 }
 
