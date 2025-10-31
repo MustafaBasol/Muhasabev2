@@ -10,6 +10,27 @@ dist-ssr
 .env
 .env.local
 .env.production
+.env.development
+.env.staging
+.env.test
+
+# App-specific environment files
+apps/web/.env
+apps/web/.env.local
+apps/web/.env.production
+apps/web/.env.development
+apps/web/.env.staging
+
+apps/api/.env
+apps/api/.env.local
+apps/api/.env.production
+apps/api/.env.development
+apps/api/.env.staging
+
+# Legacy environment files (maintain for backward compatibility)
+backend/.env
+backend/.env.local
+backend/.env.production
 
 # Editor directories and files
 .vscode/*
@@ -40,3 +61,39 @@ backend/.data/
 # Backup files (except structure)
 backend/backups/*
 !backend/backups/.gitkeep
+
+# Security and secrets
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+*.jks
+secrets/
+keys/
+certificates/
+
+# Production builds and artifacts
+apps/web/dist/
+apps/web/.next/
+apps/api/dist/
+apps/api/build/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

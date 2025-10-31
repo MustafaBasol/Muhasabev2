@@ -1540,6 +1540,107 @@
       "analytics": "Analitik",
       "marketing": "Pazarlama"
     }
+  },
+  "org": {
+    "members": {
+      "title": "Üyeler",
+      "subtitle": "Organizasyonunuzdaki üyeleri yönetin",
+      "memberCount": "{{count}} üye",
+      "roles": {
+        "OWNER": "Sahip",
+        "ADMIN": "Yönetici", 
+        "MEMBER": "Üye"
+      },
+      "status": {
+        "active": "Aktif",
+        "pending": "Bekliyor"
+      },
+      "table": {
+        "name": "Ad",
+        "email": "E-posta",
+        "role": "Rol",
+        "status": "Durum",
+        "joinedAt": "Katılma Tarihi",
+        "actions": "İşlemler"
+      },
+      "invite": {
+        "title": "Üye Davet Et",
+        "button": "Davet Gönder",
+        "form": {
+          "email": "E-posta Adresi",
+          "emailPlaceholder": "ornek@email.com",
+          "role": "Rol",
+          "rolePlaceholder": "Rol seçin",
+          "message": "Davet Mesajı (İsteğe bağlı)",
+          "messagePlaceholder": "Organizasyonumuza katılmanız için sizi davet ediyoruz..."
+        },
+        "success": "Davet başarıyla gönderildi",
+        "error": "Davet gönderilirken hata oluştu",
+        "duplicate": "Bu e-posta adresi zaten davet edilmiş",
+        "limitReached": "Plan limiti aşıldı. Daha fazla üye davet etmek için planınızı yükseltin."
+      },
+      "remove": {
+        "title": "Üyeyi Çıkar",
+        "message": "{{name}} kişisini organizasyondan çıkarmak istediğinizden emin misiniz?",
+        "warning": "Bu işlem geri alınamaz.",
+        "confirm": "Evet, Çıkar",
+        "cancel": "İptal",
+        "success": "Üye başarıyla çıkarıldı",
+        "error": "Üye çıkarılırken hata oluştu",
+        "cannotRemoveOwner": "Sahip rolündeki üye çıkarılamaz"
+      },
+      "updateRole": {
+        "success": "Üye rolü güncellendi",
+        "error": "Rol güncellenirken hata oluştu"
+      },
+      "empty": {
+        "title": "Henüz üye yok",
+        "subtitle": "İlk üyenizi davet ederek başlayın",
+        "action": "Üye Davet Et"
+      },
+      "pendingInvites": {
+        "title": "Bekleyen Davetler",
+        "count": "{{count}} bekleyen davet",
+        "resend": "Tekrar Gönder",
+        "cancel": "İptal Et",
+        "resendSuccess": "Davet tekrar gönderildi",
+        "cancelSuccess": "Davet iptal edildi",
+        "expires": "{{date}} tarihinde sona eriyor"
+      }
+    },
+    "join": {
+      "title": "Organizasyona Katıl",
+      "subtitle": "{{orgName}} organizasyonuna katılmaya davet edildiniz",
+      "invitedBy": "{{name}} tarafından davet edildiniz",
+      "role": "Rol: {{role}}",
+      "accept": "Daveti Kabul Et",
+      "decline": "Daveti Reddet",
+      "expired": {
+        "title": "Davet Süresi Doldu",
+        "subtitle": "Bu davet bağlantısının süresi dolmuş",
+        "action": "Yeni davet isteyin"
+      },
+      "invalid": {
+        "title": "Geçersiz Davet",
+        "subtitle": "Bu davet bağlantısı geçersiz",
+        "action": "Ana sayfaya git"
+      },
+      "success": {
+        "title": "Başarılı!",
+        "subtitle": "{{orgName}} organizasyonuna başarıyla katıldınız",
+        "action": "Panele Git"
+      },
+      "error": {
+        "title": "Hata",
+        "subtitle": "Daveti kabul ederken bir hata oluştu",
+        "tryAgain": "Tekrar Dene"
+      },
+      "alreadyMember": {
+        "title": "Zaten Üyesiniz",
+        "subtitle": "Bu organizasyonun zaten bir üyesisiniz",
+        "action": "Panele Git"
+      }
+    }
   }
 }
 

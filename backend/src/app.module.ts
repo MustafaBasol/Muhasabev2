@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { OrganizationsModule } from './organizations/organizations.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { CustomersModule } from './customers/customers.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
@@ -46,6 +47,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     }),
     AuthModule,
     UsersModule,
+    OrganizationsModule,
     TenantsModule,
     CustomersModule,
     SuppliersModule,

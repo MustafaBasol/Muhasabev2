@@ -95,6 +95,10 @@ import CookiePreferencesModal from "./components/CookiePreferencesModal";
 // legal header
 import LegalHeader from "./components/LegalHeader";
 
+// organization components
+import OrganizationMembersPage from "./components/OrganizationMembersPage";
+import JoinOrganizationPage from "./components/JoinOrganizationPage";
+
 import * as ExcelJS from 'exceljs';
 
 const defaultCompany: CompanyProfile = {
@@ -705,6 +709,14 @@ const AppContent: React.FC = () => {
         const legalPage = hash.replace('legal/', '');
         console.log('Legal sayfasına yönlendiriliyor:', legalPage);
         setCurrentPage(`legal-${legalPage}`);
+      } else if (hash === 'settings/organization/members') {
+        console.log('Organization members sayfasına yönlendiriliyor...');
+        setCurrentPage('organization-members');
+      } else if (hash.startsWith('join?token=')) {
+        // Extract token from hash
+        const token = hash.replace('join?token=', '');
+        console.log('Join organization sayfasına yönlendiriliyor, token:', token);
+        setCurrentPage(`join-organization:${token}`);
       } else if (hash === '') {
         // If no hash, show landing page for non-authenticated users, dashboard for authenticated
         if (isAuthenticated) {
@@ -2915,7 +2927,33 @@ const AppContent: React.FC = () => {
         return <DataProcessingAgreement />;
       case "legal-cookies":
         return <div className="p-6"><p>Bu sayfa geliştirme aşamasındadır.</p></div>;
+      case "organization-members":
+        return <OrganizationMembersPage />;
       default:
+        // Handle join organization with token
+        if (currentPage.startsWith('join-organization:')) {
+          const token = currentPage.replace('join-organization:', '');
+          return (
+            <JoinOrganizationPage
+              token={token}
+              onJoinSuccess={() => {
+                // Redirect to dashboard after successful join
+                setCurrentPage('dashboard');
+                window.location.hash = '';
+              }}
+              onNavigateHome={() => {
+                // Redirect to home/landing
+                setCurrentPage('landing');
+                window.location.hash = '';
+              }}
+              onNavigateDashboard={() => {
+                // Redirect to dashboard
+                setCurrentPage('dashboard');
+                window.location.hash = '';
+              }}
+            />
+          );
+        }
         return renderDashboard();
     }
   };

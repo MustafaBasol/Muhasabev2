@@ -6,8 +6,10 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { Organization } from '../../organizations/entities/organization.entity';
 
 export enum UserRole {
   SUPER_ADMIN = 'super_admin',
@@ -71,6 +73,14 @@ export class User {
 
   @Column()
   tenantId: string;
+
+  // Current organization ID for session context
+  @Column({ nullable: true })
+  currentOrgId: string;
+
+  @ManyToOne(() => Organization, { nullable: true })
+  @JoinColumn({ name: 'currentOrgId' })
+  currentOrganization: Organization;
 
   @CreateDateColumn()
   createdAt: Date;
