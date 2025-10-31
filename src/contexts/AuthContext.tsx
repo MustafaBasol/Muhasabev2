@@ -97,6 +97,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleAuthSuccess = (data: AuthResponse) => {
+    console.log('🔍 Auth data received:', data);
+    
+    // Safety check
+    if (!data || !data.user || !data.token) {
+      console.error('❌ Invalid auth data:', data);
+      throw new Error('Geçersiz auth verisi alındı');
+    }
+    
     // Önce eski verileri temizle
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
@@ -113,20 +121,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     console.log('✅ Yeni kullanıcı girişi:', {
-      email: data.user.email,
-      tenantId: data.user.tenantId,
+      email: data.user?.email,
+      tenantId: data.user?.tenantId,
       tenant: data.tenant?.name
     });
   };
 
   const login = async (email: string, password: string) => {
     try {
+      console.log('🔑 Login başlatılıyor:', { email });
       const data = await authService.login({ email, password });
+      console.log('🔍 Login response:', data);
       handleAuthSuccess(data);
       console.log('✅ Login tamamlandı');
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
+    } catch (error: any) {
+      console.error('❌ Login failed:', error);
+      
+      // Error mesajını düzelt
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          'Giriş sırasında bir hata oluştu';
+      
+      throw new Error(errorMessage);
     }
   };
 

@@ -55,16 +55,16 @@ export class User {
   isPendingDeletion: boolean;
 
   // Two-Factor Authentication fields
-  @Column({ nullable: true })
+  @Column({ name: 'twoFactorSecret', nullable: true })
   twoFactorSecret: string;
 
-  @Column({ default: false })
+  @Column({ name: 'twoFactorEnabled', default: false })
   twoFactorEnabled: boolean;
 
-  @Column({ type: 'text', array: true, nullable: true })
+  @Column({ name: 'twoFactorBackupCodes', type: 'text', array: true, nullable: true })
   backupCodes: string[];
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ name: 'twoFactorEnabledAt', type: 'timestamp', nullable: true })
   twoFactorEnabledAt: Date;
 
   @ManyToOne(() => Tenant, (tenant) => tenant.users, { onDelete: 'CASCADE' })

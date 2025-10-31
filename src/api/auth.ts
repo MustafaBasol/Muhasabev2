@@ -34,13 +34,43 @@ export interface AuthResponse {
 
 export const authService = {
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/register', data);
-    return response.data;
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/register', data);
+      return response.data;
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Kayıt sırasında hata oluştu';
+      throw new Error(message);
+    }
   },
 
   async login(data: LoginData): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/login', data);
-    return response.data;
+    try {
+      console.log('🔑 Login with fetch API:', data.email);
+      
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      console.log('🔍 Fetch response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData.message || 'Geçersiz email veya şifre';
+        throw new Error(message);
+      }
+      
+      const responseData = await response.json();
+      console.log('🔍 Auth service response:', responseData);
+      return responseData;
+      
+    } catch (error: any) {
+      console.error('🔍 Auth service error:', error);
+      throw error;
+    }
   },
 
   async getProfile() {

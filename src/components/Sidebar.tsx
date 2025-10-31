@@ -14,7 +14,8 @@ import {
   Building2,
   Receipt,
   Calendar,
-  X
+  X,
+  UserCircle
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -49,7 +50,7 @@ export default function Sidebar({
     { icon: LayoutDashboard, label: t('sidebar.dashboard'), page: 'dashboard' },
     { icon: FileText, label: t('sidebar.invoices'), page: 'invoices', badge: activeInvoiceCount > 0 ? activeInvoiceCount : null },
     { icon: Receipt, label: t('sidebar.expenses'), page: 'expenses', badge: pendingExpenseCount > 0 ? pendingExpenseCount : null },
-    { icon: Users, label: t('sidebar.customers'), page: 'customers' },
+    { icon: UserCircle, label: t('sidebar.customers'), page: 'customers' },
     { icon: Package, label: t('sidebar.products'), page: 'products' },
     { icon: Building2, label: t('sidebar.suppliers'), page: 'suppliers' },
     { icon: CreditCard, label: t('sidebar.banks'), page: 'banks' },
@@ -59,6 +60,7 @@ export default function Sidebar({
     { icon: BookOpen, label: t('sidebar.chartOfAccounts'), page: 'chart-of-accounts' },
     { icon: Calendar, label: t('fiscalPeriods.title'), page: 'fiscal-periods' },
     { icon: Archive, label: t('sidebar.archive'), page: 'archive' },
+    { icon: Users, label: t('sidebar.organization'), page: 'organization-members' },
     { icon: Settings, label: t('sidebar.settings'), page: 'settings' },
   ];
 

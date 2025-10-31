@@ -132,4 +132,30 @@ export class OrganizationsController {
   getMembershipStats(@Param('id') id: string, @Request() req) {
     return this.organizationsService.getMembershipStats(id, req.user.id);
   }
+
+  @Delete(':id/invites/:inviteId')
+  @ApiOperation({ summary: 'Cancel pending invitation' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Invitation cancelled successfully' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Insufficient permissions' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Invitation not found' })
+  cancelInvite(
+    @Param('id') id: string,
+    @Param('inviteId') inviteId: string,
+    @Request() req,
+  ) {
+    return this.organizationsService.cancelInvite(id, inviteId, req.user.id);
+  }
+
+  @Post(':id/invites/:inviteId/resend')
+  @ApiOperation({ summary: 'Resend invitation' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Invitation resent successfully' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Insufficient permissions' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Invitation not found' })
+  resendInvite(
+    @Param('id') id: string,
+    @Param('inviteId') inviteId: string,
+    @Request() req,
+  ) {
+    return this.organizationsService.resendInvite(id, inviteId, req.user.id);
+  }
 }

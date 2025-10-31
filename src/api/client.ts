@@ -77,13 +77,17 @@ apiClient.interceptors.response.use(
       });
     }
 
-    // Handle authentication errors
-    if (error.response?.status === 401) {
-      console.log('🔐 Authentication error, clearing token...');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('tenant');
-      window.location.href = '/';
+    // Handle authentication errors - sadece zaten login olmuş kullanıcılar için
+    if (error.response?.status === 401 && localStorage.getItem('auth_token')) {
+      // Login/register endpoint'lerinde redirect yapma
+      if (!error.config?.url?.includes('/auth/')) {
+        console.log('🔐 Authentication error, clearing token...');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('tenant');
+        window.location.href = '/';
+        return Promise.reject(error);
+      }
     }
 
     return Promise.reject(error);

@@ -79,6 +79,16 @@ export const organizationsApi = {
 
   async getAll(): Promise<Organization[]> {
     const response = await apiClient.get('/organizations');
+    console.log('🔍 Organizations API response:', response.data);
+    
+    // Backend returns { organization: Organization, role: Role }[]
+    // Extract just the organizations
+    if (Array.isArray(response.data) && response.data.length > 0 && response.data[0].organization) {
+      console.log('✅ Converting backend format to frontend format');
+      return response.data.map((item: any) => item.organization);
+    }
+    
+    // Fallback for direct Organization[] format
     return response.data;
   },
 

@@ -32,15 +32,30 @@ const OrganizationMembersPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
+      console.log('🔍 Loading organization data...');
+
       // Get user's organizations (for now, get the first one)
       const organizations = await organizationsApi.getAll();
-      if (organizations.length === 0) {
+      console.log('📊 Organizations received:', organizations);
+
+      if (!organizations || organizations.length === 0) {
+        console.log('❌ No organizations found');
         setError('No organization found');
         return;
       }
 
       const org = organizations[0]; // Use first organization for now
+      console.log('✅ Selected organization:', org);
+
+      if (!org || !org.id) {
+        console.error('❌ Invalid organization object:', org);
+        setError('Invalid organization data');
+        return;
+      }
+
       setCurrentOrganization(org);
+
+      console.log('🔄 Loading members, invites, and stats for org:', org.id);
 
       // Get members, pending invites, and membership stats in parallel
       const [membersData, invitesData, statsData] = await Promise.all([
@@ -48,6 +63,12 @@ const OrganizationMembersPage: React.FC = () => {
         organizationsApi.getPendingInvites(org.id),
         organizationsApi.getMembershipStats(org.id)
       ]);
+
+      console.log('✅ Data loaded successfully:', {
+        members: membersData.length,
+        invites: invitesData.length,
+        stats: statsData
+      });
 
       setMembers(membersData);
       setPendingInvites(invitesData);
@@ -57,10 +78,11 @@ const OrganizationMembersPage: React.FC = () => {
       const currentMember = membersData.find(m => m.user.id === user?.id);
       if (currentMember) {
         setCurrentUserRole(currentMember.role);
+        console.log('✅ Current user role:', currentMember.role);
       }
 
     } catch (error: any) {
-      console.error('Failed to load organization data:', error);
+      console.error('❌ Failed to load organization data:', error);
       setError(error.response?.data?.message || 'Failed to load organization data');
     } finally {
       setLoading(false);

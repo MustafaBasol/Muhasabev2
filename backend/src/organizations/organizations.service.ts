@@ -9,6 +9,7 @@ import { CreateOrganizationDto, UpdateOrganizationDto } from './dto/organization
 import { InviteUserDto, UpdateMemberRoleDto } from './dto/member.dto';
 import { Role, Plan } from '../common/enums/organization.enum';
 import { PlanLimitService } from '../common/plan-limits.service';
+import { EmailService } from '../services/email.service';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -22,6 +23,7 @@ export class OrganizationsService {
     private inviteRepository: Repository<Invite>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private emailService: EmailService,
   ) {}
 
   async create(createOrganizationDto: CreateOrganizationDto, ownerId: string): Promise<Organization> {
@@ -119,12 +121,18 @@ export class OrganizationsService {
       throw new NotFoundException('Organization not found');
     }
 
-    // Check plan limits for adding a new member
+    // Check plan limits for adding a new member (include pending invites)
     const currentMemberCount = await this.memberRepository.count({
       where: { organizationId },
     });
+    
+    const pendingInviteCount = await this.inviteRepository.count({
+      where: { organizationId, acceptedAt: IsNull() },
+    });
+    
+    const totalCount = currentMemberCount + pendingInviteCount;
 
-    const canAdd = PlanLimitService.canAddMember(currentMemberCount, organization.plan);
+    const canAdd = PlanLimitService.canAddMember(totalCount, organization.plan);
     if (!canAdd) {
       const errorMessage = PlanLimitService.getMemberLimitError(organization.plan);
       throw new BadRequestException(errorMessage);
@@ -158,7 +166,53 @@ export class OrganizationsService {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     });
 
-    return this.inviteRepository.save(invite);
+    const savedInvite = await this.inviteRepository.save(invite);
+
+    // Send invitation email
+    try {
+      const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:5174'}/invite/${savedInvite.token}`;
+      
+      await this.emailService.sendEmail({
+        to: inviteUserDto.email,
+        subject: `Invitation to join ${organization.name}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #059669;">Organization Invitation</h2>
+            
+            <p>You have been invited to join <strong>${organization.name}</strong> as a <strong>${inviteUserDto.role}</strong>.</p>
+            
+            <div style="background-color: #ecfdf5; border: 1px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0;">Click the link below to accept the invitation:</p>
+              <a href="${inviteUrl}" style="color: #059669; text-decoration: none; font-weight: bold;">${inviteUrl}</a>
+            </div>
+            
+            <p><strong>Note:</strong> This invitation will expire in 7 days.</p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+            
+            <p style="font-size: 12px; color: #6b7280;">
+              MoneyFlow Accounting System | Istanbul, Turkey
+            </p>
+          </div>
+        `,
+        text: `
+You have been invited to join ${organization.name} as a ${inviteUserDto.role}.
+
+Accept invitation: ${inviteUrl}
+
+This invitation will expire in 7 days.
+
+MoneyFlow Accounting System
+        `
+      });
+
+      console.log(`✅ Invitation email sent to ${inviteUserDto.email}`);
+    } catch (error) {
+      console.error(`❌ Failed to send invitation email to ${inviteUserDto.email}:`, error);
+      // Don't throw error - invitation is still created even if email fails
+    }
+
+    return savedInvite;
   }
 
   async acceptInvite(token: string, userId: string): Promise<OrganizationMember> {
@@ -334,6 +388,26 @@ export class OrganizationsService {
       order: { createdAt: 'ASC' },
     });
 
+    // If user has no organizations, create a default one
+    if (members.length === 0) {
+      console.log(`📦 User ${userId} has no organizations, creating default organization...`);
+      const defaultOrg = await this.migrateUserToOrganization(userId);
+      
+      // Fetch the member record for the new organization
+      const newMember = await this.memberRepository.findOne({
+        where: { userId, organizationId: defaultOrg.id },
+        relations: ['organization'],
+      });
+
+      if (newMember) {
+        console.log(`✅ Default organization created for user ${userId}: ${defaultOrg.name}`);
+        return [{
+          organization: newMember.organization,
+          role: newMember.role,
+        }];
+      }
+    }
+
     return members.map(member => ({
       organization: member.organization,
       role: member.role,
@@ -409,5 +483,58 @@ export class OrganizationsService {
       canAddMore,
       plan: organization.plan,
     };
+  }
+
+  async cancelInvite(organizationId: string, inviteId: string, userId: string): Promise<void> {
+    // Check if user has permission (OWNER or ADMIN)
+    const userMember = await this.memberRepository.findOne({
+      where: { organizationId, userId },
+    });
+
+    if (!userMember || (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)) {
+      throw new ForbiddenException('Only owners and admins can cancel invites');
+    }
+
+    // Find the invite
+    const invite = await this.inviteRepository.findOne({
+      where: { id: inviteId, organizationId },
+    });
+
+    if (!invite) {
+      throw new NotFoundException('Invite not found');
+    }
+
+    // Delete the invite
+    await this.inviteRepository.remove(invite);
+  }
+
+  async resendInvite(organizationId: string, inviteId: string, userId: string): Promise<Invite> {
+    // Check if user has permission (OWNER or ADMIN)
+    const userMember = await this.memberRepository.findOne({
+      where: { organizationId, userId },
+    });
+
+    if (!userMember || (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)) {
+      throw new ForbiddenException('Only owners and admins can resend invites');
+    }
+
+    // Find the invite
+    const invite = await this.inviteRepository.findOne({
+      where: { id: inviteId, organizationId },
+      relations: ['organization'],
+    });
+
+    if (!invite) {
+      throw new NotFoundException('Invite not found');
+    }
+
+    // Update expiry date (extend by 7 days)
+    const newExpiryDate = new Date();
+    newExpiryDate.setDate(newExpiryDate.getDate() + 7);
+    
+    invite.expiresAt = newExpiryDate;
+
+    // Save and return updated invite
+    return await this.inviteRepository.save(invite);
   }
 }
