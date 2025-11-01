@@ -102,9 +102,12 @@ async function bootstrap() {
     .build();
   
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  // Global API prefix (development de de prod ile aynı olsun)
+  app.setGlobalPrefix('api', { exclude: ['health'] });
 
-  const port = parseInt(process.env.PORT || '3001', 10);
+  SwaggerModule.setup('api/docs', app, document);
+
+  const port = parseInt(process.env.PORT || '3000', 10);
   const host = '0.0.0.0'; // Bu tüm interface'lerde dinlemeyi sağlar
   
   await app.listen(port, host);

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Legal Fields Test</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+    textarea { width: 100%; height: 100px; }
+    button { padding: 10px 20px; margin: 5px; }
+    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>Legal Compliance Fields Test</h1>
+  
+  <div class="section">
+    <h3>1. JWT Token</h3>
+    <input type="text" id="token" placeholder="Enter JWT Token" style="width: 70%;">
+    <button onclick="loginTest()">Test Login</button>
+  </div>
+
+  <div class="section">
+    <h3>2. Get Current Tenant</h3>
+    <button onclick="getTenant()">GET /tenants/my-tenant</button>
+    <pre id="getTenantResult"></pre>
+  </div>
+
+  <div class="section">
+    <h3>3. Update Legal Fields</h3>
+    <textarea id="updateData" placeholder="Legal fields JSON data">{
+  "legalFields": {
+    "france": {
+      "siret": "12345678901234",
+      "siren": "123456789",
+      "apeCode": "6201Z"
+    },
+    "germany": {
+      "steuernummer": "12345678901",
+      "umsatzsteuerID": "DE123456789"
+    },
+    "turkey": {
+      "mersisNo": "0123456789012345",
+      "kepAddress": "test@company.kep.tr"
+    },
+    "usa": {
+      "ein": "12-3456789",
+      "taxID": "123456789"
+    }
+  }
+}</textarea>
+    <br>
+    <button onclick="updateTenant()">PATCH /tenants/my-tenant</button>
+    <pre id="updateTenantResult"></pre>
+  </div>
+
+  <div class="section">
+    <h3>4. API Status</h3>
+    <button onclick="checkAPI()">Check API Status</button>
+    <pre id="apiStatus"></pre>
+  </div>
+
+  <script>
+    const API_BASE = 'https://damp-wraith-7q9x5r7j6qrcgg6-3001.app.github.dev/api';
+    
+    async function loginTest() {
+      const token = document.getElementById('token').value;
+      if (!token) {
+        alert('Please enter a JWT token');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const result = await response.text();
+        alert(`Login Test: ${response.status} - ${result}`);
+      } catch (error) {
+        alert(`Login Error: ${error.message}`);
+      }
+    }
+    
+    async function getTenant() {
+      const token = document.getElementById('token').value;
+      if (!token) {
+        alert('Please enter a JWT token first');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}/tenants/my-tenant`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const result = await response.json();
+        document.getElementById('getTenantResult').textContent = JSON.stringify(result, null, 2);
+      } catch (error) {
+        document.getElementById('getTenantResult').textContent = `Error: ${error.message}`;
+      }
+    }
+    
+    async function updateTenant() {
+      const token = document.getElementById('token').value;
+      const updateData = document.getElementById('updateData').value;
+      
+      if (!token) {
+        alert('Please enter a JWT token first');
+        return;
+      }
+      
+      try {
+        const data = JSON.parse(updateData);
+        const response = await fetch(`${API_BASE}/tenants/my-tenant`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        document.getElementById('updateTenantResult').textContent = JSON.stringify(result, null, 2);
+      } catch (error) {
+        document.getElementById('updateTenantResult').textContent = `Error: ${error.message}`;
+      }
+    }
+    
+    async function checkAPI() {
+      try {
+        const response = await fetch(`${API_BASE}/health`);
+        const result = await response.text();
+        document.getElementById('apiStatus').textContent = `Status: ${response.status} - ${result}`;
+      } catch (error) {
+        document.getElementById('apiStatus').textContent = `Error: ${error.message}`;
+      }
+    }
+  </script>
+</body>
+</html>

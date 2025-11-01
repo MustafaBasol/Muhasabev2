@@ -17,15 +17,22 @@ export const adminApi = {
     return response.data;
   },
 
-  getUsers: async () => {
-    const response = await apiClient.get('/admin/users', {
+  getUsers: async (tenantId?: string) => {
+    const qs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+    const response = await apiClient.get(`/admin/users${qs}`, {
       headers: getAdminHeaders()
     });
     return response.data;
   },
 
-  getTenants: async () => {
-    const response = await apiClient.get('/admin/tenants', {
+  getTenants: async (filters?: { status?: string; plan?: string; startFrom?: string; startTo?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.plan) params.append('plan', filters.plan);
+    if (filters?.startFrom) params.append('startFrom', filters.startFrom);
+    if (filters?.startTo) params.append('startTo', filters.startTo);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const response = await apiClient.get(`/admin/tenants${qs}`, {
       headers: getAdminHeaders()
     });
     return response.data;
@@ -99,6 +106,70 @@ export const adminApi = {
 
   executeRetention: async () => {
     const response = await apiClient.post('/admin/retention/execute', { confirm: true }, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+  // Admin Organizations
+  listOrganizations: async () => {
+    const response = await apiClient.get('/admin/organizations', {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+  getOrganizationMembers: async (orgId: string) => {
+    const response = await apiClient.get(`/admin/organizations/${orgId}/members`, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+  getOrganizationInvites: async (orgId: string) => {
+    const response = await apiClient.get(`/admin/organizations/${orgId}/invites`, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+  updateMemberRole: async (orgId: string, memberId: string, role: string) => {
+    const response = await apiClient.patch(`/admin/organizations/${orgId}/members/${memberId}/role`, { role }, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+  removeMember: async (orgId: string, memberId: string) => {
+    const response = await apiClient.delete(`/admin/organizations/${orgId}/members/${memberId}`, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+  updateUserStatus: async (userId: string, isActive: boolean) => {
+    const response = await apiClient.patch(`/admin/users/${userId}/status`, { isActive }, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+
+  updateUserDetails: async (
+    userId: string,
+    payload: { firstName?: string; lastName?: string; email?: string; phone?: string }
+  ) => {
+    const response = await apiClient.patch(`/admin/users/${userId}`, payload, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+
+  sendPasswordReset: async (userId: string) => {
+    const response = await apiClient.post(`/admin/users/${userId}/password-reset`, {}, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+
+  updateTenantSubscription: async (
+    tenantId: string,
+    payload: { plan?: string; status?: string; nextBillingAt?: string; cancel?: boolean }
+  ) => {
+    const response = await apiClient.patch(`/admin/tenant/${tenantId}/subscription`, payload, {
       headers: getAdminHeaders()
     });
     return response.data;

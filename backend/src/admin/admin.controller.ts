@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Query, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Headers, UnauthorizedException, Patch } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { SubscriptionPlan, TenantStatus } from '../tenants/entities/tenant.entity';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -27,19 +28,60 @@ export class AdminController {
   }
 
   @Get('users')
-  @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({ status: 200, description: 'List of all users' })
-  async getAllUsers(@Headers() headers: any) {
+  @ApiOperation({ summary: 'Get all users (optionally filtered by tenant)' })
+  @ApiResponse({ status: 200, description: 'List of users' })
+  async getAllUsers(@Headers() headers: any, @Query('tenantId') tenantId?: string) {
     this.checkAdminAuth(headers);
-    return this.adminService.getAllUsers();
+    return this.adminService.getAllUsers(tenantId);
   }
 
   @Get('tenants')
-  @ApiOperation({ summary: 'Get all tenants' })
-  @ApiResponse({ status: 200, description: 'List of all tenants' })
-  async getAllTenants(@Headers() headers: any) {
+  @ApiOperation({ summary: 'Get all tenants with optional filters' })
+  @ApiResponse({ status: 200, description: 'List of tenants' })
+  async getAllTenants(
+    @Headers() headers: any,
+    @Query('status') status?: TenantStatus,
+    @Query('plan') plan?: SubscriptionPlan,
+    @Query('startFrom') startFrom?: string,
+    @Query('startTo') startTo?: string,
+  ) {
     this.checkAdminAuth(headers);
-    return this.adminService.getAllTenants();
+    return this.adminService.getAllTenants({ status, plan, startFrom, startTo });
+  }
+
+  @Patch('users/:userId/status')
+  @ApiOperation({ summary: 'Update user active status' })
+  @ApiResponse({ status: 200, description: 'User status updated' })
+  async updateUserStatus(
+    @Param('userId') userId: string,
+    @Body() body: { isActive: boolean },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.adminService.updateUserStatus(userId, body.isActive);
+  }
+
+  @Patch('users/:userId')
+  @ApiOperation({ summary: 'Update user profile (firstName, lastName, email, phone)' })
+  @ApiResponse({ status: 200, description: 'User updated' })
+  async updateUser(
+    @Param('userId') userId: string,
+    @Body() body: { firstName?: string; lastName?: string; email?: string; phone?: string },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.adminService.updateUser(userId, body);
+  }
+
+  @Post('users/:userId/password-reset')
+  @ApiOperation({ summary: 'Send password reset email to user' })
+  @ApiResponse({ status: 200, description: 'Password reset email sent (simulated)' })
+  async sendPasswordReset(
+    @Param('userId') userId: string,
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.adminService.sendPasswordReset(userId);
   }
 
   @Get('user/:userId/data')
@@ -56,6 +98,18 @@ export class AdminController {
   async getTenantData(@Param('tenantId') tenantId: string, @Headers() headers: any) {
     this.checkAdminAuth(headers);
     return this.adminService.getTenantData(tenantId);
+  }
+
+  @Patch('tenant/:tenantId/subscription')
+  @ApiOperation({ summary: 'Update tenant subscription (plan/status/billing)' })
+  @ApiResponse({ status: 200, description: 'Subscription updated' })
+  async updateTenantSubscription(
+    @Param('tenantId') tenantId: string,
+    @Body() body: { plan?: SubscriptionPlan; status?: TenantStatus; nextBillingAt?: string; cancel?: boolean },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.adminService.updateTenantSubscription(tenantId, body);
   }
 
   @Get('tables')

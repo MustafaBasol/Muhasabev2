@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>API Debug Test</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+    button { padding: 10px 20px; margin: 5px; }
+    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; white-space: pre-wrap; }
+    input { width: 300px; padding: 5px; margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>API Debug Test</h1>
+  
+  <div class="section">
+    <h3>1. API Sağlık Kontrolü</h3>
+    <button onclick="checkHealth()">GET /health</button>
+    <pre id="healthResult"></pre>
+  </div>
+
+  <div class="section">
+    <h3>2. Giriş Testi</h3>
+    <input type="email" id="email" placeholder="Email" value="admin@test.com">
+    <input type="password" id="password" placeholder="Password" value="Test123456">
+    <button onclick="login()">POST /auth/login</button>
+    <pre id="loginResult"></pre>
+  </div>
+
+  <div class="section">
+    <h3>3. Admin Giriş Testi</h3>
+    <input type="text" id="adminUsername" placeholder="Username" value="admin">
+    <input type="password" id="adminPassword" placeholder="Password" value="admin123">
+    <button onclick="adminLogin()">POST /admin/login</button>
+    <pre id="adminLoginResult"></pre>
+  </div>
+
+  <div class="section">
+    <h3>4. Token ile Test</h3>
+    <input type="text" id="token" placeholder="JWT Token" style="width: 500px;">
+    <button onclick="testToken()">Test Token</button>
+    <pre id="tokenResult"></pre>
+  </div>
+
+  <div class="section">
+    <h3>5. Tenant Test</h3>
+    <button onclick="getTenant()">GET /tenants/my-tenant</button>
+    <pre id="tenantResult"></pre>
+  </div>
+
+  <script>
+    const API_BASE = 'https://damp-wraith-7q9x5r7j6qrcgg6-3001.app.github.dev/api';
+    
+    async function checkHealth() {
+      try {
+        const response = await fetch(`${API_BASE}/health`);
+        const result = await response.text();
+        document.getElementById('healthResult').textContent = `Status: ${response.status}\n${result}`;
+      } catch (error) {
+        document.getElementById('healthResult').textContent = `Error: ${error.message}`;
+      }
+    }
+    
+    async function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      try {
+        const response = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        
+        const result = await response.json();
+        document.getElementById('loginResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
+        
+        if (result.access_token) {
+          document.getElementById('token').value = result.access_token;
+        }
+      } catch (error) {
+        document.getElementById('loginResult').textContent = `Error: ${error.message}`;
+      }
+    }
+    
+    async function adminLogin() {
+      const username = document.getElementById('adminUsername').value;
+      const password = document.getElementById('adminPassword').value;
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const result = await response.json();
+        document.getElementById('adminLoginResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
+        
+        if (result.access_token) {
+          document.getElementById('token').value = result.access_token;
+        }
+      } catch (error) {
+        document.getElementById('adminLoginResult').textContent = `Error: ${error.message}`;
+      }
+    }
+    
+    async function testToken() {
+      const token = document.getElementById('token').value;
+      if (!token) {
+        alert('Please enter a token');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const result = await response.json();
+        document.getElementById('tokenResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
+      } catch (error) {
+        document.getElementById('tokenResult').textContent = `Error: ${error.message}`;
+      }
+    }
+    
+    async function getTenant() {
+      const token = document.getElementById('token').value;
+      if (!token) {
+        alert('Please enter a token first');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}/tenants/my-tenant`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const result = await response.json();
+        document.getElementById('tenantResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
+      } catch (error) {
+        document.getElementById('tenantResult').textContent = `Error: ${error.message}`;
+      }
+    }
+  </script>
+</body>
+</html>

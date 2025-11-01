@@ -11,6 +11,65 @@ export interface CreateTenantDto {
   phone?: string;
   address?: string;
   taxNumber?: string;
+  website?: string;
+  
+  // Türkiye
+  taxOffice?: string;
+  mersisNumber?: string;
+  kepAddress?: string;
+  
+  // Fransa
+  siretNumber?: string;
+  sirenNumber?: string;
+  apeCode?: string;
+  tvaNumber?: string;
+  rcsNumber?: string;
+  
+  // Almanya
+  steuernummer?: string;
+  umsatzsteuerID?: string;
+  handelsregisternummer?: string;
+  geschaeftsfuehrer?: string;
+  
+  // Amerika
+  einNumber?: string;
+  taxId?: string;
+  businessLicenseNumber?: string;
+  stateOfIncorporation?: string;
+}
+
+export interface UpdateTenantDto {
+  name?: string;
+  companyName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  taxNumber?: string;
+  website?: string;
+  
+  // Türkiye
+  taxOffice?: string;
+  mersisNumber?: string;
+  kepAddress?: string;
+  
+  // Fransa
+  siretNumber?: string;
+  sirenNumber?: string;
+  apeCode?: string;
+  tvaNumber?: string;
+  rcsNumber?: string;
+  
+  // Almanya
+  steuernummer?: string;
+  umsatzsteuerID?: string;
+  handelsregisternummer?: string;
+  geschaeftsfuehrer?: string;
+  
+  // Amerika
+  einNumber?: string;
+  taxId?: string;
+  businessLicenseNumber?: string;
+  stateOfIncorporation?: string;
 }
 
 @Injectable()

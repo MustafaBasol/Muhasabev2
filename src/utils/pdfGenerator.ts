@@ -60,12 +60,34 @@ export type CompanyProfile = {
   logoDataUrl?: string; // data:image/png;base64,...
   iban?: string;
   bankAccountId?: string;
+  
+  // === Türkiye Yasal Alanları ===
+  mersisNumber?: string;
+  kepAddress?: string;
+  
+  // === Fransa Yasal Alanları ===
+  siretNumber?: string;
+  sirenNumber?: string;
+  apeCode?: string;
+  tvaNumber?: string;
+  rcsNumber?: string;
+  
+  // === Almanya Yasal Alanları ===
+  steuernummer?: string;
+  umsatzsteuerID?: string;
+  handelsregisternummer?: string;
+  geschaeftsfuehrer?: string;
+  
+  // === Amerika Yasal Alanları ===
+  einNumber?: string;
+  taxId?: string;
+  businessLicenseNumber?: string;
+  stateOfIncorporation?: string;
 };
 
 type OpenOpts = { targetWindow?: Window | null; filename?: string; company?: CompanyProfile };
 
 // ——— Yardımcılar ——————————————————————————————————
-const mm = (v: number) => v; // sadeleştirme
 
 const formatDate = (dateString: string) => {
   try { return new Date(dateString).toLocaleDateString('tr-TR'); } catch { return ''; }
@@ -157,7 +179,15 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
 };
 
 // 2) PDF’i yeni sekmede göster (pop-up’a takılmaz, fallback’li)
-const openPdfInWindow = (pdfData: Blob | string, filename: string, targetWindow?: Window | null) => {
+// Basit ve güvenli dosya adı üretici
+const sanitizeFilename = (name?: string, fallback = 'document.pdf') => {
+  const raw = (name && name.trim()) ? name.trim() : fallback;
+  const withPdf = raw.toLowerCase().endsWith('.pdf') ? raw : `${raw}.pdf`;
+  // izin verilen karakterler: harf, rakam, nokta, alt tire, tire
+  return withPdf.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_');
+};
+
+const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow?: Window | null) => {
   const url = typeof pdfData === 'string'
     ? pdfData
     : URL.createObjectURL(
@@ -179,6 +209,8 @@ const openPdfInWindow = (pdfData: Blob | string, filename: string, targetWindow?
     a.href = url;
     a.target = '_blank';
     a.rel = 'noopener';
+    // Zorunlu indirmeyi tetiklemeden, kaydetme durumunda düzgün isim kullanılsın
+    a.download = sanitizeFilename(_filename);
     // a.download = filename; // görüntülemek yerine indirmeye zorlamak istersen aç
     document.body.appendChild(a);
     a.click();
@@ -201,11 +233,31 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
       <div style="font-size:18px;font-weight:700;color:#111827;">${c.name ?? ''}</div>
       ${c.address ? `<div style="font-size:12px;color:#4B5563;white-space:pre-line;margin-top:2px;">${c.address}</div>` : ''}
 
-      ${c.taxNumber ? `<div style="font-size:12px;color:#111827;margin-top:6px;"><strong>VKN:</strong> ${c.taxNumber}</div>` : ''}
-      ${c.iban ? `<div style="font-size:12px;color:#111827;margin-top:4px;"><strong>IBAN:</strong> ${formatIban(c.iban)}</div>` : ''}
+      ${c.taxNumber ? `<div style="font-size:11px;color:#111827;margin-top:4px;"><strong>VKN:</strong> ${c.taxNumber}</div>` : ''}
+      ${c.taxOffice ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Vergi Dairesi:</strong> ${c.taxOffice}</div>` : ''}
+      ${c.mersisNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Mersis:</strong> ${c.mersisNumber}</div>` : ''}
+      ${c.kepAddress ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>KEP:</strong> ${c.kepAddress}</div>` : ''}
+      
+      ${c.siretNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>SIRET:</strong> ${c.siretNumber}</div>` : ''}
+      ${c.sirenNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>SIREN:</strong> ${c.sirenNumber}</div>` : ''}
+      ${c.apeCode ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>APE:</strong> ${c.apeCode}</div>` : ''}
+      ${c.tvaNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>TVA:</strong> ${c.tvaNumber}</div>` : ''}
+      ${c.rcsNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>RCS:</strong> ${c.rcsNumber}</div>` : ''}
+      
+      ${c.steuernummer ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Steuernummer:</strong> ${c.steuernummer}</div>` : ''}
+      ${c.umsatzsteuerID ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>USt-IdNr:</strong> ${c.umsatzsteuerID}</div>` : ''}
+      ${c.handelsregisternummer ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>HRB:</strong> ${c.handelsregisternummer}</div>` : ''}
+      ${c.geschaeftsfuehrer ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Geschäftsführer:</strong> ${c.geschaeftsfuehrer}</div>` : ''}
+      
+      ${c.einNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>EIN:</strong> ${c.einNumber}</div>` : ''}
+      ${c.taxId ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Tax ID:</strong> ${c.taxId}</div>` : ''}
+      ${c.businessLicenseNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Business License:</strong> ${c.businessLicenseNumber}</div>` : ''}
+      ${c.stateOfIncorporation ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>State:</strong> ${c.stateOfIncorporation}</div>` : ''}
 
-      ${c.phone ? `<div style="font-size:12px;color:#111827;margin-top:4px;"><strong>Tel:</strong> ${c.phone}</div>` : ''}
-      ${c.email ? `<div style="font-size:12px;color:#111827;margin-top:2px;"><strong>Email:</strong> ${c.email}</div>` : ''}
+      ${c.iban ? `<div style="font-size:11px;color:#111827;margin-top:4px;"><strong>IBAN:</strong> ${formatIban(c.iban)}</div>` : ''}
+      ${c.phone ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Tel:</strong> ${c.phone}</div>` : ''}
+      ${c.email ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Email:</strong> ${c.email}</div>` : ''}
+      ${c.website ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Web:</strong> ${c.website}</div>` : ''}
     </div>
   `;
 

@@ -2,12 +2,13 @@ import apiClient from './client';
 
 const API_URL = '/admin/backups';
 
-// Admin token için header
-const getAdminHeaders = () => ({
-  headers: {
-    'admin-token': 'admin-access-granted'
-  }
-});
+// Admin token için header (localStorage'tan dinamik al)
+const getAdminHeaders = () => {
+  const token = localStorage.getItem('admin-token');
+  return {
+    headers: token ? { 'admin-token': token } : {},
+  };
+};
 
 export interface BackupMetadata {
   id: string;

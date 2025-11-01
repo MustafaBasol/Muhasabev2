@@ -1,6 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+    import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
@@ -34,16 +34,20 @@ import { CSRFMiddleware } from './common/csrf.middleware';
       ttl: 60000, // 1 dakika
       limit: 100, // Normal API endpoints için (middleware auth endpoints'i override eder)
     }]),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DATABASE_HOST || 'localhost',
-      port: parseInt(process.env.DATABASE_PORT || '5432'),
-      username: process.env.DATABASE_USER || 'moneyflow',
-      password: process.env.DATABASE_PASSWORD || 'moneyflow123',
-      database: process.env.DATABASE_NAME || 'moneyflow_dev',
-      autoLoadEntities: true,
-      synchronize: false, // IMPORTANT: Never drop tables - keeps your data safe
-      logging: false, // Reduce console noise in production
+    TypeOrmModule.forRootAsync({
+      useFactory: () => ({
+        type: 'postgres',
+        host: process.env.DATABASE_HOST || 'localhost',
+        port: parseInt(process.env.DATABASE_PORT || '5432'),
+        username: process.env.DATABASE_USER || 'postgres',
+        password: process.env.DATABASE_PASSWORD || 'password123',
+        database: process.env.DATABASE_NAME || 'postgres',
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        synchronize: false,
+        logging: process.env.NODE_ENV === 'development',
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      }),
     }),
     AuthModule,
     UsersModule,

@@ -97,6 +97,37 @@ type SettingsTranslations = {
       email: string;
       website: string;
     };
+    legalFields: {
+      title: string;
+      subtitle: string;
+      turkey: {
+        title: string;
+        mersisNumber: string;
+        kepAddress: string;
+      };
+      france: {
+        title: string;
+        siretNumber: string;
+        sirenNumber: string;
+        apeCode: string;
+        tvaNumber: string;
+        rcsNumber: string;
+      };
+      germany: {
+        title: string;
+        steuernummer: string;
+        umsatzsteuerID: string;
+        handelsregisternummer: string;
+        geschaeftsfuehrer: string;
+      };
+      usa: {
+        title: string;
+        einNumber: string;
+        taxId: string;
+        businessLicenseNumber: string;
+        stateOfIncorporation: string;
+      };
+    };
     iban: {
       sectionTitle: string;
       bankOption: string;
@@ -214,6 +245,37 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         phone: 'Telefon',
         email: 'E-posta',
         website: 'Website',
+      },
+      legalFields: {
+        title: 'Yasal Gereklilik Alanları',
+        subtitle: 'Uluslararası faturalama standartları için gerekli bilgiler',
+        turkey: {
+          title: 'Türkiye',
+          mersisNumber: 'Mersis Numarası',
+          kepAddress: 'KEP Adresi',
+        },
+        france: {
+          title: 'Fransa',
+          siretNumber: 'SIRET Numarası',
+          sirenNumber: 'SIREN Numarası',
+          apeCode: 'APE/NAF Kodu',
+          tvaNumber: 'TVA Numarası',
+          rcsNumber: 'RCS Numarası',
+        },
+        germany: {
+          title: 'Almanya',
+          steuernummer: 'Steuernummer',
+          umsatzsteuerID: 'Umsatzsteuer-ID',
+          handelsregisternummer: 'Handelsregisternummer',
+          geschaeftsfuehrer: 'Geschäftsführer',
+        },
+        usa: {
+          title: 'Amerika',
+          einNumber: 'EIN Numarası',
+          taxId: 'Tax ID',
+          businessLicenseNumber: 'Business License No',
+          stateOfIncorporation: 'Kuruluş Eyaleti',
+        },
       },
       iban: {
         sectionTitle: 'Faturalarda Kullanılacak IBAN',
@@ -368,6 +430,37 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         email: 'Email',
         website: 'Website',
       },
+      legalFields: {
+        title: 'Legal Compliance Fields',
+        subtitle: 'Required information for international invoicing standards',
+        turkey: {
+          title: 'Turkey',
+          mersisNumber: 'Mersis Number',
+          kepAddress: 'KEP Address',
+        },
+        france: {
+          title: 'France',
+          siretNumber: 'SIRET Number',
+          sirenNumber: 'SIREN Number',
+          apeCode: 'APE/NAF Code',
+          tvaNumber: 'TVA Number',
+          rcsNumber: 'RCS Number',
+        },
+        germany: {
+          title: 'Germany',
+          steuernummer: 'Steuernummer',
+          umsatzsteuerID: 'Umsatzsteuer-ID',
+          handelsregisternummer: 'Handelsregisternummer',
+          geschaeftsfuehrer: 'Geschäftsführer',
+        },
+        usa: {
+          title: 'USA',
+          einNumber: 'EIN Number',
+          taxId: 'Tax ID',
+          businessLicenseNumber: 'Business License No',
+          stateOfIncorporation: 'State of Incorporation',
+        },
+      },
       iban: {
         sectionTitle: 'IBAN to use on invoices',
         bankOption: 'Select from saved bank accounts',
@@ -521,6 +614,37 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         email: 'E-mail',
         website: 'Site Web',
       },
+      legalFields: {
+        title: 'Champs de conformité légale',
+        subtitle: 'Informations requises pour les normes de facturation internationales',
+        turkey: {
+          title: 'Turquie',
+          mersisNumber: 'Numéro Mersis',
+          kepAddress: 'Adresse KEP',
+        },
+        france: {
+          title: 'France',
+          siretNumber: 'Numéro SIRET',
+          sirenNumber: 'Numéro SIREN',
+          apeCode: 'Code APE/NAF',
+          tvaNumber: 'Numéro TVA',
+          rcsNumber: 'Numéro RCS',
+        },
+        germany: {
+          title: 'Allemagne',
+          steuernummer: 'Steuernummer',
+          umsatzsteuerID: 'Umsatzsteuer-ID',
+          handelsregisternummer: 'Handelsregisternummer',
+          geschaeftsfuehrer: 'Geschäftsführer',
+        },
+        usa: {
+          title: 'États-Unis',
+          einNumber: 'Numéro EIN',
+          taxId: 'Tax ID',
+          businessLicenseNumber: 'N° de licence commerciale',
+          stateOfIncorporation: 'État de constitution',
+        },
+      },
       iban: {
         sectionTitle: 'IBAN utilisé sur les factures',
         bankOption: 'Choisir parmi les comptes bancaires enregistrés',
@@ -673,6 +797,37 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         phone: 'Telefon',
         email: 'E-Mail',
         website: 'Webseite',
+      },
+      legalFields: {
+        title: 'Rechtliche Compliance-Felder',
+        subtitle: 'Erforderliche Informationen für internationale Rechnungsstandards',
+        turkey: {
+          title: 'Türkei',
+          mersisNumber: 'Mersis-Nummer',
+          kepAddress: 'KEP-Adresse',
+        },
+        france: {
+          title: 'Frankreich',
+          siretNumber: 'SIRET-Nummer',
+          sirenNumber: 'SIREN-Nummer',
+          apeCode: 'APE/NAF-Code',
+          tvaNumber: 'TVA-Nummer',
+          rcsNumber: 'RCS-Nummer',
+        },
+        germany: {
+          title: 'Deutschland',
+          steuernummer: 'Steuernummer',
+          umsatzsteuerID: 'Umsatzsteuer-ID',
+          handelsregisternummer: 'Handelsregisternummer',
+          geschaeftsfuehrer: 'Geschäftsführer',
+        },
+        usa: {
+          title: 'USA',
+          einNumber: 'EIN-Nummer',
+          taxId: 'Tax ID',
+          businessLicenseNumber: 'Gewerbelizenznummer',
+          stateOfIncorporation: 'Gründungsstaat',
+        },
       },
       iban: {
         sectionTitle: 'IBAN für Rechnungen',
@@ -848,6 +1003,29 @@ export default function SettingsPage({
     logoDataUrl: company?.logoDataUrl ?? '',
     bankAccountId: company?.bankAccountId ?? undefined,
     logoFile: null,
+    
+    // Türkiye yasal alanları
+    mersisNumber: company?.mersisNumber ?? '',
+    kepAddress: company?.kepAddress ?? '',
+    
+    // Fransa yasal alanları
+    siretNumber: company?.siretNumber ?? '',
+    sirenNumber: company?.sirenNumber ?? '',
+    apeCode: company?.apeCode ?? '',
+    tvaNumber: company?.tvaNumber ?? '',
+    rcsNumber: company?.rcsNumber ?? '',
+    
+    // Almanya yasal alanları
+    steuernummer: company?.steuernummer ?? '',
+    umsatzsteuerID: company?.umsatzsteuerID ?? '',
+    handelsregisternummer: company?.handelsregisternummer ?? '',
+    geschaeftsfuehrer: company?.geschaeftsfuehrer ?? '',
+    
+    // Amerika yasal alanları
+    einNumber: company?.einNumber ?? '',
+    taxId: company?.taxId ?? '',
+    businessLicenseNumber: company?.businessLicenseNumber ?? '',
+    stateOfIncorporation: company?.stateOfIncorporation ?? '',
   }));
 
   // Props.company değişirse formu güncelle
@@ -863,6 +1041,23 @@ export default function SettingsPage({
       website: company?.website ?? prev.website,
       logoDataUrl: company?.logoDataUrl ?? prev.logoDataUrl,
       bankAccountId: company?.bankAccountId ?? prev.bankAccountId,
+      
+      // Yasal alanları da güncelle
+      mersisNumber: company?.mersisNumber ?? prev.mersisNumber,
+      kepAddress: company?.kepAddress ?? prev.kepAddress,
+      siretNumber: company?.siretNumber ?? prev.siretNumber,
+      sirenNumber: company?.sirenNumber ?? prev.sirenNumber,
+      apeCode: company?.apeCode ?? prev.apeCode,
+      tvaNumber: company?.tvaNumber ?? prev.tvaNumber,
+      rcsNumber: company?.rcsNumber ?? prev.rcsNumber,
+      steuernummer: company?.steuernummer ?? prev.steuernummer,
+      umsatzsteuerID: company?.umsatzsteuerID ?? prev.umsatzsteuerID,
+      handelsregisternummer: company?.handelsregisternummer ?? prev.handelsregisternummer,
+      geschaeftsfuehrer: company?.geschaeftsfuehrer ?? prev.geschaeftsfuehrer,
+      einNumber: company?.einNumber ?? prev.einNumber,
+      taxId: company?.taxId ?? prev.taxId,
+      businessLicenseNumber: company?.businessLicenseNumber ?? prev.businessLicenseNumber,
+      stateOfIncorporation: company?.stateOfIncorporation ?? prev.stateOfIncorporation,
     }));
     setUnsavedChanges(false);
   }, [company]);
@@ -1006,6 +1201,23 @@ export default function SettingsPage({
           website: companyData.website,
           logoDataUrl: companyData.logoDataUrl,
           bankAccountId: companyData.bankAccountId,
+          
+          // Yasal alanlar
+          mersisNumber: companyData.mersisNumber,
+          kepAddress: companyData.kepAddress,
+          siretNumber: companyData.siretNumber,
+          sirenNumber: companyData.sirenNumber,
+          apeCode: companyData.apeCode,
+          tvaNumber: companyData.tvaNumber,
+          rcsNumber: companyData.rcsNumber,
+          steuernummer: companyData.steuernummer,
+          umsatzsteuerID: companyData.umsatzsteuerID,
+          handelsregisternummer: companyData.handelsregisternummer,
+          geschaeftsfuehrer: companyData.geschaeftsfuehrer,
+          einNumber: companyData.einNumber,
+          taxId: companyData.taxId,
+          businessLicenseNumber: companyData.businessLicenseNumber,
+          stateOfIncorporation: companyData.stateOfIncorporation,
         };
         onCompanyUpdate(cleaned);
       }
@@ -1213,6 +1425,198 @@ export default function SettingsPage({
                 {text.company.logo.upload}
               </label>
               <p className="text-sm text-gray-500 mt-2">{text.company.logo.helper}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Yasal Gereklilik Alanları */}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{text.company.legalFields.title}</h3>
+          <p className="text-sm text-gray-600 mb-4">{text.company.legalFields.subtitle}</p>
+          
+          {/* Türkiye */}
+          <div className="border border-gray-200 rounded-lg p-4 mb-4">
+            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+              🇹🇷 {text.company.legalFields.turkey.title}
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.mersisNumber}</label>
+                <input
+                  type="text"
+                  value={companyData.mersisNumber}
+                  onChange={e => handleCompanyChange('mersisNumber', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0123456789012345"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.kepAddress}</label>
+                <input
+                  type="email"
+                  value={companyData.kepAddress}
+                  onChange={e => handleCompanyChange('kepAddress', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="sirket@hs01.kep.tr"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Fransa */}
+          <div className="border border-gray-200 rounded-lg p-4 mb-4">
+            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+              🇫🇷 {text.company.legalFields.france.title}
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.siretNumber}</label>
+                <input
+                  type="text"
+                  value={companyData.siretNumber}
+                  onChange={e => handleCompanyChange('siretNumber', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="12345678901234"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.sirenNumber}</label>
+                <input
+                  type="text"
+                  value={companyData.sirenNumber}
+                  onChange={e => handleCompanyChange('sirenNumber', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="123456789"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.apeCode}</label>
+                <input
+                  type="text"
+                  value={companyData.apeCode}
+                  onChange={e => handleCompanyChange('apeCode', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="6202A"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.tvaNumber}</label>
+                <input
+                  type="text"
+                  value={companyData.tvaNumber}
+                  onChange={e => handleCompanyChange('tvaNumber', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="FR12345678901"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.rcsNumber}</label>
+                <input
+                  type="text"
+                  value={companyData.rcsNumber}
+                  onChange={e => handleCompanyChange('rcsNumber', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="123 456 789 RCS Paris"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Almanya */}
+          <div className="border border-gray-200 rounded-lg p-4 mb-4">
+            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+              🇩🇪 {text.company.legalFields.germany.title}
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.steuernummer}</label>
+                <input
+                  type="text"
+                  value={companyData.steuernummer}
+                  onChange={e => handleCompanyChange('steuernummer', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="12/345/67890"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.umsatzsteuerID}</label>
+                <input
+                  type="text"
+                  value={companyData.umsatzsteuerID}
+                  onChange={e => handleCompanyChange('umsatzsteuerID', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="DE123456789"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.handelsregisternummer}</label>
+                <input
+                  type="text"
+                  value={companyData.handelsregisternummer}
+                  onChange={e => handleCompanyChange('handelsregisternummer', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="HRB 12345"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.geschaeftsfuehrer}</label>
+                <input
+                  type="text"
+                  value={companyData.geschaeftsfuehrer}
+                  onChange={e => handleCompanyChange('geschaeftsfuehrer', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Max Mustermann"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Amerika */}
+          <div className="border border-gray-200 rounded-lg p-4 mb-4">
+            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+              🇺🇸 {text.company.legalFields.usa.title}
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.einNumber}</label>
+                <input
+                  type="text"
+                  value={companyData.einNumber}
+                  onChange={e => handleCompanyChange('einNumber', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="12-3456789"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.taxId}</label>
+                <input
+                  type="text"
+                  value={companyData.taxId}
+                  onChange={e => handleCompanyChange('taxId', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="123-45-6789"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.businessLicenseNumber}</label>
+                <input
+                  type="text"
+                  value={companyData.businessLicenseNumber}
+                  onChange={e => handleCompanyChange('businessLicenseNumber', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="BL123456"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.stateOfIncorporation}</label>
+                <input
+                  type="text"
+                  value={companyData.stateOfIncorporation}
+                  onChange={e => handleCompanyChange('stateOfIncorporation', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Delaware"
+                />
+              </div>
             </div>
           </div>
         </div>

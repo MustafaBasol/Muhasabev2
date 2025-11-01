@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mfv2-postgres
+    environment:
+      POSTGRES_USER: moneyflow
+      POSTGRES_PASSWORD: moneyflow123
+      POSTGRES_DB: moneyflow_dev
+    ports:
+      - "5543:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/backups/moneyflow_backup_20251030_211719.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./backend/db-init/02-patch.sql:/docker-entrypoint-initdb.d/02-patch.sql:ro
+      - ./backend/db-init/03-organization-tables.sql:/docker-entrypoint-initdb.d/03-organization-tables.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moneyflow -d moneyflow_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mfv2-backend
+    env_file:
+      - ./backend/.env.docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  pgdata:

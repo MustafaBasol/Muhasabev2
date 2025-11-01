@@ -3,6 +3,8 @@ import { adminApi } from '../api/admin';
 import { Edit, Trash2, ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
 import BackupManagementPage from './admin/BackupManagementPage';
 import DataRetentionPage from './admin/DataRetentionPage';
+import OrganizationManagementPage from './admin/OrganizationManagementPage';
+import { useAuth } from '../contexts/AuthContext';
 
 interface User {
   id: string;
@@ -28,6 +30,8 @@ interface Tenant {
   companyName: string;
   subscriptionPlan: string;
   status: string;
+  createdAt?: string;
+  subscriptionExpiresAt?: string;
 }
 
 interface TableData {
@@ -39,6 +43,7 @@ interface TableData {
 }
 
 const AdminPage: React.FC = () => {
+  const { tenant: authTenant } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
   const [users, setUsers] = useState<User[]>([]);
@@ -52,7 +57,91 @@ const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups' | 'retention'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'memberships' | 'data' | 'backups' | 'retention'>('users');
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
+  // Users sekmesi için şirket filtresi (sunucu tarafı)
+  const [userTenantFilter, setUserTenantFilter] = useState<string>('all');
+  // Data sekmesi için şirket filtresi (tab içi kullanım)
+  const [dataTenantFilter, setDataTenantFilter] = useState<string>('all');
+  // Tenants sekmesi için filtreler
+  const [tenantFilters, setTenantFilters] = useState<{ status: string; plan: string; startFrom: string; startTo: string }>({
+    status: '',
+    plan: '',
+    startFrom: '',
+    startTo: ''
+  });
+  const [actionMessage, setActionMessage] = useState<string>('');
+  // Kullanıcı düzenleme modalı
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState<{ firstName: string; lastName: string; email: string; phone: string }>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: ''
+  });
+  const openEditUser = (u: User) => {
+    setEditingUser(u);
+    setEditForm({
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+      email: u.email || '',
+      phone: (u as any).phone || ''
+    });
+  };
+  const closeEditUser = () => setEditingUser(null);
+  const saveEditUser = async () => {
+    if (!editingUser) return;
+    if (!window.confirm('Bu kullanıcıyı güncellemek istediğinize emin misiniz?')) return;
+    try {
+      setLoading(true);
+      await adminApi.updateUserDetails(editingUser.id, editForm);
+      // Güncel listeyi filtre ile yeniden çek
+      const usersData = await adminApi.getUsers(userTenantFilter !== 'all' ? userTenantFilter : undefined);
+      setUsers(usersData || []);
+      setActionMessage('Kullanıcı güncellendi');
+      setTimeout(() => setActionMessage(''), 2000);
+      closeEditUser();
+    } catch (e) {
+      console.error('Kullanıcı güncellenemedi', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const sendPasswordResetEmail = async () => {
+    if (!editingUser) return;
+    if (!window.confirm('Şifre sıfırlama e-postası gönderilsin mi?')) return;
+    try {
+      setLoading(true);
+      await adminApi.sendPasswordReset(editingUser.id);
+      setActionMessage('Şifre sıfırlama e-postası gönderildi (simülasyon)');
+      setTimeout(() => setActionMessage(''), 2500);
+    } catch (e) {
+      console.error('E-posta gönderilemedi', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Şirketler sekmesinde inline düzenleme kontrolü
+  const [editingPlanIds, setEditingPlanIds] = useState<Set<string>>(new Set());
+  const [editingStatusIds, setEditingStatusIds] = useState<Set<string>>(new Set());
+  const [editingBillingIds, setEditingBillingIds] = useState<Set<string>>(new Set());
+
+  // Yardımcılar (gerekirse kullanılabilir)
+  // const isEditingPlan = (id: string) => editingPlanIds.has(id);
+  // const isEditingStatus = (id: string) => editingStatusIds.has(id);
+  // const isEditingBilling = (id: string) => editingBillingIds.has(id);
+
+  const toggleEditSet = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string, enable?: boolean) => {
+    setter(prev => {
+      const ns = new Set(prev);
+      if (enable === undefined) {
+        if (ns.has(id)) ns.delete(id); else ns.add(id);
+      } else {
+        if (enable) ns.add(id); else ns.delete(id);
+      }
+      return ns;
+    });
+  };
   
   // Table visibility states
   const [visibleTables, setVisibleTables] = useState<{[key: string]: boolean}>({
@@ -75,10 +164,30 @@ const AdminPage: React.FC = () => {
   useEffect(() => {
     const token = localStorage.getItem('admin-token');
     if (token) {
-      setIsAuthenticated(true);
-      loadAllData();
+  setIsAuthenticated(true);
+  // Varsayılan tenant filtresi: authTenant varsa onu seç, yoksa 'all'
+  const def = authTenant?.id || 'all';
+  setSelectedTenantId(def);
+  setUserTenantFilter(def);
+  setDataTenantFilter(def);
+  loadAllData(def !== 'all' ? def : undefined);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Tenant filtresi değiştiğinde tablo verilerini yeniden yükle
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    loadTables(selectedTenantId !== 'all' ? selectedTenantId : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTenantId]);
+
+  // Users sekmesi: şirket filtresi değişince kullanıcıları yeniden çek
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchUsers(userTenantFilter !== 'all' ? userTenantFilter : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userTenantFilter]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,9 +197,14 @@ const AdminPage: React.FC = () => {
     try {
       const response = await adminApi.login(loginForm.username, loginForm.password);
       if (response.success) {
-        setIsAuthenticated(true);
-        localStorage.setItem('admin-token', response.adminToken);
-        loadAllData();
+  setIsAuthenticated(true);
+  localStorage.setItem('admin-token', response.adminToken);
+  // Admin login sonrası, varsayılan olarak kullanıcının tenant'ını seç
+  const defaultTenant = authTenant?.id || 'all';
+  setSelectedTenantId(defaultTenant);
+  setUserTenantFilter(defaultTenant);
+  setDataTenantFilter(defaultTenant);
+  loadAllData(defaultTenant !== 'all' ? defaultTenant : undefined);
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Giriş başarısız');
@@ -99,26 +213,26 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const loadAllData = async () => {
+  const loadAllData = async (tenantId?: string) => {
     try {
       setLoading(true);
       
       // Load users and tenants
       const [usersData, tenantsData] = await Promise.all([
-        adminApi.getUsers(),
+        adminApi.getUsers(tenantId),
         adminApi.getTenants()
       ]);
 
       setUsers(usersData || []);
       setTenants(tenantsData || []);
 
-      // Load table data
+      // Load table data (tenant filtresi ile)
       const [customersData, suppliersData, productsData, invoicesData, expensesData] = await Promise.all([
-        adminApi.getTableData('customers').catch(() => []),
-        adminApi.getTableData('suppliers').catch(() => []),
-        adminApi.getTableData('products').catch(() => []),
-        adminApi.getTableData('invoices').catch(() => []),
-        adminApi.getTableData('expenses').catch(() => [])
+        adminApi.getTableData('customers', tenantId).catch(() => []),
+        adminApi.getTableData('suppliers', tenantId).catch(() => []),
+        adminApi.getTableData('products', tenantId).catch(() => []),
+        adminApi.getTableData('invoices', tenantId).catch(() => []),
+        adminApi.getTableData('expenses', tenantId).catch(() => [])
       ]);
 
       setTableData({
@@ -132,6 +246,67 @@ const AdminPage: React.FC = () => {
     } catch (err: any) {
       setError('Veri yükleme başarısız');
       console.error('Load data error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async (tenantId?: string) => {
+    try {
+      setLoading(true);
+      const usersData = await adminApi.getUsers(tenantId);
+      setUsers(usersData || []);
+    } catch (e) {
+      console.error('Kullanıcılar yüklenemedi', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Tenants filtreleri için otomatik yükleme
+  const fetchTenantsWithFilters = async () => {
+    try {
+      setLoading(true);
+      const data = await adminApi.getTenants({
+        status: tenantFilters.status || undefined,
+        plan: tenantFilters.plan || undefined,
+        startFrom: tenantFilters.startFrom || undefined,
+        startTo: tenantFilters.startTo || undefined,
+      });
+      setTenants(data || []);
+    } catch (e) {
+      console.error('Şirketler yüklenemedi', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchTenantsWithFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantFilters.status, tenantFilters.plan, tenantFilters.startFrom, tenantFilters.startTo]);
+
+  // Sadece tabloları yeniden yüklemek için yardımcı fonksiyon
+  const loadTables = async (tenantId?: string) => {
+    try {
+      setLoading(true);
+      const [customersData, suppliersData, productsData, invoicesData, expensesData] = await Promise.all([
+        adminApi.getTableData('customers', tenantId).catch(() => []),
+        adminApi.getTableData('suppliers', tenantId).catch(() => []),
+        adminApi.getTableData('products', tenantId).catch(() => []),
+        adminApi.getTableData('invoices', tenantId).catch(() => []),
+        adminApi.getTableData('expenses', tenantId).catch(() => [])
+      ]);
+      setTableData({
+        customers: Array.isArray(customersData) ? customersData.reverse() : [],
+        suppliers: Array.isArray(suppliersData) ? suppliersData.reverse() : [],
+        products: Array.isArray(productsData) ? productsData.reverse() : [],
+        invoices: Array.isArray(invoicesData) ? invoicesData.reverse() : [],
+        expenses: Array.isArray(expensesData) ? expensesData.reverse() : []
+      });
+    } catch (err) {
+      console.error('Tablolar yüklenemedi:', err);
     } finally {
       setLoading(false);
     }
@@ -266,6 +441,22 @@ const AdminPage: React.FC = () => {
     );
   };
 
+  const toggleUserActive = async (userId: string, isActive: boolean) => {
+    try {
+      setLoading(true);
+      const confirmMsg = isActive ? 'Kullanıcıyı pasifleştirmek istediğinize emin misiniz?' : 'Kullanıcıyı aktifleştirmek istediğinize emin misiniz?';
+      if (!window.confirm(confirmMsg)) return;
+      await adminApi.updateUserStatus(userId, !isActive);
+      // Mevcut filtre ile kullanıcıları tazele
+      const usersData = await adminApi.getUsers(userTenantFilter !== 'all' ? userTenantFilter : undefined);
+      setUsers(usersData || []);
+    } catch (e) {
+      console.error('Kullanıcı durumu güncellenemedi', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
@@ -336,12 +527,15 @@ const AdminPage: React.FC = () => {
             <span className="text-2xl">🔒</span>
             <h1 className="text-2xl font-bold text-gray-800">Admin Paneli</h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Çıkış Yap
-          </button>
+          <div className="flex items-center gap-3">
+            
+            <button
+              onClick={handleLogout}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Çıkış Yap
+            </button>
+          </div>
         </div>
       </div>
 
@@ -377,6 +571,16 @@ const AdminPage: React.FC = () => {
             }`}
           >
             📊 Veri Tabanı
+          </button>
+          <button
+            onClick={() => setActiveTab('memberships')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'memberships'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🧑‍🤝‍🧑 Üyelikler
           </button>
           <button
             onClick={() => setActiveTab('backups')}
@@ -432,8 +636,21 @@ const AdminPage: React.FC = () => {
         {activeTab === 'users' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <h2 className="text-lg font-semibold text-gray-800">👥 Kullanıcılar</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Şirket:</span>
+                  <select
+                    value={userTenantFilter}
+                    onChange={(e) => setUserTenantFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  >
+                    <option value="all">Tümü</option>
+                    {tenants.map(t => (
+                      <option key={t.id} value={t.id}>{t.companyName || t.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -460,7 +677,7 @@ const AdminPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
+                    {(selectedTenantId === 'all' ? users : users.filter(u => u.tenant?.id === selectedTenantId)).map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
@@ -490,16 +707,24 @@ const AdminPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
                             <button
+                              onClick={() => openEditUser(user)}
                               className="text-indigo-600 hover:text-indigo-900"
                               title="Düzenle"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
+                              onClick={() => alert('Kullanıcı silme özelliği yakında eklenecek. Şimdilik kullanıcıyı pasifleştirebilirsiniz.')}
                               className="text-red-600 hover:text-red-900"
                               title="Sil"
                             >
                               <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => toggleUserActive(user.id, user.isActive)}
+                              className={`px-3 py-1 rounded-md text-xs font-medium text-white ${user.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                            >
+                              {user.isActive ? 'Pasifleştir' : 'Aktifleştir'}
                             </button>
                           </div>
                         </td>
@@ -516,7 +741,86 @@ const AdminPage: React.FC = () => {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-800">🏢 Şirket Bilgileri</h2>
+                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-800">🏢 Şirketler ve Abonelik Yönetimi</h2>
+                    <p className="text-xs text-gray-600 mt-1">Bu sayfadan tüm şirketleri görüntüleyebilir, plan ve durumlarını güncelleyebilir, sonraki ödeme tarihini ayarlayabilir veya aboneliği iptal edebilirsiniz. Yapılan her değişiklik için onay istenir.</p>
+                    {actionMessage && (
+                      <div className="mt-2 inline-block text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-1 rounded">
+                        {actionMessage}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-500 mb-1">Durum</label>
+                      <select
+                        value={tenantFilters.status}
+                        onChange={(e) => setTenantFilters(prev => ({ ...prev, status: e.target.value }))}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        <option value="">Tümü</option>
+                        <option value="active">Aktif</option>
+                        <option value="suspended">Askıda</option>
+                        <option value="trial">Deneme</option>
+                        <option value="expired">Süresi Doldu</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-500 mb-1">Plan</label>
+                      <select
+                        value={tenantFilters.plan}
+                        onChange={(e) => setTenantFilters(prev => ({ ...prev, plan: e.target.value }))}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        <option value="">Tümü</option>
+                        <option value="free">Ücretsiz</option>
+                        <option value="basic">Basic</option>
+                        <option value="professional">Professional</option>
+                        <option value="enterprise">Enterprise</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-500 mb-1">Başlangıç (≥)</label>
+                      <input
+                        type="date"
+                        value={tenantFilters.startFrom}
+                        onChange={(e) => setTenantFilters(prev => ({ ...prev, startFrom: e.target.value }))}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-500 mb-1">Bitiş (≤)</label>
+                      <input
+                        type="date"
+                        value={tenantFilters.startTo}
+                        onChange={(e) => setTenantFilters(prev => ({ ...prev, startTo: e.target.value }))}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setLoading(true);
+                        try {
+                          const data = await adminApi.getTenants({
+                            status: tenantFilters.status || undefined,
+                            plan: tenantFilters.plan || undefined,
+                            startFrom: tenantFilters.startFrom || undefined,
+                            startTo: tenantFilters.startTo || undefined,
+                          });
+                          setTenants(data || []);
+                        } catch (e) {
+                          console.error('Şirketler yüklenemedi', e);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                    >
+                      Filtreleri Uygula
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="p-6 space-y-6">
                 {tenants.map((tenant) => (
@@ -532,23 +836,129 @@ const AdminPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-800">Abonelik Planı</h3>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          tenant.subscriptionPlan === 'premium' 
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {tenant.subscriptionPlan === 'premium' ? 'Premium' : 'Temel'}
-                        </span>
+                        {!editingPlanIds.has(tenant.id) ? (
+                          <button
+                            onClick={() => toggleEditSet(setEditingPlanIds, tenant.id, true)}
+                            className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200"
+                            title="Düzenlemek için tıklayın"
+                          >
+                            {tenant.subscriptionPlan || '-'}
+                          </button>
+                        ) : (
+                          <select
+                            autoFocus
+                            defaultValue={tenant.subscriptionPlan || 'free'}
+                            onBlur={() => toggleEditSet(setEditingPlanIds, tenant.id, false)}
+                            onChange={(e) => {
+                              const newPlan = e.target.value;
+                              if (!window.confirm(`${tenant.companyName || tenant.name} için planı '${newPlan}' olarak güncellemek istediğinize emin misiniz?`)) return;
+                              adminApi.updateTenantSubscription(tenant.id, { plan: newPlan })
+                                .then(() => {
+                                  setTenants(prev => prev.map(x => x.id === tenant.id ? { ...x, subscriptionPlan: newPlan } : x));
+                                  setActionMessage('Plan güncellendi');
+                                  setTimeout(() => setActionMessage(''), 2000);
+                                })
+                                .catch(err => console.error('Plan güncellenemedi', err))
+                                .finally(() => toggleEditSet(setEditingPlanIds, tenant.id, false));
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          >
+                            <option value="free">Ücretsiz</option>
+                            <option value="basic">Basic</option>
+                            <option value="professional">Professional</option>
+                            <option value="enterprise">Enterprise</option>
+                          </select>
+                        )}
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-800">Durum</h3>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          tenant.status === 'active' 
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {tenant.status === 'active' ? 'Aktif' : 'Pasif'}
-                        </span>
+                        {!editingStatusIds.has(tenant.id) ? (
+                          <button
+                            onClick={() => toggleEditSet(setEditingStatusIds, tenant.id, true)}
+                            className={`px-2 py-1 text-xs rounded-full ${tenant.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                            title="Düzenlemek için tıklayın"
+                          >
+                            {tenant.status}
+                          </button>
+                        ) : (
+                          <select
+                            autoFocus
+                            defaultValue={tenant.status || 'active'}
+                            onBlur={() => toggleEditSet(setEditingStatusIds, tenant.id, false)}
+                            onChange={(e) => {
+                              const newStatus = e.target.value;
+                              if (!window.confirm(`${tenant.companyName || tenant.name} için durumu '${newStatus}' olarak güncellemek istediğinize emin misiniz?`)) return;
+                              adminApi.updateTenantSubscription(tenant.id, { status: newStatus })
+                                .then(() => {
+                                  setTenants(prev => prev.map(x => x.id === tenant.id ? { ...x, status: newStatus } : x));
+                                  setActionMessage('Durum güncellendi');
+                                  setTimeout(() => setActionMessage(''), 2000);
+                                })
+                                .catch(err => console.error('Durum güncellenemedi', err))
+                                .finally(() => toggleEditSet(setEditingStatusIds, tenant.id, false));
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          >
+                            <option value="active">Aktif</option>
+                            <option value="suspended">Askıda</option>
+                            <option value="trial">Deneme</option>
+                            <option value="expired">Süresi Doldu</option>
+                          </select>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800">Başlangıç</h3>
+                        <p className="text-gray-600">{tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '-'}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800">Sonraki Ödeme</h3>
+                        {!editingBillingIds.has(tenant.id) ? (
+                          <button
+                            onClick={() => toggleEditSet(setEditingBillingIds, tenant.id, true)}
+                            className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200"
+                            title="Düzenlemek için tıklayın"
+                          >
+                            {tenant.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt).toLocaleDateString() : '-'}
+                          </button>
+                        ) : (
+                          <input
+                            autoFocus
+                            type="date"
+                            defaultValue={tenant.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt).toISOString().slice(0,10) : ''}
+                            onBlur={() => toggleEditSet(setEditingBillingIds, tenant.id, false)}
+                            onKeyDown={(e) => { if (e.key === 'Escape') toggleEditSet(setEditingBillingIds, tenant.id, false); }}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (!val) return;
+                              if (!window.confirm(`${tenant.companyName || tenant.name} için sonraki ödeme tarihini ${val} olarak ayarlamak istediğinize emin misiniz?`)) return;
+                              adminApi.updateTenantSubscription(tenant.id, { nextBillingAt: val })
+                                .then(() => {
+                                  setActionMessage('Sonraki ödeme tarihi güncellendi');
+                                  setTimeout(() => setActionMessage(''), 2000);
+                                })
+                                .catch(err => console.error('Tarih güncellenemedi', err))
+                                .finally(() => toggleEditSet(setEditingBillingIds, tenant.id, false));
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800">Abonelik</h3>
+                        <button
+                          onClick={() => {
+                            if (!window.confirm(`${tenant.companyName || tenant.name} için aboneliği iptal etmek istediğinize emin misiniz?`)) return;
+                            adminApi.updateTenantSubscription(tenant.id, { cancel: true })
+                              .then(() => {
+                                setActionMessage('Abonelik iptal edildi');
+                                setTimeout(() => setActionMessage(''), 2000);
+                              })
+                              .catch(err => console.error('İptal edilemedi', err));
+                          }}
+                          className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm"
+                        >
+                          İptal Et
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -561,7 +971,26 @@ const AdminPage: React.FC = () => {
         {activeTab === 'data' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">📊 Veri Tabanı Tabloları</h2>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">📊 Veri Tabanı Tabloları</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Şirket:</span>
+                  <select
+                    value={dataTenantFilter}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDataTenantFilter(val);
+                      setSelectedTenantId(val);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  >
+                    <option value="all">Tümü</option>
+                    {tenants.map(t => (
+                      <option key={t.id} value={t.id}>{t.companyName || t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <p className="text-gray-600 mb-6">
                 Tablolar varsayılan olarak gizlidir. Görüntülemek için tablo başlığına tıklayın.
               </p>
@@ -575,12 +1004,83 @@ const AdminPage: React.FC = () => {
           </div>
         )}
 
+        {/* Subscriptions sekmesi kaldırıldı; abonelik yönetimi Şirketler sekmesine taşındı. */}
+
+        {activeTab === 'memberships' && (
+          <OrganizationManagementPage />
+        )}
+
         {activeTab === 'backups' && (
           <BackupManagementPage />
         )}
 
         {activeTab === 'retention' && (
           <DataRetentionPage />
+        )}
+
+        {/* Kullanıcı Düzenleme Modalı */}
+        {editingUser && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl w-full max-w-lg shadow-lg">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Kullanıcı Düzenle</h3>
+                <button onClick={closeEditUser} className="text-gray-500 hover:text-gray-700">✖</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Ad</label>
+                    <input
+                      type="text"
+                      value={editForm.firstName}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Soyad</label>
+                    <input
+                      type="text"
+                      value={editForm.lastName}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">E-posta</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Telefon</label>
+                  <input
+                    type="tel"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+90..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                <button
+                  onClick={sendPasswordResetEmail}
+                  className="px-4 py-2 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50"
+                >
+                  Şifre Sıfırlama Maili Gönder
+                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={closeEditUser} className="px-4 py-2 text-sm border rounded-lg">İptal</button>
+                  <button onClick={saveEditUser} className="px-4 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700">Kaydet</button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

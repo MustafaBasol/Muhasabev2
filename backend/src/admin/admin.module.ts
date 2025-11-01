@@ -14,6 +14,11 @@ import { Invoice } from '../invoices/entities/invoice.entity';
 import { Expense } from '../expenses/entities/expense.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
 import { AuditLog } from '../audit/entities/audit-log.entity';
+import { Organization } from '../organizations/entities/organization.entity';
+import { OrganizationMember } from '../organizations/entities/organization-member.entity';
+import { Invite } from '../organizations/entities/invite.entity';
+import { AdminOrganizationsController } from './admin-organizations.controller';
+import { EmailService } from '../services/email.service';
 
 @Module({
   imports: [
@@ -27,10 +32,13 @@ import { AuditLog } from '../audit/entities/audit-log.entity';
       Invoice,
       Expense,
       AuditLog,
+      Organization,
+      OrganizationMember,
+      Invite,
     ]),
   ],
-  controllers: [AdminController, BackupController],
-  providers: [AdminService, BackupService, SecurityService],
+  controllers: [AdminController, BackupController, AdminOrganizationsController],
+  providers: [AdminService, BackupService, SecurityService, EmailService],
   exports: [AdminService, BackupService],
 })
 export class AdminModule {}

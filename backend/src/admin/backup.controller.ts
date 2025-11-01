@@ -1,16 +1,30 @@
-import { Controller, Get, Post, Delete, Param, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, Body, Headers, UnauthorizedException } from '@nestjs/common';
 import { BackupService, BackupMetadata } from './backup.service';
-import { AdminToken } from './decorators/admin-token.decorator';
+import { AdminService } from './admin.service';
 
 @Controller('admin/backups')
 export class BackupController {
-  constructor(private readonly backupService: BackupService) {}
+  constructor(
+    private readonly backupService: BackupService,
+    private readonly adminService: AdminService,
+  ) {}
+
+  private checkAdminAuth(headers: any) {
+    const adminToken = headers['admin-token'];
+    if (!adminToken) {
+      throw new UnauthorizedException('Admin token required');
+    }
+    if (!this.adminService.isValidAdminToken(adminToken)) {
+      throw new UnauthorizedException('Invalid or expired admin token');
+    }
+  }
 
   /**
    * Tüm backup'ları listele
    */
   @Get()
-  async listBackups(@Query('type') type?: 'system' | 'user', @AdminToken() _token?: string) {
+  async listBackups(@Query('type') type?: 'system' | 'user' | 'tenant', @Headers() headers?: any) {
+    this.checkAdminAuth(headers);
     return this.backupService.listBackups(type);
   }
 
@@ -18,7 +32,8 @@ export class BackupController {
    * Belirli bir kullanıcının backup'larını listele
    */
   @Get('user/:userId')
-  async listUserBackups(@Param('userId') userId: string, @AdminToken() _token?: string) {
+  async listUserBackups(@Param('userId') userId: string, @Headers() headers?: any) {
+    this.checkAdminAuth(headers);
     return this.backupService.listUserBackups(userId);
   }
 
@@ -26,7 +41,8 @@ export class BackupController {
    * Sistem bazlı backup al (tüm sistem)
    */
   @Post('system')
-  async createSystemBackup(@Body('description') description?: string, @AdminToken() _token?: string) {
+  async createSystemBackup(@Body('description') description?: string, @Headers() headers?: any) {
+    this.checkAdminAuth(headers);
     return this.backupService.createSystemBackup(description);
   }
 
@@ -37,8 +53,9 @@ export class BackupController {
   async createUserBackup(
     @Param('userId') userId: string,
     @Body('description') description?: string,
-    @AdminToken() _token?: string,
+    @Headers() headers?: any,
   ) {
+    this.checkAdminAuth(headers);
     return this.backupService.createUserBackup(userId, description);
   }
 
@@ -49,8 +66,9 @@ export class BackupController {
   async createTenantBackup(
     @Param('tenantId') tenantId: string,
     @Body('description') description?: string,
-    @AdminToken() _token?: string,
+    @Headers() headers?: any,
   ) {
+    this.checkAdminAuth(headers);
     return this.backupService.createTenantBackup(tenantId, description);
   }
 
@@ -61,8 +79,9 @@ export class BackupController {
   async restoreSystem(
     @Param('backupId') backupId: string,
     @Body('confirm') confirm: boolean,
-    @AdminToken() _token?: string,
+    @Headers() headers?: any,
   ) {
+    this.checkAdminAuth(headers);
     if (!confirm) {
       throw new Error('Sistem geri yüklemesi için confirm: true gerekli');
     }
@@ -77,8 +96,9 @@ export class BackupController {
     @Param('userId') userId: string,
     @Param('backupId') backupId: string,
     @Body('confirm') confirm: boolean,
-    @AdminToken() _token?: string,
+    @Headers() headers?: any,
   ) {
+    this.checkAdminAuth(headers);
     if (!confirm) {
       throw new Error('Kullanıcı geri yüklemesi için confirm: true gerekli');
     }
@@ -93,8 +113,9 @@ export class BackupController {
     @Param('tenantId') tenantId: string,
     @Param('backupId') backupId: string,
     @Body('confirm') confirm: boolean,
-    @AdminToken() _token?: string,
+    @Headers() headers?: any,
   ) {
+    this.checkAdminAuth(headers);
     if (!confirm) {
       throw new Error('Tenant geri yüklemesi için confirm: true gerekli');
     }
@@ -105,7 +126,8 @@ export class BackupController {
    * Backup sil
    */
   @Delete(':backupId')
-  async deleteBackup(@Param('backupId') backupId: string, @AdminToken() _token?: string) {
+  async deleteBackup(@Param('backupId') backupId: string, @Headers() headers?: any) {
+    this.checkAdminAuth(headers);
     return this.backupService.deleteBackup(backupId);
   }
 
@@ -113,7 +135,8 @@ export class BackupController {
    * Eski backup'ları otomatik temizle (30 günden eski)
    */
   @Post('cleanup')
-  async cleanupOldBackups(@AdminToken() _token?: string) {
+  async cleanupOldBackups(@Headers() headers?: any) {
+    this.checkAdminAuth(headers);
     return this.backupService.cleanupOldBackups();
   }
 
@@ -121,7 +144,8 @@ export class BackupController {
    * Backup istatistikleri
    */
   @Get('statistics')
-  async getStatistics(@AdminToken() _token?: string) {
+  async getStatistics(@Headers() headers?: any) {
+    this.checkAdminAuth(headers);
     return this.backupService.getStatistics();
   }
 }

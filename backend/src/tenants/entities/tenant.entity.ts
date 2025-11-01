@@ -48,6 +48,61 @@ export class Tenant {
   @Column({ nullable: true })
   email: string;
 
+  @Column({ nullable: true, comment: 'Website URL' })
+  website: string;
+
+  // === Türkiye Yasal Alanları ===
+  @Column({ nullable: true, comment: 'Vergi Dairesi' })
+  taxOffice: string;
+
+  @Column({ nullable: true, comment: 'Mersis Numarası' })
+  mersisNumber: string;
+
+  @Column({ nullable: true, comment: 'KEP Adresi (e-fatura)' })
+  kepAddress: string;
+
+  // === Fransa Yasal Alanları ===
+  @Column({ nullable: true, comment: 'SIRET Numarası (14 haneli)' })
+  siretNumber: string;
+
+  @Column({ nullable: true, comment: 'SIREN Numarası (9 haneli)' })
+  sirenNumber: string;
+
+  @Column({ nullable: true, comment: 'APE/NAF Kodu (ana faaliyet)' })
+  apeCode: string;
+
+  @Column({ nullable: true, comment: 'TVA Numarası (FR + 11 hane)' })
+  tvaNumber: string;
+
+  @Column({ nullable: true, comment: 'RCS Numarası (Ticaret Sicil)' })
+  rcsNumber: string;
+
+  // === Almanya Yasal Alanları ===
+  @Column({ nullable: true, comment: 'Steuernummer (Vergi Numarası)' })
+  steuernummer: string;
+
+  @Column({ nullable: true, comment: 'Umsatzsteuer-ID (DE + 9 hane)' })
+  umsatzsteuerID: string;
+
+  @Column({ nullable: true, comment: 'Handelsregisternummer (Ticaret Sicil)' })
+  handelsregisternummer: string;
+
+  @Column({ nullable: true, comment: 'Geschäftsführer (Genel Müdür)' })
+  geschaeftsfuehrer: string;
+
+  // === Amerika Yasal Alanları ===
+  @Column({ nullable: true, comment: 'EIN (Employer Identification Number)' })
+  einNumber: string;
+
+  @Column({ nullable: true, comment: 'Tax ID Numarası' })
+  taxId: string;
+
+  @Column({ nullable: true, comment: 'Business License Number' })
+  businessLicenseNumber: string;
+
+  @Column({ nullable: true, comment: 'State of Incorporation' })
+  stateOfIncorporation: string;
+
   @Column({
     type: 'enum',
     enum: SubscriptionPlan,
