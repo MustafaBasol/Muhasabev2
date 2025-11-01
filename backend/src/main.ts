@@ -8,11 +8,12 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { SeedService } from './database/seed.service';
 import helmet from 'helmet';
-// import * as cookieParser from 'cookie-parser';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
+  const isProd = process.env.NODE_ENV === 'production';
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+    logger: isProd ? ['error', 'warn', 'log'] : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
   // Güvenlik headers
@@ -34,7 +35,7 @@ async function bootstrap() {
   }));
 
   // Cookie parser for secure cookie handling
-  // app.use(cookieParser()); // Uncomment when cookie-parser is installed
+  app.use(cookieParser());
 
   // Seed database if empty
   const seedService = app.get(SeedService);
@@ -46,12 +47,26 @@ async function bootstrap() {
     prefix: '/',
   });
   
-  // Gelişmiş CORS yapılandırması - GitHub Codespaces için
+  // Gelişmiş CORS yapılandırması - Codespaces ve prod için güvenli
+  const allowedOrigins = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
     origin: (origin, callback) => {
-      // Development: tüm originlere izin ver
-      console.log('🌐 CORS Request from origin:', origin);
-      callback(null, true);
+      if (!origin) {
+        // Curl veya same-origin istekler
+        return callback(null, true);
+      }
+      if (!isProd) {
+        // Development: tüm originlere izin ver, ancak logu azalt
+        return callback(null, true);
+      }
+      // Production: allowlist kontrolü
+      const ok = allowedOrigins.includes(origin);
+      if (ok) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin}`), false);
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true, // Secure cookies için gerekli

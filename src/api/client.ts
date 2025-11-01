@@ -7,6 +7,8 @@ console.log('🔗 API Base URL (PROXY):', API_BASE_URL);
 console.log('🏭 Backend will be proxied through Vite dev server');
 
 // Create axios instance with retry configuration
+let lastCsrfToken: string | null = null;
+
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -25,6 +27,13 @@ apiClient.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // CSRF: Yazma isteklerinde token'ı ekle (varsa)
+    const method = (config.method || 'get').toLowerCase();
+    const isMutating = ['post', 'put', 'patch', 'delete'].includes(method);
+    if (isMutating && lastCsrfToken && config.headers) {
+      (config.headers as any)['X-CSRF-Token'] = lastCsrfToken;
+    }
     
     return config;
   },
@@ -38,6 +47,11 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => {
     console.log('✅ API Response:', response.status, response.config.url);
+    // CSRF: Sunucudan gelen token'ı yakala
+    const headerToken = (response.headers as any)?.['x-csrf-token'];
+    if (headerToken) {
+      lastCsrfToken = headerToken as string;
+    }
     return response;
   },
   async (error: AxiosError) => {

@@ -78,6 +78,8 @@ export class CSRFMiddleware implements NestMiddleware {
    * CSRF koruması gerektiren route'ları belirle
    */
   private needsCSRFProtection(path: string): boolean {
+    // Global prefix '/api' varsa normalize et
+    const normalizedPath = path.startsWith('/api/') ? path.substring(4) : path;
     const protectedPaths = [
       '/admin',
       '/users/2fa',
@@ -90,7 +92,7 @@ export class CSRFMiddleware implements NestMiddleware {
       '/expenses'
     ];
 
-    return protectedPaths.some(protectedPath => path.startsWith(protectedPath));
+    return protectedPaths.some(protectedPath => normalizedPath.startsWith(protectedPath));
   }
 
   /**

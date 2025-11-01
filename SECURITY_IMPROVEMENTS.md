@@ -1,6 +1,23 @@
 # Güvenlik ve Kalite İyileştirmeleri - Özet
 
-## 🔒 Yapılan Güvenlik İyileştirmeleri
+## � Son Eklenen Sertleştirmeler (Backend)
+
+- CORS sıkılaştırması: Production ortamında sadece `CORS_ORIGINS` (virgülle ayrılmış) allowlist'inde yer alan origin'lere izin verilir. Geliştirmede tüm origin'ler serbesttir.
+  - Dosya: `backend/src/main.ts`
+- Cookie parsing etkin: CSRF ve güvenli cookie işlemleri için `cookie-parser` kuruldu ve aktif edildi.
+  - Dosya: `backend/src/main.ts`, bağımlılık: `backend/package.json`
+- CSRF düzeltmesi: Global `/api` prefix'i nedeniyle devre dışı kalan koruma düzeltildi; path normalize edilerek `/admin`, `/invoices` vb. rotalarda koruma aktif hale getirildi.
+  - Dosya: `backend/src/common/csrf.middleware.ts`
+- CSRF istemci entegrasyonu: Frontend Axios, sunucudan dönen `X-CSRF-Token` header'ını yakalayıp yazma isteklerinde otomatik gönderir.
+  - Dosya: `src/api/client.ts`
+- Veritabanı yapılandırma güvenliği: Production'da `DATABASE_*` env değişkenleri zorunlu; insecure default değerler kaldırıldı. CLI konfigürasyonu da aynı prensiple güncellendi.
+  - Dosyalar: `backend/src/app.module.ts`, `backend/src/config/typeorm.config.ts`
+- Log seviyesi: Production'da ayrıntılı (`debug/verbose`) loglar kapatıldı.
+  - Dosya: `backend/src/main.ts`
+
+Not: Bu değişiklikler, local/dev akışını bozmadan production ortamında güvenliği artırır. Frontend `baseURL` relative (`/api`) olduğundan session cookie'leri otomatik taşınır; cross-site isteklerde `credentials` gereksinimi CORS allowlist ile kontrol edilir.
+
+## �🔒 Yapılan Güvenlik İyileştirmeleri
 
 ### 1. XSS Koruması ✅
 - **Dosya**: `src/utils/pdfGenerator.ts`

@@ -35,19 +35,32 @@ import { CSRFMiddleware } from './common/csrf.middleware';
       limit: 100, // Normal API endpoints için (middleware auth endpoints'i override eder)
     }]),
     TypeOrmModule.forRootAsync({
-      useFactory: () => ({
-        type: 'postgres',
-        host: process.env.DATABASE_HOST || 'localhost',
-        port: parseInt(process.env.DATABASE_PORT || '5432'),
-        username: process.env.DATABASE_USER || 'postgres',
-        password: process.env.DATABASE_PASSWORD || 'password123',
-        database: process.env.DATABASE_NAME || 'postgres',
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        migrations: [__dirname + '/migrations/*{.ts,.js}'],
-        synchronize: false,
-        logging: process.env.NODE_ENV === 'development',
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-      }),
+      useFactory: () => {
+        const isProd = process.env.NODE_ENV === 'production';
+        const host = process.env.DATABASE_HOST || (isProd ? '' : 'localhost');
+        const port = parseInt(process.env.DATABASE_PORT || (isProd ? '0' : '5432'));
+        const username = process.env.DATABASE_USER || (isProd ? '' : 'postgres');
+        const password = process.env.DATABASE_PASSWORD || (isProd ? '' : 'password123');
+        const database = process.env.DATABASE_NAME || (isProd ? '' : 'postgres');
+
+        if (isProd && (!host || !port || !username || !password || !database)) {
+          throw new Error('Database environment variables are required in production');
+        }
+
+        return {
+          type: 'postgres',
+          host,
+          port: port || 5432,
+          username,
+          password,
+          database,
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          migrations: [__dirname + '/migrations/*{.ts,.js}'],
+          synchronize: false,
+          logging: process.env.NODE_ENV === 'development',
+          ssl: isProd ? { rejectUnauthorized: false } : false,
+        } as const;
+      },
     }),
     AuthModule,
     UsersModule,
