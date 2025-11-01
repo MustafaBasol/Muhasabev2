@@ -201,6 +201,7 @@
     "success": "Succès",
     "warning": "Avertissement",
     "ok": "OK",
+    "periodLockedError": "Cet enregistrement ne peut pas être supprimé car il appartient à une période fiscale verrouillée",
     "description": "Description",
     "dueDate": "Date d'échéance",
     "monthlyIncomeExpense": "Revenus/Dépenses Mensuels",
@@ -213,6 +214,8 @@
     "hideChart": "Masquer le Graphique",
     "showChart": "Afficher le Graphique",
     "chartHidden": "Graphique masqué",
+    "incomeLabel": "Revenu",
+    "expenseLabel": "Dépense",
     "allStatuses": "Tous les Statuts",
     "allAccounts": "Tous les Comptes",
     "cash": "Espèces",
@@ -330,6 +333,7 @@
     "accounting": "Comptabilité",
     "chartOfAccounts": "Plan Comptable",
     "archive": "Archives",
+    "organization": "Organisation",
     "settings": "Paramètres",
     "close": "Fermer"
   },
@@ -452,7 +456,6 @@
     "costPrice": "Coût",
     "unit": "Unité",
     "productsCount": "produits",
-    "allCategories": "Toutes les catégories",
     "allStock": "Tous les stocks",
     "lowStockFilter": "Stock faible",
     "outOfStock": "Rupture de stock",
@@ -565,12 +568,15 @@
   "invoices": {
     "title": "Factures",
     "newInvoice": "Nouvelle Facture",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette facture ?",
     "search": "Rechercher numéro de facture ou client...",
     "filterAll": "Tous les Statuts",
     "invoicesRegistered": "factures enregistrées",
     "inArchive": "dans l'archive",
     "noInvoices": "Aucune facture pour le moment",
     "noInvoicesFound": "Aucune facture trouvée",
+    "showVoided": "Afficher Annulées",
+    "hideVoided": "Masquer Annulées",
     "noInvoicesDesc": "Commencez par créer votre première facture.",
     "noInvoicesFoundDesc": "Aucune facture ne correspond à vos critères de recherche.",
     "createFirstInvoice": "Créer la Première Facture",
@@ -628,6 +634,9 @@
   "expenses": {
     "title": "Dépenses",
     "newExpense": "Nouvelle Dépense",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette dépense ?",
+    "deleteSuccess": "Dépense supprimée",
+    "deleteError": "Impossible de supprimer la dépense",
     "search": "Rechercher description de dépense ou fournisseur...",
     "filterAll": "Tous les Statuts",
     "expensesRegistered": "dépenses enregistrées",
@@ -840,7 +849,6 @@
     "totalExpense": "Dépense Totale",
     "netProfit": "Bénéfice Net",
     "totalCustomers": "Total Clients",
-    "last6MonthsPerformance": "Performance des 6 Derniers Mois",
     "net": "Net",
     "financialHealth": "Santé Financière",
     "profitMargin": "Marge Bénéficiaire",
@@ -1435,6 +1443,93 @@
       "showVoided": "Afficher les annulés",
       "hideVoided": "Masquer les annulés",
       "voidedRecords": "enregistrements annulés"
+    }
+  },
+  "org": {
+    "members": {
+      "title": "Membres de l'Organisation",
+      "subtitle": "Gérez vos membres d'organisation et leurs permissions",
+      "search": "Rechercher des membres...",
+      "membersCount": "membres",
+      "member": "Membre",
+      "email": "Email",
+      "role": "Rôle",
+      "statusLabel": "Statut", 
+      "actions": "Actions",
+      "table": {
+        "name": "Nom",
+        "email": "Email",
+        "role": "Rôle",
+        "joinedAt": "Date d'Adhésion",
+        "actions": "Actions"
+      },
+      "edit": "Modifier",
+      "remove": "Supprimer",
+      "cancel": "Annuler",
+      "resend": "Renvoyer",
+      "noMembers": "Aucun membre pour le moment",
+      "noMembersDesc": "Commencez par inviter votre premier membre d'équipe.",
+      "noPendingInvites": "Aucune invitation en attente",
+      "noPendingInvitesDesc": "Toutes les invitations ont été acceptées ou ont expiré.",
+      "roles": {
+        "owner": "Propriétaire",
+        "admin": "Administrateur", 
+        "member": "Membre",
+        "viewer": "Observateur"
+      },
+      "status": {
+        "active": "Actif",
+        "pending": "En attente",
+        "inactive": "Inactif"
+      },
+      "permissions": {
+        "owner": "Accès complet à toutes les fonctionnalités et paramètres",
+        "admin": "Accès complet sauf facturation et suppression d'organisation",
+        "member": "Créer et modifier les factures, dépenses, clients",
+        "viewer": "Accès en lecture seule à toutes les données"
+      },
+      "confirmRemove": "Êtes-vous sûr de vouloir supprimer ce membre ?",
+      "confirmCancel": "Êtes-vous sûr de vouloir annuler cette invitation ?",
+      "inviteSuccess": "Invitation envoyée avec succès",
+      "inviteError": "Échec de l'envoi de l'invitation",
+      "removeSuccess": "Membre supprimé avec succès",
+      "removeError": "Échec de la suppression du membre",
+      "updateSuccess": "Membre mis à jour avec succès",
+      "updateError": "Échec de la mise à jour du membre",
+      "validation": {
+        "emailRequired": "L'email est requis",
+        "emailInvalid": "Veuillez entrer une adresse email valide",
+        "emailExists": "Cet email est déjà invité ou est déjà membre"
+      },
+      "tryAgain": "Réessayer",
+      "organization": "Organisation",
+      "membersLabel": "Membres", 
+      "plan": "Plan",
+      "youLabel": "Vous",
+      "makeAdmin": "Faire Administrateur",
+      "makeMember": "Faire Membre",
+      "limitFull": "Limite Atteinte",
+      "sending": "Envoi en cours...",
+      "invite": {
+        "title": "Inviter un Membre",
+        "button": "Envoyer l'Invitation",
+        "limitReached": "Limite du plan atteinte. Améliorez votre plan pour inviter plus de membres.",
+        "success": "Invitation envoyée avec succès",
+        "error": "Échec de l'envoi de l'invitation",
+        "duplicate": "Cet email est déjà invité",
+        "form": {
+          "email": "Adresse Email",
+          "emailPlaceholder": "exemple@email.com",
+          "role": "Rôle"
+        }
+      },
+      "pendingInvites": {
+        "title": "Invitations en Attente",
+        "count": "{{count}} invitations en attente",
+        "resend": "Renvoyer",
+        "cancel": "Annuler",
+        "expires": "Expire le {{date}}"
+      }
     }
   }
 }

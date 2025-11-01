@@ -20,7 +20,7 @@ const MemberList: React.FC<MemberListProps> = ({
   onMemberRemoved,
   onMemberRoleUpdated,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
@@ -119,7 +119,7 @@ const MemberList: React.FC<MemberListProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR', {
+    return new Date(dateString).toLocaleDateString(i18n.language === 'tr' ? 'tr-TR' : i18n.language === 'de' ? 'de-DE' : i18n.language === 'fr' ? 'fr-FR' : 'en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -185,7 +185,7 @@ const MemberList: React.FC<MemberListProps> = ({
                         <div className="text-sm font-medium text-gray-900">
                           {member.user.firstName} {member.user.lastName}
                           {isCurrentUser && (
-                            <span className="ml-2 text-xs text-gray-500">(Siz)</span>
+                            <span className="ml-2 text-xs text-gray-500">({t('org.members.youLabel')})</span>
                           )}
                         </div>
                       </div>
@@ -227,7 +227,7 @@ const MemberList: React.FC<MemberListProps> = ({
                                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                   >
                                     <Shield className="w-4 h-4 mr-2 text-blue-500" />
-                                    Yönetici Yap
+                                    {t('org.members.makeAdmin')}
                                   </button>
                                 )}
                                 {member.role !== 'MEMBER' && (
@@ -236,7 +236,7 @@ const MemberList: React.FC<MemberListProps> = ({
                                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                   >
                                     <User className="w-4 h-4 mr-2 text-gray-500" />
-                                    Üye Yap
+                                    {t('org.members.makeMember')}
                                   </button>
                                 )}
                                 
@@ -246,7 +246,7 @@ const MemberList: React.FC<MemberListProps> = ({
                                   className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
                                 >
                                   <UserMinus className="w-4 h-4 mr-2 text-red-500" />
-                                  Çıkar
+                                  {t('org.members.remove')}
                                 </button>
                               </div>
                             </div>

@@ -100,7 +100,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
             {t('org.members.invite.title')}
           </h3>
           <p className="text-sm text-gray-500 mt-1">
-            {membershipStats.currentMembers} / {membershipStats.maxMembers === -1 ? '∞' : membershipStats.maxMembers} üye
+            {membershipStats.currentMembers} / {membershipStats.maxMembers === -1 ? '∞' : membershipStats.maxMembers} {t('org.members.membersLabel')}
             <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
               {membershipStats.plan}
             </span>
@@ -114,12 +114,12 @@ const InviteForm: React.FC<InviteFormProps> = ({
               ? 'bg-blue-600 text-white hover:bg-blue-700'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
-          title={!membershipStats.canAddMore ? 'Plan limitine ulaştınız' : ''}
+          title={!membershipStats.canAddMore ? t('org.members.invite.limitReached') : ''}
         >
           <UserPlus className="w-4 h-4" />
           <span>
             {!membershipStats.canAddMore 
-              ? 'Limit Doldu' 
+              ? t('org.members.limitFull')
               : t('org.members.invite.button')
             }
           </span>
@@ -170,7 +170,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
               onClick={() => setIsOpen(false)}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
-              İptal
+              {t('org.members.cancel')}
             </button>
             <button
               type="submit"
@@ -182,7 +182,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
               ) : (
                 <Mail className="w-4 h-4" />
               )}
-              <span>{loading ? 'Gönderiliyor...' : t('org.members.invite.button')}</span>
+              <span>{loading ? t('org.members.sending') : t('org.members.inviteButton')}</span>
             </button>
           </div>
         </form>

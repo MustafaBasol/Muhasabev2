@@ -1,11 +1,10 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// Use /api prefix to leverage Vite proxy in development
-// In production, the API will be on the same origin
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : '/api');
+// Use proxy in Codespaces (more reliable)
+const API_BASE_URL = '/api';
 
-console.log('🔗 API Base URL:', API_BASE_URL);
-console.log('🏭 Production Mode:', import.meta.env.PROD);
+console.log('🔗 API Base URL (PROXY):', API_BASE_URL);
+console.log('🏭 Backend will be proxied through Vite dev server');
 
 // Create axios instance with retry configuration
 const apiClient: AxiosInstance = axios.create({
@@ -14,7 +13,7 @@ const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  validateStatus: (status) => status < 500,
+  validateStatus: (status) => status >= 200 && status < 300, // Sadece 2xx başarılı sayılır
 });
 
 // Request interceptor - Add auth token
@@ -42,8 +41,6 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-    
     console.error('❌ API Error:', {
       message: error.message,
       code: error.code,
@@ -51,27 +48,13 @@ apiClient.interceptors.response.use(
       status: error.response?.status,
     });
 
-    // Handle network errors with retry
+    // Handle network errors - NO RETRY for now to stop spam
     if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
-      console.log('🔄 Network error detected, attempting retry...');
+      console.error('� Network error - Backend unavailable:', error.config?.url);
       
-      if (!originalRequest._retry) {
-        originalRequest._retry = true;
-        
-        // Wait 1 second and retry
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        try {
-          console.log('🔄 Retrying request...');
-          return await apiClient.request(originalRequest);
-        } catch (retryError) {
-          console.error('❌ Retry failed:', retryError);
-        }
-      }
-      
-      // If retry fails, show user-friendly message
+      // Return a clear error without retry
       return Promise.reject({
-        message: 'Bağlantı hatası. Lütfen backend servisinin çalıştığından emin olun.',
+        message: 'Backend servisi erişilebilir değil. Port 3000 kontrol edin.',
         code: 'NETWORK_ERROR',
         originalError: error,
       });

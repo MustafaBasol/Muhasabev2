@@ -198,9 +198,10 @@
     "no": "Nein",
     "loading": "Laden...",
     "error": "Fehler",
-    "success": "Succès",
+    "success": "Erfolg",
     "warning": "Warnung",
     "ok": "OK",
+    "periodLockedError": "Dieser Datensatz kann nicht gelöscht werden, da er zu einem gesperrten Geschäftsjahr gehört",
     "description": "Beschreibung",
     "dueDate": "Fälligkeitsdatum",
     "monthlyIncomeExpense": "Monatliches Einkommen/Ausgaben",
@@ -213,6 +214,8 @@
     "hideChart": "Diagramm Ausblenden",
     "showChart": "Diagramm Anzeigen",
     "chartHidden": "Diagramm ausgeblendet",
+    "incomeLabel": "Einkommen", 
+    "expenseLabel": "Ausgaben",
     "allStatuses": "Alle Status",
     "allAccounts": "Alle Konten",
     "cash": "Bargeld",
@@ -331,6 +334,7 @@
     "accounting": "Buchhaltung",
     "chartOfAccounts": "Kontenplan",
     "archive": "Archiv",
+    "organization": "Organisation",
     "settings": "Einstellungen",
     "close": "Schließen"
   },
@@ -453,7 +457,6 @@
     "costPrice": "Kosten",
     "unit": "Einheit",
     "productsCount": "Produkte",
-    "allCategories": "Alle Kategorien",
     "allStock": "Alle Bestände",
     "lowStockFilter": "Niedriger Bestand",
     "outOfStock": "Nicht vorrätig",
@@ -566,12 +569,15 @@
   "invoices": {
     "title": "Rechnungen",
     "newInvoice": "Neue Rechnung",
+    "deleteConfirm": "Sind Sie sicher, dass Sie diese Rechnung löschen möchten?",
     "search": "Rechnungsnummer oder Kunde suchen...",
     "filterAll": "Alle Status",
     "invoicesRegistered": "Rechnungen registriert",
     "inArchive": "im Archiv",
     "noInvoices": "Noch keine Rechnungen",
     "noInvoicesFound": "Keine Rechnungen gefunden",
+    "showVoided": "Stornierte Anzeigen",
+    "hideVoided": "Stornierte Ausblenden",
     "noInvoicesDesc": "Beginnen Sie mit Ihrer ersten Rechnung.",
     "noInvoicesFoundDesc": "Keine Rechnungen entsprechen Ihren Suchkriterien.",
     "createFirstInvoice": "Erste Rechnung Erstellen",
@@ -629,6 +635,9 @@
   "expenses": {
     "title": "Ausgaben",
     "newExpense": "Neue Ausgabe",
+    "deleteConfirm": "Sind Sie sicher, dass Sie diese Ausgabe löschen möchten?",
+    "deleteSuccess": "Ausgabe gelöscht",
+    "deleteError": "Ausgabe konnte nicht gelöscht werden",
     "search": "Ausgabenbeschreibung oder Lieferant suchen...",
     "filterAll": "Alle Status",
     "expensesRegistered": "Ausgaben registriert",
@@ -841,7 +850,6 @@
     "totalExpense": "Gesamtausgaben",
     "netProfit": "Nettogewinn",
     "totalCustomers": "Gesamtkunden",
-    "last6MonthsPerformance": "Leistung der letzten 6 Monate",
     "net": "Netto",
     "financialHealth": "Finanzielle Gesundheit",
     "profitMargin": "Gewinnmarge",
@@ -1436,6 +1444,93 @@
       "showVoided": "Stornierte anzeigen",
       "hideVoided": "Stornierte ausblenden",
       "voidedRecords": "stornierte Datensätze"
+    }
+  },
+  "org": {
+    "members": {
+      "title": "Organisationsmitglieder",
+      "subtitle": "Verwalten Sie Ihre Organisationsmitglieder und Berechtigungen",
+      "search": "Mitglieder suchen...",
+      "membersCount": "Mitglieder",
+      "member": "Mitglied",
+      "email": "E-Mail",
+      "role": "Rolle",
+      "statusLabel": "Status", 
+      "actions": "Aktionen",
+      "table": {
+        "name": "Name",
+        "email": "E-Mail",
+        "role": "Rolle",
+        "joinedAt": "Beitrittsdatum",
+        "actions": "Aktionen"
+      },
+      "edit": "Bearbeiten",
+      "remove": "Entfernen",
+      "cancel": "Abbrechen",
+      "resend": "Erneut senden",
+      "noMembers": "Noch keine Mitglieder",
+      "noMembersDesc": "Laden Sie Ihr erstes Teammitglied ein.",
+      "noPendingInvites": "Keine ausstehenden Einladungen",
+      "noPendingInvitesDesc": "Alle Einladungen wurden angenommen oder sind abgelaufen.",
+      "roles": {
+        "owner": "Inhaber",
+        "admin": "Administrator", 
+        "member": "Mitglied",
+        "viewer": "Betrachter"
+      },
+      "status": {
+        "active": "Aktiv",
+        "pending": "Ausstehend",
+        "inactive": "Inaktiv"
+      },
+      "permissions": {
+        "owner": "Vollzugriff auf alle Funktionen und Einstellungen",
+        "admin": "Vollzugriff außer Abrechnung und Organisationslöschung",
+        "member": "Rechnungen, Ausgaben, Kunden erstellen und bearbeiten",
+        "viewer": "Nur-Lese-Zugriff auf alle Daten"
+      },
+      "confirmRemove": "Sind Sie sicher, dass Sie dieses Mitglied entfernen möchten?",
+      "confirmCancel": "Sind Sie sicher, dass Sie diese Einladung stornieren möchten?",
+      "inviteSuccess": "Einladung erfolgreich gesendet",
+      "inviteError": "Einladung konnte nicht gesendet werden",
+      "removeSuccess": "Mitglied erfolgreich entfernt",
+      "removeError": "Mitglied konnte nicht entfernt werden",
+      "updateSuccess": "Mitglied erfolgreich aktualisiert",
+      "updateError": "Mitglied konnte nicht aktualisiert werden",
+      "validation": {
+        "emailRequired": "E-Mail ist erforderlich",
+        "emailInvalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein",
+        "emailExists": "Diese E-Mail ist bereits eingeladen oder ist bereits Mitglied"
+      },
+      "tryAgain": "Erneut Versuchen",
+      "organization": "Organisation", 
+      "membersLabel": "Mitglieder",
+      "plan": "Plan",
+      "youLabel": "Sie",
+      "makeAdmin": "Zum Administrator machen",
+      "makeMember": "Zum Mitglied machen",
+      "limitFull": "Limit Erreicht",
+      "sending": "Wird gesendet...",
+      "invite": {
+        "title": "Mitglied einladen",
+        "button": "Einladung senden",
+        "limitReached": "Plan-Limit erreicht. Upgraden Sie Ihren Plan, um weitere Mitglieder einzuladen.",
+        "success": "Einladung erfolgreich gesendet",
+        "error": "Einladung konnte nicht gesendet werden",
+        "duplicate": "Diese E-Mail ist bereits eingeladen",
+        "form": {
+          "email": "E-Mail-Adresse",
+          "emailPlaceholder": "beispiel@email.com",
+          "role": "Rolle"
+        }
+      },
+      "pendingInvites": {
+        "title": "Ausstehende Einladungen",
+        "count": "{{count}} ausstehende Einladungen",
+        "resend": "Erneut senden",
+        "cancel": "Abbrechen",
+        "expires": "Läuft ab am {{date}}"
+      }
     }
   }
 }

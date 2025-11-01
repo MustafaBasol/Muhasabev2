@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import App from './App';
 import './index.css';
 import './i18n/config'; // i18n konfigürasyonunu yükle
+import './debug-env.js'; // Environment debug
 
 console.log('🚀 MoneyFlow uygulaması başlatılıyor...');
 

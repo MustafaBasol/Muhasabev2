@@ -43,7 +43,7 @@ interface SimpleSalesPageProps {
 }
 
 export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale }: SimpleSalesPageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { formatCurrency } = useCurrency();
   
   const [showSaleModal, setShowSaleModal] = useState(false);
@@ -559,7 +559,12 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <option value="all">{t('common.allStatuses')}</option>
+              <option value="all">
+                {i18n.language === 'tr' ? 'Tüm Durumlar' : 
+                 i18n.language === 'en' ? 'All Statuses' :
+                 i18n.language === 'de' ? 'Alle Status' :
+                 i18n.language === 'fr' ? 'Tous les Statuts' : 'All Statuses'}
+              </option>
               <option value="completed">{t('status.completed')}</option>
               <option value="pending">{t('status.pending')}</option>
               <option value="cancelled">{t('status.cancelled')}</option>

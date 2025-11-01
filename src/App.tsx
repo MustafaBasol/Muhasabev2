@@ -280,14 +280,24 @@ const AppContent: React.FC = () => {
         setIsLoadingData(true);
         console.log('🔄 Backend verisi yükleniyor...');
         
-        const [customersData, suppliersData, productsData, invoicesData, expensesData, categoriesData] = await Promise.all([
-          customersApi.getCustomers(),
-          suppliersApi.getSuppliers(),
-          productsApi.getProducts(),
-          invoicesApi.getInvoices(),
-          expensesApi.getExpenses(),
-          import('./api/product-categories').then(({ productCategoriesApi }) => productCategoriesApi.getAll()),
-        ]);
+        // API isteklerini sıralı olarak gönder (rate limiting'i önlemek için)
+        console.log('📊 Customers yükleniyor...');
+        const customersData = await customersApi.getCustomers();
+        
+        console.log('🏭 Suppliers yükleniyor...');
+        const suppliersData = await suppliersApi.getSuppliers();
+        
+        console.log('📦 Products yükleniyor...');
+        const productsData = await productsApi.getProducts();
+        
+        console.log('🧾 Invoices yükleniyor...');
+        const invoicesData = await invoicesApi.getInvoices();
+        
+        console.log('💸 Expenses yükleniyor...');
+        const expensesData = await expensesApi.getExpenses();
+        
+        console.log('🏷️ Categories yükleniyor...');
+        const categoriesData = await import('./api/product-categories').then(({ productCategoriesApi }) => productCategoriesApi.getAll());
 
         console.log('✅ Backend verisi yüklendi. Raw data:', {
           customers: customersData,
@@ -1512,17 +1522,31 @@ const AppContent: React.FC = () => {
   };
 
   const deleteInvoice = async (invoiceId: string | number) => {
-    if (!confirmAction("Bu faturayı silmek istediğinizden emin misiniz?")) return;
+    if (!confirmAction(t('invoices.deleteConfirm'))) return;
+    
     try {
+      // Backend'e silme isteği gönder
       await invoicesApi.deleteInvoice(String(invoiceId));
+      
+      // Sadece backend'den başarılı response gelirse cache'i güncelle
       const newInvoices = invoices.filter(invoice => String(invoice.id) !== String(invoiceId));
       setInvoices(newInvoices);
       localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
       console.log('💾 Fatura cache güncellendi (delete)');
-      showToast('Fatura silindi', 'success');
+      showToast(t('invoices.deleteSuccess'), 'success');
     } catch (error: any) {
       console.error('Invoice delete error:', error);
-      showToast(error.response?.data?.message || 'Fatura silinemedi', 'error');
+      const errorMessage = error.response?.data?.message || '';
+      
+      // Hata durumunda cache'i güncelleme - fatura listede kalacak
+      console.log('❌ Fatura silinemedi, cache güncellenmedi');
+      
+      // Check if error is about locked period
+      if (errorMessage.includes('locked period') || errorMessage.includes('kilitli dönem') || errorMessage.includes('Cannot modify records')) {
+        showToast(t('common.periodLockedError'), 'error');
+      } else {
+        showToast(errorMessage || t('invoices.deleteError'), 'error');
+      }
     }
   };
 
@@ -1615,16 +1639,31 @@ const AppContent: React.FC = () => {
   };
 
   const deleteExpense = async (expenseId: string | number) => {
-    if (!confirmAction("Bu gideri silmek istediğinizden emin misiniz?")) return;
+    if (!confirmAction(t('expenses.deleteConfirm'))) return;
+    
     try {
+      // Backend'e silme isteği gönder
       await expensesApi.deleteExpense(String(expenseId));
+      
+      // Sadece backend'den başarılı response gelirse cache'i güncelle
       const newExpenses = expenses.filter(expense => String(expense.id) !== String(expenseId));
       setExpenses(newExpenses);
       localStorage.setItem('expenses_cache', JSON.stringify(newExpenses));
-      showToast('Gider silindi', 'success');
+      console.log('💾 Gider cache güncellendi (delete)');
+      showToast(t('expenses.deleteSuccess'), 'success');
     } catch (error: any) {
       console.error('Expense delete error:', error);
-      showToast(error.response?.data?.message || 'Gider silinemedi', 'error');
+      const errorMessage = error.response?.data?.message || '';
+      
+      // Hata durumunda cache'i güncelleme - gider listede kalacak
+      console.log('❌ Gider silinemedi, cache güncellenmedi');
+      
+      // Check if error is about locked period
+      if (errorMessage.includes('locked period') || errorMessage.includes('kilitli dönem') || errorMessage.includes('Cannot modify records')) {
+        showToast(t('common.periodLockedError'), 'error');
+      } else {
+        showToast(errorMessage || t('expenses.deleteError'), 'error');
+      }
     }
   };
 

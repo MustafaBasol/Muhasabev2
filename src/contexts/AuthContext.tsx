@@ -60,7 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
         try {
           // Önce localStorage'dan hızlı başlat
-          const parsedUser = JSON.parse(storedUser);
+          let parsedUser;
+          try {
+            parsedUser = JSON.parse(storedUser);
+          } catch (parseError) {
+            console.error('❌ User parse hatası:', parseError);
+            clearCorruptedData();
+            return;
+          }
           setUser(parsedUser);
           console.log('✅ User localStorage\'dan yüklendi:', parsedUser.email);
           
@@ -82,10 +89,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (storedTenant && storedTenant !== 'undefined' && storedTenant !== 'null') {
           try {
-            setTenant(JSON.parse(storedTenant));
-            console.log('✅ Tenant localStorage\'dan yüklendi');
+            const parsedTenant = JSON.parse(storedTenant);
+            setTenant(parsedTenant);
+            console.log('✅ Tenant localStorage\'dan yüklendi:', parsedTenant.name);
           } catch (error) {
             console.error('❌ Tenant parse hatası:', error);
+            console.log('🧹 Bozuk tenant data temizleniyor...');
             localStorage.removeItem('tenant');
           }
         }
@@ -176,16 +185,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    console.log('🚪 Kullanıcı çıkış yapıyor...');
-    authService.logout();
-    setUser(null);
-    setTenant(null);
-    // Sayfayı yenile (login sayfasına yönlendir)
-    window.location.href = '/';
+  const clearCorruptedData = () => {
+    console.log('🧹 Corrupted localStorage data temizleniyor...');
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('tenant');
+    localStorage.removeItem('customers_cache');
+    localStorage.removeItem('suppliers_cache');
+    localStorage.removeItem('products_cache');
+    localStorage.removeItem('invoices_cache');
+    localStorage.removeItem('expenses_cache');
+    localStorage.removeItem('sales');
+    localStorage.removeItem('bankAccounts');
   };
 
-  const refreshUser = async () => {
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setTenant(null);
+      setIsAuthenticated(false);
+      clearCorruptedData();
+    }
+  };  const refreshUser = async () => {
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {

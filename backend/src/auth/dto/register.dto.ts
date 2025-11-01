@@ -1,5 +1,6 @@
 import { IsEmail, IsString, MinLength, IsOptional, Length, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { NoSqlInjection, NoXss, StrongPassword } from '../../common/validators/security.validator';
 
 export class RegisterDto {
@@ -13,12 +14,12 @@ export class RegisterDto {
   email: string;
 
   @ApiProperty({
-    description: 'Strong password with uppercase, lowercase, number, and special character',
-    example: 'SecurePass123!',
-    minLength: 8
+    description: 'Password (minimum 6 characters)',
+    example: 'Password123',
+    minLength: 6
   })
   @IsString()
-  @StrongPassword({ message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' })
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
 
   @ApiProperty({
@@ -50,6 +51,7 @@ export class RegisterDto {
   })
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => value === '' ? undefined : value)
   @NoXss({ message: 'Company name contains invalid characters' })
   @NoSqlInjection({ message: 'Company name contains invalid characters' })
   @Length(1, 100, { message: 'Company name must be between 1 and 100 characters' })

@@ -32,7 +32,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     }),
     ThrottlerModule.forRoot([{
       ttl: 60000, // 1 dakika
-      limit: 5, // Auth endpoints için özel rate limit (middleware'de handle edilir)
+      limit: 100, // Normal API endpoints için (middleware auth endpoints'i override eder)
     }]),
     TypeOrmModule.forRoot({
       type: 'postgres',

@@ -7,7 +7,7 @@ module.exports = {
       cwd: './backend',
       env: {
         NODE_ENV: 'development',
-        PORT: 3003
+        PORT: 3000
       },
       watch: false, // Nest zaten watch yapıyor
       autorestart: true,
@@ -25,8 +25,7 @@ module.exports = {
       args: 'run dev',
       cwd: './',
       env: {
-        NODE_ENV: 'development',
-        VITE_API_URL: 'http://localhost:3003'
+        NODE_ENV: 'development'
       },
       watch: false, // Vite zaten watch yapıyor
       autorestart: true,

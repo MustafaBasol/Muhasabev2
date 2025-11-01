@@ -49,7 +49,7 @@ export default function ExpenseList({
   onRestoreExpense
 }: ExpenseListProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -207,7 +207,12 @@ export default function ExpenseList({
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           >
-            <option value="all">{t('common.allCategories')}</option>
+            <option value="all">
+              {i18n.language === 'tr' ? 'Tüm kategoriler' : 
+               i18n.language === 'en' ? 'All categories' :
+               i18n.language === 'de' ? 'Alle Kategorien' :
+               i18n.language === 'fr' ? 'Toutes les catégories' : 'All categories'}
+            </option>
             {categories.map(category => (
               <option key={category} value={category}>{getCategoryLabel(category)}</option>
             ))}

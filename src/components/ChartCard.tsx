@@ -11,7 +11,7 @@ interface ChartCardProps {
 
 export default function ChartCard({ sales = [], expenses = [], invoices = [] }: ChartCardProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isVisible, setIsVisible] = useState(true);
 
   const getLast6Months = () => {
@@ -88,22 +88,52 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('common.monthlyIncomeExpense')}</h3>
-          <p className="text-sm text-gray-500">{t('common.last6MonthsPerformance')}</p>
+          <h3 className="text-lg font-semibold text-gray-900">
+            {i18n.language === 'tr' ? 'Aylık Gelir/Gider' : 
+             i18n.language === 'en' ? 'Monthly Income/Expense' :
+             i18n.language === 'de' ? 'Monatliche Einnahmen/Ausgaben' :
+             i18n.language === 'fr' ? 'Revenus/Dépenses Mensuels' :
+             'Monthly Income/Expense'}
+          </h3>
+          <p className="text-sm text-gray-500">
+            {i18n.language === 'tr' ? 'Son 6 ay performansı (en yeni → en eski)' : 
+             i18n.language === 'en' ? 'Last 6 months performance (newest → oldest)' :
+             i18n.language === 'de' ? 'Leistung der letzten 6 Monate (neueste → älteste)' :
+             i18n.language === 'fr' ? 'Performance des 6 derniers mois (plus récent → plus ancien)' :
+             'Last 6 months performance (newest → oldest)'}
+          </p>
         </div>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-            <span className="text-sm text-gray-600">{t('common.income')}</span>
+            <span className="text-sm text-gray-600">
+              {i18n.language === 'tr' ? 'Gelir' : 
+               i18n.language === 'en' ? 'Income' :
+               i18n.language === 'de' ? 'Einkommen' :
+               i18n.language === 'fr' ? 'Revenu' : 'Income'}
+            </span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <span className="text-sm text-gray-600">{t('common.expense')}</span>
+            <span className="text-sm text-gray-600">
+              {i18n.language === 'tr' ? 'Gider' : 
+               i18n.language === 'en' ? 'Expense' :
+               i18n.language === 'de' ? 'Ausgaben' :
+               i18n.language === 'fr' ? 'Dépense' : 'Expense'}
+            </span>
           </div>
           <button
             onClick={() => setIsVisible(!isVisible)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title={isVisible ? t('common.hideChart') : t('common.showChart')}
+            title={isVisible ? 
+              (i18n.language === 'tr' ? 'Grafiği Gizle' : 
+               i18n.language === 'en' ? 'Hide Chart' :
+               i18n.language === 'de' ? 'Diagramm Ausblenden' :
+               i18n.language === 'fr' ? 'Masquer le Graphique' : 'Hide Chart') :
+              (i18n.language === 'tr' ? 'Grafiği Göster' : 
+               i18n.language === 'en' ? 'Show Chart' :
+               i18n.language === 'de' ? 'Diagramm Anzeigen' :
+               i18n.language === 'fr' ? 'Afficher le Graphique' : 'Show Chart')}
           >
             {isVisible ? (
               <EyeOff className="w-4 h-4 text-gray-600" />
@@ -148,7 +178,12 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
       {!isVisible && (
         <div className="text-center py-8 text-gray-400">
           <Eye className="w-8 h-8 mx-auto mb-2" />
-          <p className="text-sm">{t('common.chartHidden')}</p>
+          <p className="text-sm">
+            {i18n.language === 'tr' ? 'Grafik gizlendi' : 
+             i18n.language === 'en' ? 'Chart hidden' :
+             i18n.language === 'de' ? 'Diagramm ausgeblendet' :
+             i18n.language === 'fr' ? 'Graphique masqué' : 'Chart hidden'}
+          </p>
         </div>
       )}
     </div>

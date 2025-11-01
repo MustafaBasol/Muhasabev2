@@ -202,6 +202,7 @@
     "success": "Success",
     "warning": "Warning",
     "ok": "OK",
+    "periodLockedError": "This record cannot be deleted because it belongs to a locked fiscal period",
     "description": "Description",
     "dueDate": "Due Date",
     "monthlyIncomeExpense": "Monthly Income/Expense",
@@ -214,6 +215,8 @@
     "hideChart": "Hide Chart",
     "showChart": "Show Chart",
     "chartHidden": "Chart hidden",
+    "incomeLabel": "Income",
+    "expenseLabel": "Expense",
     "allStatuses": "All Statuses",
     "allAccounts": "All Accounts",
     "cash": "Cash",
@@ -455,7 +458,6 @@
     "costPrice": "Cost",
     "unit": "Units",
     "productsCount": "products",
-    "allCategories": "All categories",
     "allStock": "All stock",
     "lowStockFilter": "Low stock",
     "outOfStock": "Out of stock",
@@ -568,12 +570,15 @@
   "invoices": {
     "title": "Invoices",
     "newInvoice": "New Invoice",
+    "deleteConfirm": "Are you sure you want to delete this invoice?",
     "search": "Search invoice number or customer...",
     "filterAll": "All Statuses",
     "invoicesRegistered": "invoices registered",
     "inArchive": "in archive",
     "noInvoices": "No invoices yet",
     "noInvoicesFound": "No invoices found",
+    "showVoided": "Show Voided",
+    "hideVoided": "Hide Voided",
     "noInvoicesDesc": "Start by creating your first invoice.",
     "noInvoicesFoundDesc": "No invoices match your search criteria.",
     "createFirstInvoice": "Create First Invoice",
@@ -631,6 +636,9 @@
   "expenses": {
     "title": "Expenses",
     "newExpense": "New Expense",
+    "deleteConfirm": "Are you sure you want to delete this expense?",
+    "deleteSuccess": "Expense deleted",
+    "deleteError": "Failed to delete expense",
     "search": "Search expense description or supplier...",
     "filterAll": "All Statuses",
     "expensesRegistered": "expenses registered",
@@ -843,7 +851,6 @@
     "totalExpense": "Total Expense",
     "netProfit": "Net Profit",
     "totalCustomers": "Total Customers",
-    "last6MonthsPerformance": "Last 6 Months Performance",
     "net": "Net",
     "financialHealth": "Financial Health",
     "profitMargin": "Profit Margin",
@@ -1434,6 +1441,91 @@
       "showVoided": "Show voided",
       "hideVoided": "Hide voided",
       "voidedRecords": "voided records"
+    }
+  },
+  "org": {
+    "members": {
+      "title": "Organization Members",
+      "subtitle": "Manage your organization members and permissions",
+      "search": "Search members...",
+      "membersCount": "members",
+      "member": "Member",
+      "email": "Email",
+      "role": "Role",
+      "statusLabel": "Status", 
+      "actions": "Actions",
+      "table": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "joinedAt": "Joined Date",
+        "actions": "Actions"
+      },
+      "edit": "Edit",
+      "remove": "Remove",
+      "cancel": "Cancel",
+      "resend": "Resend",
+      "makeAdmin": "Make Admin",
+      "makeMember": "Make Member",
+      "noMembers": "No members yet",
+      "noMembersDesc": "Start by inviting your first team member.",
+      "noPendingInvites": "No pending invites",
+      "noPendingInvitesDesc": "All invitations have been accepted or expired.",
+      "roles": {
+        "owner": "Owner",
+        "admin": "Administrator", 
+        "member": "Member",
+        "viewer": "Viewer"
+      },
+      "status": {
+        "active": "Active",
+        "pending": "Pending",
+        "inactive": "Inactive"
+      },
+      "permissions": {
+        "owner": "Full access to all features and settings",
+        "admin": "Full access except billing and organization deletion",
+        "member": "Create and edit invoices, expenses, customers",
+        "viewer": "View-only access to all data"
+      },
+      "confirmRemove": "Are you sure you want to remove this member?",
+      "confirmCancel": "Are you sure you want to cancel this invitation?",
+      "inviteSuccess": "Invitation sent successfully",
+      "inviteError": "Failed to send invitation",
+      "removeSuccess": "Member removed successfully",
+      "removeError": "Failed to remove member",
+      "updateSuccess": "Member updated successfully",
+      "updateError": "Failed to update member",
+      "validation": {
+        "emailRequired": "Email is required",
+        "emailInvalid": "Please enter a valid email address",
+        "emailExists": "This email is already invited or is a member"
+      },
+      "tryAgain": "Try Again",
+      "organization": "Organization",
+      "membersLabel": "Members",
+      "plan": "Plan",
+      "youLabel": "You",
+      "invite": {
+        "title": "Invite Member",
+        "button": "Send Invitation",
+        "limitReached": "Plan limit reached. Upgrade your plan to invite more members.",
+        "success": "Invitation sent successfully",
+        "error": "Failed to send invitation",
+        "duplicate": "This email is already invited",
+        "form": {
+          "email": "Email Address",
+          "emailPlaceholder": "example@email.com",
+          "role": "Role"
+        }
+      },
+      "pendingInvites": {
+        "title": "Pending Invitations",
+        "count": "{{count}} pending invitations",
+        "resend": "Resend",
+        "cancel": "Cancel",
+        "expires": "Expires on {{date}}"
+      }
     }
   }
 }

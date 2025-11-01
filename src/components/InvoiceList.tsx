@@ -224,7 +224,7 @@ export default function InvoiceList({
               onChange={(e) => setShowVoided(e.target.checked)}
               className="mr-2"
             />
-{showVoided ? t('fiscalPeriods.filters.hideVoided') : t('fiscalPeriods.filters.showVoided')}
+{showVoided ? t('invoices.hideVoided') : t('invoices.showVoided')}
           </label>
         </div>
       </div>
@@ -423,7 +423,7 @@ export default function InvoiceList({
                           onClick={() => handleInlineEdit(invoice.id, 'dueDate', invoice.dueDate)}
                           className="cursor-pointer hover:bg-gray-50 rounded p-1"
                         >
-                          {t('common.dueDate')}: {formatDate(invoice.dueDate)}
+                          {formatDate(invoice.dueDate)}
                         </div>
                       )}
                     </td>

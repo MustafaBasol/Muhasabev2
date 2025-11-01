@@ -104,7 +104,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  const port = parseInt(process.env.PORT || '3000', 10);
+  const port = parseInt(process.env.PORT || '3001', 10);
   const host = '0.0.0.0'; // Bu tüm interface'lerde dinlemeyi sağlar
   
   await app.listen(port, host);

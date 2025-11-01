@@ -21,13 +21,15 @@ export class FiscalPeriodsService {
   ) {}
 
   async create(createDto: CreateFiscalPeriodDto, tenantId: string): Promise<FiscalPeriod> {
-    // Check for overlapping periods
-    const overlapping = await this.fiscalPeriodRepository.findOne({
-      where: {
-        tenantId,
-        periodStart: Between(createDto.periodStart, createDto.periodEnd),
-      },
-    });
+    // Check for overlapping periods - correct logic
+    const overlapping = await this.fiscalPeriodRepository
+      .createQueryBuilder('period')
+      .where('period.tenantId = :tenantId', { tenantId })
+      .andWhere('(period.periodStart <= :endDate AND period.periodEnd >= :startDate)', {
+        startDate: createDto.periodStart,
+        endDate: createDto.periodEnd,
+      })
+      .getOne();
 
     if (overlapping) {
       throw new BadRequestException('Fiscal period overlaps with existing period');
@@ -70,13 +72,15 @@ export class FiscalPeriodsService {
       const startDate = updateDto.periodStart || period.periodStart;
       const endDate = updateDto.periodEnd || period.periodEnd;
 
-      const overlapping = await this.fiscalPeriodRepository.findOne({
-        where: {
-          tenantId,
-          id: Not(id), // Exclude current period
-          periodStart: Between(startDate, endDate),
-        },
-      });
+      const overlapping = await this.fiscalPeriodRepository
+        .createQueryBuilder('period')
+        .where('period.tenantId = :tenantId', { tenantId })
+        .andWhere('period.id != :id', { id }) // Exclude current period
+        .andWhere('(period.periodStart <= :endDate AND period.periodEnd >= :startDate)', {
+          startDate,
+          endDate,
+        })
+        .getOne();
 
       if (overlapping) {
         throw new BadRequestException('Fiscal period overlaps with existing period');
@@ -118,19 +122,14 @@ export class FiscalPeriodsService {
   }
 
   async isDateInLockedPeriod(date: Date, tenantId: string): Promise<boolean> {
-    const period = await this.fiscalPeriodRepository.findOne({
-      where: {
-        tenantId,
-        isLocked: true,
-        periodStart: Between(new Date(date.getTime() - 24 * 60 * 60 * 1000), new Date(date.getTime() + 24 * 60 * 60 * 1000)),
-      },
-    });
+    const period = await this.fiscalPeriodRepository
+      .createQueryBuilder('period')
+      .where('period.tenantId = :tenantId', { tenantId })
+      .andWhere('period.isLocked = :isLocked', { isLocked: true })
+      .andWhere(':date BETWEEN period.periodStart AND period.periodEnd', { date })
+      .getOne();
 
-    if (period) {
-      return date >= period.periodStart && date <= period.periodEnd;
-    }
-
-    return false;
+    return !!period;
   }
 
   async getLockedPeriodForDate(date: Date, tenantId: string): Promise<FiscalPeriod | null> {

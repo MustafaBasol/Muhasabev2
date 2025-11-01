@@ -143,7 +143,9 @@ const FiscalPeriodsPage: React.FC = () => {
     }
 
     try {
-      await apiClient.patch(`/fiscal-periods/${periodId}/lock`);
+      await apiClient.patch(`/fiscal-periods/${periodId}/lock`, {
+        lockReason: 'Locked by user'
+      });
       loadPeriods();
     } catch (error: any) {
       alert(`${t('fiscalPeriods.errors.lockFailed')}: ${error.response?.data?.message || error.message}`);

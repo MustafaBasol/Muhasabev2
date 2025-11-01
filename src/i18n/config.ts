@@ -35,6 +35,8 @@ i18n
     fallbackLng: 'tr', // Varsayılan dil Türkçe
     defaultNS: 'common',
     ns: ['common'],
+    keySeparator: '.',
+    nsSeparator: ':',
     
     interpolation: {
       escapeValue: false, // React already escapes values

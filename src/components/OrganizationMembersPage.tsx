@@ -200,7 +200,7 @@ const OrganizationMembersPage: React.FC = () => {
               onClick={loadData}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
-              Tekrar Dene
+              {t('org.members.tryAgain')}
             </button>
           </div>
         </div>
@@ -224,15 +224,15 @@ const OrganizationMembersPage: React.FC = () => {
           </p>
           {currentOrganization && membershipStats && (
             <div className="mt-4 flex items-center space-x-6 text-sm text-gray-500">
-              <span>Organizasyon: <strong>{currentOrganization.name}</strong></span>
+              <span>{t('org.members.organization')}: <strong>{currentOrganization.name}</strong></span>
               <span>
-                Üyeler: <strong>{membershipStats.currentMembers}</strong>
+                {t('org.members.membersLabel')}: <strong>{membershipStats.currentMembers}</strong>
                 {membershipStats.maxMembers !== -1 && (
                   <span> / {membershipStats.maxMembers}</span>
                 )}
               </span>
               <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                {membershipStats.plan} Plan
+                {membershipStats.plan} {t('org.members.plan')}
               </span>
             </div>
           )}
