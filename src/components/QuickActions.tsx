@@ -1,5 +1,4 @@
-﻿import React from 'react';
-import {
+﻿import {
   FileText,
   Receipt,
   TrendingUp,
@@ -121,7 +120,7 @@ export default function QuickActions({
               key={index}
               type="button"
               onClick={action.onClick}
-              className={`${action.color} rounded-lg px-4 py-4 text-left text-white shadow transition-all duration-200 hover:scale-[1.02] hover:shadow-lg h-28`}
+              className={`${action.color} rounded-lg px-4 py-4 text-left text-white shadow transition-all duration-200 md:hover:scale-[1.02] md:hover:shadow-lg h-28`}
             >
               {/* Başlık üst satırda */}
               <div className="h-6 flex items-center mb-3">

@@ -126,6 +126,7 @@ type SettingsTranslations = {
     legalFields: {
       title: string;
       subtitle: string;
+      countryHelp?: string;
       countrySelectLabel?: string;
       countryOptions?: { TR: string; US: string; DE: string; FR: string; OTHER: string };
       turkey: {
@@ -334,6 +335,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       legalFields: {
         title: 'Yasal Gereklilik Alanları',
         subtitle: 'Uluslararası faturalama standartları için gerekli bilgiler',
+        countryHelp: 'Şirket bilgilerini girebilmek için lütfen şirket ülkesini seçin.',
         countrySelectLabel: 'Ülke',
         countryOptions: { TR: 'Türkiye', US: 'Amerika', DE: 'Almanya', FR: 'Fransa', OTHER: 'Diğer' },
         turkey: {
@@ -547,6 +549,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       legalFields: {
         title: 'Legal Compliance Fields',
         subtitle: 'Required information for international invoicing standards',
+        countryHelp: "To enter company details, please select the company's country.",
         countrySelectLabel: 'Country',
         countryOptions: { TR: 'Turkey', US: 'United States', DE: 'Germany', FR: 'France', OTHER: 'Other' },
         turkey: {
@@ -760,6 +763,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       legalFields: {
         title: 'Champs de conformité légale',
         subtitle: 'Informations requises pour les normes de facturation internationales',
+        countryHelp: "Pour saisir les informations de l’entreprise, veuillez sélectionner le pays de l’entreprise.",
         countrySelectLabel: 'Pays',
         countryOptions: { TR: 'Turquie', US: 'États-Unis', DE: 'Allemagne', FR: 'France', OTHER: 'Autre' },
         turkey: {
@@ -973,6 +977,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       legalFields: {
         title: 'Rechtliche Compliance-Felder',
         subtitle: 'Erforderliche Informationen für internationale Rechnungsstandards',
+        countryHelp: 'Um Unternehmensdaten einzugeben, wählen Sie bitte das Unternehmensland.',
         countrySelectLabel: 'Land',
         countryOptions: { TR: 'Türkei', US: 'USA', DE: 'Deutschland', FR: 'Frankreich', OTHER: 'Andere' },
         turkey: {
@@ -1188,8 +1193,8 @@ export default function SettingsPage({
     website: company?.website ?? 'www.moneyflow.com',
     logoDataUrl: company?.logoDataUrl ?? '',
     bankAccountId: company?.bankAccountId ?? undefined,
-  // Ülke seçimi yapılmadıysa boş başlayalım; seçimden sonra alanlar açılacak
-  country: company?.country ?? '',
+  // Ülke seçimi yapılmadıysa TR (Türkiye) ile başlayalım; alanlar varsayılan olarak görünsün
+  country: company?.country ?? 'TR',
     logoFile: null,
     
     // Türkiye yasal alanları
@@ -1546,6 +1551,11 @@ export default function SettingsPage({
       <div className="space-y-6">
         {/* Genel Bilgiler (Ülke + temel alanlar) */}
         <Section title={text.company.title}>
+          {/* Bilgilendirme metni */}
+          <div className="mb-4 flex items-start gap-2 rounded-md bg-blue-50 p-3 text-blue-800">
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>{text.company.legalFields.countryHelp || 'Şirket bilgilerini girebilmek için lütfen şirket ülkesini seçin.'}</span>
+          </div>
           {/* Ülke seçimi en üstte */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>

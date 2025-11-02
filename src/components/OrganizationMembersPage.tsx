@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Clock, Mail, RotateCcw, X } from 'lucide-react';
+import { Users, Clock, Mail, RotateCcw, X, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import MemberList from './MemberList';
 import InviteForm from './InviteForm';
@@ -162,6 +162,23 @@ const OrganizationMembersPage: React.FC = () => {
     }
   };
 
+  const handleCopyInviteLink = async (invite: Invite) => {
+    const inviteUrl = `${window.location.origin}/#join?token=${invite.token}`;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      const successEvent = new CustomEvent('showToast', {
+        detail: { message: t('common.copied', 'Kopyalandı'), tone: 'success' }
+      });
+      window.dispatchEvent(successEvent);
+    } catch (err) {
+      console.error('Failed to copy invite link', err);
+      const errorEvent = new CustomEvent('showToast', {
+        detail: { message: t('common.copyFailed', 'Kopyalama başarısız'), tone: 'error' }
+      });
+      window.dispatchEvent(errorEvent);
+    }
+  };
+
   const formatExpiryDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR', {
       year: 'numeric',
@@ -278,6 +295,14 @@ const OrganizationMembersPage: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleCopyInviteLink(invite)}
+                        title="Davet bağlantısını kopyala"
+                        className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Kopyala</span>
+                      </button>
                       <button
                         onClick={() => handleResendInvite(invite)}
                         className="flex items-center space-x-1 px-3 py-1 text-sm text-orange-700 bg-orange-100 rounded hover:bg-orange-200 transition-colors"

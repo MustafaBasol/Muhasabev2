@@ -1,34 +1,35 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { logger } from './utils/logger';
 
 // Import components step by step to find the error
-console.log('1. Main.tsx başladı');
+logger.info('1. Main.tsx başladı');
 
 try {
-  console.log('2. AuthContext import ediliyor...');
+  logger.info('2. AuthContext import ediliyor...');
   const { AuthProvider } = await import('./contexts/AuthContext');
-  console.log('3. AuthContext başarıyla import edildi');
+  logger.info('3. AuthContext başarıyla import edildi');
 
-  console.log('4. CurrencyContext import ediliyor...');
+  logger.info('4. CurrencyContext import ediliyor...');
   const { CurrencyProvider } = await import('./contexts/CurrencyContext');
-  console.log('5. CurrencyContext başarıyla import edildi');
+  logger.info('5. CurrencyContext başarıyla import edildi');
 
-  console.log('6. App import ediliyor...');
+  logger.info('6. App import ediliyor...');
   const App = (await import('./App')).default;
-  console.log('7. App başarıyla import edildi');
+  logger.info('7. App başarıyla import edildi');
 
-  console.log('8. CSS import ediliyor...');
+  logger.info('8. CSS import ediliyor...');
   await import('./index.css');
-  console.log('9. CSS başarıyla import edildi');
+  logger.info('9. CSS başarıyla import edildi');
 
   const root = document.getElementById('root');
-  console.log('10. Root element:', root);
+  logger.debug('10. Root element:', root);
   
   if (!root) {
     throw new Error('Root element bulunamadı!');
   }
   
-  console.log('11. React render başlıyor...');
+  logger.info('11. React render başlıyor...');
   createRoot(root).render(
     <StrictMode>
       <AuthProvider>
@@ -39,16 +40,20 @@ try {
     </StrictMode>
   );
   
-  console.log('12. ✅ React app başarıyla render edildi');
-} catch (error: any) {
-  console.error('❌ Hata oluştu:', error);
-  console.error('❌ Stack trace:', error.stack);
+  logger.info('12. ✅ React app başarıyla render edildi');
+} catch (err: unknown) {
+  if (err instanceof Error) {
+    console.error('❌ Hata oluştu:', err);
+    console.error('❌ Stack trace:', err.stack);
+  } else {
+    console.error('❌ Hata oluştu:', err);
+  }
   document.body.innerHTML = `
     <div style="color: red; padding: 20px; font-family: monospace;">
       <h1>HATA OLUŞTU</h1>
-      <p><strong>Mesaj:</strong> ${error.message}</p>
+      <p><strong>Mesaj:</strong> ${err instanceof Error ? err.message : String(err)}</p>
       <p><strong>Stack:</strong></p>
-      <pre>${error.stack}</pre>
+      <pre>${err instanceof Error ? err.stack : JSON.stringify(err, null, 2)}</pre>
     </div>
   `;
 }

@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import DOMPurify from 'dompurify';
 import i18n from '../i18n/config';
+import { logger } from './logger';
 
 // ——— Tipler ——————————————————————————————————————
 interface Invoice {
@@ -17,9 +18,16 @@ interface Invoice {
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   issueDate: string;
   dueDate: string;
-  items: any[];
+  items: InvoiceItem[];
   notes?: string;
   type?: 'product' | 'service';
+}
+
+interface InvoiceItem {
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+  total?: number;
 }
 
 interface Expense {
@@ -106,7 +114,7 @@ const formatDate = (dateString: string, locale?: string) => {
 // Not: Eski formatAmount kullanılmıyor; geriye dönük kalabilir, ancak uyarıyı önlemek için kaldırıyoruz.
 
 // Para birimi belirleme ve biçimlendirme yardımcıları (Context ile uyumlu mantık)
-const toNum = (v: any): number => {
+const toNum = (v: unknown): number => {
   if (v == null) return 0;
   if (typeof v === 'number' && isFinite(v)) return v;
   const s = String(v).replace(/[^0-9+\-.,]/g, '');
@@ -119,7 +127,7 @@ const getSelectedCurrency = (): Currency => {
   try {
     const saved = localStorage.getItem('currency') as Currency | null;
     if (saved === 'TRY' || saved === 'USD' || saved === 'EUR') return saved;
-  } catch {}
+  } catch { /* localStorage erişimi başarısız olabilir (ör. SSR veya gizlilik modları) */ }
   return 'TRY';
 };
 
@@ -132,7 +140,7 @@ const getCurrencySymbol = (cur: Currency): string => {
   }
 };
 
-const makeCurrencyFormatter = (cur: Currency) => (amount: any): string => {
+const makeCurrencyFormatter = (cur: Currency) => (amount: unknown): string => {
   const safe = toNum(amount);
   const symbol = getCurrencySymbol(cur);
   switch (cur) {
@@ -287,9 +295,9 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
       rendered += sliceH;
     }
 
-    const blob = pdf.output('blob');
-    // Debug için istersen:
-    console.log('PDF boyutu (byte):', blob.size);
+  const blob = pdf.output('blob');
+  // Debug (dev):
+  logger.debug('PDF boyutu (byte):', blob.size);
     return blob;
   } finally {
     document.body.removeChild(tempDiv);
@@ -316,7 +324,7 @@ const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow
   if (targetWindow && !targetWindow.closed) {
     try {
       targetWindow.location.href = url;
-      targetWindow.addEventListener('unload', () => { try { URL.revokeObjectURL(url); } catch {} }, { once: true });
+  targetWindow.addEventListener('unload', () => { try { URL.revokeObjectURL(url); } catch { /* ignore revoke error */ } }, { once: true });
       return;
     } catch { /* anchor fallback'e geç */ }
   }
@@ -325,7 +333,7 @@ const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow
   try {
     const w = window.open(url, '_blank', 'noopener');
     if (w) {
-      setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 10000);
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore revoke error */ } }, 10000);
       return;
     }
   } catch { /* anchor fallback */ }
@@ -340,12 +348,12 @@ const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 10000);
+    setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore revoke error */ } }, 10000);
     return;
   } catch { /* devam */ }
 
   // Son çare: aynı sekmeye yönlendir
-  try { window.location.href = url; } catch {}
+  try { window.location.href = url; } catch { /* ignore location change error */ }
 };
 
 
@@ -362,7 +370,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}, lang?: strin
 
   // Toplamları güvenli biçimde hesapla
   const items = Array.isArray(invoice.items) ? invoice.items : [];
-  const computedSubtotal = items.reduce((sum, it: any) => {
+  const computedSubtotal = items.reduce((sum, it: InvoiceItem) => {
     const lineTotal = toNum(it.total) || (toNum(it.unitPrice) * toNum(it.quantity));
     return sum + (Number.isFinite(lineTotal) ? lineTotal : 0);
   }, 0);
@@ -453,7 +461,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}, lang?: strin
           </tr>
         </thead>
         <tbody>
-          ${(invoice.items ?? []).map((item: any) => `
+          ${(invoice.items ?? []).map((item: InvoiceItem) => `
             <tr>
               <td style="border:1px solid #D1D5DB; padding:10px;">${item.description ?? ''}</td>
               <td style="border:1px solid #D1D5DB; padding:10px; text-align:center;">${item.quantity ?? ''}</td>
@@ -494,7 +502,7 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
   const activeLang = normalizeLang(lang);
   const tf = (k: string) => i18n.t(k, { lng: activeLang });
   const dloc = localeFromLang(activeLang);
-  const statusLabel = ({ draft: tf('pdf.expense.statusLabels.draft'), approved: tf('pdf.expense.statusLabels.approved'), paid: tf('pdf.expense.statusLabels.paid') } as any)[expense.status];
+  const statusLabel = ({ draft: tf('pdf.expense.statusLabels.draft'), approved: tf('pdf.expense.statusLabels.approved'), paid: tf('pdf.expense.statusLabels.paid') } as Record<Expense['status'], string>)[expense.status];
   const activeCurrency: Currency = currency ?? getSelectedCurrency();
   const fmt = makeCurrencyFormatter(activeCurrency);
   return `
@@ -543,8 +551,8 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
   const activeLang = normalizeLang(lang);
   const tf = (k: string) => i18n.t(k, { lng: activeLang });
   const dloc = localeFromLang(activeLang);
-  const statusLabel = ({ completed: tf('pdf.sale.statusLabels.completed'), pending: tf('pdf.sale.statusLabels.pending'), cancelled: tf('pdf.sale.statusLabels.cancelled') } as any)[sale.status];
-  const payName = sale.paymentMethod ? ({ cash: tf('pdf.sale.paymentMethods.cash'), card: tf('pdf.sale.paymentMethods.card'), transfer: tf('pdf.sale.paymentMethods.transfer'), check: tf('pdf.sale.paymentMethods.check') } as any)[sale.paymentMethod] : undefined;
+  const statusLabel = ({ completed: tf('pdf.sale.statusLabels.completed'), pending: tf('pdf.sale.statusLabels.pending'), cancelled: tf('pdf.sale.statusLabels.cancelled') } as Record<Sale['status'], string>)[sale.status];
+  const payName = sale.paymentMethod ? ({ cash: tf('pdf.sale.paymentMethods.cash'), card: tf('pdf.sale.paymentMethods.card'), transfer: tf('pdf.sale.paymentMethods.transfer'), check: tf('pdf.sale.paymentMethods.check') } as Record<NonNullable<Sale['paymentMethod']>, string>)[sale.paymentMethod] : undefined;
   const activeCurrency: Currency = currency ?? getSelectedCurrency();
   const fmt = makeCurrencyFormatter(activeCurrency);
   return `
@@ -559,7 +567,7 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
         <p style="margin: 5px 0;"><strong>${tf('pdf.sale.saleNumber')}:</strong> ${sale.saleNumber || `SAL-${sale.id}`}</p>
   <p style="margin: 5px 0;"><strong>${tf('pdf.sale.saleDate')}:</strong> ${formatDate(sale.date, dloc)}</p>
         <p style="margin: 5px 0;"><strong>${tf('pdf.sale.status')}:</strong> ${statusLabel}</p>
-        ${payName ? `<p style=\"margin: 5px 0;\"><strong>${tf('pdf.sale.paymentMethod')}:</strong> ${payName}</p>` : ''}
+  ${payName ? `<p style="margin: 5px 0;"><strong>${tf('pdf.sale.paymentMethod')}:</strong> ${payName}</p>` : ''}
       </div>
       <div style="text-align: right;">
         <h3 style="color: #1F2937; margin: 0 0 10px 0;">${tf('pdf.sale.customerInfo')}</h3>
@@ -601,19 +609,19 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
 
 // ——— DIŞA AÇIK API ———————————————————————————————
 export const generateInvoicePDF = async (invoice: Invoice, opts: OpenOpts = {}) => {
-  const html = buildInvoiceHtml(invoice, opts.company ?? {}, opts.lang, (opts as any).currency);
+  const html = buildInvoiceHtml(invoice, opts.company ?? {}, opts.lang, opts.currency);
   const blob = await htmlToPdfBlob(html);
   openPdfInWindow(blob, `${opts.filename ?? invoice.invoiceNumber ?? 'Invoice'}.pdf`, opts.targetWindow);
 };
 
 export const generateExpensePDF = async (expense: Expense, opts: OpenOpts = {}) => {
-  const html = buildExpenseHtml(expense, opts.lang, (opts as any).currency);
+  const html = buildExpenseHtml(expense, opts.lang, opts.currency);
   const blob = await htmlToPdfBlob(html);
   openPdfInWindow(blob, `${opts.filename ?? expense.expenseNumber ?? 'Expense'}.pdf`, opts.targetWindow);
 };
 
 export const generateSalePDF = async (sale: Sale, opts: OpenOpts = {}) => {
-  const html = buildSaleHtml(sale, opts.lang, (opts as any).currency);
+  const html = buildSaleHtml(sale, opts.lang, opts.currency);
   const blob = await htmlToPdfBlob(html);
   openPdfInWindow(blob, `${opts.filename ?? (sale.saleNumber || `SAL-${sale.id}`)}.pdf`, opts.targetWindow);
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Server, Clock, CheckCircle, Globe } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { logger } from '../../utils/logger';
 
 interface Subprocessor {
   id: string;
@@ -12,11 +13,18 @@ interface Subprocessor {
   lastUpdated: string;
 }
 
+interface ChangeLogEntry {
+  date: string;
+  version: string;
+  changes: string[];
+  author?: string;
+}
+
 interface SubprocessorsData {
   subprocessors: Subprocessor[];
   lastModified: string;
   version: string;
-  changelog: any[];
+  changelog: ChangeLogEntry[];
 }
 
 const SubprocessorsList: React.FC = () => {
@@ -166,10 +174,10 @@ const SubprocessorsList: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log('SubprocessorsList component mounted');
+    logger.debug('SubprocessorsList component mounted');
     const fetchSubprocessors = async () => {
       try {
-        console.log('Loading subprocessors data...');
+        logger.info('Loading subprocessors data...');
         // Hardcoded data for now - backend connection issues
         const data: SubprocessorsData = {
           subprocessors: [
@@ -230,7 +238,7 @@ const SubprocessorsList: React.FC = () => {
             }
           ]
         };
-        console.log('Using hardcoded data:', data);
+        logger.debug('Using hardcoded data:', data);
         setSubprocessorsData(data);
       } catch (error) {
         console.error('Error loading subprocessors:', error);

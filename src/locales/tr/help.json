@@ -1,0 +1,79 @@
+{
+  "sidebarTitle": "Kullanım Kılavuzu",
+  "pageTitle": "Comptario Yardım Merkezi",
+  "overviewDesc": "Bu kılavuz, Comptario ile fatura, gider ve temel muhasebe işlerinizi adım adım yapmanıza yardım eder. Aşağıdaki bölümlerden, aradığınız konuya hızlıca gidebilirsiniz. Her bölüm kısa adımlar, küçük ipuçları ve görsel odaklı açıklamalar içerir.",
+  "labels": { "tip": "İpucu" },
+  "sections": [
+    { "id": "overview", "title": "Genel Bakış" },
+    { "id": "getting-started", "title": "Başlangıç (Kayıt, Giriş, Dil/Para Birimi)" },
+    { "id": "customers", "title": "Müşteriler" },
+    { "id": "suppliers", "title": "Tedarikçiler" },
+    { "id": "products", "title": "Ürünler ve Kategoriler" },
+    { "id": "invoices", "title": "Faturalar" },
+    { "id": "expenses", "title": "Giderler" },
+    { "id": "sales", "title": "Satışlar" },
+    { "id": "bank", "title": "Banka Hesapları" },
+    { "id": "reports", "title": "Raporlar ve Defter" },
+    { "id": "settings", "title": "Ayarlar" },
+    { "id": "users", "title": "Kullanıcılar, Roller ve Davetler" },
+    { "id": "plan-limits", "title": "Plan Limitleri" },
+    { "id": "period-lock", "title": "Dönem Kilidi" },
+    { "id": "security-backup", "title": "Güvenlik ve Yedekleme" },
+    { "id": "faq-contact", "title": "SSS ve İletişim" }
+  ],
+  "gettingStarted": {
+    "title": "Başlangıç (Kayıt, Giriş, Dil/Para Birimi)",
+    "steps": [
+      "Üst menü veya sayfalardaki Ücretsiz Deneme düğmesine tıklayın.",
+      "E-posta ve şifre belirleyip hesabınızı oluşturun. Mevcutta hesabınız varsa Giriş yapın.",
+      "Dil tercihlerini sağ üstteki dil menüsünden ayarlayın. Para Birimi ayarı ise Ayarlar → Sistem → Para Birimi altındadır.",
+      "Profil ayarlarınızdan işletme bilgilerinizi (ünvan, vergi no, adres) girin; bu bilgiler faturalarınızda kullanılır."
+    ],
+    "tipKeyboard": "Klavye ile hızlı gezinmek için",
+    "tipAfter": "tuşlarına basarak Ayarlar'a gidebilirsiniz."
+  },
+  "customers": {
+    "title": "Müşteriler",
+    "items": [
+      "Sol menüden Müşteriler sayfasını açın.",
+      "Yeni Müşteri ile hızlıca müşteri ekleyin veya CSV/Excel içe aktarma ile toplu yükleyin.",
+      "Müşteri kartında geçmiş faturaları, bakiyeyi ve iletişim bilgilerini görüntüleyin."
+    ]
+  },
+  "suppliers": { "title": "Tedarikçiler", "desc": "Giderlerinizi ilişkilendirmek için tedarikçi kartları oluşturun. İçe aktarma ve düzenleme adımları, müşteriler ile aynıdır." },
+  "products": {
+    "title": "Ürünler ve Kategoriler",
+    "desc": "Stok ve hizmetlerinizi yönetin. Kategori bazlı KDV oranı tanımlayabilir, ürün bazında özel KDV ile üzerine yazabilirsiniz.",
+    "items": [
+      "Yeni ürün ekleyin, barkod/sku ve fiyat bilgilerinizle kaydedin.",
+      "Stok seviyeleri için minimum stok (reorder level) belirleyin; düşük stok uyarıları alın.",
+      "Kategori ve ürün KDV yönetimi ile faturalarda otomatik KDV hesaplatın."
+    ]
+  },
+  "invoices": {
+    "title": "Faturalar",
+    "steps": [
+      "Yeni Fatura ile müşteri ve kalemleri seçin; ürünler otomatik vergi oranıyla gelir.",
+      "Vade tarihi, notlar ve iskonto ekleyin; PDF önizleme ve e-posta gönderimi yapın.",
+      "Ödeme durumu ve iade/iptal işlemlerini fatura üzerinden takip edin."
+    ]
+  },
+  "expenses": { "title": "Giderler", "desc": "Giderleri tedarikçi, tutar, tarih ve durum bilgisi ile kaydedin. Vade yaklaşınca bildirim alın; dönem kilidi aktifse düzenlemeler engellenir." },
+  "sales": { "title": "Satışlar", "desc": "Faturalardan otomatik, ayrıca manuel satış oluşturabilirsiniz. Çoklu kalemli satışlar desteklenir; stok düşümü otomatik yapılır." },
+  "bank": { "title": "Banka Hesapları", "desc": "Banka hesaplarınızı takip edin. Ücretsiz planda 1 hesap, üst planlarda sınırsızdır. Hesap eklerken ad ve IBAN bilgisi girin." },
+  "reports": { "title": "Raporlar ve Defter", "desc": "Gelir-Gider özetleri, Genel Muhasebe ve defter görünümleri ile dönem bazlı analizler oluşturun. Excel/PDF dışa aktarma mevcuttur." },
+  "settings": { "title": "Ayarlar", "items": ["Profil ve firma bilgileri (logo, adres, vergi bilgileri)", "Para birimi, dil ve KDV/stopaj varsayılanları", "Yedek alma ve veri içe/dışa aktarma"] },
+  "users": { "title": "Kullanıcılar, Roller ve Davetler", "desc": "Çoklu kullanıcı desteği ile organizasyonunuza ekip arkadaşlarınızı davet edin. Roller ve erişim kısıtları planınıza göre uygulanır." },
+  "planLimits": { "title": "Plan Limitleri", "desc": "Ücretsiz planda temel kullanım (ör. sınırlı fatura/gider, 1 banka hesabı) bulunur. Pro ve Business planlarda limitler yükselir veya kalkar. Limit aşımında açıklayıcı uyarılar görürsünüz." },
+  "periodLock": { "title": "Dönem Kilidi", "desc": "Kapanmış dönemlerde kayıt değişikliği engellenir. Bu sayede rapor bütünlüğü korunur. İhtiyaç halinde kilitli dönemi açmadan düzeltme yapılamaz." },
+  "securityBackup": {
+    "title": "Güvenlik ve Yedekleme",
+    "items": [
+      "Verileriniz güvenli altyapıda tutulur; TLS ile şifreleme, günlük yedek ve izleme uygulanır.",
+      "Test ortamı için veritabanı/dosya uyarlamaları yapılmıştır; üretim PostgreSQL kullanır.",
+      "Çerez ve gizlilik politikalarımızı buradan inceleyin."
+    ],
+    "cookiesText": "buradan"
+  },
+  "faq": { "title": "SSS ve İletişim", "text": "Yanıtını bulamadığınız bir konu mu var? Bize support@comptario.com adresinden ulaşın." }
+}

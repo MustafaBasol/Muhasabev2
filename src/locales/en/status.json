@@ -1,0 +1,27 @@
+{
+  "title": "System Status",
+  "subtitle": "Current operational status and service components",
+  "allOperational": "All systems operational",
+  "lastUpdated": "Last updated: {{time}}",
+  "components": {
+    "api": "Application API",
+    "database": "Database",
+    "email": "Email Service",
+    "pdf": "PDF Rendering",
+    "storage": "File Storage"
+  },
+  "status": {
+    "operational": "Operational",
+    "degraded": "Degraded",
+    "outage": "Outage"
+  },
+  "incidents": {
+    "title": "Incidents",
+    "none": "No incidents in the last 90 days."
+  },
+  "contact": {
+    "title": "Seeing an issue?",
+    "text": "If you notice a problem, please contact our support team:",
+    "email": "Email us at support@comptario.com"
+  }
+}

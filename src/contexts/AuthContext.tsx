@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, AuthResponse } from '../api/auth';
 import { secureStorage } from '../utils/storage';
+import { logger } from '../utils/logger';
 
 interface User {
   id: string;
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem('user');
     const storedTenant = localStorage.getItem('tenant');
 
-    console.log('🔍 AuthContext localStorage kontrolü:', {
+    logger.info('🔍 AuthContext localStorage kontrolü:', {
       token: token ? 'var' : 'yok',
       storedUser,
       storedTenant
@@ -69,15 +70,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
           setUser(parsedUser);
-          console.log('✅ User localStorage\'dan yüklendi:', parsedUser.email);
+          logger.info("✅ User localStorage'dan yüklendi:", parsedUser.email);
           
           // Sonra backend'den güncel bilgiyi al
           try {
-            console.log('🔄 Backend\'den güncel user bilgisi çekiliyor...');
+            logger.info("🔄 Backend'den güncel user bilgisi çekiliyor...");
             const updatedUser = await authService.getProfile();
             setUser(updatedUser);
             await secureStorage.setJSON('user', updatedUser);
-            console.log('✅ User bilgisi backend\'den güncellendi:', updatedUser);
+            logger.info("✅ User bilgisi backend'den güncellendi:", updatedUser);
           } catch (error) {
             console.error('⚠️ Backend\'den user yüklenemedi, localStorage kullanılıyor:', error);
           }
@@ -91,10 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const parsedTenant = JSON.parse(storedTenant);
             setTenant(parsedTenant);
-            console.log('✅ Tenant localStorage\'dan yüklendi:', parsedTenant.name);
+            logger.info("✅ Tenant localStorage'dan yüklendi:", parsedTenant.name);
           } catch (error) {
             console.error('❌ Tenant parse hatası:', error);
-            console.log('🧹 Bozuk tenant data temizleniyor...');
+            logger.warn('🧹 Bozuk tenant data temizleniyor...');
             localStorage.removeItem('tenant');
           }
         }
@@ -106,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleAuthSuccess = (data: AuthResponse) => {
-    console.log('🔍 Auth data received:', data);
+  logger.info('🔍 Auth data received:', data);
     
     // Safety check
     if (!data || !data.user || !data.token) {
@@ -129,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTenant(data.tenant);
     }
     
-    console.log('✅ Yeni kullanıcı girişi:', {
+    logger.info('✅ Yeni kullanıcı girişi:', {
       email: data.user?.email,
       tenantId: data.user?.tenantId,
       tenant: data.tenant?.name
@@ -138,19 +139,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      console.log('🔑 Login başlatılıyor:', { email });
+      logger.info('🔑 Login başlatılıyor:', { email });
       const data = await authService.login({ email, password });
-      console.log('🔍 Login response:', data);
+      logger.debug('🔍 Login response:', data);
       handleAuthSuccess(data);
-      console.log('✅ Login tamamlandı');
-    } catch (error: any) {
-      console.error('❌ Login failed:', error);
+      logger.info('✅ Login tamamlandı');
+    } catch (err: unknown) {
+      console.error('❌ Login failed:', err);
       
       // Error mesajını düzelt
-      const errorMessage = error?.response?.data?.message || 
-                          error?.message || 
-                          'Giriş sırasında bir hata oluştu';
-      
+      type HasResponseMessage = { response?: { data?: { message?: string } } };
+      const maybe = (typeof err === 'object' && err !== null) ? (err as HasResponseMessage) : undefined;
+      const apiMessage = maybe?.response?.data?.message;
+      const errorMessage = (typeof apiMessage === 'string')
+        ? apiMessage
+        : (err instanceof Error ? err.message : 'Giriş sırasında bir hata oluştu');
       throw new Error(errorMessage);
     }
   };
@@ -178,7 +181,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       
       const data = await authService.register(authData);
-      handleAuthSuccess(data);
+      // Eğer e-posta doğrulaması zorunlu ise, otomatik giriş yapma
+      const verificationRequired = String(import.meta.env.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
+      if (!verificationRequired) {
+        handleAuthSuccess(data);
+      }
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
@@ -186,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const clearCorruptedData = () => {
-    console.log('🧹 Corrupted localStorage data temizleniyor...');
+  logger.warn('🧹 Corrupted localStorage data temizleniyor...');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
     localStorage.removeItem('tenant');
@@ -213,22 +220,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        console.log('⚠️ Token yok, refreshUser iptal');
+        logger.warn('⚠️ Token yok, refreshUser iptal');
         return;
       }
 
-      console.log('🔄 Backend\'den güncel user bilgisi alınıyor...');
+      logger.info("🔄 Backend'den güncel user bilgisi alınıyor...");
       const updatedUser = await authService.getProfile();
       
-      console.log('✅ User bilgisi backend\'den güncellendi:', updatedUser);
-      console.log('📝 Detay - firstName:', updatedUser.firstName, 'lastName:', updatedUser.lastName);
+      logger.info("✅ User bilgisi backend'den güncellendi:", updatedUser);
+      logger.debug('📝 Detay - firstName:', updatedUser.firstName, 'lastName:', updatedUser.lastName);
       
       // State'i güncelle
       setUser(updatedUser);
       
       // localStorage'ı güncelle
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      console.log('💾 localStorage user güncellendi');
+      logger.debug('💾 localStorage user güncellendi');
     } catch (error) {
       console.error('❌ HATA: User refresh başarısız oldu!', error);
       if (error instanceof Error) {
@@ -255,6 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

@@ -1,15 +1,23 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { X, Receipt, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+
+type ExpenseListItem = {
+  expenseNumber: string;
+  description: string;
+  expenseDate: string;
+  amount: number;
+  status: 'draft' | 'approved' | 'paid' | string;
+};
 
 interface SupplierHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   supplier: { name: string } | null;
-  expenses: any[];
-  onViewExpense?: (expense: any) => void;
-  onCreateExpense?: (supplier: any) => void;
+  expenses: ExpenseListItem[];
+  onViewExpense?: (expense: ExpenseListItem) => void;
+  onCreateExpense?: (supplier: { name: string }) => void;
 }
 
 export default function SupplierHistoryModal({ 
@@ -20,8 +28,6 @@ export default function SupplierHistoryModal({
   onViewExpense,
   onCreateExpense
 }: SupplierHistoryModalProps) {
-  if (!isOpen || !supplier) return null;
-
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
 
@@ -30,6 +36,8 @@ export default function SupplierHistoryModal({
     approved: `📋 ${t('status.approved')}`,
     draft: `📝 ${t('status.draft')}`
   }), [t]);
+
+  if (!isOpen || !supplier) return null;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR');

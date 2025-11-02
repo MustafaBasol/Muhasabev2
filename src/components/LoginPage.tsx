@@ -3,6 +3,7 @@ import { Eye, EyeOff, Mail, Lock, Building2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import LegalHeader from './LegalHeader';
+import { authService } from '../api/auth';
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
@@ -13,6 +14,7 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [resending, setResending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +24,20 @@ export default function LoginPage() {
       await login(formData.email, formData.password);
     } catch (error: any) {
       setError(error.message || 'Giriş sırasında bir hata oluştu');
+    }
+  };
+
+  const isUnverifiedError = typeof error === 'string' && error.toLowerCase().includes('verify');
+  const handleResendVerification = async () => {
+    if (!formData.email) return;
+    setResending(true);
+    try {
+      await authService.resendVerification(formData.email);
+      setError(t('auth.verificationEmailSent', 'Doğrulama e-postası gönderildi. Lütfen e-postanızı kontrol edin.'));
+    } catch (e: any) {
+      setError(e?.message || t('common.error', 'Hata'));
+    } finally {
+      setResending(false);
     }
   };
 
@@ -108,6 +124,7 @@ export default function LoginPage() {
               </label>
               <button
                 type="button"
+                onClick={() => (window.location.hash = 'forgot-password')}
                 className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
               >
                 {t('auth.forgotPassword', 'Şifremi unuttum')}
@@ -134,6 +151,16 @@ export default function LoginPage() {
           {error && (
             <div className="mt-4 flex items-center space-x-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
               <span>{error}</span>
+              {isUnverifiedError && (
+                <button
+                  type="button"
+                  disabled={resending}
+                  onClick={handleResendVerification}
+                  className="ml-auto text-blue-700 underline disabled:opacity-50"
+                >
+                  {resending ? t('common.loading', 'Yükleniyor...') : t('auth.resendVerification', 'Doğrulama e-postasını tekrar gönder')}
+                </button>
+              )}
             </div>
           )}
 

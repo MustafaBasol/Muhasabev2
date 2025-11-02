@@ -8,6 +8,8 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
+const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+
 export enum SubscriptionPlan {
   FREE = 'free',
   BASIC = 'basic',
@@ -104,29 +106,30 @@ export class Tenant {
   stateOfIncorporation: string;
 
   @Column({
-    type: 'enum',
-    enum: SubscriptionPlan,
+    // SQLite (test) ortamında enum desteklenmediği için text kullan
+    type: __isTestEnv ? 'text' : 'enum',
+    enum: __isTestEnv ? undefined : SubscriptionPlan,
     default: SubscriptionPlan.FREE,
   })
   subscriptionPlan: SubscriptionPlan;
 
   @Column({
-    type: 'enum',
-    enum: TenantStatus,
+    type: __isTestEnv ? 'text' : 'enum',
+    enum: __isTestEnv ? undefined : TenantStatus,
     default: TenantStatus.TRIAL,
   })
   status: TenantStatus;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
   subscriptionExpiresAt: Date;
 
   @Column({ type: 'int', default: 5 })
   maxUsers: number;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
   settings: Record<string, any>;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
   features: Record<string, boolean>;
 
   @OneToMany(() => User, (user) => user.tenant)

@@ -15,6 +15,8 @@ export enum AuditAction {
   DELETE = 'DELETE',
 }
 
+const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+
 @Entity('audit_log')
 export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
@@ -33,12 +35,12 @@ export class AuditLog {
   entityId: string;
 
   @Column({
-    type: 'enum',
-    enum: AuditAction,
+    type: __isTestEnv ? 'text' : 'enum',
+    enum: __isTestEnv ? undefined : AuditAction,
   })
   action: AuditAction;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
   diff: Record<string, any>;
 
   @Column({ type: 'varchar', length: 45, nullable: true })

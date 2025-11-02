@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, NotFoundException, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Supplier } from './entities/supplier.entity';
 import { Expense } from '../expenses/entities/expense.entity';
+import { Tenant } from '../tenants/entities/tenant.entity';
+import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 
@@ -13,6 +15,8 @@ export class SuppliersService {
     private suppliersRepository: Repository<Supplier>,
     @InjectRepository(Expense)
     private expensesRepository: Repository<Expense>,
+    @InjectRepository(Tenant)
+    private tenantRepository: Repository<Tenant>,
   ) {}
 
   async findAll(tenantId: string): Promise<Supplier[]> {
@@ -33,6 +37,16 @@ export class SuppliersService {
   }
 
   async create(createSupplierDto: CreateSupplierDto, tenantId: string): Promise<Supplier> {
+    // Plan limiti: tedarikçi ekleme kontrolü
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+    const currentCount = await this.suppliersRepository.count({ where: { tenantId } });
+    if (!TenantPlanLimitService.canAddSupplier(currentCount, tenant.subscriptionPlan)) {
+      throw new BadRequestException(TenantPlanLimitService.errorMessageFor('supplier', tenant.subscriptionPlan));
+    }
+
     const supplier = this.suppliersRepository.create({
       ...createSupplierDto,
       tenantId,

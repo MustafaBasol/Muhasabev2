@@ -1,0 +1,27 @@
+{
+  "title": "Systemstatus",
+  "subtitle": "Aktueller Betriebsstatus und Dienstkomponenten",
+  "allOperational": "Alle Systeme in Betrieb",
+  "lastUpdated": "Zuletzt aktualisiert: {{time}}",
+  "components": {
+    "api": "Anwendungs-API",
+    "database": "Datenbank",
+    "email": "E-Mail-Dienst",
+    "pdf": "PDF-Erstellung",
+    "storage": "Dateispeicher"
+  },
+  "status": {
+    "operational": "Betriebsbereit",
+    "degraded": "Eingeschränkt",
+    "outage": "Ausfall"
+  },
+  "incidents": {
+    "title": "Vorfälle",
+    "none": "Keine Vorfälle in den letzten 90 Tagen."
+  },
+  "contact": {
+    "title": "Problem bemerkt?",
+    "text": "Wenn Sie ein Problem feststellen, kontaktieren Sie bitte unser Support-Team:",
+    "email": "Schreiben Sie uns an support@comptario.com"
+  }
+}

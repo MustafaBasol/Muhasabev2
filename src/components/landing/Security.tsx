@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, Server, Lock, FileCheck, Globe, Zap } from 'lucide-react';
+import { Shield, Server, Lock, FileCheck, Globe, Zap, ShieldCheck, Award } from 'lucide-react';
 
 const Security: React.FC = () => {
   const { t } = useTranslation();
@@ -39,7 +39,7 @@ const Security: React.FC = () => {
   ];
 
   return (
-    <section className="py-16 bg-white">
+    <section id="security" className="py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center mb-16">
@@ -78,35 +78,60 @@ const Security: React.FC = () => {
           })}
         </div>
 
-        {/* Certifications and compliance */}
-          <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-8 text-center">
-          <h3 className="text-2xl font-semibold text-gray-900 mb-6">
+        {/* Certifications and compliance (Enhanced UI) */}
+        <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-8 md:p-10 border border-green-100/60 shadow-sm text-center">
+          <h3 className="text-2xl font-semibold text-gray-900 mb-3">
             {t('landing.security.trusted.title')}
           </h3>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center opacity-60">
-            {/* Placeholder for compliance badges */}
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <div className="text-sm font-semibold text-gray-700">GDPR</div>
-              <div className="text-xs text-gray-500">{t('landing.security.trusted.gdpr')}</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <div className="text-sm font-semibold text-gray-700">ISO 27001</div>
-              <div className="text-xs text-gray-500">{t('landing.security.trusted.iso')}</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <div className="text-sm font-semibold text-gray-700">SOC 2</div>
-              <div className="text-xs text-gray-500">{t('landing.security.trusted.soc')}</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <div className="text-sm font-semibold text-gray-700">SSL</div>
-              <div className="text-xs text-gray-500">{t('landing.security.trusted.ssl')}</div>
-            </div>
-          </div>
-
-          <p className="text-gray-600 mt-8 max-w-2xl mx-auto">
+          <p className="text-gray-600 mb-8 max-w-3xl mx-auto">
             {t('landing.security.trusted.desc')}
           </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 items-stretch">
+            {/* GDPR */}
+            <div aria-label="GDPR" className="group relative overflow-hidden rounded-xl bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-blue-200 shadow-sm hover:shadow-md transition-all">
+              <div className="flex flex-col items-center justify-center p-5 md:p-6">
+                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div className="text-sm font-semibold text-gray-800">GDPR</div>
+                <div className="text-xs text-gray-500">{t('landing.security.trusted.gdpr')}</div>
+              </div>
+            </div>
+
+            {/* ISO 27001 */}
+            <div aria-label="ISO 27001" className="group relative overflow-hidden rounded-xl bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-blue-200 shadow-sm hover:shadow-md transition-all">
+              <div className="flex flex-col items-center justify-center p-5 md:p-6">
+                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                  <Award className="h-5 w-5" />
+                </div>
+                <div className="text-sm font-semibold text-gray-800">ISO 27001</div>
+                <div className="text-xs text-gray-500">{t('landing.security.trusted.iso')}</div>
+              </div>
+            </div>
+
+            {/* SOC 2 */}
+            <div aria-label="SOC 2" className="group relative overflow-hidden rounded-xl bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-blue-200 shadow-sm hover:shadow-md transition-all">
+              <div className="flex flex-col items-center justify-center p-5 md:p-6">
+                <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center mb-3">
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div className="text-sm font-semibold text-gray-800">SOC 2</div>
+                <div className="text-xs text-gray-500">{t('landing.security.trusted.soc')}</div>
+              </div>
+            </div>
+
+            {/* SSL */}
+            <div aria-label="SSL" className="group relative overflow-hidden rounded-xl bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-blue-200 shadow-sm hover:shadow-md transition-all">
+              <div className="flex flex-col items-center justify-center p-5 md:p-6">
+                <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div className="text-sm font-semibold text-gray-800">SSL</div>
+                <div className="text-xs text-gray-500">{t('landing.security.trusted.ssl')}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

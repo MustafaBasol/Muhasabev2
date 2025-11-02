@@ -1,0 +1,25 @@
+{
+  "title": "Über Comptario",
+  "subtitle": "Wir sind ein innovatives Technologieunternehmen mit Sitz in Albertville, Frankreich.",
+  "whoWeAre": {
+    "title": "Wer sind wir?",
+    "text": "Comptario ist ein dynamisches Technologieunternehmen, das moderne, sichere und benutzerfreundliche Buchhaltungssoftware für kleine und mittlere Unternehmen entwickelt. Unser Hauptsitz befindet sich in Albertville in der Region Auvergne–Rhône–Alpes. Wir entwickeln Produkte nach europäischen Standards für Sicherheit, Leistung und Datenschutz und leben Transparenz, Einfachheit und Geschwindigkeit in der gesamten Erfahrung."
+  },
+  "offerings": {
+    "title": "Was bieten wir an?",
+    "items": [
+      "Ein einziger Arbeitsbereich für Rechnungen, Ausgabenverwaltung, Umsatzsteuer und Berichte",
+      "Lokalisierte Funktionen wie Mehrwährung und kategoriebasierte Umsatzsteuer",
+      "PDF-Rechnungserstellung, Versand per E-Mail und Archivierung",
+      "Mandantenfähige Architektur, rollenbasierter Zugriff und Planlimits"
+    ]
+  },
+  "approach": {
+    "title": "Unser Ansatz",
+    "text": "Wir treffen Produktentscheidungen anhand von Nutzerfeedback und datengetriebenen Metriken. Sicherheit und Datenschutz sind keine Zusatzfunktionen, sondern zentral im Design verankert. Wir arbeiten auf einer zuverlässigen und skalierbaren Infrastruktur im Einklang mit den EU-Datenschutzgrundsätzen (DSGVO)."
+  },
+  "contact": {
+    "title": "Kontakt",
+    "text": "Bei Fragen erreichen Sie uns unter:"
+  }
+}

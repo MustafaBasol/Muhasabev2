@@ -64,8 +64,8 @@ export const toNumberSafe = (value: unknown): number => {
 };
 
 export const compareValues = (a: unknown, b: unknown, dir: SortDir, type?: 'string' | 'number' | 'date', statusOrder?: string[]): number => {
-  let av: any = a;
-  let bv: any = b;
+  let av: number | string = '';
+  let bv: number | string = '';
 
   switch (type) {
     case 'number':

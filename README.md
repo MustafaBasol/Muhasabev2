@@ -1,5 +1,7 @@
 # MoneyFlow Muhasebe v2
 
+NOT: Bu dosyanın temiz ve güncel sürümü için README_CLEAN.md dosyasına bakın. Bu dosya yakında sadeleştirilecektir.
+
 Modern, güvenli ve ölçeklenebilir multi-tenant muhasebe ve finans yönetim sistemi.
 
 ---

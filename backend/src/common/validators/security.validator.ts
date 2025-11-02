@@ -15,9 +15,9 @@ class NoSqlInjectionConstraint implements ValidatorConstraintInterface {
       /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
       /(;|--|\||\/\*|\*\/)/g,
       /('|(\\')|(\\")|(\\\\))/g,
-      /((\%27)|(\'))/gi, // SQL injection patterns
-      /((\%3C)|<)/gi,    // XSS patterns
-      /((\%3E)|>)/gi,    // XSS patterns
+      /(%27|')/gi, // SQL injection patterns
+      /(%3C|<)/gi, // XSS patterns
+      /(%3E|>)/gi, // XSS patterns
     ];
     
     return !sqlPatterns.some(pattern => pattern.test(value));
@@ -29,7 +29,7 @@ class NoSqlInjectionConstraint implements ValidatorConstraintInterface {
 }
 
 export function NoSqlInjection(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -71,7 +71,7 @@ class NoXssConstraint implements ValidatorConstraintInterface {
 }
 
 export function NoXss(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -102,8 +102,8 @@ class StrongPasswordConstraint implements ValidatorConstraintInterface {
     // En az bir rakam
     if (!/[0-9]/.test(password)) return false;
     
-    // En az bir özel karakter
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return false;
+  // En az bir özel karakter (harf/rakam ve boşluk dışı herhangi bir karakter)
+  if (!/[^A-Za-z0-9\s]/.test(password)) return false;
     
     // Yaygın şifreler kontrolü
     const commonPasswords = [
@@ -123,7 +123,7 @@ class StrongPasswordConstraint implements ValidatorConstraintInterface {
 }
 
 export function StrongPassword(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -158,7 +158,7 @@ class SafeFilePathConstraint implements ValidatorConstraintInterface {
 }
 
 export function SafeFilePath(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,

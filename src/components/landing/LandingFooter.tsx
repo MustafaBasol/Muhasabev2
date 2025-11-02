@@ -16,13 +16,11 @@ const LandingFooter: React.FC = () => {
       api: 'API',
       company: 'ŞİRKET',
       about: 'Hakkında',
-      blog: 'Blog',
-      careers: 'Kariyer',
-      press: 'Basın',
+  // Removed: Blog, Kariyer, Basın
       support: 'DESTEK',
       helpCenter: 'Yardım Merkezi',
       contactUs: 'İletişim',
-      status: 'Durum',
+  // status kaldırıldı
       community: 'Topluluk',
       legal: 'HUKUKİ',
       privacy: 'Gizlilik Politikası',
@@ -48,13 +46,11 @@ const LandingFooter: React.FC = () => {
       api: 'API',
       company: 'COMPANY',
       about: 'About',
-      blog: 'Blog',
-      careers: 'Careers',
-      press: 'Press',
+  // Removed: Blog, Careers, Press
       support: 'SUPPORT',
       helpCenter: 'Help Center',
       contactUs: 'Contact Us',
-      status: 'Status',
+  // status removed
       community: 'Community',
       legal: 'LEGAL',
       privacy: 'Privacy Policy',
@@ -80,13 +76,11 @@ const LandingFooter: React.FC = () => {
       api: 'API',
       company: 'UNTERNEHMEN',
       about: 'Über uns',
-      blog: 'Blog',
-      careers: 'Karriere',
-      press: 'Presse',
+  // Removed: Blog, Karriere, Presse
       support: 'SUPPORT',
       helpCenter: 'Hilfe Center',
       contactUs: 'Kontakt',
-      status: 'Status',
+  // status entfernt
       community: 'Community',
       legal: 'RECHTLICHES',
       privacy: 'Datenschutz',
@@ -112,13 +106,11 @@ const LandingFooter: React.FC = () => {
       api: 'API',
       company: 'ENTREPRISE',
       about: 'À propos',
-      blog: 'Blog',
-      careers: 'Carrières',
-      press: 'Presse',
+  // Removed: Blog, Carrières, Presse
       support: 'SUPPORT',
       helpCenter: 'Centre d\'aide',
       contactUs: 'Nous contacter',
-      status: 'Statut',
+  // statut retiré
       community: 'Communauté',
       legal: 'JURIDIQUE',
       privacy: 'Politique de confidentialité',
@@ -147,25 +139,20 @@ const LandingFooter: React.FC = () => {
         { name: t.features, href: '#features' },
         { name: t.pricing, href: '#pricing' },
         { name: t.security, href: '#security' },
-        { name: t.api, href: '#' }
+        { name: t.api, href: '#api' }
       ]
     },
     {
       title: t.company,
       links: [
-        { name: t.about, href: '#' },
-        { name: t.blog, href: '#' },
-        { name: t.careers, href: '#' },
-        { name: t.press, href: '#' }
+        { name: t.about, href: '#about' }
       ]
     },
     {
       title: t.support,
       links: [
-        { name: t.helpCenter, href: '#' },
-        { name: t.contactUs, href: 'mailto:support@comptario.com' },
-        { name: t.status, href: '#' },
-        { name: t.community, href: '#' }
+        { name: t.helpCenter, href: '#help' },
+        { name: t.contactUs, href: 'mailto:support@comptario.com' }
       ]
     },
     {
@@ -182,6 +169,15 @@ const LandingFooter: React.FC = () => {
     if (href.startsWith('#legal/')) {
       // Legal pages - navigate using hash routing
       window.location.hash = href;
+    } else if (href === '#help') {
+      // Help Center route
+      window.location.hash = 'help';
+    } else if (href === '#about') {
+      // About page route
+      window.location.hash = 'about';
+    } else if (href === '#api') {
+      // API page route
+      window.location.hash = 'api';
     } else if (href.startsWith('#')) {
       // Normal scroll to section
       const element = document.querySelector(href);
@@ -259,27 +255,7 @@ const LandingFooter: React.FC = () => {
           ))}
         </div>
 
-        {/* Newsletter signup */}
-        <div className="mt-12 pt-8 border-t border-gray-800">
-          <div className="max-w-md">
-            <h3 className="text-lg font-semibold text-white mb-2">
-              {t.stayUpdated}
-            </h3>
-            <p className="text-gray-400 text-sm mb-4">
-              {t.updatesDesc}
-            </p>
-            <div className="flex space-x-3">
-              <input
-                type="email"
-                placeholder={t.emailPlaceholder}
-                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
-              />
-              <button className="bg-white text-gray-900 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors whitespace-nowrap">
-                {t.subscribe}
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Newsletter signup kaldırıldı */}
 
         {/* Bottom bar */}
         <div className="mt-12 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center">

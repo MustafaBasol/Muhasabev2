@@ -1,7 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { logger } from './utils/logger';
 
-console.log('🔍 Minimal test başlıyor...');
+logger.info('🔍 Minimal test başlıyor...');
 
 const root = document.getElementById('root');
 if (!root) {
@@ -19,7 +20,7 @@ try {
       </div>
     </StrictMode>
   );
-  console.log('✅ Minimal React uygulaması başarıyla render edildi');
+  logger.info('✅ Minimal React uygulaması başarıyla render edildi');
 } catch (error) {
   console.error('❌ React render hatası:', error);
   document.body.innerHTML = `<h1 style="color: red;">React render hatası: ${error}</h1>`;

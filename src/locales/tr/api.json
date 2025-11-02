@@ -1,0 +1,71 @@
+{
+  "title": "Geliştirici API",
+  "subtitle": "REST tabanlı, güvenli ve sürümlenmiş uç noktalarla entegrasyon",
+  "gettingStarted": {
+    "title": "Başlarken",
+    "baseUrl": "Temel URL",
+    "baseUrlValue": "https://api.comptario.com",
+    "versioning": "Sürümleme",
+    "versioningText": "Tüm uç noktalar URL tabanlı sürümlenir. Örnek: /v1/...",
+    "prerequisites": [
+      "Bir Pro veya Business plan hesabı",
+      "Yönetici panelinden oluşturulmuş bir API anahtarı (PAT)",
+      "HTTPS üzerinden istek gönderme"
+    ]
+  },
+  "auth": {
+    "title": "Kimlik Doğrulama",
+    "method": "Yöntem",
+    "pat": "Kişisel Erişim Token'ı (PAT)",
+    "how": "Tüm isteklerde Authorization: Bearer <TOKEN> header'ını gönderin.",
+    "example": "cURL örneği"
+  },
+  "rateLimits": {
+    "title": "Oran Limiti",
+    "text": "Varsayılan sınır 60 istek/dakika'dır. Planınıza göre artırılabilir.",
+    "headers": "Yanıt başlıklarında X-RateLimit-Limit, X-RateLimit-Remaining ve X-RateLimit-Reset döner."
+  },
+  "errors": {
+    "title": "Hata Formatı",
+    "shape": "Hata gövdesi",
+    "fields": {
+      "status": "HTTP durum kodu",
+      "code": "Uygulama hata kodu",
+      "message": "Kullanıcı mesajı",
+      "details": "(opsiyonel) Alan hata listesi"
+    }
+  },
+  "endpoints": {
+    "title": "Uç Noktalar (Örnekler)",
+    "customers": {
+      "title": "Müşteriler",
+      "list": "Müşteri Listesi",
+      "get": "GET /v1/customers",
+      "create": "Müşteri Oluştur",
+      "post": "POST /v1/customers"
+    },
+    "invoices": {
+      "title": "Faturalar",
+      "list": "Fatura Listesi",
+      "get": "GET /v1/invoices",
+      "create": "Fatura Oluştur",
+      "post": "POST /v1/invoices"
+    }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "text": "Belirli olaylar için HTTPS endpoint'inize bildirim göndeririz.",
+    "events": [
+      "invoice.created",
+      "invoice.paid",
+      "expense.created"
+    ],
+    "security": "İmzalı istekler: X-Signature header'ı ile HMAC-SHA256 doğrulayın.",
+    "retries": "Geçici hatalarda 3 kez tekrar deneriz (exponential backoff)."
+  },
+  "examples": {
+    "title": "Örnekler",
+    "listCustomers": "Müşterileri Listele (curl)",
+    "createInvoice": "Fatura Oluştur (curl)"
+  }
+}

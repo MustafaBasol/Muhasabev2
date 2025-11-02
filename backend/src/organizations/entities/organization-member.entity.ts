@@ -12,6 +12,8 @@ import { Organization } from './organization.entity';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../common/enums/organization.enum';
 
+const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+
 @Entity('organization_members')
 @Unique(['organizationId', 'userId'])
 @Index(['userId'])
@@ -27,8 +29,8 @@ export class OrganizationMember {
   userId: string;
 
   @Column({
-    type: 'enum',
-    enum: Role,
+    type: __isTestEnv ? 'text' : 'enum',
+    enum: __isTestEnv ? undefined : Role,
     default: Role.MEMBER,
   })
   role: Role;

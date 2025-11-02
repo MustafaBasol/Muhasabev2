@@ -20,6 +20,10 @@ export interface AuditableEntity {
 export class AuditInterceptor implements NestInterceptor {
   constructor(private readonly auditService: AuditService) {}
 
+  private isTestEnv(): boolean {
+    return process.env.NODE_ENV === 'test';
+  }
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
     const handler = context.getHandler();
@@ -28,10 +32,14 @@ export class AuditInterceptor implements NestInterceptor {
     // Get metadata about the audit configuration
     const auditConfig = this.getAuditConfig(controller, handler);
     
-    console.log(`🎯 AuditInterceptor: ${request.method} ${request.url} - auditConfig:`, auditConfig);
+    if (!this.isTestEnv()) {
+      console.log(`🎯 AuditInterceptor: ${request.method} ${request.url} - auditConfig:`, auditConfig);
+    }
     
     if (!auditConfig) {
-      console.log('❌ AuditInterceptor: No audit config found, skipping');
+      if (!this.isTestEnv()) {
+        console.log('❌ AuditInterceptor: No audit config found, skipping');
+      }
       return next.handle();
     }
 
@@ -48,7 +56,9 @@ export class AuditInterceptor implements NestInterceptor {
           const userId = user?.id;
           
           if (!tenantId) {
-            console.warn('AuditInterceptor: No tenant ID found, skipping audit log');
+            if (!this.isTestEnv()) {
+              console.warn('AuditInterceptor: No tenant ID found, skipping audit log');
+            }
             return;
           }
 

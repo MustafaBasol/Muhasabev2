@@ -5,6 +5,7 @@ import BackupManagementPage from './admin/BackupManagementPage';
 import DataRetentionPage from './admin/DataRetentionPage';
 import OrganizationManagementPage from './admin/OrganizationManagementPage';
 import { useAuth } from '../contexts/AuthContext';
+import StatusPage from './status/StatusPage';
 
 interface User {
   id: string;
@@ -57,7 +58,7 @@ const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'memberships' | 'data' | 'backups' | 'retention'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'memberships' | 'data' | 'backups' | 'retention' | 'status'>('users');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
   // Users sekmesi için şirket filtresi (sunucu tarafı)
   const [userTenantFilter, setUserTenantFilter] = useState<string>('all');
@@ -602,6 +603,16 @@ const AdminPage: React.FC = () => {
           >
             🗑️ Veri Temizleme
           </button>
+          <button
+            onClick={() => setActiveTab('status')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'status'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            📈 Durum
+          </button>
         </div>
 
         {/* İstatistikler */}
@@ -1016,6 +1027,15 @@ const AdminPage: React.FC = () => {
 
         {activeTab === 'retention' && (
           <DataRetentionPage />
+        )}
+
+        {activeTab === 'status' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            {/* StatusPage tam sayfa tasarımla geldiği için, yekpare başlığını gizlemek adına basit bir container içine gömüp kullanıyoruz */}
+            <div className="p-6">
+              <StatusPage />
+            </div>
+          </div>
         )}
 
         {/* Kullanıcı Düzenleme Modalı */}

@@ -1,29 +1,30 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminApi } from '../../api/admin';
-import { Users, Shield, Crown, UserCog, Trash2, RefreshCw, Mail } from 'lucide-react';
+import { Users, Shield, Crown, UserCog, Trash2, RefreshCw, Mail, type LucideIcon } from 'lucide-react';
 
 type Role = 'owner' | 'admin' | 'member' | 'viewer' | string;
 
+type Organization = { id: string; name: string };
+type Member = { id: string; role: Role; user?: { firstName?: string; lastName?: string; email?: string } };
+type Invite = { id: string; email: string; role: Role; createdAt: string };
+
 export default function OrganizationManagementPage() {
-  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
-  const [members, setMembers] = useState<any[]>([]);
-  const [invites, setInvites] = useState<any[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    loadOrganizations();
-  }, []);
-
-  useEffect(() => {
-    if (selectedOrgId) {
-      loadMembers(selectedOrgId);
-      loadInvites(selectedOrgId);
+  const getErrMsg = (err: unknown) => {
+    if (err && typeof err === 'object') {
+      const maybe = err as { message?: string };
+      if (typeof maybe.message === 'string') return maybe.message;
     }
-  }, [selectedOrgId]);
+    return '';
+  };
 
-  const loadOrganizations = async () => {
+  const loadOrganizations = useCallback(async () => {
     try {
       setLoading(true);
       const orgs = await adminApi.listOrganizations();
@@ -31,33 +32,50 @@ export default function OrganizationManagementPage() {
       if (orgs && orgs.length > 0) {
         setSelectedOrgId(orgs[0].id);
       }
-    } catch (e: any) {
-      show('error', 'Organizasyonlar yüklenemedi: ' + (e?.message || ''));
+    } catch (e: unknown) {
+      show('error', 'Organizasyonlar yüklenemedi: ' + getErrMsg(e));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadMembers = async (orgId: string) => {
+  useEffect(() => {
+    loadOrganizations();
+  }, [loadOrganizations]);
+
+
+  
+
+  const loadMembers = useCallback(async (orgId: string) => {
     try {
       setLoading(true);
       const data = await adminApi.getOrganizationMembers(orgId);
       setMembers(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      show('error', 'Üyeler yüklenemedi: ' + (e?.message || ''));
+    } catch (e: unknown) {
+      show('error', 'Üyeler yüklenemedi: ' + getErrMsg(e));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadInvites = async (orgId: string) => {
+  
+
+  const loadInvites = useCallback(async (orgId: string) => {
     try {
       const data = await adminApi.getOrganizationInvites(orgId);
       setInvites(Array.isArray(data) ? data : []);
-    } catch (e) {
-      // Invites optional
+    } catch {
+      /* optional endpoint */
     }
-  };
+  }, []);
+
+  // Seçili organizasyon değiştiğinde, üyeleri ve davetleri yükle
+  useEffect(() => {
+    if (selectedOrgId) {
+      loadMembers(selectedOrgId);
+      loadInvites(selectedOrgId);
+    }
+  }, [loadInvites, loadMembers, selectedOrgId]);
 
   const show = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -71,8 +89,8 @@ export default function OrganizationManagementPage() {
       await adminApi.updateMemberRole(selectedOrgId, memberId, role);
       await loadMembers(selectedOrgId);
       show('success', 'Üye rolü güncellendi');
-    } catch (e: any) {
-      show('error', 'Rol güncellenemedi: ' + (e?.message || ''));
+    } catch (e: unknown) {
+      show('error', 'Rol güncellenemedi: ' + getErrMsg(e));
     } finally {
       setLoading(false);
     }
@@ -86,8 +104,8 @@ export default function OrganizationManagementPage() {
       await adminApi.removeMember(selectedOrgId, memberId);
       await loadMembers(selectedOrgId);
       show('success', 'Üye kaldırıldı');
-    } catch (e: any) {
-      show('error', 'Üye kaldırılamadı: ' + (e?.message || ''));
+    } catch (e: unknown) {
+      show('error', 'Üye kaldırılamadı: ' + getErrMsg(e));
     } finally {
       setLoading(false);
     }
@@ -102,7 +120,7 @@ export default function OrganizationManagementPage() {
     return <span className={`${base} bg-purple-100 text-purple-800`}>{role}</span>;
   };
 
-  const roleOptions: { value: Role; label: string; icon: any }[] = useMemo(() => ([
+  const roleOptions: { value: Role; label: string; icon: LucideIcon }[] = useMemo(() => ([
     { value: 'owner', label: 'Sahip', icon: Crown },
     { value: 'admin', label: 'Admin', icon: Shield },
     { value: 'member', label: 'Üye', icon: Users },

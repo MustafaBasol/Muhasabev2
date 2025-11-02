@@ -1,4 +1,5 @@
-﻿import { useState } from 'react';
+﻿/* eslint-disable @typescript-eslint/no-explicit-any, no-console */
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TrendingUp, Plus, Calendar, DollarSign, User, Package, Search, Eye, Edit, Trash2, Download, Check, X, FileText, CheckCircle } from 'lucide-react';
 import SaleModal from './SaleModal';
@@ -274,7 +275,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const handleSaveInlineEdit = (sale: any) => {
     if (!editingField) return;
     
-    let updatedSale = { ...sale };
+    const updatedSale = { ...sale };
     
     if (editingField.field === 'amount') {
       const newAmount = parseFloat(tempValue) || 0;

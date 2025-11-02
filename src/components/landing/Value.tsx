@@ -5,6 +5,27 @@ import { Users, Building2, TrendingUp, Check } from 'lucide-react';
 const Value: React.FC = () => {
   const { t } = useTranslation();
 
+  const REGISTER_URL = import.meta.env.VITE_REGISTER_URL || '#register';
+
+  const handleTryForFree = () => {
+    // Hash URL ise aynı sekmede hash routing ile git
+    if (REGISTER_URL.startsWith('#')) {
+      window.location.hash = REGISTER_URL.replace('#', '');
+      return;
+    }
+    // Uyum için bilinen relative yolları hash'e çevir
+    if (REGISTER_URL === '/register') {
+      window.location.hash = 'register';
+      return;
+    }
+    if (REGISTER_URL === '/login') {
+      window.location.hash = 'login';
+      return;
+    }
+    // Diğer durumlarda mevcut sekmede yönlendir
+    window.location.href = REGISTER_URL;
+  };
+
   const benefits = [
     {
       icon: Users,
@@ -99,7 +120,8 @@ const Value: React.FC = () => {
           })}
         </div>
 
-        {/* CTA section */}
+        {/* CTA section */
+        }
         <div className="mt-16 text-center">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 max-w-2xl mx-auto">
             <h3 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -109,11 +131,11 @@ const Value: React.FC = () => {
               {t('landing.value.cta.subtitle')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
+              <button
+                onClick={handleTryForFree}
+                className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
+              >
                 {t('landing.value.cta.trial')}
-              </button>
-              <button className="text-gray-700 hover:text-gray-900 px-6 py-3 font-semibold transition-colors">
-                {t('landing.value.cta.demo')}
               </button>
             </div>
 

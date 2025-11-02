@@ -218,17 +218,22 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="relative hidden md:block" ref={languageMenuRef}>
+            <div className="relative block" ref={languageMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsLanguageMenuOpen(prev => !prev)}
-                className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm transition hover:border-blue-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="flex items-center gap-2 md:gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm transition hover:border-blue-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
                 aria-haspopup="listbox"
                 aria-expanded={isLanguageMenuOpen}
                 aria-label="Dil seçimi"
               >
                 <Globe className="h-4 w-4 text-blue-500" aria-hidden />
-                <div className="flex flex-col text-left">
+                {/* Mobilde kompakt gösterim: bayrak veya kod */}
+                <span className="md:hidden text-sm font-medium text-gray-700">
+                  {selectedLanguage.flag || selectedLanguage.code.toUpperCase()}
+                </span>
+                {/* Masaüstünde detaylı iki satır */}
+                <div className="hidden md:flex flex-col text-left">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
                     {t('header.language')}
                   </span>

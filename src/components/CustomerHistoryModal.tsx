@@ -1,12 +1,12 @@
-import React, { useMemo } from 'react';
-import { X, FileText, Calendar, DollarSign } from 'lucide-react';
+import { useMemo } from 'react';
+import { X, FileText, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 
 interface CustomerHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  customer: { name: string } | null;
+  customer: { name: string; email?: string } | null;
   invoices: any[];
   sales?: any[];
   onViewInvoice?: (invoice: any) => void;
@@ -25,14 +25,14 @@ export default function CustomerHistoryModal({
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
   
-  if (!isOpen || !customer) return null;
-
   const statusLabels = useMemo(() => ({
     paid: `✅ ${t('status.paid')}`,
     sent: `📤 ${t('status.sent')}`,
     overdue: `⚠️ ${t('status.overdue')}`,
     draft: `📝 ${t('status.draft')}`
   }), [t]);
+  
+  if (!isOpen || !customer) return null;
   
   // Filter sales for this customer
   const customerSales = sales.filter(sale => {

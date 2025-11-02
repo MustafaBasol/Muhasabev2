@@ -58,6 +58,7 @@ import InvoiceViewModal from "./components/InvoiceViewModal";
 import ExpenseViewModal from "./components/ExpenseViewModal";
 import SaleViewModal from "./components/SaleViewModal";
 import BankViewModal from "./components/BankViewModal";
+import InfoModal from "./components/InfoModal";
 
 // history modals
 import CustomerHistoryModal from "./components/CustomerHistoryModal";
@@ -79,13 +80,21 @@ import SimpleSalesPage from "./components/SimpleSalesPage";
 import FiscalPeriodsWidget from "./components/FiscalPeriodsWidget";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
+import ForgotPasswordPage from "./components/ForgotPasswordPage";
+import ResetPasswordPage from "./components/ResetPasswordPage";
+import VerifyEmailPage from "./components/VerifyEmailPage";
 import LandingPage from "./components/landing/LandingPage";
+import AboutPage from "./components/landing/AboutPage";
+import ApiPage from "./components/landing/ApiPage";
 
 // legal pages
 import TermsOfService from "./components/legal/TermsOfService";
 import PrivacyPolicy from "./components/legal/PrivacyPolicy";
 import SubprocessorsList from "./components/legal/SubprocessorsList";
 import DataProcessingAgreement from "./components/legal/DataProcessingAgreement";
+import CookiePolicy from "./components/legal/CookiePolicy";
+import HelpCenter from "./components/help/HelpCenter";
+// StatusPage public değil; admin paneli sekmesi içinde kullanılacak
 
 // cookie consent components
 import CookieConsentBanner from "./components/CookieConsentBanner";
@@ -258,6 +267,7 @@ const AppContent: React.FC = () => {
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [_isLoadingData, setIsLoadingData] = useState(true);
+  const [infoModal, setInfoModal] = useState<{ title: string; message: string } | null>(null);
 
   // Load data from backend on mount
   useEffect(() => {
@@ -740,6 +750,19 @@ const AppContent: React.FC = () => {
       } else if (hash === 'login') {
         console.log('Giriş sayfasına yönlendiriliyor...');
         setCurrentPage('login');
+      } else if (hash === 'forgot-password') {
+        console.log('Şifre sıfırlama isteği sayfasına yönlendiriliyor...');
+        setCurrentPage('forgot-password');
+      } else if (hash.startsWith('reset-password')) {
+        console.log('Şifre sıfırlama sayfasına yönlendiriliyor...');
+        // Keep token in hash; page will parse
+        setCurrentPage('reset-password');
+      } else if (hash.startsWith('verify-email')) {
+        console.log('E-posta doğrulama sayfasına yönlendiriliyor...');
+        setCurrentPage('verify-email');
+      } else if (hash === 'help') {
+        console.log('Yardım Merkezi sayfasına yönlendiriliyor...');
+        setCurrentPage('help');
       } else if (hash.startsWith('legal/')) {
         // Legal pages routing
         const legalPage = hash.replace('legal/', '');
@@ -762,6 +785,12 @@ const AppContent: React.FC = () => {
           console.log('Non-authenticated user - Landing sayfasına yönlendiriliyor...');
           setCurrentPage('landing');
         }
+      } else if (hash === 'about') {
+        console.log('Hakkında sayfasına yönlendiriliyor...');
+        setCurrentPage('about');
+      } else if (hash === 'api') {
+        console.log('API sayfasına yönlendiriliyor...');
+        setCurrentPage('api');
       }
     };
 
@@ -792,6 +821,30 @@ const AppContent: React.FC = () => {
     },
     [dismissToast]
   );
+
+  // Global toast event listener (allows other modules to trigger toasts)
+  useEffect(() => {
+    const handler = (evt: Event) => {
+      try {
+        const ce = evt as CustomEvent<{ message?: string; tone?: ToastTone }>;
+        const msg = ce?.detail?.message;
+        const tone = (ce?.detail?.tone as ToastTone) || 'error';
+        if (msg) {
+          showToast(msg, tone);
+        }
+      } catch (e) {
+        // no-op
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('showToast', handler as EventListener);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('showToast', handler as EventListener);
+      }
+    };
+  }, [showToast]);
 
   const confirmAction = (message: string) => {
     if (typeof window === "undefined") {
@@ -1034,9 +1087,7 @@ const AppContent: React.FC = () => {
         
         if (lines.length < 2) {
           console.log('CSV file has insufficient data');
-          if (typeof window !== "undefined") {
-            window.alert(t('customers.import.noDataFound'));
-          }
+          setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
           return;
         }
         
@@ -1060,9 +1111,7 @@ const AppContent: React.FC = () => {
         const worksheet = workbook.worksheets[0];
         if (!worksheet) {
           console.log('No worksheet found in file');
-          if (typeof window !== "undefined") {
-            window.alert(t('customers.import.noDataFound'));
-          }
+          setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
           return;
         }
         
@@ -1161,9 +1210,7 @@ const AppContent: React.FC = () => {
       
       if (imported.length === 0) {
         console.log('No valid customers found after processing');
-        if (typeof window !== "undefined") {
-          window.alert(t('customers.import.noCustomersFound'));
-        }
+        setInfoModal({ title: t('common.warning'), message: t('customers.import.noCustomersFound') });
         return;
       }
 
@@ -1220,26 +1267,210 @@ const AppContent: React.FC = () => {
         });
 
         // Notify user about results
-        if (typeof window !== 'undefined') {
-          if (failed.length === 0) {
-            window.alert(t('customers.import.success', { count: created.length }));
-          } else {
-            const msg = `${created.length} ${t('customers.import.success', { count: created.length })}\n${failed.length} kayıt başarısız.`;
-            window.alert(msg);
-            console.error('Import failures:', failed);
-          }
+        if (failed.length === 0) {
+          setInfoModal({ title: t('common.success'), message: t('customers.import.success', { count: created.length }) });
+        } else {
+          const msg = `${t('customers.import.success', { count: created.length })}\n${failed.length} kayıt başarısız.`;
+          setInfoModal({ title: t('common.warning'), message: msg });
+          console.error('Import failures:', failed);
         }
       } catch (err) {
         console.error('Error while persisting imported customers', err);
-        if (typeof window !== 'undefined') {
-          window.alert(t('customers.import.error') + '\n\nDetay: ' + (err instanceof Error ? err.message : String(err)));
-        }
+        setInfoModal({ title: t('common.error'), message: t('customers.import.error') + '\n\nDetay: ' + (err instanceof Error ? err.message : String(err)) });
       }
     } catch (error) {
       console.error("Customer import failed", error);
-      if (typeof window !== "undefined") {
-        window.alert(t('customers.import.error') + "\n\nDetay: " + (error instanceof Error ? error.message : String(error)));
+      setInfoModal({ title: t('common.error'), message: t('customers.import.error') + "\n\nDetay: " + (error instanceof Error ? error.message : String(error)) });
+    }
+  };
+
+  const handleImportProducts = async (file: File) => {
+    try {
+      console.log('Starting product import, file:', file.name, file.type);
+      const data = await file.arrayBuffer();
+
+      let rows: Record<string, unknown>[] = [];
+
+      // CSV işleme
+      if (file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')) {
+        console.log('Processing as CSV file');
+        const text = new TextDecoder('utf-8').decode(data);
+        const lines = text.split('\n').filter(line => line.trim());
+
+        if (lines.length < 2) {
+          setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
+          return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+          const rowData: Record<string, unknown> = {};
+          headers.forEach((header, index) => {
+            rowData[header] = values[index] ?? '';
+          });
+          rows.push(rowData);
+        }
+      } else {
+        // Excel işleme
+        console.log('Processing as Excel file');
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(data);
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) {
+          setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
+          return;
+        }
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const rowData: Record<string, unknown> = {};
+          row.eachCell((cell, colNumber) => {
+            const header = worksheet.getRow(1).getCell(colNumber).value?.toString() || `col${colNumber}`;
+            rowData[header] = cell.value;
+          });
+          rows.push(rowData);
+        });
       }
+
+      const normalizeKey = (value: unknown) =>
+        String(value ?? '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]/gi, '')
+          .toLowerCase();
+
+      const toNumber = (v: unknown) => {
+        if (v == null || v === '') return undefined;
+        if (typeof v === 'number') return v;
+        const n = parseFloat(String(v).replace(/,/g, '.'));
+        return Number.isFinite(n) ? n : undefined;
+      };
+
+      type ImportedProduct = {
+        name: string;
+        sku?: string;
+        unitPrice?: number;
+        costPrice?: number;
+        taxRate?: number;
+        stockQuantity?: number;
+        reorderLevel?: number;
+        unit?: string;
+        category?: string;
+        description?: string;
+      };
+
+      const imported = rows
+        .map<ImportedProduct | null>(row => {
+          if (!row || typeof row !== 'object') return null;
+          const entries = Object.entries(row).reduce<Record<string, unknown>>((acc, [key, value]) => {
+            acc[normalizeKey(key)] = value;
+            return acc;
+          }, {});
+
+          const getValue = (...keys: string[]) => {
+            for (const key of keys) {
+              if (entries[key] !== undefined && entries[key] !== '') return entries[key];
+            }
+            return undefined;
+          };
+
+          const name = String(getValue('name', 'urunadi', 'urun', 'productname') ?? '').trim();
+          if (!name) return null;
+
+          const sku = String(getValue('sku', 'code', 'kod', 'barkod') ?? '').trim() || undefined;
+          const unitPrice = toNumber(getValue('unitprice', 'price', 'satisfiyati', 'fiyat'));
+          const costPrice = toNumber(getValue('costprice', 'cost', 'maliyet'));
+          let taxRate = toNumber(getValue('taxrate', 'kdv', 'vergi'));
+          if (taxRate != null) {
+            // 0-100 aralığına sıkıştır
+            taxRate = Math.max(0, Math.min(100, taxRate));
+          }
+          const stockQuantity = toNumber(getValue('stockquantity', 'stock', 'stok', 'adet'));
+          const reorderLevel = toNumber(getValue('reorderlevel', 'minstock', 'kritikstok'));
+          const unit = String(getValue('unit', 'birim') ?? '').trim() || undefined;
+          const category = String(getValue('category', 'kategori') ?? '').trim() || 'Genel';
+          const description = String(getValue('description', 'aciklama') ?? '').trim() || undefined;
+
+          return {
+            name,
+            sku,
+            unitPrice,
+            costPrice,
+            taxRate,
+            stockQuantity,
+            reorderLevel,
+            unit,
+            category,
+            description,
+          };
+        })
+        .filter((p): p is ImportedProduct => Boolean(p));
+
+      if (imported.length === 0) {
+        setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
+        return;
+      }
+
+      // Backend'e kaydet
+      try {
+        const results = await Promise.allSettled(
+          imported.map((p) => {
+            const dto = {
+              name: p.name,
+              code: p.sku || p.name, // SKU yoksa isimden üret
+              price: Number(p.unitPrice ?? 0),
+              cost: p.costPrice != null ? Number(p.costPrice) : undefined,
+              stock: p.stockQuantity != null ? Number(p.stockQuantity) : undefined,
+              minStock: p.reorderLevel != null ? Number(p.reorderLevel) : undefined,
+              unit: p.unit,
+              category: p.category || 'Genel',
+              description: p.description,
+              taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
+            } as const;
+            return productsApi.createProduct(dto).then(res => res);
+          })
+        );
+
+        const created: any[] = [];
+        const failed: { index: number; reason: any }[] = [];
+        results.forEach((r, i) => {
+          if (r.status === 'fulfilled') created.push(r.value);
+          else failed.push({ index: i, reason: r.reason });
+        });
+
+        // Frontend state'i güncelle ve cache'e yaz
+        if (created.length > 0) {
+          // Backend Product -> Frontend Product mapping
+          const mapped = created.map((p: any) => ({
+            ...p,
+            sku: p.code,
+            unitPrice: Number(p.price) || 0,
+            costPrice: Number(p.cost) || 0,
+            stockQuantity: Number(p.stock) || 0,
+            reorderLevel: Number(p.minStock) || 0,
+            taxRate: Number(p.taxRate) || 0,
+            status: p.stock === 0 ? 'out-of-stock' : p.stock <= p.minStock ? 'low' : 'active'
+          }));
+          setProducts(prev => {
+            const next = [...prev, ...mapped];
+            try { localStorage.setItem('products_cache', JSON.stringify(next)); } catch {}
+            return next;
+          });
+        }
+
+        if (failed.length === 0) {
+          setInfoModal({ title: t('common.success'), message: `${created.length} ürün başarıyla içe aktarıldı!` });
+        } else {
+          setInfoModal({ title: t('common.warning'), message: `${created.length} ürün içe aktarıldı, ${failed.length} kayıt başarısız.` });
+          console.error('Product import failures:', failed);
+        }
+      } catch (err) {
+        console.error('Error while persisting imported products', err);
+        setInfoModal({ title: t('common.error'), message: (t('customers.import.error') || 'İçe aktarma hatası') + '\n\nDetay: ' + (err instanceof Error ? err.message : String(err)) });
+      }
+    } catch (error) {
+      console.error('Product import failed', error);
+      setInfoModal({ title: t('common.error'), message: (t('customers.import.error') || 'İçe aktarma hatası') + '\n\nDetay: ' + (error instanceof Error ? error.message : String(error)) });
     }
   };
 
@@ -2873,6 +3104,7 @@ const AppContent: React.FC = () => {
             onEditCategory={renameProductCategory}
             onDeleteCategory={deleteProductCategory}
             onBulkAction={handleProductBulkAction}
+            onImportProducts={handleImportProducts}
           />
         );
 
@@ -3063,7 +3295,7 @@ const AppContent: React.FC = () => {
       case "legal-dpa":
         return <DataProcessingAgreement />;
       case "legal-cookies":
-        return <div className="p-6"><p>Bu sayfa geliştirme aşamasındadır.</p></div>;
+        return <CookiePolicy />;
       case "organization-members":
         return (
           <SettingsPage
@@ -3372,6 +3604,15 @@ const AppContent: React.FC = () => {
           itemType={deleteWarningData.itemType}
         />
       )}
+
+      {infoModal && (
+        <InfoModal
+          isOpen={true}
+          title={infoModal.title}
+          message={infoModal.message}
+          onClose={() => setInfoModal(null)}
+        />
+      )}
     </>
   );
 
@@ -3395,6 +3636,17 @@ const AppContent: React.FC = () => {
     return <LoginPage />;
   }
 
+  // Forgot/Reset/Verify pages (public)
+  if (!isAuthenticated && currentPage === 'forgot-password') {
+    return <ForgotPasswordPage />;
+  }
+  if (!isAuthenticated && currentPage === 'reset-password') {
+    return <ResetPasswordPage />;
+  }
+  if (!isAuthenticated && currentPage === 'verify-email') {
+    return <VerifyEmailPage />;
+  }
+
   // Allow access to legal pages without authentication
   if (!isAuthenticated && currentPage.startsWith('legal-')) {
     const renderLegalContent = () => {
@@ -3408,7 +3660,7 @@ const AppContent: React.FC = () => {
         case "legal-dpa":
           return <DataProcessingAgreement />;
         case "legal-cookies":
-          return <div className="p-6"><p>Bu sayfa geliştirme aşamasındadır.</p></div>;
+          return <CookiePolicy />;
         default:
           return <div>Legal page not found</div>;
       }
@@ -3421,6 +3673,23 @@ const AppContent: React.FC = () => {
       </div>
     );
   }
+
+  // Help Center is public and also accessible when authenticated
+  if (currentPage === 'help') {
+    return <HelpCenter />;
+  }
+
+  // About is public
+  if (currentPage === 'about') {
+    return <AboutPage />;
+  }
+
+  // API sayfası (public)
+  if (currentPage === 'api') {
+    return <ApiPage />;
+  }
+
+  // Status page public değil; Admin içinde gösterilecek
 
   // Redirect non-authenticated users to landing page from protected routes
   if (!isAuthenticated) {

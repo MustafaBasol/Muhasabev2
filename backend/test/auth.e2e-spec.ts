@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 
 describe('Authentication (e2e)', () => {
@@ -160,10 +160,11 @@ describe('Authentication (e2e)', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('id');
-      expect(response.body).toHaveProperty('email');
-      expect(response.body).toHaveProperty('tenantId');
-      expect(response.body.tenantId).toBe(tenantId);
+      expect(response.body).toHaveProperty('user');
+      expect(response.body.user).toHaveProperty('id');
+      expect(response.body.user).toHaveProperty('email');
+      expect(response.body.user).toHaveProperty('tenantId');
+      expect(response.body.user.tenantId).toBe(tenantId);
     });
 
     it('should fail without token', async () => {

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -100,9 +101,6 @@ const FAQ: React.FC = () => {
               >
                 {t('landing.faq.support.contact')}
               </a>
-              <button className="text-gray-700 hover:text-gray-900 px-6 py-3 font-semibold transition-colors">
-                {t('landing.faq.support.demo')}
-              </button>
             </div>
           </div>
         </div>

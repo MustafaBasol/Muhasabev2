@@ -1,8 +1,8 @@
 #!/usr/bin/env ts-node
 
 import { createConnection, DataSource } from 'typeorm';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 import { format } from 'date-fns';
 import * as dotenv from 'dotenv';
 
@@ -76,8 +76,8 @@ class DataRetentionService {
 
   private loadConfig(): void {
     try {
-      const configPath = join(__dirname, '../config/retention.json');
-      const configData = readFileSync(configPath, 'utf8');
+  const configPath = path.join(__dirname, '../config/retention.json');
+  const configData = fs.readFileSync(configPath, 'utf8');
       this.config = JSON.parse(configData);
       
       if (this.config.globalSettings.dryRunByDefault && this.isDryRun === undefined) {
@@ -343,10 +343,7 @@ class DataRetentionService {
     };
 
     try {
-      const fs = require('fs');
-      const path = require('path');
-      
-      const backupDir = join(__dirname, '../backups');
+  const backupDir = path.join(__dirname, '../backups');
       
       if (!fs.existsSync(backupDir)) {
         console.log('Backup directory does not exist, skipping backup file purge');
@@ -407,27 +404,32 @@ class DataRetentionService {
         }
 
         switch (policyName) {
-          case 'logs':
+          case 'logs': {
             const logResult = await this.purgeAuditLogs(policy);
             this.results.push(logResult);
             break;
+          }
 
-          case 'account_basic':
+          case 'account_basic': {
             const accountResults = await this.purgeAccountData(policy);
             this.results.push(...accountResults);
             break;
+          }
 
-          case 'backups':
+          case 'backups': {
             const backupResult = await this.purgeBackupFiles();
             this.results.push(backupResult);
             break;
+          }
 
-          case 'accounting_docs':
+          case 'accounting_docs': {
             console.log('   ⚖️  PROTECTED - Accounting documents under legal hold');
             break;
+          }
 
-          default:
+          default: {
             console.log(`   ❓ Unknown policy type: ${policyName}`);
+          }
         }
       }
 

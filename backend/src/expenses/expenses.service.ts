@@ -1,16 +1,34 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { Expense, ExpenseStatus, ExpenseCategory } from './entities/expense.entity';
+import { Tenant } from '../tenants/entities/tenant.entity';
+import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 
 @Injectable()
 export class ExpensesService {
   constructor(
     @InjectRepository(Expense)
     private expensesRepository: Repository<Expense>,
+    @InjectRepository(Tenant)
+    private tenantRepository: Repository<Tenant>,
   ) {}
 
   async create(tenantId: string, createExpenseDto: any) {
+    // Plan limiti: Aylık gider kaydı sayısı kontrolü
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthCount = await this.expensesRepository.count({
+      where: { tenantId, isVoided: false, createdAt: Between(startOfMonth, now) },
+    });
+    if (!TenantPlanLimitService.canAddExpenseThisMonth(currentMonthCount, tenant.subscriptionPlan)) {
+      throw new BadRequestException(TenantPlanLimitService.errorMessageFor('expense', tenant.subscriptionPlan));
+    }
+
     // Generate expense number if not provided
     const expenseNumber = createExpenseDto.expenseNumber || 
       `EXP-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;

@@ -74,6 +74,19 @@ apiClient.interceptors.response.use(
       });
     }
 
+    // Plan limiti hatalarını kullanıcıya hızlıca göster (400 + belirli mesaj)
+    try {
+      const status = error.response?.status;
+      const serverMsg = (error.response?.data as any)?.message;
+      if (typeof window !== 'undefined' && status === 400 && typeof serverMsg === 'string') {
+        if (serverMsg.includes('Plan limitine ulaşıldı')) {
+          window.dispatchEvent(
+            new CustomEvent('showToast', { detail: { message: serverMsg, tone: 'error' } })
+          );
+        }
+      }
+    } catch {}
+
     // Handle authentication errors - sadece zaten login olmuş kullanıcılar için
     if (error.response?.status === 401 && localStorage.getItem('auth_token')) {
       // Login/register endpoint'lerinde redirect yapma

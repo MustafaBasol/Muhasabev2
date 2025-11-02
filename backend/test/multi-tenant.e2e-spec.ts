@@ -138,9 +138,9 @@ describe('Multi-Tenant Isolation (e2e)', () => {
         .set('Authorization', `Bearer ${tenant1Token}`)
         .send({
           name: 'Tenant 1 Product',
-          sku: `SKU-T1-${Date.now()}`,
-          unitPrice: 100,
-          stockQuantity: 50,
+          code: `SKU-T1-${Date.now()}`,
+          price: 100,
+          stock: 50,
           category: 'electronics',
         })
         .expect(201);
@@ -155,9 +155,9 @@ describe('Multi-Tenant Isolation (e2e)', () => {
         .set('Authorization', `Bearer ${tenant2Token}`)
         .send({
           name: 'Tenant 2 Product',
-          sku: `SKU-T2-${Date.now()}`,
-          unitPrice: 200,
-          stockQuantity: 30,
+          code: `SKU-T2-${Date.now()}`,
+          price: 200,
+          stock: 30,
           category: 'software',
         })
         .expect(201);

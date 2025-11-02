@@ -3,7 +3,8 @@
 ## 📚 Mevcut Dokümantasyonlar
 
 ### 🚀 Kurulum ve Çalıştırma
-- **[README.md](./README.md)** - Genel bakış ve hızlı başlangıç
+- **[README.md](./README.md)** - Temiz ve güncel hızlı başlangıç (önerilen)
+- **[README_CLEAN.md](./README_CLEAN.md)** - Alternatif temiz sürüm
 - **[GITHUB_CODESPACES_SETUP.md](./GITHUB_CODESPACES_SETUP.md)** - GitHub Codespaces detaylı kurulum rehberi
 - **[SETUP_SUMMARY.md](./SETUP_SUMMARY.md)** - Yapılan değişikliklerin özeti
 
@@ -18,6 +19,7 @@
 - **[BACKEND_COMPLETE.md](./BACKEND_COMPLETE.md)** - Backend API dokümantasyonu
 - **[BACKEND_STATUS.md](./BACKEND_STATUS.md)** - Backend geliştirme durumu
 - **[FRONTEND_INTEGRATION.md](./FRONTEND_INTEGRATION.md)** - Frontend entegrasyonu
+ - **[BANK_ACCOUNTS_API.md](./BANK_ACCOUNTS_API.md)** - Banka hesapları API ve plan limitleri
 
 ### 📋 Geliştirme
 - **[MULTI_USER_QUICKSTART.md](./MULTI_USER_QUICKSTART.md)** - Multi-tenant hızlı başlangıç
@@ -61,4 +63,4 @@
 
 Yeni dokümantasyon eklerken bu dosyayı da güncellemeyi unutmayın!
 
-**Son Güncelleme:** 20 Ekim 2025
+**Son Güncelleme:** 2 Kasım 2025

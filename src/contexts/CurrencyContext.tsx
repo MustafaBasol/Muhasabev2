@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { logger } from '../utils/logger';
 
 export type Currency = 'TRY' | 'USD' | 'EUR';
 
@@ -24,12 +25,12 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
 
   // Currency değiştiğinde localStorage'a kaydet
   useEffect(() => {
-    console.log('[CurrencyContext] Currency changed, saving to localStorage:', currency);
+    logger.debug('[CurrencyContext] Currency changed, saving to localStorage:', currency);
     localStorage.setItem('currency', currency);
   }, [currency]);
 
   const setCurrency = (newCurrency: Currency) => {
-    console.log('[CurrencyContext] setCurrency called with:', newCurrency);
+    logger.info('[CurrencyContext] setCurrency called with:', newCurrency);
     setCurrencyState(newCurrency);
   };
 
@@ -90,6 +91,7 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
 };
 
 // Custom hook to use currency context
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCurrency = (): CurrencyContextType => {
   const context = useContext(CurrencyContext);
   if (!context) {

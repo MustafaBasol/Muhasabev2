@@ -1,0 +1,25 @@
+{
+  "title": "Comptario Hakkında",
+  "subtitle": "Albertville, Fransa merkezli yenilikçi bir teknoloji şirketiyiz.",
+  "whoWeAre": {
+    "title": "Kimiz?",
+    "text": "Comptario, küçük ve orta ölçekli işletmeler için modern, güvenli ve kolay kullanımlı ön muhasebe yazılımları geliştiren dinamik bir teknoloji şirketidir. Merkezimiz Fransa’nın Auvergne–Rhône–Alpes bölgesinde, Albertville’dedir. Avrupa standartlarında güvenlik, performans ve veri koruma ilkeleriyle ürün geliştirir; şeffaflık, sadelik ve hız değerlerini tüm deneyime yansıtırız."
+  },
+  "offerings": {
+    "title": "Ne sunuyoruz?",
+    "items": [
+      "Faturalandırma, gider yönetimi, KDV ve raporlar için tek bir çalışma alanı",
+      "Çoklu para birimi ve kategori bazlı KDV gibi yerelleştirilmiş özellikler",
+      "PDF fatura oluşturma, e-posta ile gönderim ve arşiv",
+      "Çok kiracılı mimari, rol tabanlı erişim ve plan limitleri"
+    ]
+  },
+  "approach": {
+    "title": "Yaklaşımımız",
+    "text": "Ürün kararlarımızı kullanıcı geri bildirimleri ve veri odaklı ölçümlerle veririz. Güvenlik ve veri mahremiyeti birer ek özellik değil, tasarımın çekirdeğidir. Avrupa Birliği veri koruma prensiplerine (GDPR) uyumlu, güvenilir ve ölçeklenebilir bir altyapı üzerinde çalışırız."
+  },
+  "contact": {
+    "title": "İletişim",
+    "text": "Sorularınız için bize şu adresten ulaşabilirsiniz:"
+  }
+}

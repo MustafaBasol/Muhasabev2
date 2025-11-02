@@ -32,9 +32,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // İlk yüklemede dili ayarla
+    // İlk yüklemede ve dil değişiminde dili ayarla
     i18n.changeLanguage(currentLanguage);
-  }, []);
+  }, [currentLanguage, i18n]);
 
   return (
     <LanguageContext.Provider value={{ currentLanguage, changeLanguage, languages }}>
@@ -43,6 +43,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useLanguage() {
   const context = useContext(LanguageContext);
   if (context === undefined) {

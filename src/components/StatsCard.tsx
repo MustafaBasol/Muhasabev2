@@ -30,7 +30,7 @@ export default function StatsCard({ title, value, change, changeType, icon: Icon
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-200 hover:scale-105">
+    <div className="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-200 md:hover:shadow-lg md:hover:scale-105">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-gray-600 text-sm font-medium mb-1">{title}</p>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Database, 
   Clock, 
@@ -101,8 +101,11 @@ export default function DataRetentionPage() {
       if (historyResponse.success) {
         setHistory(historyResponse.history);
       }
-    } catch (error: any) {
-      setError('Failed to load retention data: ' + error.message);
+    } catch (error: unknown) {
+      const msg = (error && typeof error === 'object' && 'message' in error) 
+        ? String((error as { message?: string }).message || '')
+        : '';
+      setError('Failed to load retention data: ' + msg);
     } finally {
       setLoading(false);
     }
@@ -120,8 +123,11 @@ export default function DataRetentionPage() {
         // Refresh data
         await loadRetentionData();
       }
-    } catch (error: any) {
-      setError('Dry-run failed: ' + error.message);
+    } catch (error: unknown) {
+      const msg = (error && typeof error === 'object' && 'message' in error) 
+        ? String((error as { message?: string }).message || '')
+        : '';
+      setError('Dry-run failed: ' + msg);
     } finally {
       setExecuting(false);
     }
@@ -147,8 +153,11 @@ export default function DataRetentionPage() {
         // Refresh data
         await loadRetentionData();
       }
-    } catch (error: any) {
-      setError('Live purge failed: ' + error.message);
+    } catch (error: unknown) {
+      const msg = (error && typeof error === 'object' && 'message' in error) 
+        ? String((error as { message?: string }).message || '')
+        : '';
+      setError('Live purge failed: ' + msg);
     } finally {
       setExecuting(false);
     }
@@ -158,11 +167,19 @@ export default function DataRetentionPage() {
     return new Date(dateString).toLocaleString('tr-TR');
   };
 
-  const getPolicyStatusIcon = (policy: any) => {
+  const getPolicyStatusIcon = (policy: { legalHold?: boolean }) => {
     if (policy.legalHold) {
-      return <Shield className="w-5 h-5 text-yellow-600" title="Legal Hold - Protected" />;
+      return (
+        <span title="Legal Hold - Protected">
+          <Shield className="w-5 h-5 text-yellow-600" />
+        </span>
+      );
     }
-    return <Clock className="w-5 h-5 text-blue-600" title="Active Retention Policy" />;
+    return (
+      <span title="Active Retention Policy">
+        <Clock className="w-5 h-5 text-blue-600" />
+      </span>
+    );
   };
 
   const renderOverview = () => (
@@ -425,7 +442,9 @@ export default function DataRetentionPage() {
                         </span>
                       )}
                       {item.details.errors.length > 0 && (
-                        <AlertTriangle className="w-4 h-4 text-yellow-600 ml-2" title="Had errors" />
+                        <span title="Had errors">
+                          <AlertTriangle className="w-4 h-4 text-yellow-600 ml-2" />
+                        </span>
                       )}
                     </div>
                   </td>

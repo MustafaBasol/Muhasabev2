@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import type { Product } from '../types';
 import {
   Package,
@@ -13,11 +13,15 @@ import {
   AlertTriangle,
   ChevronDown,
   Check,
-  X
+  X,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import ProductCategoryModal from './ProductCategoryModal';
+import InfoModal from './InfoModal';
+import ConfirmModal from './ConfirmModal';
 import { productCategoriesApi } from '../api/product-categories';
 import type { ProductCategory } from '../types';
 
@@ -51,6 +55,7 @@ interface ProductListProps {
   onEditCategory: (currentName: string, nextName: string) => void;
   onDeleteCategory: (categoryName: string) => void;
   onBulkAction?: (action: ProductBulkAction, productIds: string[]) => void;
+  onImportProducts?: (file: File) => void;
 }
 
 type FilterId = 'category' | 'stock' | 'sort';
@@ -77,9 +82,11 @@ export default function ProductList({
   onEditCategory,
   onDeleteCategory,
   onBulkAction,
+  onImportProducts,
 }: ProductListProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
+  const [infoModal, setInfoModal] = useState<{ title: string; message: string } | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -91,6 +98,14 @@ export default function ProductList({
   const [editingCategoryData, setEditingCategoryData] = useState<{ name: string; taxRate: number } | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryObjects, setCategoryObjects] = useState<ProductCategory[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
 
   // Kategori bilgilerini backend'den çek
   useEffect(() => {
@@ -378,17 +393,15 @@ export default function ProductList({
     } catch (error: any) {
       console.error('Kategori güncellenirken hata:', error);
       if (error.response?.data?.message) {
-        alert(error.response.data.message);
+        setInfoModal({ title: t('common.error'), message: error.response.data.message });
       }
     }
   };
 
   const handleCategoryDelete = async (category: string) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
+    if (typeof window === 'undefined') return;
     if (categoriesEqual(category, defaultCategoryName)) {
-      window.alert(t('products.generalCategoryCannotDeleteAlert'));
+      setInfoModal({ title: t('common.warning'), message: t('products.generalCategoryCannotDeleteAlert') });
       return;
     }
     
@@ -398,30 +411,38 @@ export default function ProductList({
     );
     
     if (categoryObj?.isProtected) {
-      window.alert(t('products.categoryCannotDeleteProtected', { category }));
+      setInfoModal({ title: t('common.warning'), message: t('products.categoryCannotDeleteProtected', { category }) });
       return;
     }
     
     const usage = categoryUsage.get(category) ?? 0;
-    const message =
-      usage > 0
-        ? t('products.deleteCategoryWithProducts', { count: usage, defaultCategory: defaultCategoryName })
-        : t('products.deleteCategoryConfirm');
-    if (window.confirm(message)) {
-      try {
-        if (categoryObj) {
-          await productCategoriesApi.delete(categoryObj.id);
-          const updatedCategories = await productCategoriesApi.getAll();
-          setCategoryObjects(updatedCategories);
-        }
-        onDeleteCategory(category);
-      } catch (error: any) {
-        console.error('Kategori silinirken hata:', error);
-        if (error.response?.data?.message) {
-          alert(error.response.data.message);
+    const message = usage > 0
+      ? t('products.deleteCategoryWithProducts', { count: usage, defaultCategory: defaultCategoryName })
+      : t('products.deleteCategoryConfirm');
+
+    setConfirmModal({
+      title: t('products.deleteCategory'),
+      message,
+      confirmText: t('common.yes'),
+      cancelText: t('common.no'),
+      onConfirm: async () => {
+        try {
+          if (categoryObj) {
+            await productCategoriesApi.delete(categoryObj.id);
+            const updatedCategories = await productCategoriesApi.getAll();
+            setCategoryObjects(updatedCategories);
+          }
+          onDeleteCategory(category);
+        } catch (error: any) {
+          console.error('Kategori silinirken hata:', error);
+          if (error.response?.data?.message) {
+            setInfoModal({ title: t('common.error'), message: error.response.data.message });
+          }
+        } finally {
+          setConfirmModal(null);
         }
       }
-    }
+    });
   };
 
   const categoryOptions = [
@@ -435,6 +456,8 @@ export default function ProductList({
     out: t('products.outOfStock'),
     overstock: t('products.overstock'),
   };
+
+  // --
 
   const sortOptionLabels: Record<string, string> = {
     recent: t('products.newest'),
@@ -486,6 +509,44 @@ export default function ProductList({
     setSortOption('recent');
     setActiveFilterMenu(null);
     setSelectedProductIds([]);
+  };
+
+  const handleFilePick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      event.target.value = '';
+      return;
+    }
+    if (onImportProducts) {
+      onImportProducts(file);
+    }
+    event.target.value = '';
+  };
+
+  const downloadTemplate = () => {
+    // Ürün içe aktarma için kapsamlı CSV şablonu
+    const csvContent = [
+      'Name,SKU,UnitPrice,CostPrice,TaxRate,StockQuantity,ReorderLevel,Unit,Category,Description',
+      'Örnek Ürün A,SKU-001,199.90,120.00,18,50,10,adet,Genel,"Açıklama: örnek ürün A"',
+      'Örnek Ürün B,SKU-002,49.99,25.00,10,200,20,adet,Genel,"Açıklama: örnek ürün B"'
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'product_import_template.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   const handleCategorySelect = (value: string) => {
@@ -557,6 +618,26 @@ export default function ProductList({
 
   return (
     <div className="space-y-6">
+      {confirmModal && (
+        <ConfirmModal
+          isOpen={true}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText={confirmModal.confirmText}
+          cancelText={confirmModal.cancelText}
+          danger
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
+      {infoModal && (
+        <InfoModal
+          isOpen={true}
+          title={infoModal.title}
+          message={infoModal.message}
+          onClose={() => setInfoModal(null)}
+        />
+      )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex items-center justify-between">
@@ -817,6 +898,32 @@ export default function ProductList({
                       className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.xls,.xlsx"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={downloadTemplate}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
+                    title={t('customers.downloadTemplate')}
+                  >
+                    <Download className="h-4 w-4" />
+                    {t('customers.downloadTemplate')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleFilePick}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-200 px-3 py-2 text-sm font-semibold text-purple-600 transition-colors hover:bg-purple-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-300"
+                    disabled={!onImportProducts}
+                    title={t('customers.importCSV')}
+                  >
+                    <Upload className="h-4 w-4" />
+                    {t('customers.importCSV')}
+                  </button>
                   <button
                     type="button"
                     onClick={onAddProduct}

@@ -1,0 +1,25 @@
+{
+  "title": "About Comptario",
+  "subtitle": "We are an innovative tech company based in Albertville, France.",
+  "whoWeAre": {
+    "title": "Who are we?",
+    "text": "Comptario is a dynamic technology company building modern, secure and easy-to-use bookkeeping software for small and medium businesses. Our headquarters is in Albertville, in the Auvergne–Rhône–Alpes region of France. We develop products with European-grade security, performance and data protection principles; we reflect transparency, simplicity and speed across the entire experience."
+  },
+  "offerings": {
+    "title": "What do we offer?",
+    "items": [
+      "A single workspace for invoicing, expense management, VAT and reports",
+      "Localized features like multi-currency and category-based VAT",
+      "PDF invoice generation, email delivery and archiving",
+      "Multi-tenant architecture, role-based access and plan limits"
+    ]
+  },
+  "approach": {
+    "title": "Our approach",
+    "text": "We make product decisions with user feedback and data-driven metrics. Security and data privacy are not extras; they are core to our design. We operate on a reliable and scalable infrastructure compliant with EU data protection principles (GDPR)."
+  },
+  "contact": {
+    "title": "Contact",
+    "text": "For questions, reach us at:"
+  }
+}

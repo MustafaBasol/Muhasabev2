@@ -72,7 +72,7 @@ export const isStrongPassword = (password: string): {
     errors.push('Şifre en az bir rakam içermelidir');
   }
   
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     errors.push('Şifre en az bir özel karakter içermelidir');
   }
   

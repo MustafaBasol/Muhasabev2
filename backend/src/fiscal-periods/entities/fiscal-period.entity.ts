@@ -2,6 +2,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { User } from '../../users/entities/user.entity';
 
+const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+
 @Entity('fiscal_periods')
 export class FiscalPeriod {
   @PrimaryGeneratedColumn('uuid')
@@ -26,7 +28,7 @@ export class FiscalPeriod {
   @Column({ type: 'boolean', default: false })
   isLocked: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
   lockedAt: Date | null;
 
   @Column({ type: 'uuid', nullable: true })

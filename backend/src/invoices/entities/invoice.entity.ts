@@ -11,6 +11,8 @@ export enum InvoiceStatus {
   CANCELLED = 'cancelled',
 }
 
+const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+
 @Entity('invoices')
 export class Invoice {
   @PrimaryGeneratedColumn('uuid')
@@ -52,8 +54,8 @@ export class Invoice {
   total: number;
 
   @Column({
-    type: 'enum',
-    enum: InvoiceStatus,
+    type: __isTestEnv ? 'text' : 'enum',
+    enum: __isTestEnv ? undefined : InvoiceStatus,
     default: InvoiceStatus.DRAFT,
   })
   status: InvoiceStatus;
@@ -74,7 +76,7 @@ export class Invoice {
   @JoinColumn({ name: 'refundedInvoiceId' })
   refundedInvoice: Invoice; // İade edilen orijinal fatura
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
   items: any[];
 
   // Soft delete columns
@@ -84,7 +86,7 @@ export class Invoice {
   @Column({ name: 'void_reason', type: 'text', nullable: true })
   voidReason: string | null;
 
-  @Column({ name: 'voided_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'voided_at', type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
   voidedAt: Date | null;
 
   @Column({ name: 'voided_by', type: 'uuid', nullable: true })

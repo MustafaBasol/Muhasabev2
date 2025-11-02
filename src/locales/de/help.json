@@ -1,0 +1,49 @@
+{
+  "sidebarTitle": "Benutzerhandbuch",
+  "pageTitle": "Comptario Hilfe-Center",
+  "overviewDesc": "Dieser Leitfaden hilft Ihnen Schritt für Schritt bei Rechnungen, Ausgaben und grundlegenden Buchhaltungsaufgaben. Springen Sie über das Menü direkt zu einem Thema. Jede Sektion enthält kurze Schritte, Tipps und klare Erklärungen.",
+  "labels": { "tip": "Tipp" },
+  "sections": [
+    { "id": "overview", "title": "Überblick" },
+    { "id": "getting-started", "title": "Erste Schritte (Registrierung, Anmeldung, Sprache/Währung)" },
+    { "id": "customers", "title": "Kunden" },
+    { "id": "suppliers", "title": "Lieferanten" },
+    { "id": "products", "title": "Produkte & Kategorien" },
+    { "id": "invoices", "title": "Rechnungen" },
+    { "id": "expenses", "title": "Ausgaben" },
+    { "id": "sales", "title": "Verkäufe" },
+    { "id": "bank", "title": "Bankkonten" },
+    { "id": "reports", "title": "Berichte & Hauptbuch" },
+    { "id": "settings", "title": "Einstellungen" },
+    { "id": "users", "title": "Benutzer, Rollen & Einladungen" },
+    { "id": "plan-limits", "title": "Planlimits" },
+    { "id": "period-lock", "title": "Periodensperre" },
+    { "id": "security-backup", "title": "Sicherheit & Backups" },
+    { "id": "faq-contact", "title": "FAQ & Kontakt" }
+  ],
+  "gettingStarted": {
+    "title": "Erste Schritte (Registrierung, Anmeldung, Sprache/Währung)",
+    "steps": [
+      "Klicken Sie auf den Button Kostenlos testen im Header oder auf der Seite.",
+      "Erstellen Sie ein Konto mit E‑Mail und Passwort. Wenn Sie bereits eines haben, melden Sie sich an.",
+      "Stellen Sie die Sprache über das Sprachmenü oben rechts ein. Die Währung finden Sie unter Einstellungen → System → Währung.",
+      "Geben Sie in Ihrem Profil Unternehmensdaten (Name, Steuernr., Adresse) ein; diese erscheinen auf Ihren Rechnungen."
+    ],
+    "tipKeyboard": "Schnellnavigation:",
+    "tipAfter": "um zu den Einstellungen zu gelangen."
+  },
+  "customers": { "title": "Kunden", "items": ["Öffnen Sie die Seite Kunden in der Seitenleiste.", "Fügen Sie einen Kunden hinzu oder importieren Sie per CSV/Excel.", "Sehen Sie frühere Rechnungen, Salden und Kontaktdaten in der Kundenkarte."] },
+  "suppliers": { "title": "Lieferanten", "desc": "Erstellen Sie Lieferantenkarten, um Ausgaben zuzuordnen. Import und Bearbeitung entsprechen den Schritten bei Kunden." },
+  "products": { "title": "Produkte & Kategorien", "desc": "Verwalten Sie Lager und Dienstleistungen. Definieren Sie Kategorien‑MwSt. und überschreiben Sie sie ggf. pro Produkt.", "items": ["Neue Produkte mit SKU und Preis hinzufügen.", "Mindestlagerbestand festlegen und Niedrig‑Bestand‑Hinweise erhalten.", "Automatische MwSt. in Rechnungen per Kategorie/Produkt‑Einstellungen."] },
+  "invoices": { "title": "Rechnungen", "steps": ["Erstellen Sie eine Rechnung mit Kunde und Positionen; Produkte bringen ihren MwSt.-Satz mit.", "Fügen Sie Fälligkeitsdatum, Notizen, Rabatte hinzu; PDF‑Vorschau und Versand per E‑Mail.", "Verfolgen Sie Zahlungsstatus sowie Storno-/Rückgabevorgänge."] },
+  "expenses": { "title": "Ausgaben", "desc": "Erfassen Sie Lieferant, Betrag, Datum und Status. Erinnerungen nahe Fälligkeit; Bearbeitung gesperrt, wenn Periodensperre aktiv ist." },
+  "sales": { "title": "Verkäufe", "desc": "Verkäufe werden automatisch aus Rechnungen erzeugt; manuelle Verkäufe sind möglich. Mehrzeilige Verkäufe unterstützt; Lager wird automatisch vermindert." },
+  "bank": { "title": "Bankkonten", "desc": "Verfolgen Sie Bankkonten. Free‑Plan: 1 Konto; höhere Pläne: unbegrenzt. Beim Hinzufügen Name und IBAN angeben." },
+  "reports": { "title": "Berichte & Hauptbuch", "desc": "Einnahmen-/Ausgabenübersichten und Hauptbuch ansehen. Export nach Excel/PDF." },
+  "settings": { "title": "Einstellungen", "items": ["Profil- und Firmendaten (Logo, Adresse, Steuern)", "Währung, Sprache, MwSt./Einbehalt‑Voreinstellungen", "Backups und Daten‑Import/Export"] },
+  "users": { "title": "Benutzer, Rollen & Einladungen", "desc": "Laden Sie Teammitglieder in Ihre Organisation ein. Rollen und Zugriffe hängen von Ihrem Plan ab." },
+  "planLimits": { "title": "Planlimits", "desc": "Der Free‑Plan erlaubt grundlegende Nutzung (z. B. begrenzte Rechnungen/Ausgaben, 1 Bankkonto). Pro/Business erhöhen oder entfernen Limits. Bei Limitfehlern erscheinen klare Hinweise." },
+  "periodLock": { "title": "Periodensperre", "desc": "Bearbeitungen in geschlossenen Perioden sind gesperrt – Berichts‑Integrität bleibt erhalten. Öffnen Sie die Periode für Korrekturen." },
+  "securityBackup": { "title": "Sicherheit & Backups", "items": ["Ihre Daten sind mit TLS, täglichen Backups und Monitoring abgesichert.", "Tests nutzen angepasste Speicher; Produktion nutzt PostgreSQL.", "Unsere Cookie‑ und Datenschutzrichtlinien hier einsehen."], "cookiesText": "hier" },
+  "faq": { "title": "FAQ & Kontakt", "text": "Keine Antwort gefunden? Schreiben Sie uns an support@comptario.com." }
+}

@@ -10,8 +10,8 @@ import { Invoice } from '../invoices/entities/invoice.entity';
 import { Expense } from '../expenses/entities/expense.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
 import { AuditLog } from '../audit/entities/audit-log.entity';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 import { spawn } from 'child_process';
 import { SecurityService } from '../common/security.service';
 import { EmailService } from '../services/email.service';
@@ -177,8 +177,13 @@ export class AdminService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    // Basit bir reset token simülasyonu (gerçekte DB'de saklanmalı)
+    // Gerçek reset token üret ve DB'de sakla
     const token = this.securityService.generateRandomString(24);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await this.userRepository.update(user.id, {
+      passwordResetToken: token,
+      passwordResetExpiresAt: expiresAt,
+    });
     const resetLink = `${process.env.APP_PUBLIC_URL || 'http://localhost:5175'}/reset-password?token=${token}`;
 
     await this.emailService.sendEmail({
@@ -190,7 +195,7 @@ export class AdminService {
              <p>Bu işlem bir saat içinde geçerlidir.</p>`
     });
 
-    return { success: true, message: 'Password reset email sent (simulated)' };
+    return { success: true, message: 'Password reset email sent' };
   }
 
   async getAllTenants(filters?: { status?: TenantStatus; plan?: SubscriptionPlan; startFrom?: string; startTo?: string }) {
@@ -448,8 +453,8 @@ export class AdminService {
   
   async getRetentionConfig() {
     try {
-      const configPath = join(process.cwd(), 'config', 'retention.json');
-      const configData = readFileSync(configPath, 'utf8');
+  const configPath = path.join(process.cwd(), 'config', 'retention.json');
+  const configData = fs.readFileSync(configPath, 'utf8');
       const config = JSON.parse(configData);
       
       return {
@@ -488,9 +493,7 @@ export class AdminService {
       // Check if backup directory exists and count files
       let backupFileCount = 0;
       try {
-        const fs = require('fs');
-        const path = require('path');
-        const backupDir = join(process.cwd(), 'backups');
+        const backupDir = path.join(process.cwd(), 'backups');
         
         if (fs.existsSync(backupDir)) {
           const files = fs.readdirSync(backupDir);
@@ -568,7 +571,7 @@ export class AdminService {
 
   async executeRetentionDryRun() {
     return new Promise((resolve, reject) => {
-      const scriptPath = join(process.cwd(), 'scripts', 'data-retention.ts');
+  const scriptPath = path.join(process.cwd(), 'scripts', 'data-retention.ts');
       
       // Execute the retention script in dry-run mode
       const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', scriptPath], {
@@ -616,7 +619,7 @@ export class AdminService {
 
   async executeRetention() {
     return new Promise((resolve, reject) => {
-      const scriptPath = join(process.cwd(), 'scripts', 'data-retention.ts');
+  const scriptPath = path.join(process.cwd(), 'scripts', 'data-retention.ts');
       
       // Execute the retention script in live mode
       const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', scriptPath, '--execute', '--force'], {

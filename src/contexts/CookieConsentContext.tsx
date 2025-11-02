@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { analyticsManager } from '../utils/analyticsManager';
+import { logger } from '../utils/logger';
 
 export interface CookieConsent {
   necessary: boolean;
@@ -62,10 +63,10 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
           // Update analytics manager with loaded consent
           analyticsManager.updateConsent(parsed);
           
-          console.log('✅ Cookie consent loaded from storage:', parsed);
+          logger.info('✅ Cookie consent loaded from storage:', parsed);
         } else {
           // Version mismatch, show banner again
-          console.log('⚠️ Cookie consent version mismatch, showing banner');
+          logger.warn('⚠️ Cookie consent version mismatch, showing banner');
           setShowBanner(true);
         }
       } catch (error) {
@@ -74,7 +75,7 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
       }
     } else {
       // No consent found, show banner
-      console.log('ℹ️ No cookie consent found, showing banner');
+      logger.info('ℹ️ No cookie consent found, showing banner');
       setShowBanner(true);
     }
   }, []);
@@ -92,19 +93,19 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
     setShowBanner(false);
     setShowModal(false);
     
-    console.log('💾 Cookie consent saved:', consentWithTimestamp);
+  logger.info('💾 Cookie consent saved:', consentWithTimestamp);
     
     // Update analytics manager
     analyticsManager.updateConsent(consentWithTimestamp);
     
     // Trigger analytics initialization if analytics is enabled
     if (consentWithTimestamp.analytics && !consent?.analytics) {
-      console.log('📊 Analytics consent granted, initializing...');
+      logger.info('📊 Analytics consent granted, initializing...');
     }
     
     // Trigger marketing initialization if marketing is enabled
     if (consentWithTimestamp.marketing && !consent?.marketing) {
-      console.log('📈 Marketing consent granted, initializing...');
+      logger.info('📈 Marketing consent granted, initializing...');
     }
   };
 
@@ -157,7 +158,7 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
     setHasConsent(false);
     setShowBanner(true);
     setShowModal(false);
-    console.log('🗑️ Cookie consent reset');
+  logger.warn('🗑️ Cookie consent reset');
   };
 
   const value: CookieConsentContextType = {
@@ -181,6 +182,7 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCookieConsent = (): CookieConsentContextType => {
   const context = useContext(CookieConsentContext);
   if (!context) {
@@ -190,6 +192,7 @@ export const useCookieConsent = (): CookieConsentContextType => {
 };
 
 // Utility function to check if a specific category is consented
+// eslint-disable-next-line react-refresh/only-export-components
 export const hasConsentFor = (category: keyof Omit<CookieConsent, 'version' | 'timestamp'>): boolean => {
   const savedConsent = localStorage.getItem(CONSENT_KEY);
   if (!savedConsent) return false;
@@ -203,13 +206,14 @@ export const hasConsentFor = (category: keyof Omit<CookieConsent, 'version' | 't
 };
 
 // Utility function for analytics initialization
+// eslint-disable-next-line react-refresh/only-export-components
 export const initializeAnalytics = () => {
   if (!hasConsentFor('analytics')) {
-    console.log('🚫 Analytics blocked: no consent');
+    logger.info('🚫 Analytics blocked: no consent');
     return;
   }
   
-  console.log('📊 Analytics consent granted, ready to initialize');
+  logger.info('📊 Analytics consent granted, ready to initialize');
   // Your analytics initialization code here
   // Example: Google Analytics, Matomo, etc.
 };

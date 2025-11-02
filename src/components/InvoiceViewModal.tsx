@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { X, Download, Edit, FileText, Calendar, Mail, MapPin } from 'lucide-react';
+import { useMemo } from 'react';
+import { X, Download, Edit, Calendar, Mail, MapPin } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 
@@ -41,8 +41,6 @@ export default function InvoiceViewModal({
   onEdit, 
   onDownload 
 }: InvoiceViewModalProps) {
-  if (!isOpen || !invoice) return null;
-
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
 
@@ -52,6 +50,8 @@ export default function InvoiceViewModal({
     paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
     overdue: { label: t('status.overdue'), class: 'bg-red-100 text-red-800' }
   }), [t]);
+
+  if (!isOpen || !invoice) return null;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR');

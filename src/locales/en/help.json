@@ -1,0 +1,49 @@
+{
+  "sidebarTitle": "User Guide",
+  "pageTitle": "Comptario Help Center",
+  "overviewDesc": "This guide helps you complete invoicing, expenses, and basic accounting tasks step by step. Jump directly to a topic from the menu. Each section includes short steps, tips, and clear explanations.",
+  "labels": { "tip": "Tip" },
+  "sections": [
+    { "id": "overview", "title": "Overview" },
+    { "id": "getting-started", "title": "Getting Started (Sign Up, Sign In, Language/Currency)" },
+    { "id": "customers", "title": "Customers" },
+    { "id": "suppliers", "title": "Suppliers" },
+    { "id": "products", "title": "Products & Categories" },
+    { "id": "invoices", "title": "Invoices" },
+    { "id": "expenses", "title": "Expenses" },
+    { "id": "sales", "title": "Sales" },
+    { "id": "bank", "title": "Bank Accounts" },
+    { "id": "reports", "title": "Reports & Ledger" },
+    { "id": "settings", "title": "Settings" },
+    { "id": "users", "title": "Users, Roles & Invites" },
+    { "id": "plan-limits", "title": "Plan Limits" },
+    { "id": "period-lock", "title": "Period Lock" },
+    { "id": "security-backup", "title": "Security & Backups" },
+    { "id": "faq-contact", "title": "FAQ & Contact" }
+  ],
+  "gettingStarted": {
+    "title": "Getting Started (Sign Up, Sign In, Language/Currency)",
+    "steps": [
+      "Click the Try for Free button in the header or on the page.",
+      "Create your account with email and password. If you already have one, sign in.",
+      "Set your Language from the top-right language menu. Currency is under Settings → System → Currency.",
+      "Enter your business details (name, tax no, address) in Profile; these will appear on invoices."
+    ],
+    "tipKeyboard": "Quick navigation:",
+    "tipAfter": "to go to Settings."
+  },
+  "customers": { "title": "Customers", "items": ["Open the Customers page from the sidebar.", "Add a customer or import via CSV/Excel.", "See past invoices, balance, and contact details on the customer card."] },
+  "suppliers": { "title": "Suppliers", "desc": "Create supplier cards to link expenses. Import and editing steps are the same as customers." },
+  "products": { "title": "Products & Categories", "desc": "Manage stock and services. Define category-level VAT, override per product if needed.", "items": ["Add new products with SKU and price.", "Set minimum stock levels and get low-stock alerts.", "Auto-VAT on invoices via category/product settings."] },
+  "invoices": { "title": "Invoices", "steps": ["Create invoice with customer and line items; products bring their VAT rate.", "Add due date, notes, discounts; preview PDF and send by email.", "Track payment status and void/return operations."] },
+  "expenses": { "title": "Expenses", "desc": "Record supplier, amount, date, and status. Get reminders near due date; edits are blocked when period lock is active." },
+  "sales": { "title": "Sales", "desc": "Sales are auto-created from invoices; you can also add manual sales. Multi-line sales are supported; stock decreases automatically." },
+  "bank": { "title": "Bank Accounts", "desc": "Track bank accounts. Free plan: 1 account; upper plans: unlimited. Provide name and IBAN when adding." },
+  "reports": { "title": "Reports & Ledger", "desc": "View income/expense summaries and general ledger. Export to Excel/PDF." },
+  "settings": { "title": "Settings", "items": ["Profile and company info (logo, address, tax info)", "Currency, language, and VAT/withholding defaults", "Backup and data import/export"] },
+  "users": { "title": "Users, Roles & Invites", "desc": "Invite teammates to your organization. Roles and access limits depend on your plan." },
+  "planLimits": { "title": "Plan Limits", "desc": "Free plan has basic usage (e.g., limited invoices/expenses, 1 bank account). Pro/Business raise or remove limits. Clear messages appear on limit errors." },
+  "periodLock": { "title": "Period Lock", "desc": "Edits in closed periods are blocked, preserving report integrity. Open the period to make corrections if necessary." },
+  "securityBackup": { "title": "Security & Backups", "items": ["Your data is secured with TLS, daily backups, and monitoring.", "Tests use adjusted storage; production uses PostgreSQL.", "Review our cookies and privacy policies here."], "cookiesText": "here" },
+  "faq": { "title": "FAQ & Contact", "text": "Can’t find an answer? Reach us at support@comptario.com." }
+}

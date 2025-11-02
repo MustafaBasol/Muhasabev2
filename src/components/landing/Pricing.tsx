@@ -16,6 +16,7 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
       description: t('landing.pricing.plans.starter.desc'),
       features: [
         t('landing.pricing.features.invoices5'),
+        t('landing.pricing.features.expenses5'),
         t('landing.pricing.features.basicExpense'),
         t('landing.pricing.features.vat'),
         t('landing.pricing.features.pdf'),
@@ -51,7 +52,7 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
         t('landing.pricing.features.dedicatedSupport'),
         t('landing.pricing.features.customIntegrations')
       ],
-      cta: t('landing.pricing.cta'),
+      cta: t('landing.pricing.ctaContact') || 'Contact us',
       popular: false
     }
   ];
@@ -136,7 +137,14 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
 
               {/* CTA button */}
               <button
-                onClick={handlePlanClick}
+                onClick={() => {
+                  if (index === 2) {
+                    // Business plan: contact us mailto
+                    window.location.href = 'mailto:support@comptario.com?subject=Business Plan Inquiry';
+                  } else {
+                    handlePlanClick();
+                  }
+                }}
                 className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center ${
                   plan.popular
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 shadow-lg hover:shadow-xl'

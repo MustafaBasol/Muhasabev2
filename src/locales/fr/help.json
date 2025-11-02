@@ -1,0 +1,49 @@
+{
+  "sidebarTitle": "Guide d'utilisation",
+  "pageTitle": "Centre d'aide Comptario",
+  "overviewDesc": "Ce guide vous aide pas à pas pour la facturation, les dépenses et les tâches comptables de base. Accédez directement à un sujet via le menu. Chaque section inclut des étapes courtes, des astuces et des explications claires.",
+  "labels": { "tip": "Astuce" },
+  "sections": [
+    { "id": "overview", "title": "Aperçu" },
+    { "id": "getting-started", "title": "Premiers pas (Inscription, Connexion, Langue/Devise)" },
+    { "id": "customers", "title": "Clients" },
+    { "id": "suppliers", "title": "Fournisseurs" },
+    { "id": "products", "title": "Produits & Catégories" },
+    { "id": "invoices", "title": "Factures" },
+    { "id": "expenses", "title": "Dépenses" },
+    { "id": "sales", "title": "Ventes" },
+    { "id": "bank", "title": "Comptes bancaires" },
+    { "id": "reports", "title": "Rapports & Grand livre" },
+    { "id": "settings", "title": "Paramètres" },
+    { "id": "users", "title": "Utilisateurs, Rôles & Invitations" },
+    { "id": "plan-limits", "title": "Limites du plan" },
+    { "id": "period-lock", "title": "Verrouillage de période" },
+    { "id": "security-backup", "title": "Sécurité & Sauvegardes" },
+    { "id": "faq-contact", "title": "FAQ & Contact" }
+  ],
+  "gettingStarted": {
+    "title": "Premiers pas (Inscription, Connexion, Langue/Devise)",
+    "steps": [
+      "Cliquez sur le bouton Essai gratuit dans l'en‑tête ou sur la page.",
+      "Créez votre compte avec e‑mail et mot de passe. Si vous en avez déjà un, connectez‑vous.",
+      "Définissez la langue via le menu en haut à droite. La devise se règle dans Paramètres → Système → Devise.",
+      "Renseignez vos informations d'entreprise (nom, n° fiscal, adresse) dans le profil; elles apparaîtront sur les factures."
+    ],
+    "tipKeyboard": "Navigation rapide :",
+    "tipAfter": "pour aller aux Paramètres."
+  },
+  "customers": { "title": "Clients", "items": ["Ouvrez la page Clients depuis la barre latérale.", "Ajoutez un client ou importez via CSV/Excel.", "Consultez les anciennes factures, le solde et les coordonnées depuis la fiche client."] },
+  "suppliers": { "title": "Fournisseurs", "desc": "Créez des fiches fournisseurs pour lier les dépenses. Import et édition identiques à ceux des clients." },
+  "products": { "title": "Produits & Catégories", "desc": "Gérez stocks et services. Définissez la TVA au niveau des catégories et, si besoin, surchargez par produit.", "items": ["Ajoutez de nouveaux produits avec SKU et prix.", "Définissez un stock minimum et recevez des alertes de stock faible.", "TVA automatique sur les factures via les réglages catégorie/produit."] },
+  "invoices": { "title": "Factures", "steps": ["Créez une facture avec client et lignes; les produits apportent leur taux de TVA.", "Ajoutez l'échéance, des notes, remises; aperçu PDF et envoi par e‑mail.", "Suivez l'état de paiement et les opérations d'annulation/retour."] },
+  "expenses": { "title": "Dépenses", "desc": "Enregistrez fournisseur, montant, date et statut. Rappels proches de l'échéance; modifications bloquées si la période est verrouillée." },
+  "sales": { "title": "Ventes", "desc": "Les ventes sont créées automatiquement depuis les factures; vous pouvez aussi en ajouter manuellement. Ventes multi‑lignes prises en charge; décrément de stock automatique." },
+  "bank": { "title": "Comptes bancaires", "desc": "Suivez vos comptes bancaires. Plan gratuit : 1 compte; plans supérieurs : illimité. Fournissez nom et IBAN lors de l'ajout." },
+  "reports": { "title": "Rapports & Grand livre", "desc": "Affichez les résumés revenus/dépenses et le grand livre. Export Excel/PDF." },
+  "settings": { "title": "Paramètres", "items": ["Profil et infos société (logo, adresse, infos fiscales)", "Devise, langue, et valeurs par défaut TVA/retenues", "Sauvegardes et import/export de données"] },
+  "users": { "title": "Utilisateurs, Rôles & Invitations", "desc": "Invitez vos collègues dans votre organisation. Rôles et accès selon votre plan." },
+  "planLimits": { "title": "Limites du plan", "desc": "Le plan gratuit permet un usage de base (ex. factures/dépenses limitées, 1 compte bancaire). Pro/Business augmentent ou suppriment les limites. Messages clairs en cas de dépassement." },
+  "periodLock": { "title": "Verrouillage de période", "desc": "Les modifications sont bloquées dans les périodes clôturées pour préserver l'intégrité des rapports. Ouvrez la période pour corriger si nécessaire." },
+  "securityBackup": { "title": "Sécurité & Sauvegardes", "items": ["Vos données sont protégées via TLS, sauvegardes quotidiennes et monitoring.", "Les tests utilisent un stockage adapté; la production utilise PostgreSQL.", "Consultez ici notre politique de cookies et de confidentialité."], "cookiesText": "ici" },
+  "faq": { "title": "FAQ & Contact", "text": "Vous ne trouvez pas la réponse ? Contactez‑nous à support@comptario.com." }
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Database, 
   Download, 
@@ -18,7 +18,8 @@ import { adminApi } from '../../api/admin';
 export default function BackupManagementPage() {
   const [backups, setBackups] = useState<BackupMetadata[]>([]);
   const [statistics, setStatistics] = useState<BackupStatistics | null>(null);
-  const [users, setUsers] = useState<any[]>([]);
+  interface AdminUser { id: string; firstName: string; lastName: string; email: string }
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'system' | 'user' | 'tenant'>('all');
   const [selectedUser, setSelectedUser] = useState<string>('');
@@ -29,25 +30,33 @@ export default function BackupManagementPage() {
   }>({ show: false, type: 'system' });
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    loadBackups();
-    loadStatistics();
-    loadUsers();
-  }, [filter]);
+  const getErrMsg = (e: unknown) => {
+    if (e && typeof e === 'object' && 'message' in e) {
+      const m = (e as { message?: string }).message;
+      if (typeof m === 'string') return m;
+    }
+    return '';
+  };
 
-  const loadBackups = async () => {
+  const loadBackups = useCallback(async () => {
     try {
       setLoading(true);
       const data = filter === 'all' 
         ? await backupsApi.list() 
         : await backupsApi.list(filter);
       setBackups(data);
-    } catch (error: any) {
-      showMessage('error', 'Backup listesi yüklenemedi: ' + error.message);
+    } catch (error: unknown) {
+      showMessage('error', 'Backup listesi yüklenemedi: ' + getErrMsg(error));
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    loadBackups();
+    loadStatistics();
+    loadUsers();
+  }, [filter, loadBackups]);
 
   const loadStatistics = async () => {
     try {
@@ -74,8 +83,8 @@ export default function BackupManagementPage() {
       showMessage('success', 'Sistem yedeği oluşturuldu');
       loadBackups();
       loadStatistics();
-    } catch (error: any) {
-      showMessage('error', 'Yedek oluşturulamadı: ' + error.message);
+    } catch (error: unknown) {
+      showMessage('error', 'Yedek oluşturulamadı: ' + getErrMsg(error));
     } finally {
       setLoading(false);
     }
@@ -93,8 +102,8 @@ export default function BackupManagementPage() {
       showMessage('success', 'Kullanıcı yedeği oluşturuldu');
       loadBackups();
       loadStatistics();
-    } catch (error: any) {
-      showMessage('error', 'Yedek oluşturulamadı: ' + error.message);
+    } catch (error: unknown) {
+      showMessage('error', 'Yedek oluşturulamadı: ' + getErrMsg(error));
     } finally {
       setLoading(false);
     }
@@ -120,8 +129,8 @@ export default function BackupManagementPage() {
 
       setShowRestoreConfirm({ show: false, type: 'system' });
       loadBackups();
-    } catch (error: any) {
-      showMessage('error', 'Geri yükleme başarısız: ' + error.message);
+    } catch (error: unknown) {
+      showMessage('error', 'Geri yükleme başarısız: ' + getErrMsg(error));
     } finally {
       setLoading(false);
     }
@@ -136,8 +145,8 @@ export default function BackupManagementPage() {
       showMessage('success', 'Yedek silindi');
       loadBackups();
       loadStatistics();
-    } catch (error: any) {
-      showMessage('error', 'Yedek silinemedi: ' + error.message);
+    } catch (error: unknown) {
+      showMessage('error', 'Yedek silinemedi: ' + getErrMsg(error));
     } finally {
       setLoading(false);
     }
@@ -152,8 +161,8 @@ export default function BackupManagementPage() {
       showMessage('success', result.message);
       loadBackups();
       loadStatistics();
-    } catch (error: any) {
-      showMessage('error', 'Temizleme başarısız: ' + error.message);
+    } catch (error: unknown) {
+      showMessage('error', 'Temizleme başarısız: ' + getErrMsg(error));
     } finally {
       setLoading(false);
     }
@@ -305,10 +314,10 @@ export default function BackupManagementPage() {
       <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-gray-700">Filtre:</span>
-          {['all', 'system', 'user', 'tenant'].map(filterType => (
+          {(['all', 'system', 'user', 'tenant'] as const).map((filterType) => (
             <button
               key={filterType}
-              onClick={() => setFilter(filterType as any)}
+              onClick={() => setFilter(filterType)}
               className={`px-3 py-1 rounded-lg text-sm ${
                 filter === filterType
                   ? 'bg-blue-600 text-white'
@@ -375,11 +384,12 @@ export default function BackupManagementPage() {
 
                   <div className="flex items-center gap-2 ml-4">
                     <button
-                      onClick={() => setShowRestoreConfirm({
-                        show: true,
-                        backup,
-                        type: backup.type as any
-                      })}
+                      onClick={() => {
+                        let t: 'system' | 'user' | 'tenant' = 'system';
+                        if (backup.type === 'user') t = 'user';
+                        else if (backup.type === 'tenant') t = 'tenant';
+                        setShowRestoreConfirm({ show: true, backup, type: t });
+                      }}
                       className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1 text-sm"
                     >
                       <Upload className="h-4 w-4" />

@@ -1,0 +1,27 @@
+{
+  "title": "Sistem Durumu",
+  "subtitle": "Güncel çalışma durumu ve hizmet bileşenleri",
+  "allOperational": "Tüm sistemler çalışıyor",
+  "lastUpdated": "Son güncelleme: {{time}}",
+  "components": {
+    "api": "Uygulama API",
+    "database": "Veritabanı",
+    "email": "E-posta Servisi",
+    "pdf": "PDF Oluşturma",
+    "storage": "Dosya Depolama"
+  },
+  "status": {
+    "operational": "Çalışır durumda",
+    "degraded": "Kısmi kesinti",
+    "outage": "Kesinti"
+  },
+  "incidents": {
+    "title": "Olaylar",
+    "none": "Son 90 günde olay yok."
+  },
+  "contact": {
+    "title": "Sorun mu görüyorsunuz?",
+    "text": "Bir sorun fark ederseniz lütfen destek ekibimizle iletişime geçin:",
+    "email": "support@comptario.com adresinden bize yazın"
+  }
+}

@@ -1,3 +1,53 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Global mobil uyumluluk geliştirmeleri */
+@layer base {
+	*, *::before, *::after {
+		box-sizing: border-box;
+	}
+	html {
+		-webkit-text-size-adjust: 100%;
+		text-size-adjust: 100%;
+		max-width: 100%;
+	}
+	body {
+		@apply antialiased;
+		max-width: 100%;
+	}
+	img, video, canvas, svg {
+		display: block;
+		max-width: 100%;
+		height: auto;
+	}
+	table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+	/* Uzun metin ve kod bloklarının taşmasını önle */
+	pre, code, kbd, samp {
+		white-space: pre-wrap;
+		word-wrap: break-word;
+	}
+	/* Form elemanlarının küçük ekranlarda taşmamasını sağla */
+	input, select, textarea, button {
+		font: inherit;
+		max-width: 100%;
+	}
+}
+
+@layer utilities {
+	/* Yatay kaydırma gereken kapsayıcılar için yardımcı sınıf */
+	.scroll-x {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+	/* iPhone güvenli alan dolguları */
+	.safe-area-x {
+		padding-left: env(safe-area-inset-left);
+		padding-right: env(safe-area-inset-right);
+	}
+}
+
+/* Küçük ekranlarda global padding eklemeyelim; bileşenler kendi iç padding'lerini kullanacak */

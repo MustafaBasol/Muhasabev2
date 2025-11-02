@@ -78,6 +78,26 @@ export const authService = {
     return response.data;
   },
 
+  async resendVerification(email: string) {
+    const response = await apiClient.post('/auth/resend-verification', { email });
+    return response.data;
+  },
+
+  async verifyEmail(token: string) {
+    const response = await apiClient.get(`/auth/verify-email`, { params: { token } });
+    return response.data;
+  },
+
+  async forgotPassword(email: string) {
+    const response = await apiClient.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  async resetPassword(token: string, newPassword: string) {
+    const response = await apiClient.post('/auth/reset-password', { token, newPassword });
+    return response.data;
+  },
+
   logout() {
     // Auth verileri
     localStorage.removeItem('auth_token');

@@ -184,19 +184,17 @@ export class TenantsService {
       updateData.subscriptionExpiresAt = expiresAt;
     }
 
-    // Update max users based on plan
+    // Update max users based on plan (Free:1, Pro:3, Business: unlimited)
     switch (plan) {
       case SubscriptionPlan.FREE:
-        updateData.maxUsers = 5;
+        updateData.maxUsers = 1;
         break;
       case SubscriptionPlan.BASIC:
-        updateData.maxUsers = 10;
-        break;
       case SubscriptionPlan.PROFESSIONAL:
-        updateData.maxUsers = 25;
+        updateData.maxUsers = 3;
         break;
       case SubscriptionPlan.ENTERPRISE:
-        updateData.maxUsers = 100;
+        updateData.maxUsers = 100000; // efektif sınırsız
         break;
     }
 

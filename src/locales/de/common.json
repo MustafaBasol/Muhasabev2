@@ -31,9 +31,10 @@
     "pricing.pro": "Pro",
     "pricing.business": "Business",
     "pricing.price.free": "0€/Monat",
-    "pricing.price.pro": "19€/Monat",
-    "pricing.price.biz": "49€/Monat",
-    "pricing.cta": "Jetzt starten",
+  "pricing.price.pro": "29€/Monat",
+  "pricing.price.biz": "Kontaktieren Sie uns",
+  "pricing.cta": "Jetzt starten",
+  "pricing.ctaContact": "Kontaktieren Sie uns",
     "faq.title": "Häufig gestellte Fragen",
     "faq.q1": "Kann ich kostenlos starten?",
     "faq.a1": "Ja, der Starter-Plan ermöglicht es Ihnen, begrenzte Rechnungen kostenlos auszustellen.",
@@ -130,7 +131,8 @@
     "pricing.plans.pro.desc": "Ideal für wachsende Unternehmen",
     "pricing.plans.business.desc": "Für etablierte Unternehmen",
     "pricing.features.invoices5": "5 Rechnungen pro Monat",
-    "pricing.features.basicExpense": "Grundlegende Ausgabenverfolgung",
+  "pricing.features.basicExpense": "Grundlegende Ausgabenverfolgung",
+  "pricing.features.expenses5": "5 Ausgaben pro Monat",
     "pricing.features.vat": "MwSt-Berechnungen",
     "pricing.features.pdf": "PDF-Export",
     "pricing.features.emailSupport": "E-Mail-Support",
@@ -344,6 +346,7 @@
     "noAlerts": "Keine ausstehenden Aufgaben oder Benachrichtigungen.",
     "attentionRequired": "Aufmerksamkeit Erforderlich"
   },
+    "last6MonthsPerformance": "Leistung der letzten 6 Monate (neueste → älteste)",
   "months": {
     "short": {
       "jan": "Jan",

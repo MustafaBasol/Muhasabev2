@@ -1,16 +1,34 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
+import { Tenant } from '../tenants/entities/tenant.entity';
+import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 
 @Injectable()
 export class InvoicesService {
   constructor(
     @InjectRepository(Invoice)
     private invoicesRepository: Repository<Invoice>,
+    @InjectRepository(Tenant)
+    private tenantRepository: Repository<Tenant>,
   ) {}
 
   async create(tenantId: string, createInvoiceDto: any): Promise<Invoice> {
+    // Plan limiti: Aylık fatura sayısı kontrolü
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthCount = await this.invoicesRepository.count({
+      where: { tenantId, isVoided: false, createdAt: Between(startOfMonth, now) },
+    });
+    if (!TenantPlanLimitService.canAddInvoiceThisMonth(currentMonthCount, tenant.subscriptionPlan)) {
+      throw new BadRequestException(TenantPlanLimitService.errorMessageFor('invoice', tenant.subscriptionPlan));
+    }
+
     // Generate invoice number if not provided - Format: INV-YYYY-MM-XXX
     let invoiceNumber = createInvoiceDto.invoiceNumber;
     

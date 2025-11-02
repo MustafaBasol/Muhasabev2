@@ -60,7 +60,12 @@ export default function RegisterPage() {
       };
       
       await register(userData);
-      setSuccess('Hesabınız başarıyla oluşturuldu! Giriş yapabilirsiniz.');
+      const verificationRequired = String(import.meta.env.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
+      if (verificationRequired) {
+        setSuccess('Hesabınız oluşturuldu. Lütfen e-postanızı kontrol edin ve doğrulama bağlantısına tıklayın.');
+      } else {
+        setSuccess('Hesabınız başarıyla oluşturuldu! Giriş yapabilirsiniz.');
+      }
       
       // 2 saniye sonra giriş sayfasına yönlendir
       setTimeout(() => {

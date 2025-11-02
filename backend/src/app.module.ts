@@ -14,6 +14,7 @@ import { SuppliersModule } from './suppliers/suppliers.module';
 import { ProductsModule } from './products/products.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { BankAccountsModule } from './bank-accounts/bank-accounts.module';
 import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { FiscalPeriodsModule } from './fiscal-periods/fiscal-periods.module';
@@ -37,6 +38,20 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     TypeOrmModule.forRootAsync({
       useFactory: () => {
         const isProd = process.env.NODE_ENV === 'production';
+        const isTest = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+
+        // Use in-memory SQLite for tests to avoid external DB dependency
+        if (isTest) {
+          return {
+            type: 'better-sqlite3',
+            database: ':memory:',
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            synchronize: true,
+            dropSchema: true,
+            logging: false,
+          } as const;
+        }
+
         const host = process.env.DATABASE_HOST || (isProd ? '' : 'localhost');
         const port = parseInt(process.env.DATABASE_PORT || (isProd ? '0' : '5432'));
         const username = process.env.DATABASE_USER || (isProd ? '' : 'postgres');
@@ -71,6 +86,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     ProductsModule,
     InvoicesModule,
     ExpensesModule,
+  BankAccountsModule,
     AdminModule,
     AuditModule,
     FiscalPeriodsModule,

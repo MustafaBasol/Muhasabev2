@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Plus, Edit, Trash2, Mail, Phone, Building2, MapPin } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Plus, Edit, Trash2, Mail, Phone, Building2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface Supplier {

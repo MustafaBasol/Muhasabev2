@@ -1,4 +1,5 @@
 import { CookieConsent } from '../contexts/CookieConsentContext';
+import { logger } from './logger';
 
 // Types for analytics services
 export interface AnalyticsConfig {
@@ -16,6 +17,19 @@ export interface AnalyticsConfig {
     hjsv: string;
     enabled: boolean;
   };
+}
+
+// Extend window with optional analytics fields (typed safely)
+type GTagFunction = (...args: unknown[]) => void;
+type MatomoQueue = { push: (args: unknown[]) => void } | undefined;
+type HotjarFn = ((...args: unknown[]) => void) & { q?: unknown[] };
+interface AnalyticsWindow extends Window {
+  dataLayer?: unknown[];
+  gtag?: GTagFunction;
+  _paq?: MatomoQueue;
+  hj?: HotjarFn;
+  _hjSettings?: { hjid: string; hjsv: string };
+  [key: string]: unknown;
 }
 
 class AnalyticsManager {
@@ -70,7 +84,7 @@ class AnalyticsManager {
       this.loadMatomo(this.config.matomo.siteId, this.config.matomo.url);
     }
 
-    console.log('📊 Analytics enabled');
+  logger.info('📊 Analytics enabled');
   }
 
   private disableAnalytics(): void {
@@ -80,7 +94,7 @@ class AnalyticsManager {
     // Disable Matomo
     this.disableMatomo();
 
-    console.log('🚫 Analytics disabled');
+  logger.warn('🚫 Analytics disabled');
   }
 
   private enableMarketingTracking(): void {
@@ -89,14 +103,14 @@ class AnalyticsManager {
       this.loadHotjar(this.config.hotjar.hjid, this.config.hotjar.hjsv);
     }
 
-    console.log('🎯 Marketing tracking enabled');
+  logger.info('🎯 Marketing tracking enabled');
   }
 
   private disableMarketingTracking(): void {
     // Disable Hotjar
     this.disableHotjar();
 
-    console.log('🚫 Marketing tracking disabled');
+  logger.warn('🚫 Marketing tracking disabled');
   }
 
   private loadGoogleAnalytics(measurementId: string): void {
@@ -113,9 +127,10 @@ class AnalyticsManager {
 
     // Initialize gtag
     script.onload = () => {
-      (window as any).dataLayer = (window as any).dataLayer || [];
-      function gtag(...args: any[]) {
-        (window as any).dataLayer.push(args);
+      const w = window as unknown as AnalyticsWindow;
+      w.dataLayer = w.dataLayer || [];
+      function gtag(...args: unknown[]) {
+        (w.dataLayer as unknown[]).push(args);
       }
       gtag('js', new Date());
       gtag('config', measurementId, {
@@ -124,7 +139,7 @@ class AnalyticsManager {
       });
 
       // Make gtag globally available
-      (window as any).gtag = gtag;
+      (window as unknown as AnalyticsWindow).gtag = gtag;
     };
   }
 
@@ -132,7 +147,7 @@ class AnalyticsManager {
     // Set GA disable flag
     const measurementId = this.config.googleAnalytics?.measurementId;
     if (measurementId) {
-      (window as any)[`ga-disable-${measurementId}`] = true;
+      (window as unknown as Record<string, unknown>)[`ga-disable-${measurementId}`] = true;
     }
 
     // Clear GA cookies
@@ -141,13 +156,14 @@ class AnalyticsManager {
 
   private loadMatomo(siteId: string, url: string): void {
     // Check if already loaded
-    if ((window as any)._paq) {
+    if ((window as unknown as AnalyticsWindow)._paq) {
       return;
     }
 
-    (window as any)._paq = (window as any)._paq || [];
-    (window as any)._paq.push(['trackPageView']);
-    (window as any)._paq.push(['enableLinkTracking']);
+    const w = window as unknown as AnalyticsWindow;
+    w._paq = w._paq || ({ push: () => { /* noop until loaded */ } } as MatomoQueue);
+    w._paq?.push(['trackPageView']);
+    w._paq?.push(['enableLinkTracking']);
 
     const script = document.createElement('script');
     script.async = true;
@@ -155,14 +171,15 @@ class AnalyticsManager {
     document.head.appendChild(script);
 
     script.onload = () => {
-      (window as any)._paq.push(['setTrackerUrl', `${url}/matomo.php`]);
-      (window as any)._paq.push(['setSiteId', siteId]);
+      const win = window as unknown as AnalyticsWindow;
+      win._paq?.push(['setTrackerUrl', `${url}/matomo.php`]);
+      win._paq?.push(['setSiteId', siteId]);
     };
   }
 
   private disableMatomo(): void {
-    if ((window as any)._paq) {
-      (window as any)._paq.push(['optUserOut']);
+    if ((window as unknown as AnalyticsWindow)._paq) {
+      (window as unknown as AnalyticsWindow)._paq?.push(['optUserOut']);
     }
 
     // Clear Matomo cookies
@@ -171,14 +188,17 @@ class AnalyticsManager {
 
   private loadHotjar(hjid: string, hjsv: string): void {
     // Check if already loaded
-    if ((window as any).hj) {
+    if ((window as unknown as AnalyticsWindow).hj) {
       return;
     }
 
-    (window as any).hj = (window as any).hj || function(...args: any[]) {
-      ((window as any).hj.q = (window as any).hj.q || []).push(args);
-    };
-    (window as any)._hjSettings = { hjid, hjsv };
+    const w = window as unknown as AnalyticsWindow;
+    w.hj = w.hj || (function(...args: unknown[]) {
+      /* queue until loaded */
+      const hj = (w.hj as HotjarFn);
+      (hj.q = hj.q || []).push(args);
+    } as HotjarFn);
+    w._hjSettings = { hjid, hjsv };
 
     const script = document.createElement('script');
     script.async = true;
@@ -188,8 +208,8 @@ class AnalyticsManager {
 
   private disableHotjar(): void {
     // Hotjar doesn't have a built-in disable method, so we clear its data
-    if ((window as any).hj) {
-      (window as any).hj('stateChange', '/cookie-opt-out');
+    if ((window as unknown as AnalyticsWindow).hj) {
+      (window as unknown as AnalyticsWindow).hj?.('stateChange', '/cookie-opt-out');
     }
 
     // Clear Hotjar cookies
@@ -231,8 +251,8 @@ class AnalyticsManager {
     }
 
     // Google Analytics
-    if ((window as any).gtag) {
-      (window as any).gtag('event', action, {
+    if ((window as unknown as AnalyticsWindow).gtag) {
+      (window as unknown as AnalyticsWindow).gtag?.('event', action, {
         event_category: category,
         event_label: label,
         value: value,
@@ -240,8 +260,8 @@ class AnalyticsManager {
     }
 
     // Matomo
-    if ((window as any)._paq) {
-      (window as any)._paq.push(['trackEvent', category, action, label, value]);
+    if ((window as unknown as AnalyticsWindow)._paq) {
+      (window as unknown as AnalyticsWindow)._paq?.push(['trackEvent', category, action, label, value]);
     }
   }
 
@@ -252,18 +272,18 @@ class AnalyticsManager {
     }
 
     // Google Analytics
-    if ((window as any).gtag) {
-      (window as any).gtag('config', this.config.googleAnalytics?.measurementId, {
+    if ((window as unknown as AnalyticsWindow).gtag) {
+      (window as unknown as AnalyticsWindow).gtag?.('config', this.config.googleAnalytics?.measurementId, {
         page_path: path || window.location.pathname,
       });
     }
 
     // Matomo
-    if ((window as any)._paq) {
+    if ((window as unknown as AnalyticsWindow)._paq) {
       if (path) {
-        (window as any)._paq.push(['setCustomUrl', path]);
+        (window as unknown as AnalyticsWindow)._paq?.push(['setCustomUrl', path]);
       }
-      (window as any)._paq.push(['trackPageView']);
+      (window as unknown as AnalyticsWindow)._paq?.push(['trackPageView']);
     }
   }
 

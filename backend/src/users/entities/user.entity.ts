@@ -11,6 +11,8 @@ import {
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Organization } from '../../organizations/entities/organization.entity';
 
+const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+
 export enum UserRole {
   SUPER_ADMIN = 'super_admin',
   TENANT_ADMIN = 'tenant_admin',
@@ -36,8 +38,8 @@ export class User {
   lastName: string;
 
   @Column({
-    type: 'enum',
-    enum: UserRole,
+    type: __isTestEnv ? 'text' : 'enum',
+    enum: __isTestEnv ? undefined : UserRole,
     default: UserRole.USER,
   })
   role: UserRole;
@@ -45,10 +47,10 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
   lastLoginAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
   deletionRequestedAt: Date;
 
   @Column({ default: false })
@@ -61,11 +63,31 @@ export class User {
   @Column({ name: 'twoFactorEnabled', default: false })
   twoFactorEnabled: boolean;
 
-  @Column({ name: 'twoFactorBackupCodes', type: 'text', array: true, nullable: true })
+  @Column({ name: 'twoFactorBackupCodes', type: __isTestEnv ? 'simple-json' : 'text', array: __isTestEnv ? undefined : true, nullable: true })
   backupCodes: string[];
 
-  @Column({ name: 'twoFactorEnabledAt', type: 'timestamp', nullable: true })
+  @Column({ name: 'twoFactorEnabledAt', type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
   twoFactorEnabledAt: Date;
+
+  // Email verification fields
+  @Column({ default: false })
+  isEmailVerified: boolean;
+
+  @Column({ nullable: true })
+  emailVerificationToken: string;
+
+  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  emailVerificationSentAt: Date;
+
+  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  emailVerifiedAt: Date;
+
+  // Password reset fields
+  @Column({ nullable: true })
+  passwordResetToken: string;
+
+  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  passwordResetExpiresAt: Date;
 
   @ManyToOne(() => Tenant, (tenant) => tenant.users, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tenantId' })

@@ -1,0 +1,25 @@
+{
+  "title": "À propos de Comptario",
+  "subtitle": "Nous sommes une entreprise technologique innovante basée à Albertville, France.",
+  "whoWeAre": {
+    "title": "Qui sommes-nous ?",
+    "text": "Comptario est une entreprise technologique dynamique qui développe des logiciels de pré-comptabilité modernes, sécurisés et faciles à utiliser pour les petites et moyennes entreprises. Notre siège est à Albertville, dans la région Auvergne–Rhône–Alpes. Nous concevons nos produits selon des standards européens de sécurité, de performance et de protection des données ; nous mettons la transparence, la simplicité et la rapidité au cœur de l'expérience."
+  },
+  "offerings": {
+    "title": "Ce que nous offrons",
+    "items": [
+      "Un espace de travail unique pour la facturation, la gestion des dépenses, la TVA et les rapports",
+      "Des fonctionnalités localisées comme la multi-devise et la TVA par catégorie",
+      "Génération de factures PDF, envoi par e-mail et archivage",
+      "Architecture multi-tenant, contrôle d'accès par rôles et limites de plan"
+    ]
+  },
+  "approach": {
+    "title": "Notre approche",
+    "text": "Nos décisions produit s'appuient sur les retours des utilisateurs et des métriques pilotées par les données. La sécurité et la confidentialité ne sont pas des options, elles sont au cœur du design. Nous opérons sur une infrastructure fiable et évolutive, conforme aux principes européens de protection des données (RGPD)."
+  },
+  "contact": {
+    "title": "Contact",
+    "text": "Pour toute question, contactez-nous :"
+  }
+}

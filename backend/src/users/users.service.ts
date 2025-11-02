@@ -2,12 +2,13 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
-import { Tenant } from '../tenants/entities/tenant.entity';
+import { Tenant, SubscriptionPlan } from '../tenants/entities/tenant.entity';
 import archiver from 'archiver';
 import { Readable } from 'stream';
 import { SecurityService } from '../common/security.service';
 import { TwoFactorService, TwoFactorSecretResponse } from '../common/two-factor.service';
 import { Enable2FADto, Verify2FADto, Disable2FADto } from './dto/enable-2fa.dto';
+import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 
 export interface CreateUserDto {
   email: string;
@@ -23,6 +24,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Tenant)
+    private tenantRepository: Repository<Tenant>,
     private securityService: SecurityService,
     private twoFactorService: TwoFactorService,
   ) {}
@@ -59,6 +62,17 @@ export class UsersService {
   }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
+    // Plan limiti: Kullanıcı ekleme kontrolü
+    const tenant = await this.tenantRepository.findOne({ where: { id: createUserDto.tenantId } });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    const currentCount = await this.userRepository.count({ where: { tenantId: createUserDto.tenantId } });
+    if (!TenantPlanLimitService.canAddUser(currentCount, tenant.subscriptionPlan as SubscriptionPlan)) {
+      throw new BadRequestException(TenantPlanLimitService.errorMessageFor('user', tenant.subscriptionPlan as SubscriptionPlan));
+    }
+
     const hashedPassword = await this.securityService.hashPassword(createUserDto.password);
     
     const user = this.userRepository.create({

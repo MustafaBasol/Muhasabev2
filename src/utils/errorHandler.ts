@@ -7,20 +7,23 @@ export interface ApiError {
   code?: string;
 }
 
-export const getErrorMessage = (error: any): string => {
+export const getErrorMessage = (error: unknown): string => {
   // API response error
-  if (error?.response?.data?.message) {
-    return translateErrorMessage(error.response.data.message);
-  }
-  
-  // Simple error message
-  if (error?.message) {
-    return translateErrorMessage(error.message);
-  }
-  
-  // Network error
-  if (error.code === 'NETWORK_ERROR') {
-    return i18n.t('common.networkError', { defaultValue: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.' });
+  if (error && typeof error === 'object') {
+    const maybe = error as { response?: { data?: { message?: string } }; message?: string; code?: string };
+    if (maybe.response?.data?.message) {
+      return translateErrorMessage(maybe.response.data.message);
+    }
+    
+    // Simple error message
+    if (maybe.message) {
+      return translateErrorMessage(maybe.message);
+    }
+    
+    // Network error
+    if (maybe.code === 'NETWORK_ERROR') {
+      return i18n.t('common.networkError', { defaultValue: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.' });
+    }
   }
   
   // Default error
@@ -91,7 +94,7 @@ const translateErrorMessage = (message: string): string => {
 };
 
 // Toast notification için error handler
-export const handleApiError = (error: any, showToast?: (message: string, type: 'error' | 'success' | 'info') => void) => {
+export const handleApiError = (error: unknown, showToast?: (message: string, type: 'error' | 'success' | 'info') => void) => {
   const message = getErrorMessage(error);
   
   if (showToast) {
@@ -103,9 +106,13 @@ export const handleApiError = (error: any, showToast?: (message: string, type: '
 };
 
 // Form validation için error handler
-export const getFieldError = (error: any, fieldName: string): string | undefined => {
-  if (error?.response?.data?.errors?.[fieldName]) {
-    return translateErrorMessage(error.response.data.errors[fieldName]);
+export const getFieldError = (error: unknown, fieldName: string): string | undefined => {
+  if (error && typeof error === 'object') {
+    const maybe = error as { response?: { data?: { errors?: Record<string, string> } } };
+    const val = maybe.response?.data?.errors?.[fieldName];
+    if (typeof val === 'string') {
+      return translateErrorMessage(val);
+    }
   }
   
   return undefined;

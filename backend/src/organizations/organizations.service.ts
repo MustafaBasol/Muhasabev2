@@ -170,7 +170,9 @@ export class OrganizationsService {
 
     // Send invitation email
     try {
-      const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:5174'}/invite/${savedInvite.token}`;
+      // Use hash-based route so static hosting works without server-side rewrites
+      const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5174';
+      const inviteUrl = `${frontendBase}/#join?token=${savedInvite.token}`;
       
       await this.emailService.sendEmail({
         to: inviteUserDto.email,
@@ -193,6 +195,11 @@ export class OrganizationsService {
             <p style="font-size: 12px; color: #6b7280;">
               MoneyFlow Accounting System | Istanbul, Turkey
             </p>
+            <hr style="margin: 24px 0; border:none; border-top: 1px solid #e5e7eb;" />
+            <h3 style="color:#374151; margin-top:0;">TR</h3>
+            <p><strong>${organization.name}</strong> organizasyonuna <strong>${inviteUserDto.role}</strong> rolüyle katılmanız için davet edildiniz.</p>
+            <p>Daveti kabul etmek için bağlantıya tıklayın: <a href="${inviteUrl}">${inviteUrl}</a></p>
+            <p><em>Not:</em> Davet 7 gün içinde geçerlidir.</p>
           </div>
         `,
         text: `
@@ -534,7 +541,48 @@ MoneyFlow Accounting System
     
     invite.expiresAt = newExpiryDate;
 
-    // Save and return updated invite
-    return await this.inviteRepository.save(invite);
+    // Save updated invite
+    const updated = await this.inviteRepository.save(invite);
+
+    // Try sending the invitation email again
+    try {
+      const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5174';
+      const inviteUrl = `${frontendBase}/#join?token=${invite.token}`;
+
+      await this.emailService.sendEmail({
+        to: invite.email,
+        subject: `Reminder: Invitation to join ${invite.organization.name}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #059669;">Invitation Reminder</h2>
+            <p>You still have a pending invitation to join <strong>${invite.organization.name}</strong> as a <strong>${invite.role}</strong>.</p>
+            <div style="background-color: #ecfdf5; border: 1px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0;">Use this link to accept the invitation:</p>
+              <a href="${inviteUrl}" style="color: #059669; text-decoration: none; font-weight: bold;">${inviteUrl}</a>
+            </div>
+            <p><strong>Note:</strong> This invitation has been extended and will expire on ${newExpiryDate.toLocaleString()}.</p>
+            <hr style="margin: 24px 0; border:none; border-top: 1px solid #e5e7eb;" />
+            <h3 style="color:#374151; margin-top:0;">TR</h3>
+            <p><strong>${invite.organization.name}</strong> organizasyonuna <strong>${invite.role}</strong> olarak katılmanız için bekleyen bir davetiniz var.</p>
+            <p>Daveti kabul etmek için bu bağlantıyı kullanın: <a href="${inviteUrl}">${inviteUrl}</a></p>
+            <p><em>Not:</em> Davetin süresi uzatıldı. Yeni bitiş: ${newExpiryDate.toLocaleString()}.</p>
+          </div>
+        `,
+        text: `
+You still have a pending invitation to join ${invite.organization.name} as a ${invite.role}.
+
+Accept invitation: ${inviteUrl}
+
+This invitation has been extended and will expire on ${newExpiryDate.toLocaleString()}.
+        `
+      });
+
+      console.log(`📧 Resent invitation email to ${invite.email}`);
+    } catch (error) {
+      console.error(`❌ Failed to resend invitation email to ${invite.email}:`, error);
+      // Do not fail the request if email fails
+    }
+
+    return updated;
   }
 }

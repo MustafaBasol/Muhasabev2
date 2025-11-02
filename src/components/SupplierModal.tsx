@@ -61,16 +61,14 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
   }, [isOpen, supplier]);
 
   const handleSave = () => {
-    const newSupplier: any = {
+    const newSupplier: Supplier = {
       ...supplierData,
-    };
+      // id ve createdAt sadece mevcut tedarikçi düzenleniyorsa eklenecek
+      ...(supplier?.id ? { id: supplier.id, createdAt: supplier.createdAt } : {} as Partial<Supplier>),
+    } as Supplier;
     
-    // Only include ID if editing existing supplier
-    if (supplier?.id) {
-      newSupplier.id = supplier.id;
-      newSupplier.createdAt = supplier.createdAt;
-    }
-    
+    // Only include ID if editing existing supplier (yukarıda eklendi)
+
     onSave(newSupplier);
     onClose();
     setSupplierData({
