@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, Edit, CreditCard, Building2, User, Hash, Globe, DollarSign, Calendar, Activity } from 'lucide-react';
 import { formatCurrency as formatCurrencyUtil, type Currency } from '../utils/currencyFormatter';
 
@@ -31,8 +30,8 @@ export default function BankViewModal({
   bankAccount,
   bank,
   onEdit,
-  onAddTransaction,
-  onViewTransactions
+  onAddTransaction: _onAddTransaction,
+  onViewTransactions: _onViewTransactions
 }: BankViewModalProps) {
   const bankData = bankAccount || bank;
   
@@ -175,6 +174,33 @@ export default function BankViewModal({
                     </div>
                   </div>
                 </div>
+                {Boolean((bankData as any).swiftBic) && (
+                  <div className="flex items-center text-sm">
+                    <Globe className="w-4 h-4 text-gray-400 mr-3" />
+                    <div>
+                      <span className="text-gray-600">SWIFT/BIC:</span>
+                      <span className="ml-2 font-medium text-gray-900">{(bankData as any).swiftBic}</span>
+                    </div>
+                  </div>
+                )}
+                {Boolean((bankData as any).routingNumber) && (
+                  <div className="flex items-center text-sm">
+                    <Hash className="w-4 h-4 text-gray-400 mr-3" />
+                    <div>
+                      <span className="text-gray-600">Routing Numarası:</span>
+                      <span className="ml-2 font-medium text-gray-900">{(bankData as any).routingNumber}</span>
+                    </div>
+                  </div>
+                )}
+                {Boolean((bankData as any).branchCode) && (
+                  <div className="flex items-center text-sm">
+                    <Hash className="w-4 h-4 text-gray-400 mr-3" />
+                    <div>
+                      <span className="text-gray-600">Şube Kodu:</span>
+                      <span className="ml-2 font-medium text-gray-900">{(bankData as any).branchCode}</span>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center text-sm">
                   <DollarSign className="w-4 h-4 text-gray-400 mr-3" />
                   <div>

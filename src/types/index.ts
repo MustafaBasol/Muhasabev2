@@ -66,6 +66,8 @@ export interface Invoice {
   items: InvoiceItem[];
   notes?: string;
   type?: 'product' | 'service';
+  // Satış-fatura bağlantısı için opsiyonel alan
+  saleId?: string;
 }
 
 export interface InvoiceItem {

@@ -19,23 +19,23 @@ export class CSRFMiddleware implements NestMiddleware {
     const isProtectedMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
     const isCSRFProtectedRoute = this.needsCSRFProtection(req.path);
 
-    // GET isteklerinde token üret ve header'a ekle
-    if (req.method === 'GET' && isCSRFProtectedRoute) {
+    // Her istek için (GET dahil) korunan rotalarda geçerli bir token üret ve döndür
+    if (isCSRFProtectedRoute) {
       const sessionId = this.getOrCreateSessionId(req, res);
-      const csrfToken = this.generateCSRFToken(sessionId);
-      
-      // Token'ı response header'ına ekle
-      res.setHeader('X-CSRF-Token', csrfToken);
-      
-      // Token'ı store'da sakla
-      this.tokenStore[sessionId] = {
-        token: csrfToken,
-        expires: Date.now() + this.TOKEN_EXPIRY
-      };
+      const existing = this.tokenStore[sessionId];
+      if (!existing || existing.expires < Date.now()) {
+        const csrfToken = this.generateCSRFToken(sessionId);
+        this.tokenStore[sessionId] = {
+          token: csrfToken,
+          expires: Date.now() + this.TOKEN_EXPIRY,
+        };
+      }
+      // Header olarak her zaman güncel token'ı gönder
+      res.setHeader('X-CSRF-Token', this.tokenStore[sessionId].token);
     }
 
     // Protected method'larda token doğrula
-    if (isProtectedMethod && isCSRFProtectedRoute) {
+  if (isProtectedMethod && isCSRFProtectedRoute && this.shouldEnforceCSRF()) {
       const sessionId = this.getSessionId(req);
       const providedToken = req.headers['x-csrf-token'] as string;
 
@@ -72,6 +72,13 @@ export class CSRFMiddleware implements NestMiddleware {
     }
 
     next();
+  }
+
+  /**
+   * Yalnızca production ortamında CSRF doğrulamasını zorunlu kıl
+   */
+  private shouldEnforceCSRF(): boolean {
+    return process.env.NODE_ENV === 'production';
   }
 
   /**

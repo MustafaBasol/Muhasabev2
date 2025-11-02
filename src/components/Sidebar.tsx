@@ -1,8 +1,6 @@
-﻿import React from 'react';
-import {
+﻿import {
   LayoutDashboard,
   FileText,
-  Users,
   Package,
   CreditCard,
   TrendingUp,
@@ -13,7 +11,6 @@ import {
   BookOpen,
   Building2,
   Receipt,
-  Calendar,
   X,
   UserCircle
 } from 'lucide-react';
@@ -58,9 +55,7 @@ export default function Sidebar({
     { icon: PieChart, label: t('sidebar.reports'), page: 'reports' },
     { icon: Calculator, label: t('sidebar.accounting'), page: 'general-ledger' },
     { icon: BookOpen, label: t('sidebar.chartOfAccounts'), page: 'chart-of-accounts' },
-    { icon: Calendar, label: t('fiscalPeriods.title'), page: 'fiscal-periods' },
     { icon: Archive, label: t('sidebar.archive'), page: 'archive' },
-    { icon: Users, label: t('sidebar.organization'), page: 'organization-members' },
     { icon: Settings, label: t('sidebar.settings'), page: 'settings' },
   ];
 

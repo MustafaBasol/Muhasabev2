@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X, Ban, RotateCcw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { compareBy, defaultStatusOrderExpenses, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
 
 interface Expense {
   id: string;
@@ -61,6 +63,10 @@ export default function ExpenseList({
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidingExpense, setVoidingExpense] = useState<Expense | null>(null);
   const [voidReason, setVoidReason] = useState('');
+  const [sort, setSort] = useState<{ by: 'description' | 'supplier' | 'category' | 'amount' | 'status' | 'expenseDate'; dir: SortDir }>({ by: 'expenseDate', dir: 'desc' });
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const debouncedSearch = useDebouncedValue(searchTerm, 300);
 
   // Kategori listesi
   const categories = ['equipment', 'utilities', 'rent', 'salaries', 'personnel', 'supplies', 'marketing', 'travel', 'insurance', 'taxes', 'other'];
@@ -70,20 +76,73 @@ export default function ExpenseList({
     return t(`expenseCategories.${category}`) || category;
   };
 
-  const filteredExpenses = expenses.filter(expense => {
-    const matchesSearch = 
-      expense.expenseNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (expense.supplier?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
-    
-    // Void kontrolü - varsayılan olarak void edilmiş giderleri gizle
-    const matchesVoidFilter = showVoided || !expense.isVoided;
-    
-    return matchesSearch && matchesStatus && matchesCategory && matchesVoidFilter;
-  });
+  const filteredExpenses = useMemo(() => {
+    return expenses
+      .filter(expense => {
+      const q = normalizeText(debouncedSearch);
+      const haystack = [
+        expense.expenseNumber,
+        expense.description,
+        expense.supplier?.name,
+        expense.category,
+        expense.status,
+        expense.expenseDate,
+        String(expense.amount)
+      ].map(normalizeText).join(' ');
+
+      const matchesSearch = q.length === 0 || haystack.includes(q);
+      const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
+      const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
+      const matchesVoidFilter = showVoided || !expense.isVoided;
+      // Tarih aralığı (expenseDate'e göre)
+      let matchesDate = true;
+      if (startDate) {
+        matchesDate = matchesDate && new Date(expense.expenseDate) >= new Date(startDate);
+      }
+      if (endDate) {
+        matchesDate = matchesDate && new Date(expense.expenseDate) <= new Date(endDate);
+      }
+      return matchesSearch && matchesStatus && matchesCategory && matchesVoidFilter && matchesDate;
+    })
+    .sort((a, b) => {
+      switch (sort.by) {
+        case 'description':
+          return compareBy(a, b, x => x.description, sort.dir, 'string');
+        case 'supplier':
+          return compareBy(a, b, x => x.supplier?.name || '', sort.dir, 'string');
+        case 'category':
+          return compareBy(a, b, x => x.category, sort.dir, 'string');
+        case 'amount':
+          return compareBy(a, b, x => toNumberSafe(x.amount), sort.dir, 'number');
+        case 'status':
+          return compareBy(a, b, x => x.status, sort.dir, 'string', defaultStatusOrderExpenses);
+        case 'expenseDate':
+        default: {
+          const ta = parseDateSafe(a.expenseDate);
+          const tb = parseDateSafe(b.expenseDate);
+          if (ta === tb) {
+            // Bağlaç: açıklamaya göre
+            return compareBy(a, b, x => x.description || '', sort.dir, 'string');
+          }
+          return ta < tb ? (sort.dir === 'asc' ? -1 : 1) : (sort.dir === 'asc' ? 1 : -1);
+        }
+      }
+    });
+  }, [expenses, debouncedSearch, statusFilter, categoryFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
+
+  const toggleSort = (column: typeof sort.by) => {
+    setSort(prev => {
+      if (prev.by === column) {
+        return { ...prev, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+      }
+      const defaultDir: SortDir = (column === 'amount' || column === 'expenseDate') ? 'desc' : 'asc';
+      return { by: column, dir: defaultDir };
+    });
+  };
+
+  const SortIndicator = ({ active }: { active: boolean }) => (
+    <span className="inline-block ml-1 text-gray-400">{active ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</span>
+  );
 
   const getStatusBadge = (status: string, isVoided?: boolean) => {
     if (isVoided) {
@@ -180,7 +239,7 @@ export default function ExpenseList({
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -217,6 +276,36 @@ export default function ExpenseList({
               <option key={category} value={category}>{getCategoryLabel(category)}</option>
             ))}
           </select>
+          {/* Date range */}
+          <div className="flex gap-2 items-center">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-700 whitespace-nowrap">{t('common.startDate')}</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-700 whitespace-nowrap">{t('common.endDate')}</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+            {(startDate || endDate) && (
+              <button
+                onClick={() => { setStartDate(''); setEndDate(''); }}
+                className="px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                title={t('archive.clearFilters')}
+              >
+                {t('archive.clearFilters')}
+              </button>
+            )}
+          </div>
           <label className="flex items-center px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
             <input
               type="checkbox"
@@ -259,23 +348,23 @@ export default function ExpenseList({
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('expenses.description')}
+                  <th onClick={() => toggleSort('description')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('expenses.description')}<SortIndicator active={sort.by==='description'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('expenses.supplier')}
+                  <th onClick={() => toggleSort('supplier')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('expenses.supplier')}<SortIndicator active={sort.by==='supplier'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('expenses.category')}
+                  <th onClick={() => toggleSort('category')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('expenses.category')}<SortIndicator active={sort.by==='category'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('expenses.amount')}
+                  <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('expenses.amount')}<SortIndicator active={sort.by==='amount'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('expenses.status')}
+                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('expenses.status')}<SortIndicator active={sort.by==='status'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('expenses.date')}
+                  <th onClick={() => toggleSort('expenseDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('expenses.date')}<SortIndicator active={sort.by==='expenseDate'} />
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t('expenses.actions')}

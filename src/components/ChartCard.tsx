@@ -52,17 +52,16 @@ export default function ChartCard({ sales = [], expenses = [], invoices = [] }: 
     
     // 2. Completed sales that haven't been converted to invoices
     const completedSales = sales.filter(sale => {
-      if (sale.status !== 'completed') return false;
-      const saleDate = new Date(sale.date);
+      if (String(sale?.status).toLowerCase() !== 'completed') return false;
+      const saleDate = new Date(sale?.date);
       const isInMonth = saleDate.getMonth() === monthInfo.monthIndex && saleDate.getFullYear() === monthInfo.year;
-      
       if (!isInMonth) return false;
-      
+
       // Check if this sale has been converted to an invoice
-      const hasInvoice = invoices.some(invoice => 
-        invoice.notes && invoice.notes.includes(sale.saleNumber || `SAL-${sale.id}`)
-      );
-      
+      const hasInvoice =
+        Boolean(sale?.invoiceId) ||
+        invoices.some(inv => String(inv?.saleId || '') === String(sale?.id || ''));
+
       return !hasInvoice; // Only include if no invoice exists
     });
     income += completedSales.reduce((sum, sale) => sum + (Number(sale.amount) || 0), 0);

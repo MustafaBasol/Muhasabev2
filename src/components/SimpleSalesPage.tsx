@@ -2,11 +2,13 @@
 import { useTranslation } from 'react-i18next';
 import { TrendingUp, Plus, Calendar, DollarSign, User, Package, Search, Eye, Edit, Trash2, Download, Check, X, FileText, CheckCircle } from 'lucide-react';
 import SaleModal from './SaleModal';
-import type { Product } from './ProductList';
+import type { Product } from '../types';
 import SaleViewModal from './SaleViewModal';
 import InvoiceViewModal from './InvoiceViewModal';
 import type { Sale } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { compareBy, defaultStatusOrderSales, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
 
 
 
@@ -60,6 +62,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [editingField, setEditingField] = useState<{ saleId: string; field: string } | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'saleNumber' | 'customer' | 'product' | 'amount' | 'status' | 'date'>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const debouncedSearch = useDebouncedValue(searchTerm, 300);
 
   const handleAddSale = (newSale: any) => {
     console.log('➕ SimpleSalesPage: Yeni satış ekleniyor');
@@ -194,21 +199,57 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
 
   const filteredSales = sales
     .filter(sale => {
-      const matchesSearch = 
-        sale.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sale.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (sale.saleNumber && sale.saleNumber.toLowerCase().includes(searchTerm.toLowerCase()));
-      
+      const q = normalizeText(debouncedSearch);
+      const firstItemName = (sale.items && sale.items.length > 0) ? (sale.items[0].productName || '') : '';
+      const haystack = [
+        sale.saleNumber,
+        sale.customerName,
+        sale.customerEmail,
+        sale.productName,
+        firstItemName,
+        sale.status,
+        sale.date,
+        String(sale.amount ?? sale.total ?? toNumberSafe(sale.quantity) * toNumberSafe(sale.unitPrice))
+      ].map(normalizeText).join(' ');
+
+      const matchesSearch = q.length === 0 || haystack.includes(q);
       const matchesStatus = statusFilter === 'all' || sale.status === statusFilter;
-      
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
-      // En yeni satışlar en üstte (ID'ye göre ters sıralama)
-      const aId = String(a.id || '');
-      const bId = String(b.id || '');
-      return bId.localeCompare(aId);
+      switch (sortBy) {
+        case 'saleNumber':
+          return compareBy(a, b, x => x.saleNumber || `SAL-${x.id}`, sortDir, 'string');
+        case 'customer':
+          return compareBy(a, b, x => x.customerName || '', sortDir, 'string');
+        case 'product': {
+          const sel = (x: any) => (x.items && x.items.length > 0) ? (x.items[0].productName || '') : (x.productName || '');
+          return compareBy(a, b, sel, sortDir, 'string');
+        }
+        case 'amount': {
+          const sel = (x: any) => toNumberSafe(x.amount ?? x.total ?? toNumberSafe(x.quantity) * toNumberSafe(x.unitPrice));
+          return compareBy(a, b, sel, sortDir, 'number');
+        }
+        case 'status':
+          return compareBy(a, b, x => x.status, sortDir, 'string', defaultStatusOrderSales);
+        case 'date':
+        default:
+          return compareBy(a, b, x => parseDateSafe(x.date), sortDir, 'date');
+      }
     });
+
+  const toggleSort = (column: typeof sortBy) => {
+    if (sortBy === column) {
+      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortDir(column === 'amount' || column === 'date' ? 'desc' : 'asc');
+    }
+  };
+
+  const SortIndicator = ({ active }: { active: boolean }) => (
+    <span className="inline-block ml-1 text-gray-400">{active ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
+  );
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -605,23 +646,23 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('sales.sale')}
+                    <th onClick={() => toggleSort('saleNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                      {t('sales.sale')}<SortIndicator active={sortBy==='saleNumber'} />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('sales.customer')}
+                    <th onClick={() => toggleSort('customer')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                      {t('sales.customer')}<SortIndicator active={sortBy==='customer'} />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('sales.productService')}
+                    <th onClick={() => toggleSort('product')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                      {t('sales.productService')}<SortIndicator active={sortBy==='product'} />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('sales.amount')}
+                    <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                      {t('sales.amount')}<SortIndicator active={sortBy==='amount'} />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('sales.status')}
+                    <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                      {t('sales.status')}<SortIndicator active={sortBy==='status'} />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('sales.date')}
+                    <th onClick={() => toggleSort('date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                      {t('sales.date')}<SortIndicator active={sortBy==='date'} />
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {t('sales.actions')}

@@ -22,31 +22,81 @@ interface BankModalProps {
   onSave: (bank: Bank) => void;
   bank?: Bank | null;
   bankAccount?: Bank | null;
+  // Şirket ayarlarındaki seçili ülke: TR | US | DE | FR | OTHER
+  country?: 'TR' | 'US' | 'DE' | 'FR' | 'OTHER' | string;
 }
 
+// Ülkelere göre banka isimleri
+const bankNamesByCountry: Record<string, string[]> = {
+  TR: [
+    'Türkiye İş Bankası',
+    'Garanti BBVA',
+    'Yapı Kredi Bankası',
+    'Akbank',
+    'Ziraat Bankası',
+    'Halkbank',
+    'VakıfBank',
+    'QNB Finansbank',
+    'DenizBank',
+    'İNG Bank',
+    'HSBC',
+    'Şekerbank',
+    'TEB',
+    'Odeabank',
+    'Diğer'
+  ],
+  DE: [
+    'Deutsche Bank',
+    'Commerzbank',
+    'Sparkasse',
+    'Volksbank',
+    'N26',
+    'DKB',
+    'ING-DiBa',
+    'Postbank',
+    'HypoVereinsbank',
+    'Targobank',
+    'Consorsbank',
+    'Andere'
+  ],
+  FR: [
+    'BNP Paribas',
+    'Société Générale',
+    'Crédit Agricole',
+    'Crédit Mutuel',
+    'Banque Populaire',
+    'La Banque Postale',
+    'Crédit du Nord',
+    'HSBC France',
+    'LCL',
+    'Boursorama',
+    'Hello bank!',
+    'Autre'
+  ],
+  US: [
+    'Bank of America',
+    'Chase',
+    'Wells Fargo',
+    'Citi',
+    'US Bank',
+    'Capital One',
+    'PNC',
+    'TD Bank',
+    'Truist',
+    'Other'
+  ],
+  OTHER: ['Other']
+};
 
-
-const bankNames = [
-  'Türkiye İş Bankası',
-  'Garanti BBVA',
-  'Yapı Kredi Bankası',
-  'Akbank',
-  'Ziraat Bankası',
-  'Halkbank',
-  'VakıfBank',
-  'QNB Finansbank',
-  'DenizBank',
-  'İNG Bank',
-  'HSBC',
-  'Şekerbank',
-  'TEB',
-  'Odeabank',
-  'Diğer'
-];
-
-export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }: BankModalProps) {
+export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, country }: BankModalProps) {
   const { t } = useTranslation();
   const { currency: defaultCurrency } = useCurrency();
+  const normalizedCountry = (country || 'TR').toUpperCase();
+  const bankNames = bankNamesByCountry[normalizedCountry] || bankNamesByCountry['OTHER'];
+  const showIBAN = normalizedCountry !== 'US';
+  const showRoutingNumber = normalizedCountry === 'US';
+  const showSwiftBic = normalizedCountry === 'DE' || normalizedCountry === 'FR';
+  const showBranchCode = normalizedCountry === 'TR';
   
   // Dynamic currency list with translations
   const currencies = [
@@ -64,6 +114,9 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
     accountName: initialBankData?.accountName || '',
     accountNumber: initialBankData?.accountNumber || '',
     iban: initialBankData?.iban || '',
+    branchCode: (initialBankData as any)?.branchCode || '',
+    routingNumber: (initialBankData as any)?.routingNumber || '',
+    swiftBic: (initialBankData as any)?.swiftBic || '',
     balance: initialBankData?.balance || 0,
     currency: initialBankData?.currency || defaultCurrency,
     accountType: initialBankData?.accountType || 'checking',
@@ -79,6 +132,9 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
         accountName: initialBankData.accountName,
         accountNumber: initialBankData.accountNumber,
         iban: initialBankData.iban,
+        branchCode: (initialBankData as any).branchCode || '',
+        routingNumber: (initialBankData as any).routingNumber || '',
+        swiftBic: (initialBankData as any).swiftBic || '',
         balance: initialBankData.balance || 0,
         currency: initialBankData.currency,
         accountType: initialBankData.accountType,
@@ -91,6 +147,9 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
         accountName: '',
         accountNumber: '',
         iban: '',
+        branchCode: '',
+        routingNumber: '',
+        swiftBic: '',
         balance: 0,
         currency: defaultCurrency,
         accountType: 'checking',
@@ -220,25 +279,75 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
             </div>
           </div>
 
-          {/* IBAN */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Globe className="w-4 h-4 inline mr-2" />
-              IBAN *
-            </label>
-            <input
-              type="text"
-              value={bankData.iban}
-              onChange={(e) => handleIbanChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="TR00 0000 0000 0000 0000 0000 00"
-              maxLength={34}
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              {t('banks.ibanAutoFormat')}
-            </p>
-          </div>
+          {/* Ülkeye göre alanlar */}
+          {showIBAN && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Globe className="w-4 h-4 inline mr-2" />
+                IBAN *
+              </label>
+              <input
+                type="text"
+                value={bankData.iban}
+                onChange={(e) => handleIbanChange(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder={normalizedCountry === 'DE' ? 'DE00 0000 0000 0000 0000 00' : normalizedCountry === 'FR' ? 'FR00 0000 0000 0000 0000 0000 000' : 'TR00 0000 0000 0000 0000 0000 00'}
+                maxLength={34}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {t('banks.ibanAutoFormat')}
+              </p>
+            </div>
+          )}
+
+          {showRoutingNumber && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('banks.routingNumber')} *
+              </label>
+              <input
+                type="text"
+                value={(bankData as any).routingNumber}
+                onChange={(e) => setBankData({ ...bankData, routingNumber: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="123456789"
+                required
+              />
+            </div>
+          )}
+
+          {showSwiftBic && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('banks.swiftBic')}
+              </label>
+              <input
+                type="text"
+                value={(bankData as any).swiftBic}
+                onChange={(e) => setBankData({ ...bankData, swiftBic: e.target.value.toUpperCase() })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="ABCDEF12XXX"
+                maxLength={11}
+              />
+            </div>
+          )}
+
+          {showBranchCode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('banks.branchCode')}
+              </label>
+              <input
+                type="text"
+                value={(bankData as any).branchCode}
+                onChange={(e) => setBankData({ ...bankData, branchCode: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="1234"
+                maxLength={8}
+              />
+            </div>
+          )}
 
           {/* Balance and Currency */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -300,7 +409,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount }
           </button>
           <button
             onClick={handleSave}
-            disabled={!bankData.bankName || !bankData.accountName || !bankData.accountNumber || !bankData.iban}
+            disabled={!bankData.bankName || !bankData.accountName || !bankData.accountNumber || (showIBAN ? !bankData.iban : !((bankData as any).routingNumber))}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {initialBankData ? t('common.update') : t('banks.addAccount')}

@@ -10,7 +10,22 @@ const FinalCTA: React.FC<FinalCTAProps> = ({ loginUrl }) => {
   const { t } = useTranslation();
 
   const handleGetStarted = () => {
-    window.open(loginUrl, '_blank');
+    // Hash URL ise aynı sekmede hash routing ile git
+    if (loginUrl.startsWith('#')) {
+      window.location.hash = loginUrl.replace('#', '');
+      return;
+    }
+    // Uyum için bilinen relative yolları hash'e çevir
+    if (loginUrl === '/register') {
+      window.location.hash = 'register';
+      return;
+    }
+    if (loginUrl === '/login') {
+      window.location.hash = 'login';
+      return;
+    }
+    // Diğer durumlarda mevcut sekmede yönlendir
+    window.location.href = loginUrl;
   };
 
   return (

@@ -15,7 +15,7 @@ import type {
   ProductCategory,
 } from "./types";
 import { secureStorage } from "./utils/storage";
-import { handleApiError, getErrorMessage } from "./utils/errorHandler";
+import { getErrorMessage } from "./utils/errorHandler";
 
 // API imports
 import * as customersApi from "./api/customers";
@@ -76,7 +76,6 @@ import ChartOfAccountsPage from "./components/ChartOfAccountsPage";
 import ArchivePage from "./components/ArchivePage";
 import GeneralLedger from "./components/GeneralLedger";
 import SimpleSalesPage from "./components/SimpleSalesPage";
-import FiscalPeriodsPage from "./components/FiscalPeriodsPage";
 import FiscalPeriodsWidget from "./components/FiscalPeriodsWidget";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
@@ -96,7 +95,6 @@ import CookiePreferencesModal from "./components/CookiePreferencesModal";
 import LegalHeader from "./components/LegalHeader";
 
 // organization components
-import OrganizationMembersPage from "./components/OrganizationMembersPage";
 import JoinOrganizationPage from "./components/JoinOrganizationPage";
 
 import * as ExcelJS from 'exceljs';
@@ -155,6 +153,7 @@ const AppContent: React.FC = () => {
   const { t } = useTranslation();
   
   const [currentPage, setCurrentPage] = useState("dashboard");
+  const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
   
   // Debug currentPage değişikliklerini
   useEffect(() => {
@@ -417,6 +416,12 @@ const AppContent: React.FC = () => {
       };
       console.log('🔄 authUser değişti, App.tsx user state güncelleniyor:', updatedUser);
       setUser(updatedUser);
+      // Tenant bilgisini localStorage'a da yaz (fallback için)
+      try {
+        if (authUser.tenantId != null) {
+          localStorage.setItem('tenantId', String(authUser.tenantId));
+        }
+      } catch {}
     }
   }, [authUser]);
 
@@ -433,7 +438,7 @@ const AppContent: React.FC = () => {
 
     console.log('📂 localStorage cache yükleniyor (authenticated user)...');
     const savedBanks = localStorage.getItem('bankAccounts');
-    const savedSales = localStorage.getItem('sales');
+  const savedSales = localStorage.getItem('sales');
     const savedCustomers = localStorage.getItem('customers_cache');
     const savedSuppliers = localStorage.getItem('suppliers_cache');
     const savedProducts = localStorage.getItem('products_cache');
@@ -453,14 +458,35 @@ const AppContent: React.FC = () => {
     if (savedSales) {
       try {
         const salesData = JSON.parse(savedSales);
-        // TenantId'ye göre filtrele
-        const currentTenantId = authUser?.tenantId;
-        const filteredSales = currentTenantId 
-          ? salesData.filter((s: any) => s.tenantId === currentTenantId)
-          : [];
+        const currentTenantIdRaw = authUser?.tenantId ?? localStorage.getItem('tenantId') ?? undefined;
+        const currentTenantId = currentTenantIdRaw != null ? String(currentTenantIdRaw) : undefined;
+
+        // TenantId'siz kayıtları mevcut tenant'a migrate et (string normalize)
+        let migrated = salesData as any[];
+        if (currentTenantId) {
+          migrated = salesData.map((s: any) => (
+            s && (s.tenantId == null || String(s.tenantId).length === 0)
+              ? { ...s, tenantId: currentTenantId }
+              : { ...s, tenantId: s?.tenantId != null ? String(s.tenantId) : s?.tenantId }
+          ));
+          // Migre edilmiş veriyi geri yaz (idempotent)
+          try { localStorage.setItem('sales', JSON.stringify(migrated)); } catch (e) { console.warn('Sales migration save failed:', e); }
+        } else {
+          // normalize tenantId to string when possible
+          migrated = salesData.map((s: any) => (
+            s && s.tenantId != null ? { ...s, tenantId: String(s.tenantId) } : s
+          ));
+        }
+
+        // TenantId'ye göre filtrele (string karşılaştır)
+        const filteredSales = currentTenantId
+          ? migrated.filter((s: any) => String(s?.tenantId ?? '') === String(currentTenantId))
+          : migrated; // tenant yoksa hepsini göster
+
         console.log('✅ Satışlar cache\'den yüklendi:', {
-          total: salesData.length,
-          filtered: filteredSales.length,
+          total: (salesData || []).length,
+          migrated: (migrated || []).length,
+          filtered: (filteredSales || []).length,
           tenantId: currentTenantId
         });
         setSales(filteredSales);
@@ -842,6 +868,33 @@ const AppContent: React.FC = () => {
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
+  };
+
+  // Inline fatura güncellemelerini backend'e yaz ve cache'i güncelle
+  const handleInlineUpdateInvoice = async (updated: any) => {
+    try {
+      const patch: any = {};
+      if (typeof updated.status !== 'undefined') patch.status = updated.status;
+      if (typeof updated.dueDate !== 'undefined') patch.dueDate = updated.dueDate;
+      if (typeof updated.issueDate !== 'undefined') patch.issueDate = updated.issueDate;
+
+      const saved = await invoicesApi.updateInvoice(String(updated.id), patch);
+      setInvoices(prev => {
+        const next = prev.map(inv => String(inv.id) === String(saved.id) ? saved : inv);
+        // Cache'i güncelle
+        try { localStorage.setItem('invoices_cache', JSON.stringify(next)); } catch {}
+        return next;
+      });
+      showToast('Fatura güncellendi', 'success');
+    } catch (error: any) {
+      console.error('Inline invoice update error:', error);
+      showToast(error?.response?.data?.message || 'Fatura güncellenemedi', 'error');
+    }
+  };
+
+  const openSettingsOn = (tabId: string) => {
+    setSettingsInitialTab(tabId);
+    navigateTo('settings');
   };
 
   const handleLogout = () => {
@@ -1461,13 +1514,15 @@ const AppContent: React.FC = () => {
             const saleNumber = `${prefix}${String(nextSequence).padStart(3, '0')}`;
             
             // Satış oluştur
+            const tenantIdRaw = authUser?.tenantId ?? localStorage.getItem('tenantId') ?? undefined;
+            const normalizedTenantId = tenantIdRaw != null ? String(tenantIdRaw) : undefined;
             const newSale = {
               ...saleData,
               id: String(Date.now()),
               saleNumber: saleNumber,
               status: 'completed' as const,
               invoiceId: created.id, // Fatura ID'sini satışa ekle
-              tenantId: authUser?.tenantId, // Tenant ID ekle
+              tenantId: normalizedTenantId, // Tenant ID ekle (normalize + fallback)
             };
             
             const newSales = [...sales, newSale];
@@ -1795,12 +1850,14 @@ const AppContent: React.FC = () => {
         // saleNumber'ı silip yenisini ekle - saleData'daki boş saleNumber ezmesin
         const { saleNumber: _, ...cleanSaleData } = saleData;
         
+        const tenantIdRaw = authUser?.tenantId ?? localStorage.getItem('tenantId') ?? undefined;
+        const normalizedTenantId = tenantIdRaw != null ? String(tenantIdRaw) : undefined;
         finalData = {
           ...cleanSaleData,
           id: newId,
           saleNumber: newSaleNumber, // En son ekle ki ezilmesin
           date: saleData?.date || saleData?.saleDate || new Date().toISOString().split("T")[0],
-          tenantId: authUser?.tenantId, // Tenant ID ekle
+          tenantId: normalizedTenantId, // Tenant ID ekle (normalize + fallback)
         };
         
         console.log('✅ Yeni satış oluşturuldu:', {
@@ -2279,7 +2336,7 @@ const AppContent: React.FC = () => {
       }
       
       // Frontend modaldan gelen veriyi backend formatına dönüştür
-      const backendData = {
+      const backendData: any = {
         customerId: customerId,
         issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
         dueDate: invoiceData.dueDate,
@@ -2296,11 +2353,16 @@ const AppContent: React.FC = () => {
         notes: invoiceData.notes || '',
         status: invoiceData.status || 'draft',
       };
+
+      // Satıştan fatura oluşturuluyorsa ilişkiyi payload'a ekle (backend destekliyorsa)
+      if (selectedSaleForInvoice?.id) {
+        backendData.saleId = selectedSaleForInvoice.id;
+      }
       
       console.log('🚀 Backend formatında gönderilecek veri:', backendData);
       
       // Backend'e invoice oluştur
-      const created = await invoicesApi.createInvoice(backendData);
+  const created = await invoicesApi.createInvoice(backendData);
       
       console.log('✅ Fatura oluşturuldu:', {
         id: created.id,
@@ -2309,7 +2371,10 @@ const AppContent: React.FC = () => {
       });
       
       // Frontend state'ini güncelle
-      const newInvoices = [...invoices, created];
+      const createdWithLink = selectedSaleForInvoice?.id && !created.saleId
+        ? { ...created, saleId: selectedSaleForInvoice.id }
+        : created;
+      const newInvoices = [...invoices, createdWithLink];
       setInvoices(newInvoices);
       localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
       
@@ -2325,6 +2390,8 @@ const AppContent: React.FC = () => {
         );
         setSales(updatedSales);
         localStorage.setItem('sales_cache', JSON.stringify(updatedSales));
+        // Kalıcılık için ana anahtar olan 'sales' de güncellensin
+        try { localStorage.setItem('sales', JSON.stringify(updatedSales)); } catch {}
         console.log('🔗 Satış fatura ile ilişkilendirildi:', {
           saleId: selectedSaleForInvoice.id,
           invoiceId: created.id
@@ -2544,7 +2611,7 @@ const AppContent: React.FC = () => {
     };
 
 
-    const saleAmount = (sale: any) => Number(sale?.amount ?? (sale?.quantity || 0) * (sale?.unitPrice || 0));
+  const saleAmount = (sale: any) => Number(sale?.amount ?? (sale?.quantity || 0) * (sale?.unitPrice || 0));
     const expenseAmount = (expense: any) => Number(expense?.amount ?? 0);
     const invoiceAmount = (invoice: any) => Number(invoice?.total ?? 0);
 
@@ -2556,12 +2623,29 @@ const AppContent: React.FC = () => {
       return s.includes('paid') || s.includes('öden') || s.includes('odendi') || s.includes('ödenendi');
     });
 
-    const totalRevenue = sum(sales, saleAmount);
-    const revenueCurrent = sum(sales.filter(sale => isInMonth(sale?.date || sale?.saleDate, currentMonth, currentYear)), saleAmount);
-    const revenuePrevious = sum(sales.filter(sale => isInMonth(sale?.date || sale?.saleDate, previousMonth, previousYear)), saleAmount);
+    const hasInvoiceForSale = (sale: any) =>
+      Boolean(sale?.invoiceId) ||
+      invoices.some(inv => String(inv?.saleId || '') === String(sale?.id || ''));
 
-    const totalExpense = sum(paidExpenses, expenseAmount);
-    const expenseCurrent = sum(paidExpenses.filter(expense => isInMonth(expense?.expenseDate, currentMonth, currentYear)), expenseAmount);
+    // Gelir: Ödenmiş faturalar + faturaya dönüşmeyen tamamlanmış satışlar
+    const paidInvoicesCurrent = invoices.filter(inv => inv.status === 'paid' && isInMonth(inv?.issueDate, currentMonth, currentYear));
+    const paidInvoicesPrevious = invoices.filter(inv => inv.status === 'paid' && isInMonth(inv?.issueDate, previousMonth, previousYear));
+
+    const completedSalesCurrent = sales.filter(sale =>
+      String(sale?.status).toLowerCase() === 'completed' &&
+      isInMonth(sale?.date || sale?.saleDate, currentMonth, currentYear) &&
+      !hasInvoiceForSale(sale)
+    );
+    const completedSalesPrevious = sales.filter(sale =>
+      String(sale?.status).toLowerCase() === 'completed' &&
+      isInMonth(sale?.date || sale?.saleDate, previousMonth, previousYear) &&
+      !hasInvoiceForSale(sale)
+    );
+
+    const revenueCurrent = sum(paidInvoicesCurrent, invoiceAmount) + sum(completedSalesCurrent, saleAmount);
+    const revenuePrevious = sum(paidInvoicesPrevious, invoiceAmount) + sum(completedSalesPrevious, saleAmount);
+
+  const expenseCurrent = sum(paidExpenses.filter(expense => isInMonth(expense?.expenseDate, currentMonth, currentYear)), expenseAmount);
     const expensePrevious = sum(paidExpenses.filter(expense => isInMonth(expense?.expenseDate, previousMonth, previousYear)), expenseAmount);
 
     const outstandingInvoices = invoices.filter(invoice => invoice.status !== "paid");
@@ -2587,7 +2671,7 @@ const AppContent: React.FC = () => {
     const statsCards = [
       {
         title: t('dashboard.totalRevenue'),
-        value: formatCurrency(totalRevenue),
+        value: formatCurrency(revenueCurrent),
         change: formatPercentage(percentChange(revenuePrevious, revenueCurrent)),
         changeType: changeDirection(revenuePrevious, revenueCurrent),
         icon: TrendingUp,
@@ -2595,7 +2679,7 @@ const AppContent: React.FC = () => {
       },
       {
         title: t('dashboard.totalExpense'),
-        value: formatCurrency(totalExpense),
+        value: formatCurrency(expenseCurrent),
         change: formatPercentage(percentChange(expensePrevious, expenseCurrent)),
         changeType: changeDirection(expensePrevious, expenseCurrent),
         icon: CreditCard,
@@ -2608,10 +2692,11 @@ const AppContent: React.FC = () => {
         changeType: changeDirection(outstandingPrevious, outstandingCurrent),
         icon: FileText,
         color: "purple" as const,
+        subtitle: t('stats.all'),
       },
       {
         title: t('dashboard.activeCustomers'),
-        value: String(customers.length),
+        value: String(customersCurrent),
         change: formatPercentage(percentChange(customersPrevious, customersCurrent)),
         changeType: changeDirection(customersPrevious, customersCurrent),
         icon: Users,
@@ -2694,6 +2779,7 @@ const AppContent: React.FC = () => {
             changeType={card.changeType}
             icon={card.icon}
             color={card.color}
+            subtitle={(card as any).subtitle}
           />
         ))}
       </div>
@@ -2814,7 +2900,7 @@ const AppContent: React.FC = () => {
               setSelectedInvoice(invoice);
               setShowInvoiceViewModal(true);
             }}
-            onUpdateInvoice={updated => setInvoices(prev => prev.map(invoice => (invoice.id === updated.id ? updated : invoice)))}
+            onUpdateInvoice={handleInlineUpdateInvoice}
             onDownloadInvoice={handleDownloadInvoice}
             onVoidInvoice={voidInvoice}
             onRestoreInvoice={restoreInvoice}
@@ -2950,10 +3036,22 @@ const AppContent: React.FC = () => {
             onCompanyUpdate={handleCompanyUpdate}
             onExportData={handleExportData}
             onImportData={handleImportData}
+            initialTab={settingsInitialTab}
           />
         );
       case "fiscal-periods":
-        return <FiscalPeriodsPage />;
+        return (
+          <SettingsPage
+            user={user}
+            company={company}
+            bankAccounts={bankAccounts}
+            onUserUpdate={setUser}
+            onCompanyUpdate={handleCompanyUpdate}
+            onExportData={handleExportData}
+            onImportData={handleImportData}
+            initialTab={'fiscal-periods'}
+          />
+        );
       case "admin":
         return <AdminPage />;
       case "legal-terms":
@@ -2967,7 +3065,18 @@ const AppContent: React.FC = () => {
       case "legal-cookies":
         return <div className="p-6"><p>Bu sayfa geliştirme aşamasındadır.</p></div>;
       case "organization-members":
-        return <OrganizationMembersPage />;
+        return (
+          <SettingsPage
+            user={user}
+            company={company}
+            bankAccounts={bankAccounts}
+            onUserUpdate={setUser}
+            onCompanyUpdate={handleCompanyUpdate}
+            onExportData={handleExportData}
+            onImportData={handleImportData}
+            initialTab={'organization'}
+          />
+        );
       default:
         // Handle join organization with token
         if (currentPage.startsWith('join-organization:')) {
@@ -3150,6 +3259,7 @@ const AppContent: React.FC = () => {
           }}
           bank={selectedBank}
           bankAccount={selectedBank}
+          country={company?.country as any}
         />
       )}
 
@@ -3343,6 +3453,7 @@ const AppContent: React.FC = () => {
             onToggleNotifications={handleToggleNotifications}
             onCloseNotifications={handleCloseNotifications}
             onNotificationClick={handleNotificationClick}
+            onOpenSettingsProfile={() => openSettingsOn('profile')}
           />
 
           <main className="flex-1 px-3 py-6 sm:px-6 lg:px-8">

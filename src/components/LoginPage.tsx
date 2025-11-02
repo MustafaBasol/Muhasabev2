@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, Building2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import LegalHeader from './LegalHeader';
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -30,28 +33,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50">
+      <LegalHeader />
+      <div className="flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <Building2 className="h-8 w-8 text-white" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Hoş Geldiniz
-            </h1>
-            <p className="text-gray-600">
-              Hesabınıza giriş yaparak devam edin
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('auth.welcomeTitle', 'Hoş Geldiniz')}</h1>
+            <p className="text-gray-600">{t('auth.welcomeSubtitle', 'Hesabınıza giriş yaparak devam edin')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                E-posta Adresi
-              </label>
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.emailAddress', 'E-posta Adresi')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400" />
@@ -63,16 +62,14 @@ export default function LoginPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200"
-                  placeholder="ornek@email.com"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder={t('auth.emailPlaceholder', 'ornek@email.com')}
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                Şifre
-              </label>
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.password', 'Şifre')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-gray-400" />
@@ -84,8 +81,8 @@ export default function LoginPage() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200"
-                  placeholder="••••••••"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder={t('auth.passwordPlaceholder', '••••••••')}
                 />
                 <button
                   type="button"
@@ -105,28 +102,28 @@ export default function LoginPage() {
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 text-gray-900 focus:ring-gray-900 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <span className="ml-2 text-sm text-gray-600">Beni hatırla</span>
+                <span className="ml-2 text-sm text-gray-600">{t('auth.rememberMe', 'Beni hatırla')}</span>
               </label>
               <button
                 type="button"
-                className="text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium"
+                className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
               >
-                Şifremi unuttum
+                {t('auth.forgotPassword', 'Şifremi unuttum')}
               </button>
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gray-900 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>Giriş Yap</span>
+                  <span>{t('auth.signIn', 'Giriş Yap')}</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
@@ -141,10 +138,10 @@ export default function LoginPage() {
           )}
 
           <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-sm font-semibold text-gray-700 mb-2">Demo Hesap Bilgileri:</p>
+            <p className="text-sm font-semibold text-gray-700 mb-2">{t('auth.demoAccount', 'Demo Hesap Bilgileri:')}</p>
             <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>E-posta:</strong> admin@test.com</p>
-              <p><strong>Şifre:</strong> Test123456</p>
+              <p><strong>{t('auth.email', 'E-posta')}:</strong> admin@test.com</p>
+              <p><strong>{t('auth.password', 'Şifre')}:</strong> Test123456</p>
             </div>
           </div>
 
@@ -154,32 +151,33 @@ export default function LoginPage() {
                 <div className="w-full border-t border-gray-200" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">veya</span>
+                <span className="bg-white px-2 text-gray-500">{t('auth.or', 'veya')}</span>
               </div>
             </div>
             
             <button
               type="button"
               onClick={() => window.location.href = '#admin'}
-              className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2"
+              className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2"
             >
               <Building2 className="h-5 w-5" />
-              Yönetici Girişi
+              {t('auth.adminLogin', 'Yönetici Girişi')}
             </button>
           </div>
 
           <div className="text-center mt-8">
             <p className="text-sm text-gray-600">
-              Hesabınız yok mu?{' '}
+              {t('auth.noAccount', 'Hesabınız yok mu?')}{' '}
               <button 
                 onClick={() => window.location.href = '#register'}
-                className="text-gray-900 hover:text-gray-700 font-semibold transition-colors"
+                className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
               >
-                Ücretsiz hesap oluşturun
+                {t('auth.createFreeAccount', 'Ücretsiz hesap oluşturun')}
               </button>
             </p>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

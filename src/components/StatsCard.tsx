@@ -9,9 +9,10 @@ interface StatsCardProps {
   changeType: 'increase' | 'decrease';
   icon: React.ComponentType<{ className?: string }>;
   color: 'blue' | 'green' | 'red' | 'purple';
+  subtitle?: string;
 }
 
-export default function StatsCard({ title, value, change, changeType, icon: Icon, color }: StatsCardProps) {
+export default function StatsCard({ title, value, change, changeType, icon: Icon, color, subtitle }: StatsCardProps) {
   const { t } = useTranslation();
   
   const colorClasses = {
@@ -49,7 +50,7 @@ export default function StatsCard({ title, value, change, changeType, icon: Icon
         <span className={`text-sm font-medium ${changeType === 'increase' ? 'text-green-600' : 'text-red-600'}`}>
           {change}
         </span>
-        <span className="text-gray-500 text-sm">{t('stats.thisMonth')}</span>
+        <span className="text-gray-500 text-sm">{subtitle || t('stats.thisMonth')}</span>
       </div>
     </div>
   );

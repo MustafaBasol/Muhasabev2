@@ -83,10 +83,10 @@ export const authService = {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
     localStorage.removeItem('tenant');
+    localStorage.removeItem('tenantId');
     
     // Cache'leri temizle (güvenlik için)
-    localStorage.removeItem('bankAccounts');
-    localStorage.removeItem('sales');
+  localStorage.removeItem('bankAccounts');
     localStorage.removeItem('customers_cache');
     localStorage.removeItem('suppliers_cache');
     localStorage.removeItem('products_cache');

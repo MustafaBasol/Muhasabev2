@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, Plus, Eye, Edit, Download, Trash2, FileText, Calendar, Check, X, Ban, RotateCcw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { compareBy, defaultStatusOrderInvoices, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
 
 // Archive threshold: invoices older than this many days will only appear in archive
 const ARCHIVE_THRESHOLD_DAYS = 365; // 1 year
@@ -61,6 +63,10 @@ export default function InvoiceList({
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidingInvoice, setVoidingInvoice] = useState<Invoice | null>(null);
   const [voidReason, setVoidReason] = useState('');
+  const [sort, setSort] = useState<{ by: 'invoiceNumber' | 'customer' | 'description' | 'amount' | 'status' | 'dueDate' | 'issueDate'; dir: SortDir }>({ by: 'issueDate', dir: 'desc' });
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const debouncedSearch = useDebouncedValue(searchTerm, 300);
 
   // Filter out archived invoices (older than threshold)
   const currentInvoices = invoices.filter(invoice => {
@@ -70,32 +76,100 @@ export default function InvoiceList({
     return issueDate >= thresholdDate;
   });
 
-  const filteredInvoices = invoices
-    .filter(invoice => {
-      const normalizedSearch = (searchTerm || '').toLowerCase();
-      const matchesSearch = 
-        (invoice.invoiceNumber || '').toLowerCase().includes(normalizedSearch) ||
-        (invoice.customer?.name || '').toLowerCase().includes(normalizedSearch);
-      
+  const filteredInvoices = useMemo(() => {
+    return invoices
+      .filter(invoice => {
+      const q = normalizeText(debouncedSearch);
+      const descrItems = ((invoice.items as any[]) || (invoice as any).lineItems || []).map((it: any) => it.productName || it.description || '').join(' ');
+      const haystack = [
+        invoice.invoiceNumber,
+        invoice.customer?.name,
+        invoice.customer?.email,
+        invoice.status,
+        invoice.issueDate,
+        invoice.dueDate,
+        descrItems,
+        String(invoice.total)
+      ].map(normalizeText).join(' ');
+
+      const matchesSearch = q.length === 0 || haystack.includes(q);
       const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-      
-      // Void kontrolü - varsayılan olarak void edilmiş faturaları gizle
       const matchesVoidFilter = showVoided || !invoice.isVoided;
-      
+
       // Only show invoices that are not archived (within threshold)
       const issueDate = new Date(invoice.issueDate);
       const thresholdDate = new Date();
       thresholdDate.setDate(thresholdDate.getDate() - ARCHIVE_THRESHOLD_DAYS);
       const isNotArchived = issueDate >= thresholdDate;
-      
-      return matchesSearch && matchesStatus && matchesVoidFilter && isNotArchived;
+
+      // Tarih aralığı (issueDate'e göre)
+      let matchesDate = true;
+      if (startDate) {
+        matchesDate = matchesDate && new Date(invoice.issueDate) >= new Date(startDate);
+      }
+      if (endDate) {
+        matchesDate = matchesDate && new Date(invoice.issueDate) <= new Date(endDate);
+      }
+
+      return matchesSearch && matchesStatus && matchesVoidFilter && isNotArchived && matchesDate;
     })
     .sort((a, b) => {
-      // En yeni faturalar en üstte (ID'ye göre ters sıralama)
-      const aId = String(a.id || '');
-      const bId = String(b.id || '');
-      return bId.localeCompare(aId);
+      // Tip-bilinçli sıralama + ikincil bağlaçlar (eşitlik durumunda görünür değişim sağla)
+      switch (sort.by) {
+        case 'invoiceNumber':
+          return compareBy(a, b, x => x.invoiceNumber, sort.dir, 'string');
+        case 'customer':
+          return compareBy(a, b, x => x.customer?.name || '', sort.dir, 'string');
+        case 'description': {
+          const sel = (x: Invoice) => {
+            const itemsList = (x.items as any[]) || (x as any).lineItems || [];
+            return (itemsList[0]?.productName || itemsList[0]?.description || '') as string;
+          };
+          return compareBy(a, b, sel, sort.dir, 'string');
+        }
+        case 'amount':
+          return compareBy(a, b, x => toNumberSafe(x.total), sort.dir, 'number');
+        case 'status':
+          return compareBy(a, b, x => x.status, sort.dir, 'string', defaultStatusOrderInvoices);
+        case 'dueDate': {
+          const ta = parseDateSafe(a.dueDate);
+          const tb = parseDateSafe(b.dueDate);
+          if (ta === tb) {
+            // Bağlaç: fatura numarasına göre
+            return compareBy(a, b, x => x.invoiceNumber, sort.dir, 'string');
+          }
+          return ta < tb ? (sort.dir === 'asc' ? -1 : 1) : (sort.dir === 'asc' ? 1 : -1);
+        }
+        case 'issueDate':
+        default: {
+          const ta = parseDateSafe(a.issueDate);
+          const tb = parseDateSafe(b.issueDate);
+          if (ta === tb) {
+            // Bağlaç: fatura numarasına göre
+            return compareBy(a, b, x => x.invoiceNumber, sort.dir, 'string');
+          }
+          return ta < tb ? (sort.dir === 'asc' ? -1 : 1) : (sort.dir === 'asc' ? 1 : -1);
+        }
+      }
     });
+  }, [invoices, debouncedSearch, statusFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
+
+  const toggleSort = (column: typeof sort.by) => {
+    // Tek bir etkileşimde hem sütunu hem yönü tutarlı güncelle (atomik state)
+    setSort(prev => {
+      if (prev.by === column) {
+        return { ...prev, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+      }
+      const defaultDir: SortDir = (column === 'amount' || column === 'dueDate' || column === 'issueDate') ? 'desc' : 'asc';
+      return { by: column, dir: defaultDir };
+    });
+  };
+
+  const SortIndicator = ({ active }: { active: boolean }) => (
+    <span className="inline-block ml-1 text-gray-400">
+      {active ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+    </span>
+  );
 
   const getStatusBadge = (status: string, isVoided?: boolean) => {
     if (isVoided) {
@@ -141,6 +215,8 @@ export default function InvoiceList({
       onUpdateInvoice({ ...invoice, status: tempValue as any });
     } else if (editingField === 'dueDate') {
       onUpdateInvoice({ ...invoice, dueDate: tempValue });
+    } else if (editingField === 'issueDate') {
+      onUpdateInvoice({ ...invoice, issueDate: tempValue });
     }
     setEditingInvoice(null);
     setEditingField(null);
@@ -194,7 +270,7 @@ export default function InvoiceList({
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -217,6 +293,36 @@ export default function InvoiceList({
             <option value="overdue">{t('status.overdue')}</option>
             <option value="cancelled">{t('status.cancelled')}</option>
           </select>
+          {/* Date range */}
+          <div className="flex gap-2 items-center">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-700 whitespace-nowrap">{t('common.startDate')}</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-700 whitespace-nowrap">{t('common.endDate')}</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            {(startDate || endDate) && (
+              <button
+                onClick={() => { setStartDate(''); setEndDate(''); }}
+                className="px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                title={t('archive.clearFilters')}
+              >
+                {t('archive.clearFilters')}
+              </button>
+            )}
+          </div>
           <label className="flex items-center px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
             <input
               type="checkbox"
@@ -224,7 +330,7 @@ export default function InvoiceList({
               onChange={(e) => setShowVoided(e.target.checked)}
               className="mr-2"
             />
-{showVoided ? t('invoices.hideVoided') : t('invoices.showVoided')}
+            {showVoided ? t('invoices.hideVoided') : t('invoices.showVoided')}
           </label>
         </div>
       </div>
@@ -259,23 +365,23 @@ export default function InvoiceList({
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('invoices.invoiceNumber')}
+                  <th onClick={() => toggleSort('invoiceNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('invoices.invoiceNumber')}<SortIndicator active={sort.by==='invoiceNumber'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('invoices.customer')}
+                  <th onClick={() => toggleSort('customer')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('invoices.customer')}<SortIndicator active={sort.by==='customer'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('common.description')}
+                  <th onClick={() => toggleSort('description')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('common.description')}<SortIndicator active={sort.by==='description'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('invoices.amount')}
+                  <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('invoices.amount')}<SortIndicator active={sort.by==='amount'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('invoices.status')}
+                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('invoices.status')}<SortIndicator active={sort.by==='status'} />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('invoices.date')}
+                  <th onClick={() => toggleSort('issueDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    {t('invoices.date')}<SortIndicator active={sort.by==='issueDate'} />
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t('invoices.actions')}
@@ -302,7 +408,7 @@ export default function InvoiceList({
                           </div>
                           <div className="text-xs text-gray-500 flex items-center">
                             <Calendar className="w-3 h-3 mr-1" />
-                            {formatDate(invoice.issueDate)}
+                            {formatDate(invoice.dueDate)}
                           </div>
                         </div>
                       </div>
@@ -397,7 +503,7 @@ export default function InvoiceList({
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {editingInvoice === invoice.id && editingField === 'dueDate' ? (
+                      {editingInvoice === invoice.id && editingField === 'issueDate' ? (
                         <div className="flex items-center space-x-2">
                           <input
                             type="date"
@@ -420,10 +526,10 @@ export default function InvoiceList({
                         </div>
                       ) : (
                         <div 
-                          onClick={() => handleInlineEdit(invoice.id, 'dueDate', invoice.dueDate)}
+                          onClick={() => handleInlineEdit(invoice.id, 'issueDate', invoice.issueDate)}
                           className="cursor-pointer hover:bg-gray-50 rounded p-1"
                         >
-                          {formatDate(invoice.dueDate)}
+                          {formatDate(invoice.issueDate)}
                         </div>
                       )}
                     </td>

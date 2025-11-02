@@ -2,6 +2,7 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import DOMPurify from 'dompurify';
+import i18n from '../i18n/config';
 
 // ——— Tipler ——————————————————————————————————————
 interface Invoice {
@@ -60,6 +61,8 @@ export type CompanyProfile = {
   logoDataUrl?: string; // data:image/png;base64,...
   iban?: string;
   bankAccountId?: string;
+  // Ülke seçimi (dilden bağımsız PDF ve ayarlar için)
+  country?: 'TR' | 'US' | 'DE' | 'FR' | 'OTHER';
   
   // === Türkiye Yasal Alanları ===
   mersisNumber?: string;
@@ -83,23 +86,138 @@ export type CompanyProfile = {
   taxId?: string;
   businessLicenseNumber?: string;
   stateOfIncorporation?: string;
+
+  // === Diğer Ülkeler (genel alanlar) ===
+  registrationNumber?: string; // Ticaret sicil / kayıt no
+  vatNumberGeneric?: string;   // KDV/VAT no
+  taxIdGeneric?: string;       // Vergi kimliği
+  stateOrRegion?: string;      // Eyalet/Bölge/İl
 };
 
-type OpenOpts = { targetWindow?: Window | null; filename?: string; company?: CompanyProfile };
+type OpenOpts = { targetWindow?: Window | null; filename?: string; company?: CompanyProfile; lang?: string; currency?: Currency };
+type Currency = 'TRY' | 'USD' | 'EUR';
 
 // ——— Yardımcılar ——————————————————————————————————
 
-const formatDate = (dateString: string) => {
-  try { return new Date(dateString).toLocaleDateString('tr-TR'); } catch { return ''; }
+const formatDate = (dateString: string, locale?: string) => {
+  try { return new Date(dateString).toLocaleDateString(locale || 'tr-TR'); } catch { return ''; }
 };
 
-const formatAmount = (amount: number) => {
-  const n = Number(amount);
-  const safe = Number.isFinite(n) ? n : 0;
-  return `₺${safe.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+// Not: Eski formatAmount kullanılmıyor; geriye dönük kalabilir, ancak uyarıyı önlemek için kaldırıyoruz.
+
+// Para birimi belirleme ve biçimlendirme yardımcıları (Context ile uyumlu mantık)
+const toNum = (v: any): number => {
+  if (v == null) return 0;
+  if (typeof v === 'number' && isFinite(v)) return v;
+  const s = String(v).replace(/[^0-9+\-.,]/g, '');
+  // virgül/nokta varyasyonlarına karşı basit normalize
+  const normalized = s.includes(',') && !s.includes('.') ? s.replace(',', '.') : s;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : 0;
+};
+const getSelectedCurrency = (): Currency => {
+  try {
+    const saved = localStorage.getItem('currency') as Currency | null;
+    if (saved === 'TRY' || saved === 'USD' || saved === 'EUR') return saved;
+  } catch {}
+  return 'TRY';
+};
+
+const getCurrencySymbol = (cur: Currency): string => {
+  switch (cur) {
+    case 'TRY': return '₺';
+    case 'USD': return '$';
+    case 'EUR': return '€';
+    default: return '₺';
+  }
+};
+
+const makeCurrencyFormatter = (cur: Currency) => (amount: any): string => {
+  const safe = toNum(amount);
+  const symbol = getCurrencySymbol(cur);
+  switch (cur) {
+    case 'TRY':
+      return `${symbol}${safe.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    case 'USD':
+    case 'EUR':
+      return `${symbol}${safe.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    default:
+      return `${symbol}${safe.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
 };
 
 const formatIban = (v?: string) => (v || '').replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
+
+// Dil -> Ülke eşlemesi (SettingsPage ile aynı mantık)
+type SettingsLanguage = 'tr' | 'en' | 'fr' | 'de';
+type CountryCode = 'TR' | 'FR' | 'DE' | 'US' | 'OTHER';
+
+const normalizeLang = (lang?: string): SettingsLanguage => {
+  const raw = (lang || i18n?.language || 'en').toLowerCase();
+  const two = raw.substring(0, 2) as SettingsLanguage;
+  return (['tr', 'en', 'fr', 'de'] as const).includes(two) ? two : 'en';
+};
+
+const countryFromLang = (lang: SettingsLanguage): CountryCode => {
+  switch (lang) {
+    case 'tr': return 'TR';
+    case 'fr': return 'FR';
+    case 'de': return 'DE';
+    default: return 'US';
+  }
+};
+
+const localeFromLang = (lang: SettingsLanguage): string => {
+  switch (lang) {
+    case 'tr': return 'tr-TR';
+    case 'fr': return 'fr-FR';
+    case 'de': return 'de-DE';
+    default: return 'en-US';
+  }
+};
+
+const buildLegalFieldsHtml = (c: CompanyProfile, country: CountryCode) => {
+  const row = (label: string, value?: string) => value ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>${label}:</strong> ${value}</div>` : '';
+  switch (country) {
+    case 'TR':
+      return [
+        row('VKN', c.taxNumber),
+        row('Vergi Dairesi', c.taxOffice),
+        row('Mersis', c.mersisNumber),
+        row('KEP', c.kepAddress),
+      ].join('');
+    case 'FR':
+      return [
+        row('SIRET', c.siretNumber),
+        row('SIREN', c.sirenNumber),
+        row('APE', c.apeCode),
+        row('TVA', c.tvaNumber),
+        row('RCS', c.rcsNumber),
+      ].join('');
+    case 'DE':
+      return [
+        row('Steuernummer', c.steuernummer),
+        row('USt-IdNr', c.umsatzsteuerID),
+        row('HRB', c.handelsregisternummer),
+        row('Geschäftsführer', c.geschaeftsfuehrer),
+      ].join('');
+    case 'US':
+    default:
+      return [
+        row('EIN', c.einNumber),
+        row('Tax ID', c.taxId),
+        row('Business License', c.businessLicenseNumber),
+        row('State', c.stateOfIncorporation),
+      ].join('');
+    case 'OTHER':
+      return [
+        row('Registration No', c.registrationNumber),
+        row('VAT', c.vatNumberGeneric),
+        row('Tax ID', c.taxIdGeneric),
+        row('State/Region', c.stateOrRegion),
+      ].join('');
+  }
+};
 
 // HTML → PDF (jsPDF.html) → Blob
 // 1) HTML → (html2canvas) → Çok sayfalı PDF Blob
@@ -180,12 +298,12 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
 
 // 2) PDF’i yeni sekmede göster (pop-up’a takılmaz, fallback’li)
 // Basit ve güvenli dosya adı üretici
-const sanitizeFilename = (name?: string, fallback = 'document.pdf') => {
-  const raw = (name && name.trim()) ? name.trim() : fallback;
-  const withPdf = raw.toLowerCase().endsWith('.pdf') ? raw : `${raw}.pdf`;
-  // izin verilen karakterler: harf, rakam, nokta, alt tire, tire
-  return withPdf.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_');
-};
+// Eski: indirme için dosya adı üretici (artık görüntülüyoruz, şimdilik kullanılmıyor)
+// const sanitizeFilename = (name?: string, fallback = 'document.pdf') => {
+//   const raw = (name && name.trim()) ? name.trim() : fallback;
+//   const withPdf = raw.toLowerCase().endsWith('.pdf') ? raw : `${raw}.pdf`;
+//   return withPdf.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_');
+// };
 
 const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow?: Window | null) => {
   const url = typeof pdfData === 'string'
@@ -203,15 +321,22 @@ const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow
     } catch { /* anchor fallback'e geç */ }
   }
 
-  // Programatik anchor → yeni sekme (genelde pop-up sayılmaz)
+  // Öncelik: yeni sekme açıp PDF’i görüntülemek
+  try {
+    const w = window.open(url, '_blank', 'noopener');
+    if (w) {
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 10000);
+      return;
+    }
+  } catch { /* anchor fallback */ }
+
+  // Fallback: programatik anchor → yeni sekme (genelde pop-up sayılmaz)
   try {
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
     a.rel = 'noopener';
-    // Zorunlu indirmeyi tetiklemeden, kaydetme durumunda düzgün isim kullanılsın
-    a.download = sanitizeFilename(_filename);
-    // a.download = filename; // görüntülemek yerine indirmeye zorlamak istersen aç
+    // Not: a.download EKLEME - görüntüleme istiyoruz, indirmeyi zorlamıyoruz
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -225,34 +350,32 @@ const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow
 
 
 // ——— ŞABLON ÜRETİCİLERİ ———————————————————————
-const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
+const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}, lang?: string, currency?: Currency) => {
   const hasLogo = !!c.logoDataUrl;
+  const activeLang = normalizeLang(lang);
+  // Öncelik: şirket ayarlarındaki ülke; yoksa dilden türet
+  const country: CountryCode = (c.country as CountryCode) || countryFromLang(activeLang);
+  const tf = (k: string) => i18n.t(k, { lng: activeLang });
+  const activeCurrency: Currency = currency ?? getSelectedCurrency();
+  const fmt = makeCurrencyFormatter(activeCurrency);
+  const dloc = localeFromLang(activeLang);
+
+  // Toplamları güvenli biçimde hesapla
+  const items = Array.isArray(invoice.items) ? invoice.items : [];
+  const computedSubtotal = items.reduce((sum, it: any) => {
+    const lineTotal = toNum(it.total) || (toNum(it.unitPrice) * toNum(it.quantity));
+    return sum + (Number.isFinite(lineTotal) ? lineTotal : 0);
+  }, 0);
+  const subtotalVal = toNum(invoice.subtotal) || computedSubtotal;
+  const taxVal = toNum(invoice.taxAmount);
+  const totalVal = toNum(invoice.total) || (subtotalVal + taxVal);
 
   const companyBlock = `
     <div>
       <div style="font-size:18px;font-weight:700;color:#111827;">${c.name ?? ''}</div>
       ${c.address ? `<div style="font-size:12px;color:#4B5563;white-space:pre-line;margin-top:2px;">${c.address}</div>` : ''}
 
-      ${c.taxNumber ? `<div style="font-size:11px;color:#111827;margin-top:4px;"><strong>VKN:</strong> ${c.taxNumber}</div>` : ''}
-      ${c.taxOffice ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Vergi Dairesi:</strong> ${c.taxOffice}</div>` : ''}
-      ${c.mersisNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Mersis:</strong> ${c.mersisNumber}</div>` : ''}
-      ${c.kepAddress ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>KEP:</strong> ${c.kepAddress}</div>` : ''}
-      
-      ${c.siretNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>SIRET:</strong> ${c.siretNumber}</div>` : ''}
-      ${c.sirenNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>SIREN:</strong> ${c.sirenNumber}</div>` : ''}
-      ${c.apeCode ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>APE:</strong> ${c.apeCode}</div>` : ''}
-      ${c.tvaNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>TVA:</strong> ${c.tvaNumber}</div>` : ''}
-      ${c.rcsNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>RCS:</strong> ${c.rcsNumber}</div>` : ''}
-      
-      ${c.steuernummer ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Steuernummer:</strong> ${c.steuernummer}</div>` : ''}
-      ${c.umsatzsteuerID ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>USt-IdNr:</strong> ${c.umsatzsteuerID}</div>` : ''}
-      ${c.handelsregisternummer ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>HRB:</strong> ${c.handelsregisternummer}</div>` : ''}
-      ${c.geschaeftsfuehrer ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Geschäftsführer:</strong> ${c.geschaeftsfuehrer}</div>` : ''}
-      
-      ${c.einNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>EIN:</strong> ${c.einNumber}</div>` : ''}
-      ${c.taxId ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Tax ID:</strong> ${c.taxId}</div>` : ''}
-      ${c.businessLicenseNumber ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Business License:</strong> ${c.businessLicenseNumber}</div>` : ''}
-      ${c.stateOfIncorporation ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>State:</strong> ${c.stateOfIncorporation}</div>` : ''}
+      ${buildLegalFieldsHtml(c, country)}
 
       ${c.iban ? `<div style="font-size:11px;color:#111827;margin-top:4px;"><strong>IBAN:</strong> ${formatIban(c.iban)}</div>` : ''}
       ${c.phone ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Tel:</strong> ${c.phone}</div>` : ''}
@@ -263,17 +386,22 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
 
   const customerBlock = `
     <div style="text-align:right;">
-      <h3 style="color:#1F2937;margin:0 0 6px 0;">Müşteri Bilgileri</h3>
+      <h3 style="color:#1F2937;margin:0 0 6px 0;">${tf('pdf.invoice.customerInfo')}</h3>
       <div style="font-weight:700;margin-bottom:2px;">${invoice.customerName}</div>
       ${invoice.customerEmail ? `<div style="margin-bottom:2px;">${invoice.customerEmail}</div>` : ''}
       ${invoice.customerAddress ? `<div>${invoice.customerAddress}</div>` : ''}
     </div>
   `;
 
-  const statusTR =
-    invoice.status === 'paid' ? 'Ödendi' :
-    invoice.status === 'sent' ? 'Gönderildi' :
-    invoice.status === 'overdue' ? 'Gecikmiş' : 'Taslak';
+  const statusLabel = (() => {
+    const base = 'pdf.invoice.statusLabels';
+    switch (invoice.status) {
+      case 'paid': return tf(`${base}.paid`);
+      case 'sent': return tf(`${base}.sent`);
+      case 'overdue': return tf(`${base}.overdue`);
+      default: return tf(`${base}.draft`);
+    }
+  })();
 
   return `
     <div style="
@@ -292,8 +420,8 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
             style="height:144px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
         </div>
         <div style="text-align:right; line-height:1;">
-          <div style="color:#3B82F6; font-size:28px; font-weight:800;">FATURA</div>
-          <div style="color:#6B7280; font-size:12px; margin-top:4px;">MoneyFlow Muhasebe Sistemi</div>
+          <div style="color:#3B82F6; font-size:28px; font-weight:800;">${tf('pdf.invoice.title')}</div>
+          <div style="color:#6B7280; font-size:12px; margin-top:4px;">${tf('pdf.invoice.appSubtitle')}</div>
         </div>
       </div>
 
@@ -306,10 +434,10 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
       <!-- Fatura bilgileri -->
       <div style="display:flex; justify-content:space-between; margin-bottom:18px;">
         <div>
-          <p style="margin:4px 0;"><strong>Fatura No:</strong> ${invoice.invoiceNumber}</p>
-          <p style="margin:4px 0;"><strong>Düzenleme Tarihi:</strong> ${formatDate(invoice.issueDate)}</p>
-          <p style="margin:4px 0;"><strong>Vade Tarihi:</strong> ${formatDate(invoice.dueDate)}</p>
-          <p style="margin:4px 0;"><strong>Durum:</strong> ${statusTR}</p>
+          <p style="margin:4px 0;"><strong>${tf('pdf.invoice.invoiceNumber')}:</strong> ${invoice.invoiceNumber}</p>
+          <p style="margin:4px 0;"><strong>${tf('pdf.invoice.issueDate')}:</strong> ${formatDate(invoice.issueDate, dloc)}</p>
+          <p style="margin:4px 0;"><strong>${tf('pdf.invoice.dueDate')}:</strong> ${formatDate(invoice.dueDate, dloc)}</p>
+          <p style="margin:4px 0;"><strong>${tf('pdf.invoice.status')}:</strong> ${statusLabel}</p>
         </div>
         <div></div>
       </div>
@@ -318,10 +446,10 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
       <table style="width:100%; border-collapse:collapse; margin-bottom:24px;">
         <thead>
           <tr style="background-color:#F3F4F6;">
-            <th style="border:1px solid #D1D5DB; padding:10px; text-align:left;">Açıklama</th>
-            <th style="border:1px solid #D1D5DB; padding:10px; text-align:center;">Miktar</th>
-            <th style="border:1px solid #D1D5DB; padding:10px; text-align:right;">Birim Fiyat</th>
-            <th style="border:1px solid #D1D5DB; padding:10px; text-align:right;">Toplam</th>
+            <th style="border:1px solid #D1D5DB; padding:10px; text-align:left;">${tf('pdf.invoice.items.description')}</th>
+            <th style="border:1px solid #D1D5DB; padding:10px; text-align:center;">${tf('pdf.invoice.items.quantity')}</th>
+            <th style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${tf('pdf.invoice.items.unitPrice')}</th>
+            <th style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${tf('pdf.invoice.items.total')}</th>
           </tr>
         </thead>
         <tbody>
@@ -329,8 +457,8 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
             <tr>
               <td style="border:1px solid #D1D5DB; padding:10px;">${item.description ?? ''}</td>
               <td style="border:1px solid #D1D5DB; padding:10px; text-align:center;">${item.quantity ?? ''}</td>
-              <td style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${formatAmount(item.unitPrice ?? 0)}</td>
-              <td style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${formatAmount(item.total ?? 0)}</td>
+              <td style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${fmt(item.unitPrice)}</td>
+              <td style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${fmt(toNum(item.total) || (toNum(item.unitPrice) * toNum(item.quantity)))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -340,20 +468,20 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
       <div style="display:flex; justify-content:flex-end; margin-bottom:24px;">
         <div style="width:300px;">
           <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #E5E7EB;">
-            <span>Ara Toplam:</span><span>${formatAmount(invoice.subtotal)}</span>
+            <span>${tf('pdf.invoice.totals.subtotal')}:</span><span>${fmt(subtotalVal)}</span>
           </div>
           <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #E5E7EB;">
-            <span>KDV:</span><span>${formatAmount(invoice.taxAmount)}</span>
+            <span>${tf('pdf.invoice.totals.tax')}:</span><span>${fmt(taxVal)}</span>
           </div>
           <div style="display:flex; justify-content:space-between; padding:12px 0; font-weight:bold; font-size:18px; border-top:2px solid #1F2937;">
-            <span>Genel Toplam:</span><span>${formatAmount(invoice.total)}</span>
+            <span>${tf('pdf.invoice.totals.grandTotal')}:</span><span>${fmt(totalVal)}</span>
           </div>
         </div>
       </div>
 
       <!-- Footer: sayfanın dibinde -->
       <div style="text-align:center; margin-top:auto; padding-top:16px; border-top:1px solid #E5E7EB; color:#6B7280; font-size:11px;">
-        <p>Bu fatura MoneyFlow ile oluşturulmuştur.</p>
+        <p>${tf('pdf.invoice.footer')}</p>
       </div>
     </div>
   `;
@@ -362,113 +490,130 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}) => {
 
 
 
-const buildExpenseHtml = (expense: Expense) => `
+const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) => {
+  const activeLang = normalizeLang(lang);
+  const tf = (k: string) => i18n.t(k, { lng: activeLang });
+  const dloc = localeFromLang(activeLang);
+  const statusLabel = ({ draft: tf('pdf.expense.statusLabels.draft'), approved: tf('pdf.expense.statusLabels.approved'), paid: tf('pdf.expense.statusLabels.paid') } as any)[expense.status];
+  const activeCurrency: Currency = currency ?? getSelectedCurrency();
+  const fmt = makeCurrencyFormatter(activeCurrency);
+  return `
   <div style="max-width: 170mm; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #DC2626; padding-bottom: 20px;">
       <h1 style="color: #DC2626; font-size: 28px; margin: 0;">MoneyFlow</h1>
-      <p style="color: #6B7280; margin: 5px 0 0 0;">Muhasebe Sistemi</p>
+      <p style="color: #6B7280; margin: 5px 0 0 0;">${tf('pdf.invoice.appSubtitle')}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
       <div>
-        <h2 style="color: #1F2937; font-size: 24px; margin: 0 0 10px 0;">GİDER BELGESİ</h2>
-        <p style="margin: 5px 0;"><strong>Gider No:</strong> ${expense.expenseNumber}</p>
-        <p style="margin: 5px 0;"><strong>Gider Tarihi:</strong> ${formatDate(expense.expenseDate)}</p>
-        ${expense.dueDate ? `<p style="margin: 5px 0;"><strong>Ödeme Tarihi:</strong> ${formatDate(expense.dueDate)}</p>` : ''}
-        <p style="margin: 5px 0;"><strong>Durum:</strong> ${({ draft:'Taslak',approved:'Onaylandı',paid:'Ödendi' } as any)[expense.status]}</p>
+        <h2 style="color: #1F2937; font-size: 24px; margin: 0 0 10px 0;">${tf('pdf.expense.title')}</h2>
+        <p style="margin: 5px 0;"><strong>${tf('pdf.expense.expenseNumber')}:</strong> ${expense.expenseNumber}</p>
+  <p style="margin: 5px 0;"><strong>${tf('pdf.expense.expenseDate')}:</strong> ${formatDate(expense.expenseDate, dloc)}</p>
+  ${expense.dueDate ? `<p style="margin: 5px 0;"><strong>${tf('pdf.expense.paymentDate')}:</strong> ${formatDate(expense.dueDate, dloc)}</p>` : ''}
+        <p style="margin: 5px 0;"><strong>${tf('pdf.expense.status')}:</strong> ${statusLabel}</p>
       </div>
       <div style="text-align: right;">
-        <h3 style="color: #1F2937; margin: 0 0 10px 0;">Tedarikçi Bilgileri</h3>
+        <h3 style="color: #1F2937; margin: 0 0 10px 0;">${tf('pdf.expense.supplierInfo')}</h3>
         <p style="margin: 5px 0;"><strong>${expense.supplier}</strong></p>
         <p style="margin: 5px 0; background-color: #FEF3C7; padding: 5px 10px; border-radius: 5px; display: inline-block;">
-          <strong>Kategori:</strong> ${expense.category}
+          <strong>${tf('pdf.expense.category')}:</strong> ${expense.category}
         </p>
       </div>
     </div>
     <div style="margin-bottom: 30px;">
-      <h3 style="color: #1F2937; margin: 0 0 15px 0;">Gider Detayları</h3>
+      <h3 style="color: #1F2937; margin: 0 0 15px 0;">${tf('pdf.expense.details')}</h3>
       <div style="background-color: #F9FAFB; padding: 20px; border-radius: 8px; border: 1px solid #E5E7EB;">
         <p style="margin: 0; font-size: 16px; line-height: 1.5;">${expense.description}</p>
       </div>
     </div>
     <div style="background-color: #FEF2F2; border: 2px solid #FECACA; border-radius: 12px; padding: 25px; margin-bottom: 30px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="color: #991B1B; font-size: 20px; font-weight: bold;">Toplam Gider Tutarı:</span>
-        <span style="color: #DC2626; font-size: 32px; font-weight: bold;">${formatAmount(expense.amount)}</span>
+        <span style="color: #991B1B; font-size: 20px; font-weight: bold;">${tf('pdf.expense.totalAmount')}:</span>
+          <span style="color: #DC2626; font-size: 32px; font-weight: bold;">${fmt(expense.amount)}</span>
       </div>
     </div>
     <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
-      <p>Bu gider belgesi MoneyFlow ile oluşturulmuştur.</p>
-      <p style="margin-top: 10px;">Belge Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</p>
+  <p>${tf('pdf.expense.footer')}</p>
+  <p style="margin-top: 10px;">${formatDate(new Date().toISOString(), dloc)}</p>
     </div>
   </div>
 `;
+};
 
-const buildSaleHtml = (sale: Sale) => `
+const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
+  const activeLang = normalizeLang(lang);
+  const tf = (k: string) => i18n.t(k, { lng: activeLang });
+  const dloc = localeFromLang(activeLang);
+  const statusLabel = ({ completed: tf('pdf.sale.statusLabels.completed'), pending: tf('pdf.sale.statusLabels.pending'), cancelled: tf('pdf.sale.statusLabels.cancelled') } as any)[sale.status];
+  const payName = sale.paymentMethod ? ({ cash: tf('pdf.sale.paymentMethods.cash'), card: tf('pdf.sale.paymentMethods.card'), transfer: tf('pdf.sale.paymentMethods.transfer'), check: tf('pdf.sale.paymentMethods.check') } as any)[sale.paymentMethod] : undefined;
+  const activeCurrency: Currency = currency ?? getSelectedCurrency();
+  const fmt = makeCurrencyFormatter(activeCurrency);
+  return `
   <div style="max-width: 170mm; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #10B981; padding-bottom: 20px;">
       <h1 style="color: #10B981; font-size: 28px; margin: 0;">MoneyFlow</h1>
-      <p style="color: #6B7280; margin: 5px 0 0 0;">Muhasebe Sistemi</p>
+      <p style="color: #6B7280; margin: 5px 0 0 0;">${tf('pdf.invoice.appSubtitle')}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
       <div>
-        <h2 style="color: #1F2937; font-size: 24px; margin: 0 0 10px 0;">SATIŞ BELGESİ</h2>
-        <p style="margin: 5px 0;"><strong>Satış No:</strong> ${sale.saleNumber || `SAL-${sale.id}`}</p>
-        <p style="margin: 5px 0;"><strong>Satış Tarihi:</strong> ${formatDate(sale.date)}</p>
-        <p style="margin: 5px 0;"><strong>Durum:</strong> ${({ completed:'Tamamlandı', pending:'Bekliyor', cancelled:'İptal' } as any)[sale.status]}</p>
-        ${sale.paymentMethod ? `<p style="margin: 5px 0;"><strong>Ödeme Yöntemi:</strong> ${({cash:'Nakit',card:'Kredi/Banka Kartı',transfer:'Havale/EFT',check:'Çek'} as any)[sale.paymentMethod]}</p>` : ''}
+        <h2 style="color: #1F2937; font-size: 24px; margin: 0 0 10px 0;">${tf('pdf.sale.title')}</h2>
+        <p style="margin: 5px 0;"><strong>${tf('pdf.sale.saleNumber')}:</strong> ${sale.saleNumber || `SAL-${sale.id}`}</p>
+  <p style="margin: 5px 0;"><strong>${tf('pdf.sale.saleDate')}:</strong> ${formatDate(sale.date, dloc)}</p>
+        <p style="margin: 5px 0;"><strong>${tf('pdf.sale.status')}:</strong> ${statusLabel}</p>
+        ${payName ? `<p style=\"margin: 5px 0;\"><strong>${tf('pdf.sale.paymentMethod')}:</strong> ${payName}</p>` : ''}
       </div>
       <div style="text-align: right;">
-        <h3 style="color: #1F2937; margin: 0 0 10px 0;">Müşteri Bilgileri</h3>
+        <h3 style="color: #1F2937; margin: 0 0 10px 0;">${tf('pdf.sale.customerInfo')}</h3>
         <p style="margin: 5px 0;"><strong>${sale.customerName}</strong></p>
         ${sale.customerEmail ? `<p style="margin: 5px 0;">${sale.customerEmail}</p>` : ''}
       </div>
     </div>
     <div style="margin-bottom: 30px;">
-      <h3 style="color: #1F2937; margin: 0 0 15px 0;">Ürün/Hizmet Detayları</h3>
+      <h3 style="color: #1F2937; margin: 0 0 15px 0;">${tf('pdf.sale.details')}</h3>
       <div style="background-color: #F0FDF4; padding: 20px; border-radius: 8px; border: 1px solid #BBF7D0;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <span style="font-size: 18px; font-weight: bold; color: #1F2937;">${sale.productName}</span>
         </div>
         ${sale.quantity && sale.unitPrice ? `
           <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-            <span style="color: #6B7280;">Miktar:</span>
+            <span style="color: #6B7280;">${tf('pdf.sale.quantity')}:</span>
             <span style="font-weight: bold;">${sale.quantity}</span>
           </div>
           <div style="display: flex; justify-content: space-between;">
-            <span style="color: #6B7280;">Birim Fiyat:</span>
-            <span style="font-weight: bold;">${formatAmount(sale.unitPrice)}</span>
+            <span style="color: #6B7280;">${tf('pdf.sale.unitPrice')}:</span>
+             <span style="font-weight: bold;">${fmt(sale.unitPrice)}</span>
           </div>
         ` : ''}
       </div>
     </div>
     <div style="background-color: #ECFDF5; border: 2px solid #BBF7D0; border-radius: 12px; padding: 25px; margin-bottom: 30px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="color: #065F46; font-size: 20px; font-weight: bold;">Toplam Satış Tutarı:</span>
-        <span style="color: #10B981; font-size: 32px; font-weight: bold;">${formatAmount(sale.amount)}</span>
+        <span style="color: #065F46; font-size: 20px; font-weight: bold;">${tf('pdf.sale.totalAmount')}:</span>
+          <span style="color: #10B981; font-size: 32px; font-weight: bold;">${fmt(sale.amount)}</span>
       </div>
     </div>
     <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
-      <p>Bu satış belgesi MoneyFlow ile oluşturulmuştur.</p>
-      <p style="margin-top: 10px;">Belge Oluşturma Tarihi: ${formatDate(new Date().toISOString())}</p>
+  <p>${tf('pdf.sale.footer')}</p>
+  <p style="margin-top: 10px;">${formatDate(new Date().toISOString(), dloc)}</p>
     </div>
   </div>
 `;
+};
 
 // ——— DIŞA AÇIK API ———————————————————————————————
 export const generateInvoicePDF = async (invoice: Invoice, opts: OpenOpts = {}) => {
-  const html = buildInvoiceHtml(invoice, opts.company ?? {});
+  const html = buildInvoiceHtml(invoice, opts.company ?? {}, opts.lang, (opts as any).currency);
   const blob = await htmlToPdfBlob(html);
   openPdfInWindow(blob, `${opts.filename ?? invoice.invoiceNumber ?? 'Invoice'}.pdf`, opts.targetWindow);
 };
 
 export const generateExpensePDF = async (expense: Expense, opts: OpenOpts = {}) => {
-  const html = buildExpenseHtml(expense);
+  const html = buildExpenseHtml(expense, opts.lang, (opts as any).currency);
   const blob = await htmlToPdfBlob(html);
   openPdfInWindow(blob, `${opts.filename ?? expense.expenseNumber ?? 'Expense'}.pdf`, opts.targetWindow);
 };
 
 export const generateSalePDF = async (sale: Sale, opts: OpenOpts = {}) => {
-  const html = buildSaleHtml(sale);
+  const html = buildSaleHtml(sale, opts.lang, (opts as any).currency);
   const blob = await htmlToPdfBlob(html);
   openPdfInWindow(blob, `${opts.filename ?? (sale.saleNumber || `SAL-${sale.id}`)}.pdf`, opts.targetWindow);
 };

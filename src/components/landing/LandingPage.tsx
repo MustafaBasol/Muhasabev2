@@ -17,6 +17,7 @@ const LandingPage: React.FC = () => {
   const [showVideoModal, setShowVideoModal] = useState(false);
   
   const LOGIN_URL = import.meta.env.VITE_LOGIN_URL || "/login";
+  const REGISTER_URL = import.meta.env.VITE_REGISTER_URL || "#register";
 
   // SEO meta tags
   useEffect(() => {
@@ -155,7 +156,17 @@ const LandingPage: React.FC = () => {
   }, [t, i18n.language]);
 
   const handleTryForFree = () => {
-    window.open(LOGIN_URL, '_blank');
+    // Ücretsiz dene: kayıt sayfasına yönlendir
+    if (REGISTER_URL.startsWith('#')) {
+      // Hash routing
+      window.location.hash = REGISTER_URL.replace('#', '');
+    } else if (REGISTER_URL === '/register') {
+      // Uyum için hash'e çevir
+      window.location.hash = 'register';
+    } else {
+      // Harici/absolute URL
+      window.location.href = REGISTER_URL;
+    }
   };
 
   const handleSignIn = () => {
@@ -211,9 +222,10 @@ const LandingPage: React.FC = () => {
         <Value />
         <Security />
         <Testimonials />
-        <Pricing loginUrl={LOGIN_URL} />
+        {/* CTA butonları kayıt sayfasına götürmeli */}
+        <Pricing loginUrl={REGISTER_URL} />
         <FAQ />
-        <FinalCTA loginUrl={LOGIN_URL} />
+        <FinalCTA loginUrl={REGISTER_URL} />
       </main>
 
       {/* Footer */}

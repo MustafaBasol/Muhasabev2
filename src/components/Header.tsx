@@ -3,7 +3,6 @@ import {
   Plus,
   Search,
   Bell,
-  Settings as SettingsIcon,
   LogOut,
   User,
   Menu,
@@ -43,6 +42,7 @@ interface HeaderProps {
   onToggleNotifications?: () => void;
   onCloseNotifications?: () => void;
   onNotificationClick?: (notification: HeaderNotification) => void;
+  onOpenSettingsProfile?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -58,6 +58,7 @@ const Header: React.FC<HeaderProps> = ({
   onToggleNotifications,
   onCloseNotifications,
   onNotificationClick,
+  onOpenSettingsProfile,
 }) => {
   const { currentLanguage, changeLanguage, languages } = useLanguage();
   const { t } = useTranslation();
@@ -349,13 +350,10 @@ const Header: React.FC<HeaderProps> = ({
 
             <button
               type="button"
-              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-              aria-label={t('header.settings')}
+              onClick={() => onOpenSettingsProfile && onOpenSettingsProfile()}
+              className="flex items-center gap-2 rounded-lg p-2 transition-colors hover:bg-gray-100"
+              title={t('sidebar.settings')}
             >
-              <SettingsIcon className="h-5 w-5" />
-            </button>
-
-            <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
                 <User className="h-4 w-4 text-white" />
               </div>
@@ -363,7 +361,7 @@ const Header: React.FC<HeaderProps> = ({
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>
                 <p className="text-xs text-gray-500">{user.email}</p>
               </div>
-            </div>
+            </button>
 
             <button
               type="button"

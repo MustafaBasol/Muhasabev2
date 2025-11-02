@@ -185,6 +185,43 @@
     "footer.copyright": "© {{year}} Comptario. All rights reserved.",
     "footer.madeWith": "Made with ❤️ in Europe"
   },
+  "auth": {
+    "welcomeTitle": "Welcome",
+    "welcomeSubtitle": "Sign in to your account to continue",
+    "emailAddress": "Email Address",
+    "emailPlaceholder": "name@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "••••••••",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password",
+    "signIn": "Sign In",
+    "demoAccount": "Demo Account:",
+    "email": "Email",
+    "or": "or",
+    "adminLogin": "Admin Login",
+    "noAccount": "Don't have an account?",
+    "createFreeAccount": "Create a free account",
+    "registerTitle": "Create Account",
+    "registerSubtitle": "Create your free account and get started",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Enter your full name",
+    "companyName": "Company Name",
+    "companyPlaceholder": "Your company (optional)",
+    "phone": "Phone",
+    "phonePlaceholder": "(optional)",
+    "passwordHint": "At least 6 characters",
+    "passwordConfirm": "Confirm Password",
+    "passwordConfirmPlaceholder": "Re-enter your password",
+    "termsText": {
+      "prefix": "I accept: ",
+      "suffix": ""
+    },
+    "and": " and ",
+    "dataProcessing": "Data Processing Agreement",
+    "registerCta": "Create Account",
+    "alreadyHaveAccount": "Already have an account?",
+    "goToLogin": "Sign in"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -203,8 +240,10 @@
     "warning": "Warning",
     "ok": "OK",
     "periodLockedError": "This record cannot be deleted because it belongs to a locked fiscal period",
-    "description": "Description",
-    "dueDate": "Due Date",
+  "description": "Description",
+  "dueDate": "Due Date",
+  "startDate": "Start Date",
+  "endDate": "End Date",
     "monthlyIncomeExpense": "Monthly Income/Expense",
     "last6MonthsPerformance": "Last 6 months performance (newest → oldest)",
     "allCategories": "All categories",
@@ -340,7 +379,8 @@
     "close": "Close"
   },
   "stats": {
-    "thisMonth": "this month"
+    "thisMonth": "this month",
+    "all": "all"
   },
   "status": {
     "paid": "Paid",
@@ -757,7 +797,10 @@
     "currentBalance": "Current Balance",
     "currency": "Currency",
     "accountActive": "Account active",
-    "addAccount": "Add Account"
+    "addAccount": "Add Account",
+    "routingNumber": "Routing Number (ABA)",
+    "swiftBic": "SWIFT/BIC",
+    "branchCode": "Branch Code"
   },
   "settings": {
     "title": "Settings",
@@ -816,8 +859,10 @@
     "saleNumber": "Sale Number",
     "saleDate": "Sale Date",
     "autoNumberNote": "Number will be generated automatically upon saving",
-    "unitPriceInclVAT": "Unit Price (VAT Incl.)",
-    "totalInclVAT": "Total (VAT Incl.)",
+  "unitPriceInclVAT": "Unit Price (VAT Incl.)",
+  "totalInclVAT": "Total (VAT Incl.)",
+  "unitPriceExclVAT": "Unit Price (Excl. VAT)",
+  "totalExclVAT": "Total (Excl. VAT)",
     "notesPlaceholder": "Additional notes related to the sale",
     "addSale": "Add Sale",
     "enterSaleInfo": "Enter sale information",
@@ -1525,6 +1570,76 @@
         "resend": "Resend",
         "cancel": "Cancel",
         "expires": "Expires on {{date}}"
+      }
+    }
+  },
+  "pdf": {
+    "invoice": {
+      "title": "INVOICE",
+      "appSubtitle": "MoneyFlow Accounting System",
+      "customerInfo": "Customer Information",
+      "invoiceNumber": "Invoice No",
+      "issueDate": "Issue Date",
+      "dueDate": "Due Date",
+      "status": "Status",
+      "items": {
+        "description": "Description",
+        "quantity": "Quantity",
+        "unitPrice": "Unit Price",
+        "total": "Total"
+      },
+      "totals": {
+        "subtotal": "Subtotal",
+        "tax": "Tax",
+        "grandTotal": "Grand Total"
+      },
+      "footer": "This invoice was generated with MoneyFlow.",
+      "statusLabels": {
+        "paid": "Paid",
+        "sent": "Sent",
+        "overdue": "Overdue",
+        "draft": "Draft"
+      }
+    },
+    "expense": {
+      "title": "EXPENSE RECEIPT",
+      "supplierInfo": "Supplier Information",
+      "expenseNumber": "Expense No",
+      "expenseDate": "Expense Date",
+      "paymentDate": "Payment Date",
+      "status": "Status",
+      "category": "Category",
+      "details": "Expense Details",
+      "totalAmount": "Total Expense Amount",
+      "footer": "This expense receipt was generated with MoneyFlow.",
+      "statusLabels": {
+        "draft": "Draft",
+        "approved": "Approved",
+        "paid": "Paid"
+      }
+    },
+    "sale": {
+      "title": "SALES RECEIPT",
+      "customerInfo": "Customer Information",
+      "saleNumber": "Sale No",
+      "saleDate": "Sale Date",
+      "status": "Status",
+      "paymentMethod": "Payment Method",
+      "details": "Product/Service Details",
+      "quantity": "Quantity",
+      "unitPrice": "Unit Price",
+      "totalAmount": "Total Sale Amount",
+      "footer": "This sales receipt was generated with MoneyFlow.",
+      "statusLabels": {
+        "completed": "Completed",
+        "pending": "Pending",
+        "cancelled": "Cancelled"
+      },
+      "paymentMethods": {
+        "cash": "Cash",
+        "card": "Card",
+        "transfer": "Transfer",
+        "check": "Check"
       }
     }
   }

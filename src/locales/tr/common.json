@@ -185,6 +185,43 @@
     "footer.copyright": "© {{year}} Comptario. Tüm hakları saklıdır.",
     "footer.madeWith": "Avrupa'da ❤️ ile yapıldı"
   },
+  "auth": {
+    "welcomeTitle": "Hoş Geldiniz",
+    "welcomeSubtitle": "Devam etmek için hesabınıza giriş yapın",
+    "emailAddress": "E-posta Adresi",
+    "emailPlaceholder": "ad@ornek.com",
+    "password": "Şifre",
+    "passwordPlaceholder": "••••••••",
+    "rememberMe": "Beni hatırla",
+    "forgotPassword": "Şifremi unuttum",
+    "signIn": "Giriş Yap",
+    "demoAccount": "Demo Hesap:",
+    "email": "E-posta",
+    "or": "veya",
+    "adminLogin": "Yönetici Girişi",
+    "noAccount": "Hesabınız yok mu?",
+    "createFreeAccount": "Ücretsiz hesap oluşturun",
+    "registerTitle": "Hesap Oluştur",
+    "registerSubtitle": "Ücretsiz hesabınızı oluşturun ve hemen başlayın",
+    "fullName": "Ad Soyad",
+    "fullNamePlaceholder": "Adınızı ve soyadınızı girin",
+    "companyName": "Şirket Adı",
+    "companyPlaceholder": "Şirket adınız (opsiyonel)",
+    "phone": "Telefon",
+    "phonePlaceholder": "(opsiyonel)",
+    "passwordHint": "En az 6 karakter",
+    "passwordConfirm": "Şifre Onayı",
+    "passwordConfirmPlaceholder": "Şifrenizi tekrar girin",
+    "termsText": {
+      "prefix": "Şunları kabul ederim: ",
+      "suffix": ""
+    },
+    "and": " ve ",
+    "dataProcessing": "Veri İşleme Sözleşmesi",
+    "registerCta": "Hesap Oluştur",
+    "alreadyHaveAccount": "Zaten hesabınız var mı?",
+    "goToLogin": "Giriş yapın"
+  },
   "fiscalPeriods": {
     "title": "Mali Dönemler",
     "subtitle": "Mali dönem ayarlarınızı yönetin",
@@ -304,25 +341,22 @@
     "showChart": "Grafiği Göster",
     "chartHidden": "Grafik gizlendi",
     "incomeLabel": "Gelir",
-    "expenseLabel": "Gider"
-},
-"invoices": {
-  "deleteConfirm": "Bu faturayı silmek istediğinizden emin misiniz?",
-  "deleteSuccess": "Fatura silindi",
-  "deleteError": "Fatura silinemedi",
-  "description": "Açıklama",
+    "expenseLabel": "Gider",
+    "description": "Açıklama",
   "dueDate": "Vade Tarihi",
-    "allStatuses": "Tüm Durumlar",
-    "allAccounts": "Tüm Hesaplar",
-    "cash": "Nakit",
-    "card": "Kart",
-    "transfer": "Transfer",
-    "check": "Çek",
+  "startDate": "Başlangıç Tarihi",
+  "endDate": "Bitiş Tarihi",
+  "allStatuses": "Tüm Durumlar",
+  "allAccounts": "Tüm Hesaplar",
+  "cash": "Nakit",
+  "card": "Kart",
+  "transfer": "Transfer",
+  "check": "Çek",
     "email": "E-posta",
     "quantity": "Miktar",
     "status": "Durum",
     "notes": "Notlar"
-  },
+},
   "currencies": {
     "TRY": "Türk Lirası",
     "USD": "Amerikan Doları",
@@ -435,7 +469,8 @@
     "close": "Kapat"
   },
   "stats": {
-    "thisMonth": "bu ay"
+    "thisMonth": "bu ay",
+    "all": "tümü"
   },
   "status": {
     "paid": "Ödendi",
@@ -871,7 +906,10 @@
     "currentBalance": "Mevcut Bakiye",
     "currency": "Para Birimi",
     "accountActive": "Hesap aktif",
-    "addAccount": "Hesap Ekle"
+    "addAccount": "Hesap Ekle",
+    "routingNumber": "Routing Numarası (ABA)",
+    "swiftBic": "SWIFT/BIC",
+    "branchCode": "Şube Kodu"
   },
   "settings": {
     "title": "Ayarlar",
@@ -930,8 +968,10 @@
     "saleNumber": "Satış No",
     "saleDate": "Satış Tarihi",
     "autoNumberNote": "Numara kaydedilirken otomatik oluşturulacak",
-    "unitPriceInclVAT": "Birim Fiyat (KDV Dahil)",
-    "totalInclVAT": "Toplam (KDV Dahil)",
+  "unitPriceInclVAT": "Birim Fiyat (KDV Dahil)",
+  "totalInclVAT": "Toplam (KDV Dahil)",
+  "unitPriceExclVAT": "Birim Fiyat (KDV Hariç)",
+  "totalExclVAT": "Toplam (KDV Hariç)",
     "notesPlaceholder": "Satış ile ilgili ek notlar",
     "addSale": "Satış Ekle",
     "saleSummary": "Satış Özeti",
@@ -1665,6 +1705,76 @@
         "title": "Zaten Üyesiniz",
         "subtitle": "Bu organizasyonun zaten bir üyesisiniz",
         "action": "Panele Git"
+      }
+    }
+  },
+  "pdf": {
+    "invoice": {
+      "title": "FATURA",
+      "appSubtitle": "MoneyFlow Muhasebe Sistemi",
+      "customerInfo": "Müşteri Bilgileri",
+      "invoiceNumber": "Fatura No",
+      "issueDate": "Düzenleme Tarihi",
+      "dueDate": "Vade Tarihi",
+      "status": "Durum",
+      "items": {
+        "description": "Açıklama",
+        "quantity": "Miktar",
+        "unitPrice": "Birim Fiyat",
+        "total": "Toplam"
+      },
+      "totals": {
+        "subtotal": "Ara Toplam",
+        "tax": "KDV",
+        "grandTotal": "Genel Toplam"
+      },
+      "footer": "Bu fatura MoneyFlow ile oluşturulmuştur.",
+      "statusLabels": {
+        "paid": "Ödendi",
+        "sent": "Gönderildi",
+        "overdue": "Gecikmiş",
+        "draft": "Taslak"
+      }
+    },
+    "expense": {
+      "title": "GİDER BELGESİ",
+      "supplierInfo": "Tedarikçi Bilgileri",
+      "expenseNumber": "Gider No",
+      "expenseDate": "Gider Tarihi",
+      "paymentDate": "Ödeme Tarihi",
+      "status": "Durum",
+      "category": "Kategori",
+      "details": "Gider Detayları",
+      "totalAmount": "Toplam Gider Tutarı",
+      "footer": "Bu gider belgesi MoneyFlow ile oluşturulmuştur.",
+      "statusLabels": {
+        "draft": "Taslak",
+        "approved": "Onaylandı",
+        "paid": "Ödendi"
+      }
+    },
+    "sale": {
+      "title": "SATIŞ BELGESİ",
+      "customerInfo": "Müşteri Bilgileri",
+      "saleNumber": "Satış No",
+      "saleDate": "Satış Tarihi",
+      "status": "Durum",
+      "paymentMethod": "Ödeme Yöntemi",
+      "details": "Ürün/Hizmet Detayları",
+      "quantity": "Miktar",
+      "unitPrice": "Birim Fiyat",
+      "totalAmount": "Toplam Satış Tutarı",
+      "footer": "Bu satış belgesi MoneyFlow ile oluşturulmuştur.",
+      "statusLabels": {
+        "completed": "Tamamlandı",
+        "pending": "Bekliyor",
+        "cancelled": "İptal"
+      },
+      "paymentMethods": {
+        "cash": "Nakit",
+        "card": "Kredi/Banka Kartı",
+        "transfer": "Havale/EFT",
+        "check": "Çek"
       }
     }
   }

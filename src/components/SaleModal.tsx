@@ -11,7 +11,7 @@ import {
   Check
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { Product } from './ProductList';
+import type { Product } from '../types';
 import type { Sale } from '../types';
 
 interface Customer {
@@ -501,7 +501,7 @@ export default function SaleModal({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <DollarSign className="w-4 h-4 inline mr-2" />
-                {t('sales.unitPriceInclVAT')} *
+                {t('sales.unitPriceExclVAT')} *
               </label>
               <input
                 type="number"
@@ -515,7 +515,7 @@ export default function SaleModal({
               {errors.unitPrice && <p className="text-red-500 text-xs mt-1">{errors.unitPrice}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('sales.totalInclVAT')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('sales.totalExclVAT')}</label>
               <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 font-medium">
                 {safeTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
               </div>

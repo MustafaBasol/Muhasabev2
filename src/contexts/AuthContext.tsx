@@ -190,12 +190,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
     localStorage.removeItem('tenant');
+    localStorage.removeItem('tenantId');
     localStorage.removeItem('customers_cache');
     localStorage.removeItem('suppliers_cache');
     localStorage.removeItem('products_cache');
     localStorage.removeItem('invoices_cache');
     localStorage.removeItem('expenses_cache');
-    localStorage.removeItem('sales');
     localStorage.removeItem('bankAccounts');
   };
 
@@ -207,7 +207,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       setTenant(null);
-      setIsAuthenticated(false);
       clearCorruptedData();
     }
   };  const refreshUser = async () => {

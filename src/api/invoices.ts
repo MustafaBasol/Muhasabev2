@@ -36,6 +36,8 @@ export interface Invoice {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  // Opsiyonel: Satış ile ilişkilendirme
+  saleId?: string;
 }
 
 export interface CreateInvoiceDto {

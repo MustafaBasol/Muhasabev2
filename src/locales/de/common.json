@@ -185,6 +185,43 @@
     "footer.copyright": "© {{year}} Comptario. Alle Rechte vorbehalten.",
     "footer.madeWith": "Mit ❤️ in Europa gemacht"
   },
+  "auth": {
+    "welcomeTitle": "Willkommen",
+    "welcomeSubtitle": "Melden Sie sich an, um fortzufahren",
+    "emailAddress": "E-Mail-Adresse",
+    "emailPlaceholder": "name@beispiel.com",
+    "password": "Passwort",
+    "passwordPlaceholder": "••••••••",
+    "rememberMe": "Angemeldet bleiben",
+    "forgotPassword": "Passwort vergessen",
+    "signIn": "Anmelden",
+    "demoAccount": "Demo-Konto:",
+    "email": "E-Mail",
+    "or": "oder",
+    "adminLogin": "Admin-Anmeldung",
+    "noAccount": "Noch kein Konto?",
+    "createFreeAccount": "Kostenloses Konto erstellen",
+    "registerTitle": "Konto erstellen",
+    "registerSubtitle": "Erstellen Sie Ihr kostenloses Konto und starten Sie",
+    "fullName": "Vollständiger Name",
+    "fullNamePlaceholder": "Geben Sie Ihren vollständigen Namen ein",
+    "companyName": "Firmenname",
+    "companyPlaceholder": "Ihre Firma (optional)",
+    "phone": "Telefon",
+    "phonePlaceholder": "(optional)",
+    "passwordHint": "Mindestens 6 Zeichen",
+    "passwordConfirm": "Passwort bestätigen",
+    "passwordConfirmPlaceholder": "Passwort erneut eingeben",
+    "termsText": {
+      "prefix": "Ich akzeptiere: ",
+      "suffix": ""
+    },
+    "and": " und ",
+    "dataProcessing": "Datenverarbeitungsvereinbarung",
+    "registerCta": "Konto erstellen",
+    "alreadyHaveAccount": "Bereits ein Konto?",
+    "goToLogin": "Anmelden"
+  },
   "common": {
     "save": "Speichern",
     "cancel": "Abbrechen",
@@ -202,8 +239,10 @@
     "warning": "Warnung",
     "ok": "OK",
     "periodLockedError": "Dieser Datensatz kann nicht gelöscht werden, da er zu einem gesperrten Geschäftsjahr gehört",
-    "description": "Beschreibung",
-    "dueDate": "Fälligkeitsdatum",
+  "description": "Beschreibung",
+  "dueDate": "Fälligkeitsdatum",
+  "startDate": "Startdatum",
+  "endDate": "Enddatum",
     "monthlyIncomeExpense": "Monatliches Einkommen/Ausgaben",
     "last6MonthsPerformance": "Leistung der letzten 6 Monate (neueste → älteste)",
     "allCategories": "Alle Kategorien",
@@ -339,7 +378,8 @@
     "close": "Schließen"
   },
   "stats": {
-    "thisMonth": "diesen Monat"
+    "thisMonth": "diesen Monat",
+    "all": "alle"
   },
   "status": {
     "paid": "Bezahlt",
@@ -756,7 +796,10 @@
     "currentBalance": "Aktueller Saldo",
     "currency": "Währung",
     "accountActive": "Konto aktiv",
-    "addAccount": "Konto Hinzufügen"
+    "addAccount": "Konto Hinzufügen",
+    "routingNumber": "Routing-Nummer (ABA)",
+    "swiftBic": "SWIFT/BIC",
+    "branchCode": "Filialcode"
   },
   "settings": {
     "title": "Einstellungen",
@@ -815,8 +858,10 @@
     "saleNumber": "Verkaufsnummer",
     "saleDate": "Verkaufsdatum",
     "autoNumberNote": "Nummer wird beim Speichern automatisch generiert",
-    "unitPriceInclVAT": "Einzelpreis (MwSt. inkl.)",
-    "totalInclVAT": "Gesamt (MwSt. inkl.)",
+  "unitPriceInclVAT": "Einzelpreis (MwSt. inkl.)",
+  "totalInclVAT": "Gesamt (MwSt. inkl.)",
+  "unitPriceExclVAT": "Einzelpreis (ohne MwSt.)",
+  "totalExclVAT": "Gesamt (ohne MwSt.)",
     "notesPlaceholder": "Zusätzliche Notizen zum Verkauf",
         "addSale": "Verkauf hinzufügen",
     "enterSaleInfo": "Verkaufsinformationen eingeben",
@@ -1530,6 +1575,76 @@
         "resend": "Erneut senden",
         "cancel": "Abbrechen",
         "expires": "Läuft ab am {{date}}"
+      }
+    }
+  },
+  "pdf": {
+    "invoice": {
+      "title": "RECHNUNG",
+      "appSubtitle": "MoneyFlow Buchhaltungssystem",
+      "customerInfo": "Kundendaten",
+      "invoiceNumber": "Rechnungs-Nr.",
+      "issueDate": "Ausstellungsdatum",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status",
+      "items": {
+        "description": "Beschreibung",
+        "quantity": "Menge",
+        "unitPrice": "Einzelpreis",
+        "total": "Summe"
+      },
+      "totals": {
+        "subtotal": "Zwischensumme",
+        "tax": "MwSt.",
+        "grandTotal": "Gesamtsumme"
+      },
+      "footer": "Diese Rechnung wurde mit MoneyFlow erstellt.",
+      "statusLabels": {
+        "paid": "Bezahlt",
+        "sent": "Gesendet",
+        "overdue": "Überfällig",
+        "draft": "Entwurf"
+      }
+    },
+    "expense": {
+      "title": "AUSGABENBELEG",
+      "supplierInfo": "Lieferantendaten",
+      "expenseNumber": "Ausgaben-Nr.",
+      "expenseDate": "Ausgabedatum",
+      "paymentDate": "Zahlungsdatum",
+      "status": "Status",
+      "category": "Kategorie",
+      "details": "Ausgabendetails",
+      "totalAmount": "Gesamtausgabenbetrag",
+      "footer": "Dieser Ausgabenbeleg wurde mit MoneyFlow erstellt.",
+      "statusLabels": {
+        "draft": "Entwurf",
+        "approved": "Genehmigt",
+        "paid": "Bezahlt"
+      }
+    },
+    "sale": {
+      "title": "VERKAUFSBELEG",
+      "customerInfo": "Kundendaten",
+      "saleNumber": "Verkaufs-Nr.",
+      "saleDate": "Verkaufsdatum",
+      "status": "Status",
+      "paymentMethod": "Zahlungsmethode",
+      "details": "Produkt-/Leistungsdetails",
+      "quantity": "Menge",
+      "unitPrice": "Einzelpreis",
+      "totalAmount": "Gesamtverkaufsbetrag",
+      "footer": "Dieser Verkaufsbeleg wurde mit MoneyFlow erstellt.",
+      "statusLabels": {
+        "completed": "Abgeschlossen",
+        "pending": "Ausstehend",
+        "cancelled": "Storniert"
+      },
+      "paymentMethods": {
+        "cash": "Bar",
+        "card": "Karte",
+        "transfer": "Überweisung",
+        "check": "Scheck"
       }
     }
   }

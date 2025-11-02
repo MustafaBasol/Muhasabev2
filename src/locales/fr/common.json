@@ -185,6 +185,43 @@
     "footer.copyright": "© {{year}} Comptario. Tous droits réservés.",
     "footer.madeWith": "Fait avec ❤️ en Europe"
   },
+  "auth": {
+    "welcomeTitle": "Bienvenue",
+    "welcomeSubtitle": "Connectez-vous pour continuer",
+    "emailAddress": "Adresse e-mail",
+    "emailPlaceholder": "nom@exemple.com",
+    "password": "Mot de passe",
+    "passwordPlaceholder": "••••••••",
+    "rememberMe": "Se souvenir de moi",
+    "forgotPassword": "Mot de passe oublié",
+    "signIn": "Se connecter",
+    "demoAccount": "Compte démo :",
+    "email": "E-mail",
+    "or": "ou",
+    "adminLogin": "Connexion admin",
+    "noAccount": "Pas de compte ?",
+    "createFreeAccount": "Créer un compte gratuit",
+    "registerTitle": "Créer un compte",
+    "registerSubtitle": "Créez votre compte gratuit et commencez",
+    "fullName": "Nom complet",
+    "fullNamePlaceholder": "Entrez votre nom complet",
+    "companyName": "Nom de l'entreprise",
+    "companyPlaceholder": "Votre entreprise (optionnel)",
+    "phone": "Téléphone",
+    "phonePlaceholder": "(optionnel)",
+    "passwordHint": "Au moins 6 caractères",
+    "passwordConfirm": "Confirmer le mot de passe",
+    "passwordConfirmPlaceholder": "Saisissez à nouveau votre mot de passe",
+    "termsText": {
+      "prefix": "J'accepte : ",
+      "suffix": ""
+    },
+    "and": " et ",
+    "dataProcessing": "Accord de traitement des données",
+    "registerCta": "Créer un compte",
+    "alreadyHaveAccount": "Vous avez déjà un compte ?",
+    "goToLogin": "Se connecter"
+  },
   "common": {
     "save": "Enregistrer",
     "cancel": "Annuler",
@@ -202,8 +239,10 @@
     "warning": "Avertissement",
     "ok": "OK",
     "periodLockedError": "Cet enregistrement ne peut pas être supprimé car il appartient à une période fiscale verrouillée",
-    "description": "Description",
-    "dueDate": "Date d'échéance",
+  "description": "Description",
+  "dueDate": "Date d'échéance",
+  "startDate": "Date de Début",
+  "endDate": "Date de Fin",
     "monthlyIncomeExpense": "Revenus/Dépenses Mensuels",
     "last6MonthsPerformance": "Performance des 6 derniers mois (plus récent → plus ancien)",
     "allCategories": "Toutes les catégories",
@@ -338,7 +377,8 @@
     "close": "Fermer"
   },
   "stats": {
-    "thisMonth": "ce mois"
+    "thisMonth": "ce mois",
+    "all": "tout"
   },
   "status": {
     "paid": "Payé",
@@ -755,7 +795,10 @@
     "currentBalance": "Solde Actuel",
     "currency": "Devise",
     "accountActive": "Compte actif",
-    "addAccount": "Ajouter Compte"
+    "addAccount": "Ajouter Compte",
+    "routingNumber": "Numéro de routage (ABA)",
+    "swiftBic": "SWIFT/BIC",
+    "branchCode": "Code Agence"
   },
   "settings": {
     "title": "Paramètres",
@@ -814,8 +857,10 @@
     "saleNumber": "N° de Vente",
     "saleDate": "Date de Vente",
     "autoNumberNote": "Le numéro sera généré automatiquement lors de l'enregistrement",
-    "unitPriceInclVAT": "Prix Unitaire (TTC)",
-    "totalInclVAT": "Total (TTC)",
+  "unitPriceInclVAT": "Prix Unitaire (TTC)",
+  "totalInclVAT": "Total (TTC)",
+  "unitPriceExclVAT": "Prix Unitaire (HT)",
+  "totalExclVAT": "Total (HT)",
     "notesPlaceholder": "Notes supplémentaires liées à la vente",
     "addSale": "Ajouter Vente",
     "enterSaleInfo": "Saisir les informations de vente",
@@ -1529,6 +1574,76 @@
         "resend": "Renvoyer",
         "cancel": "Annuler",
         "expires": "Expire le {{date}}"
+      }
+    }
+  },
+  "pdf": {
+    "invoice": {
+      "title": "FACTURE",
+      "appSubtitle": "Système Comptable MoneyFlow",
+      "customerInfo": "Informations Client",
+      "invoiceNumber": "N° de Facture",
+      "issueDate": "Date d’Émission",
+      "dueDate": "Date d’Échéance",
+      "status": "Statut",
+      "items": {
+        "description": "Description",
+        "quantity": "Quantité",
+        "unitPrice": "Prix Unitaire",
+        "total": "Total"
+      },
+      "totals": {
+        "subtotal": "Sous-total",
+        "tax": "TVA",
+        "grandTotal": "Total Général"
+      },
+      "footer": "Cette facture a été générée avec MoneyFlow.",
+      "statusLabels": {
+        "paid": "Payée",
+        "sent": "Envoyée",
+        "overdue": "En retard",
+        "draft": "Brouillon"
+      }
+    },
+    "expense": {
+      "title": "JUSTIFICATIF DE DÉPENSE",
+      "supplierInfo": "Informations Fournisseur",
+      "expenseNumber": "N° de Dépense",
+      "expenseDate": "Date de Dépense",
+      "paymentDate": "Date de Paiement",
+      "status": "Statut",
+      "category": "Catégorie",
+      "details": "Détails de la Dépense",
+      "totalAmount": "Montant Total des Dépenses",
+      "footer": "Ce justificatif a été généré avec MoneyFlow.",
+      "statusLabels": {
+        "draft": "Brouillon",
+        "approved": "Approuvée",
+        "paid": "Payée"
+      }
+    },
+    "sale": {
+      "title": "JUSTIFICATIF DE VENTE",
+      "customerInfo": "Informations Client",
+      "saleNumber": "N° de Vente",
+      "saleDate": "Date de Vente",
+      "status": "Statut",
+      "paymentMethod": "Moyen de Paiement",
+      "details": "Détails du Produit/Service",
+      "quantity": "Quantité",
+      "unitPrice": "Prix Unitaire",
+      "totalAmount": "Montant Total de la Vente",
+      "footer": "Ce justificatif de vente a été généré avec MoneyFlow.",
+      "statusLabels": {
+        "completed": "Terminé",
+        "pending": "En attente",
+        "cancelled": "Annulé"
+      },
+      "paymentMethods": {
+        "cash": "Espèces",
+        "card": "Carte",
+        "transfer": "Virement",
+        "check": "Chèque"
       }
     }
   }

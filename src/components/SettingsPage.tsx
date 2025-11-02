@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import {
   Settings,
   User,
+  Users,
+  Calendar,
   Building2,
   Bell,
   Shield,
@@ -13,7 +15,12 @@ import {
   EyeOff,
   AlertTriangle,
   Info,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
+import InfoModal from './InfoModal';
+import OrganizationMembersPage from './OrganizationMembersPage';
+import FiscalPeriodsPage from './FiscalPeriodsPage';
 import type { CompanyProfile } from '../utils/pdfGenerator';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,11 +40,18 @@ interface SettingsPageProps {
   bankAccounts?: BankAccount[];
   onUserUpdate?: (user: any) => void;
   onCompanyUpdate?: (company: CompanyProfile) => void;
+  onExportData?: () => void;
+  onImportData?: (payload: any) => void;
   language?: 'tr' | 'en' | 'fr' | 'de';
+  initialTab?: string;
 }
 
 // Yalnızca ekranda önizleme için (CompanyProfile + logoFile)
-type LocalCompanyState = CompanyProfile & { logoFile?: File | null };
+// Ülke seçimi öncesi boş değer için country alanını genişletiyoruz
+type LocalCompanyState = Omit<CompanyProfile, 'country'> & {
+  country?: CompanyProfile['country'] | '';
+  logoFile?: File | null;
+};
 
 const SUPPORTED_LANGUAGES = ['tr', 'en', 'fr', 'de'] as const;
 type SettingsLanguage = typeof SUPPORTED_LANGUAGES[number];
@@ -57,10 +71,22 @@ type SettingsTranslations = {
     unsavedChanges: string;
     save: string;
   };
+  modals: {
+    saveSuccess: { title: string; message: string; confirm: string };
+    saveError: { title: string; message: string; confirm: string };
+    fileTypeError: { title: string; message: string; confirm: string };
+    fileSizeError: { title: string; message: string; confirm: string };
+    authRequired: { title: string; message: string; confirm: string };
+    sessionExpired: { title: string; message: string; confirm: string };
+    deleteRequested: { title: string; message: string; confirm: string };
+    deleteFailed: { title: string; message: string; confirm: string };
+  };
   tabs: {
     profile: string;
     company: string;
     notifications: string;
+    organization?: string;
+    fiscalPeriods?: string;
     system: string;
     security: string;
     privacy: string;
@@ -100,6 +126,8 @@ type SettingsTranslations = {
     legalFields: {
       title: string;
       subtitle: string;
+      countrySelectLabel?: string;
+      countryOptions?: { TR: string; US: string; DE: string; FR: string; OTHER: string };
       turkey: {
         title: string;
         mersisNumber: string;
@@ -126,6 +154,13 @@ type SettingsTranslations = {
         taxId: string;
         businessLicenseNumber: string;
         stateOfIncorporation: string;
+      };
+      other: {
+        title: string;
+        registrationNumber: string;
+        vatNumber: string;
+        taxId: string;
+        stateOrRegion: string;
       };
     };
     iban: {
@@ -198,6 +233,36 @@ type SettingsTranslations = {
 
 };
 
+// Basit daraltılabilir bölüm (Accordion benzeri)
+const Section: React.FC<{
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}> = ({ title, subtitle, defaultOpen = true, children }) => {
+  const [open, setOpen] = useState<boolean>(defaultOpen);
+  return (
+    <div className="border border-gray-200 rounded-lg bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+      >
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+          {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+        </div>
+        {open ? (
+          <ChevronDown className="w-5 h-5 text-gray-500" />
+        ) : (
+          <ChevronRight className="w-5 h-5 text-gray-500" />
+        )}
+      </button>
+      {open && <div className="px-4 pb-4">{children}</div>}
+    </div>
+  );
+};
+
 const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
   tr: {
     header: {
@@ -206,10 +271,30 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       unsavedChanges: 'Kaydedilmemiş değişiklikler var',
       save: 'Kaydet',
     },
+    modals: {
+      saveSuccess: {
+        title: 'Kaydedildi',
+        message: 'Değişiklikleriniz başarıyla kaydedildi.',
+        confirm: 'Tamam',
+      },
+      saveError: {
+        title: 'Hata',
+        message: 'Ayarlar kaydedilirken bir hata oluştu.',
+        confirm: 'Kapat',
+      },
+      fileTypeError: { title: 'Dosya tipi hatalı', message: 'Lütfen sadece resim dosyası seçin.', confirm: 'Tamam' },
+      fileSizeError: { title: 'Dosya boyutu çok büyük', message: 'Dosya boyutu 5MB\'dan küçük olmalıdır.', confirm: 'Tamam' },
+      authRequired: { title: 'Oturum gerekli', message: 'Lütfen önce giriş yapın.', confirm: 'Tamam' },
+      sessionExpired: { title: 'Oturum süresi doldu', message: 'Lütfen tekrar giriş yapın.', confirm: 'Tamam' },
+      deleteRequested: { title: 'Talep alındı', message: 'Hesap silme talebiniz başarıyla iletildi.', confirm: 'Tamam' },
+      deleteFailed: { title: 'İşlem başarısız', message: 'Hesap silme isteği gönderilemedi. Lütfen tekrar deneyin.', confirm: 'Kapat' },
+    },
     tabs: {
       profile: 'Profil',
       company: 'Şirket',
       notifications: 'Bildirimler',
+      organization: 'Organizasyon',
+      fiscalPeriods: 'Mali Dönemler',
       system: 'Sistem',
       security: 'Güvenlik',
       privacy: 'Gizlilik',
@@ -249,6 +334,8 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       legalFields: {
         title: 'Yasal Gereklilik Alanları',
         subtitle: 'Uluslararası faturalama standartları için gerekli bilgiler',
+        countrySelectLabel: 'Ülke',
+        countryOptions: { TR: 'Türkiye', US: 'Amerika', DE: 'Almanya', FR: 'Fransa', OTHER: 'Diğer' },
         turkey: {
           title: 'Türkiye',
           mersisNumber: 'Mersis Numarası',
@@ -275,6 +362,13 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
           taxId: 'Tax ID',
           businessLicenseNumber: 'Business License No',
           stateOfIncorporation: 'Kuruluş Eyaleti',
+        },
+        other: {
+          title: 'Diğer Ülkeler',
+          registrationNumber: 'Kayıt No',
+          vatNumber: 'KDV/VAT No',
+          taxId: 'Vergi Kimliği',
+          stateOrRegion: 'Eyalet/Bölge',
         },
       },
       iban: {
@@ -390,10 +484,30 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       unsavedChanges: 'There are unsaved changes',
       save: 'Save',
     },
+    modals: {
+      saveSuccess: {
+        title: 'Saved',
+        message: 'Your changes have been saved successfully.',
+        confirm: 'OK',
+      },
+      saveError: {
+        title: 'Error',
+        message: 'An error occurred while saving your settings.',
+        confirm: 'Close',
+      },
+      fileTypeError: { title: 'Invalid file type', message: 'Please select an image file only.', confirm: 'OK' },
+      fileSizeError: { title: 'File too large', message: 'The file size must be less than 5MB.', confirm: 'OK' },
+      authRequired: { title: 'Authentication required', message: 'Please sign in first.', confirm: 'OK' },
+      sessionExpired: { title: 'Session expired', message: 'Please sign in again.', confirm: 'OK' },
+      deleteRequested: { title: 'Request received', message: 'Your account deletion request has been submitted.', confirm: 'OK' },
+      deleteFailed: { title: 'Request failed', message: 'Could not submit account deletion. Please try again.', confirm: 'Close' },
+    },
     tabs: {
       profile: 'Profile',
       company: 'Company',
       notifications: 'Notifications',
+      organization: 'Organization',
+      fiscalPeriods: 'Fiscal Periods',
       system: 'System',
       security: 'Security',
       privacy: 'Privacy',
@@ -433,6 +547,8 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       legalFields: {
         title: 'Legal Compliance Fields',
         subtitle: 'Required information for international invoicing standards',
+        countrySelectLabel: 'Country',
+        countryOptions: { TR: 'Turkey', US: 'United States', DE: 'Germany', FR: 'France', OTHER: 'Other' },
         turkey: {
           title: 'Turkey',
           mersisNumber: 'Mersis Number',
@@ -459,6 +575,13 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
           taxId: 'Tax ID',
           businessLicenseNumber: 'Business License No',
           stateOfIncorporation: 'State of Incorporation',
+        },
+        other: {
+          title: 'Other Countries',
+          registrationNumber: 'Registration No',
+          vatNumber: 'VAT Number',
+          taxId: 'Tax ID',
+          stateOrRegion: 'State/Region',
         },
       },
       iban: {
@@ -574,10 +697,30 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       unsavedChanges: 'Des modifications non enregistrées',
       save: 'Enregistrer',
     },
+    modals: {
+      saveSuccess: {
+        title: 'Enregistré',
+        message: 'Vos modifications ont été enregistrées avec succès.',
+        confirm: 'OK',
+      },
+      saveError: {
+        title: 'Erreur',
+        message: "Une erreur s'est produite lors de l'enregistrement des paramètres.",
+        confirm: 'Fermer',
+      },
+      fileTypeError: { title: 'Type de fichier invalide', message: 'Veuillez sélectionner uniquement une image.', confirm: 'OK' },
+      fileSizeError: { title: 'Fichier trop volumineux', message: 'La taille du fichier doit être inférieure à 5 Mo.', confirm: 'OK' },
+      authRequired: { title: 'Authentification requise', message: 'Veuillez vous connecter d\'abord.', confirm: 'OK' },
+      sessionExpired: { title: 'Session expirée', message: 'Veuillez vous reconnecter.', confirm: 'OK' },
+      deleteRequested: { title: 'Demande reçue', message: 'Votre demande de suppression de compte a été envoyée.', confirm: 'OK' },
+      deleteFailed: { title: 'Échec de la demande', message: 'La suppression du compte n\'a pas pu être soumise. Veuillez réessayer.', confirm: 'Fermer' },
+    },
     tabs: {
       profile: 'Profil',
       company: 'Entreprise',
       notifications: 'Notifications',
+      organization: 'Organisation',
+      fiscalPeriods: 'Périodes fiscales',
       system: 'Système',
       security: 'Sécurité',
       privacy: 'Confidentialité',
@@ -617,6 +760,8 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       legalFields: {
         title: 'Champs de conformité légale',
         subtitle: 'Informations requises pour les normes de facturation internationales',
+        countrySelectLabel: 'Pays',
+        countryOptions: { TR: 'Turquie', US: 'États-Unis', DE: 'Allemagne', FR: 'France', OTHER: 'Autre' },
         turkey: {
           title: 'Turquie',
           mersisNumber: 'Numéro Mersis',
@@ -643,6 +788,13 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
           taxId: 'Tax ID',
           businessLicenseNumber: 'N° de licence commerciale',
           stateOfIncorporation: 'État de constitution',
+        },
+        other: {
+          title: 'Autres pays',
+          registrationNumber: 'N° d\'enregistrement',
+          vatNumber: 'N° TVA',
+          taxId: 'Tax ID',
+          stateOrRegion: 'État/Région',
         },
       },
       iban: {
@@ -758,10 +910,30 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       unsavedChanges: 'Ungespeicherte Änderungen',
       save: 'Speichern',
     },
+    modals: {
+      saveSuccess: {
+        title: 'Gespeichert',
+        message: 'Ihre Änderungen wurden erfolgreich gespeichert.',
+        confirm: 'OK',
+      },
+      saveError: {
+        title: 'Fehler',
+        message: 'Beim Speichern der Einstellungen ist ein Fehler aufgetreten.',
+        confirm: 'Schließen',
+      },
+      fileTypeError: { title: 'Ungültiger Dateityp', message: 'Bitte wählen Sie nur eine Bilddatei aus.', confirm: 'OK' },
+      fileSizeError: { title: 'Datei zu groß', message: 'Die Datei darf nicht größer als 5 MB sein.', confirm: 'OK' },
+      authRequired: { title: 'Anmeldung erforderlich', message: 'Bitte melden Sie sich zuerst an.', confirm: 'OK' },
+      sessionExpired: { title: 'Sitzung abgelaufen', message: 'Bitte melden Sie sich erneut an.', confirm: 'OK' },
+      deleteRequested: { title: 'Anfrage erhalten', message: 'Ihre Kontolöschungsanfrage wurde übermittelt.', confirm: 'OK' },
+      deleteFailed: { title: 'Anfrage fehlgeschlagen', message: 'Kontolöschung konnte nicht gesendet werden. Bitte erneut versuchen.', confirm: 'Schließen' },
+    },
     tabs: {
       profile: 'Profil',
       company: 'Unternehmen',
       notifications: 'Benachrichtigungen',
+      organization: 'Organisation',
+      fiscalPeriods: 'Finanzperioden',
       system: 'System',
       security: 'Sicherheit',
       privacy: 'Datenschutz',
@@ -801,6 +973,8 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       legalFields: {
         title: 'Rechtliche Compliance-Felder',
         subtitle: 'Erforderliche Informationen für internationale Rechnungsstandards',
+        countrySelectLabel: 'Land',
+        countryOptions: { TR: 'Türkei', US: 'USA', DE: 'Deutschland', FR: 'Frankreich', OTHER: 'Andere' },
         turkey: {
           title: 'Türkei',
           mersisNumber: 'Mersis-Nummer',
@@ -827,6 +1001,13 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
           taxId: 'Tax ID',
           businessLicenseNumber: 'Gewerbelizenznummer',
           stateOfIncorporation: 'Gründungsstaat',
+        },
+        other: {
+          title: 'Andere Länder',
+          registrationNumber: 'Registernummer',
+          vatNumber: 'USt/VAT-Nr.',
+          taxId: 'Steuer-ID',
+          stateOrRegion: 'Staat/Region',
         },
       },
       iban: {
@@ -943,10 +1124,15 @@ export default function SettingsPage({
   bankAccounts = [],
   onUserUpdate,
   onCompanyUpdate,
+  initialTab,
 }: Omit<SettingsPageProps, 'language'>): JSX.Element {
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [showSaveError, setShowSaveError] = useState(false);
+  const [infoModal, setInfoModal] = useState<{ open: boolean; title: string; message: string; tone: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', tone: 'info' });
+  const openInfo = (title: string, message: string, tone: 'success' | 'error' | 'info' = 'info') => setInfoModal({ open: true, title, message, tone });
   
   // Privacy tab states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -1002,6 +1188,8 @@ export default function SettingsPage({
     website: company?.website ?? 'www.moneyflow.com',
     logoDataUrl: company?.logoDataUrl ?? '',
     bankAccountId: company?.bankAccountId ?? undefined,
+  // Ülke seçimi yapılmadıysa boş başlayalım; seçimden sonra alanlar açılacak
+  country: company?.country ?? '',
     logoFile: null,
     
     // Türkiye yasal alanları
@@ -1026,6 +1214,12 @@ export default function SettingsPage({
     taxId: company?.taxId ?? '',
     businessLicenseNumber: company?.businessLicenseNumber ?? '',
     stateOfIncorporation: company?.stateOfIncorporation ?? '',
+
+    // Diğer ülkeler (genel)
+    registrationNumber: company?.registrationNumber ?? '',
+    vatNumberGeneric: company?.vatNumberGeneric ?? '',
+    taxIdGeneric: company?.taxIdGeneric ?? '',
+    stateOrRegion: company?.stateOrRegion ?? '',
   }));
 
   // Props.company değişirse formu güncelle
@@ -1041,6 +1235,7 @@ export default function SettingsPage({
       website: company?.website ?? prev.website,
       logoDataUrl: company?.logoDataUrl ?? prev.logoDataUrl,
       bankAccountId: company?.bankAccountId ?? prev.bankAccountId,
+  country: company?.country ?? prev.country,
       
       // Yasal alanları da güncelle
       mersisNumber: company?.mersisNumber ?? prev.mersisNumber,
@@ -1058,6 +1253,11 @@ export default function SettingsPage({
       taxId: company?.taxId ?? prev.taxId,
       businessLicenseNumber: company?.businessLicenseNumber ?? prev.businessLicenseNumber,
       stateOfIncorporation: company?.stateOfIncorporation ?? prev.stateOfIncorporation,
+
+      registrationNumber: company?.registrationNumber ?? prev.registrationNumber,
+      vatNumberGeneric: company?.vatNumberGeneric ?? prev.vatNumberGeneric,
+      taxIdGeneric: company?.taxIdGeneric ?? prev.taxIdGeneric,
+      stateOrRegion: company?.stateOrRegion ?? prev.stateOrRegion,
     }));
     setUnsavedChanges(false);
   }, [company]);
@@ -1086,11 +1286,23 @@ export default function SettingsPage({
   const tabs = [
     { id: 'profile', label: text.tabs.profile, icon: User },
     { id: 'company', label: text.tabs.company, icon: Building2 },
+    { id: 'organization', label: text.tabs.organization || 'Organization', icon: Users },
+    { id: 'fiscal-periods', label: text.tabs.fiscalPeriods || 'Fiscal Periods', icon: Calendar },
     { id: 'notifications', label: text.tabs.notifications, icon: Bell },
-    { id: 'system', label: text.tabs.system, icon: Settings },
+    // System tab kaldırıldı, ayarları Şirket sekmesine taşındı
     { id: 'security', label: text.tabs.security, icon: Shield },
     { id: 'privacy', label: text.tabs.privacy, icon: Lock },
   ];
+
+  // initialTab verilirse ilk açılışta ona geç
+  useEffect(() => {
+    if (!initialTab) return;
+    const validTabIds = tabs.map(t => t.id);
+    if (validTabIds.includes(initialTab)) {
+      setActiveTab(initialTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTab]);
 
   const handleProfileChange = (field: string, value: string) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
@@ -1107,11 +1319,11 @@ export default function SettingsPage({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Lütfen sadece resim dosyası seçin.');
+      openInfo(text.modals.fileTypeError.title, text.modals.fileTypeError.message, 'error');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('Dosya boyutu 5MB\'dan küçük olmalıdır.');
+      openInfo(text.modals.fileSizeError.title, text.modals.fileSizeError.message, 'error');
       return;
     }
     const reader = new FileReader();
@@ -1201,6 +1413,7 @@ export default function SettingsPage({
           website: companyData.website,
           logoDataUrl: companyData.logoDataUrl,
           bankAccountId: companyData.bankAccountId,
+          country: (companyData.country ? (companyData.country as any) : undefined),
           
           // Yasal alanlar
           mersisNumber: companyData.mersisNumber,
@@ -1218,17 +1431,21 @@ export default function SettingsPage({
           taxId: companyData.taxId,
           businessLicenseNumber: companyData.businessLicenseNumber,
           stateOfIncorporation: companyData.stateOfIncorporation,
+
+          // Diğer
+          registrationNumber: companyData.registrationNumber,
+          vatNumberGeneric: companyData.vatNumberGeneric,
+          taxIdGeneric: companyData.taxIdGeneric,
+          stateOrRegion: companyData.stateOrRegion,
         };
         onCompanyUpdate(cleaned);
       }
 
       setUnsavedChanges(false);
-      alert('✅ Profil başarıyla güncellendi ve kaydedildi!\n\n' +
-            'Değişiklikler kalıcı olarak database\'e kaydedildi.\n' +
-            'Çıkış yapıp tekrar giriş yapabilirsiniz.');
+      setShowSaveSuccess(true);
     } catch (error) {
       console.error('Ayarlar kaydedilirken hata:', error);
-      alert('Ayarlar kaydedilirken bir hata oluştu!');
+      setShowSaveError(true);
     }
   };
 
@@ -1316,11 +1533,37 @@ export default function SettingsPage({
   const renderCompanyTab = () => {
     const hasBanks = bankAccounts.length > 0;
     const selectedBank = bankAccounts.find(b => b.id === companyData.bankAccountId);
+    const hasCountry = Boolean(companyData.country && String(companyData.country).trim() !== '');
+    // Ülke seçimi dilden bağımsız: şirket ayarındaki country alanına göre
+    const legalCountry: 'turkey' | 'france' | 'germany' | 'usa' | 'other' =
+      companyData.country === 'TR' ? 'turkey'
+      : companyData.country === 'FR' ? 'france'
+      : companyData.country === 'DE' ? 'germany'
+      : companyData.country === 'US' ? 'usa'
+      : 'other';
     
     return (
       <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.company.title}</h3>
+        {/* Genel Bilgiler (Ülke + temel alanlar) */}
+        <Section title={text.company.title}>
+          {/* Ülke seçimi en üstte */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.countrySelectLabel || 'Ülke'}</label>
+              <select
+                value={companyData.country}
+                onChange={e => handleCompanyChange('country', e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="TR">{text.company.legalFields.countryOptions?.TR || 'Türkiye'}</option>
+                <option value="US">{text.company.legalFields.countryOptions?.US || 'Amerika'}</option>
+                <option value="DE">{text.company.legalFields.countryOptions?.DE || 'Almanya'}</option>
+                <option value="FR">{text.company.legalFields.countryOptions?.FR || 'Fransa'}</option>
+                <option value="OTHER">{text.company.legalFields.countryOptions?.OTHER || 'Diğer'}</option>
+              </select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.name}</label>
@@ -1331,323 +1574,402 @@ export default function SettingsPage({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.taxNumber}</label>
-              <input
-                type="text"
-                value={companyData.taxNumber}
-                onChange={e => handleCompanyChange('taxNumber', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.taxOffice}</label>
-              <input
-                type="text"
-                value={companyData.taxOffice}
-                onChange={e => handleCompanyChange('taxOffice', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.phone}</label>
-              <input
-                type="tel"
-                value={companyData.phone}
-                onChange={e => handleCompanyChange('phone', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.email}</label>
-              <input
-                type="email"
-                value={companyData.email}
-                onChange={e => handleCompanyChange('email', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.website}</label>
-              <input
-                type="url"
-                value={companyData.website}
-                onChange={e => handleCompanyChange('website', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.address}</label>
-              <textarea
-                value={companyData.address}
-                onChange={e => handleCompanyChange('address', e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.company.logo.label}</h3>
-          <div className="flex items-center space-x-4">
-            {companyData.logoDataUrl ? (
-              <div className="relative">
-                <img
-                  src={companyData.logoDataUrl}
-                  alt="Company Logo"
-                  className="w-24 h-24 object-contain border border-gray-300 rounded-lg"
-                />
-                <button
-                  onClick={handleRemoveLogo}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-                <Building2 className="w-8 h-8 text-gray-400" />
-              </div>
+            {hasCountry && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.phone}</label>
+                  <input
+                    type="tel"
+                    value={companyData.phone}
+                    onChange={e => handleCompanyChange('phone', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.email}</label>
+                  <input
+                    type="email"
+                    value={companyData.email}
+                    onChange={e => handleCompanyChange('email', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.website}</label>
+                  <input
+                    type="url"
+                    value={companyData.website}
+                    onChange={e => handleCompanyChange('website', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.address}</label>
+                  <textarea
+                    value={companyData.address}
+                    onChange={e => handleCompanyChange('address', e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </>
             )}
-            <div>
-              <input
-                type="file"
-                id="logo-upload"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                className="hidden"
-              />
-              <label
-                htmlFor="logo-upload"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer inline-block"
-              >
-                {text.company.logo.upload}
-              </label>
-              <p className="text-sm text-gray-500 mt-2">{text.company.logo.helper}</p>
-            </div>
           </div>
-        </div>
+        </Section>
+
+        {/* Logo */}
+        {hasCountry && (
+          <Section title={text.company.logo.label} defaultOpen={false}>
+            <div className="flex items-center space-x-4">
+              {companyData.logoDataUrl ? (
+                <div className="relative">
+                  <img
+                    src={companyData.logoDataUrl}
+                    alt="Company Logo"
+                    className="w-24 h-24 object-contain border border-gray-300 rounded-lg"
+                  />
+                  <button
+                    onClick={handleRemoveLogo}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                  <Building2 className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+              <div>
+                <input
+                  type="file"
+                  id="logo-upload"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="logo-upload"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer inline-block"
+                >
+                  {text.company.logo.upload}
+                </label>
+                <p className="text-sm text-gray-500 mt-2">{text.company.logo.helper}</p>
+              </div>
+            </div>
+          </Section>
+        )}
 
         {/* Yasal Gereklilik Alanları */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">{text.company.legalFields.title}</h3>
-          <p className="text-sm text-gray-600 mb-4">{text.company.legalFields.subtitle}</p>
-          
-          {/* Türkiye */}
-          <div className="border border-gray-200 rounded-lg p-4 mb-4">
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-              🇹🇷 {text.company.legalFields.turkey.title}
-            </h4>
+        {hasCountry && (
+          <Section title={text.company.legalFields.title} subtitle={text.company.legalFields.subtitle} defaultOpen={false}>
+            {/* Türkiye */}
+            {legalCountry === 'turkey' && (
+              <div className="border border-gray-200 rounded-lg p-4 mb-4">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">🇹🇷 {text.company.legalFields.turkey.title}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.mersisNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.mersisNumber}
+                      onChange={e => handleCompanyChange('mersisNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0123456789012345"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.kepAddress}</label>
+                    <input
+                      type="email"
+                      value={companyData.kepAddress}
+                      onChange={e => handleCompanyChange('kepAddress', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="sirket@hs01.kep.tr"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Fransa */}
+            {legalCountry === 'france' && (
+              <div className="border border-gray-200 rounded-lg p-4 mb-4">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">🇫🇷 {text.company.legalFields.france.title}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.siretNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.siretNumber}
+                      onChange={e => handleCompanyChange('siretNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="12345678901234"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.sirenNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.sirenNumber}
+                      onChange={e => handleCompanyChange('sirenNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="123456789"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.apeCode}</label>
+                    <input
+                      type="text"
+                      value={companyData.apeCode}
+                      onChange={e => handleCompanyChange('apeCode', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="6202A"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.tvaNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.tvaNumber}
+                      onChange={e => handleCompanyChange('tvaNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="FR12345678901"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.rcsNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.rcsNumber}
+                      onChange={e => handleCompanyChange('rcsNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="123 456 789 RCS Paris"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Almanya */}
+            {legalCountry === 'germany' && (
+              <div className="border border-gray-200 rounded-lg p-4 mb-4">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">🇩🇪 {text.company.legalFields.germany.title}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.steuernummer}</label>
+                    <input
+                      type="text"
+                      value={companyData.steuernummer}
+                      onChange={e => handleCompanyChange('steuernummer', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="12/345/67890"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.umsatzsteuerID}</label>
+                    <input
+                      type="text"
+                      value={companyData.umsatzsteuerID}
+                      onChange={e => handleCompanyChange('umsatzsteuerID', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="DE123456789"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.handelsregisternummer}</label>
+                    <input
+                      type="text"
+                      value={companyData.handelsregisternummer}
+                      onChange={e => handleCompanyChange('handelsregisternummer', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="HRB 12345"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.geschaeftsfuehrer}</label>
+                    <input
+                      type="text"
+                      value={companyData.geschaeftsfuehrer}
+                      onChange={e => handleCompanyChange('geschaeftsfuehrer', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Max Mustermann"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Amerika */}
+            {legalCountry === 'usa' && (
+              <div className="border border-gray-200 rounded-lg p-4 mb-4">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">🇺🇸 {text.company.legalFields.usa.title}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.einNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.einNumber}
+                      onChange={e => handleCompanyChange('einNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="12-3456789"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.taxId}</label>
+                    <input
+                      type="text"
+                      value={companyData.taxId}
+                      onChange={e => handleCompanyChange('taxId', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="123-45-6789"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.businessLicenseNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.businessLicenseNumber}
+                      onChange={e => handleCompanyChange('businessLicenseNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="BL123456"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.stateOfIncorporation}</label>
+                    <input
+                      type="text"
+                      value={companyData.stateOfIncorporation}
+                      onChange={e => handleCompanyChange('stateOfIncorporation', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Delaware"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Diğer Ülkeler */}
+            {legalCountry === 'other' && (
+              <div className="border border-gray-200 rounded-lg p-4 mb-4">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">🌐 {text.company.legalFields.other.title}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.other.registrationNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.registrationNumber}
+                      onChange={e => handleCompanyChange('registrationNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.other.vatNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.vatNumberGeneric}
+                      onChange={e => handleCompanyChange('vatNumberGeneric', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.other.taxId}</label>
+                    <input
+                      type="text"
+                      value={companyData.taxIdGeneric}
+                      onChange={e => handleCompanyChange('taxIdGeneric', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.other.stateOrRegion}</label>
+                    <input
+                      type="text"
+                      value={companyData.stateOrRegion}
+                      onChange={e => handleCompanyChange('stateOrRegion', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* IBAN bölümü ayrı bir section */}
+        {hasCountry && (
+          <Section title={text.company.iban.sectionTitle} defaultOpen={false}>
+            {hasBanks ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.iban.bankOption}</label>
+                <select
+                  value={companyData.bankAccountId || ''}
+                  onChange={e => handleCompanyChange('bankAccountId', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">{text.company.iban.bankSelectPlaceholder}</option>
+                  {bankAccounts.map(bank => (
+                    <option key={bank.id} value={bank.id}>
+                      {bank.bankName} - {bank.accountName}
+                    </option>
+                  ))}
+                </select>
+                {selectedBank && (
+                  <p className="text-sm text-gray-500 mt-1">IBAN: {selectedBank.iban}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-600">{text.company.iban.noBanks}</p>
+            )}
+          </Section>
+        )}
+
+        {/* Sistem Ayarları ayrı bir section */}
+        {hasCountry && (
+          <Section title={text.system.title} defaultOpen={false}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.mersisNumber}</label>
-                <input
-                  type="text"
-                  value={companyData.mersisNumber}
-                  onChange={e => handleCompanyChange('mersisNumber', e.target.value)}
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.currencyLabel}</label>
+                <select
+                  value={currency}
+                  onChange={e => {
+                    console.log('[SettingsPage] Currency dropdown changed to:', e.target.value);
+                    handleSystemChange('currency', e.target.value);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0123456789012345"
-                />
+                >
+                  <option value="TRY">{text.system.currencies.TRY}</option>
+                  <option value="USD">{text.system.currencies.USD}</option>
+                  <option value="EUR">{text.system.currencies.EUR}</option>
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.kepAddress}</label>
-                <input
-                  type="email"
-                  value={companyData.kepAddress}
-                  onChange={e => handleCompanyChange('kepAddress', e.target.value)}
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.dateFormatLabel}</label>
+                <select
+                  value={systemSettings.dateFormat}
+                  onChange={e => handleSystemChange('dateFormat', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="sirket@hs01.kep.tr"
-                />
+                >
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.timezoneLabel}</label>
+                <select
+                  value={systemSettings.timezone}
+                  onChange={e => handleSystemChange('timezone', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Europe/Istanbul">{text.system.timezones['Europe/Istanbul']}</option>
+                  <option value="UTC">{text.system.timezones['UTC']}</option>
+                  <option value="America/New_York">{text.system.timezones['America/New_York']}</option>
+                </select>
               </div>
             </div>
-          </div>
-
-          {/* Fransa */}
-          <div className="border border-gray-200 rounded-lg p-4 mb-4">
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-              🇫🇷 {text.company.legalFields.france.title}
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.siretNumber}</label>
-                <input
-                  type="text"
-                  value={companyData.siretNumber}
-                  onChange={e => handleCompanyChange('siretNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="12345678901234"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.sirenNumber}</label>
-                <input
-                  type="text"
-                  value={companyData.sirenNumber}
-                  onChange={e => handleCompanyChange('sirenNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="123456789"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.apeCode}</label>
-                <input
-                  type="text"
-                  value={companyData.apeCode}
-                  onChange={e => handleCompanyChange('apeCode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="6202A"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.tvaNumber}</label>
-                <input
-                  type="text"
-                  value={companyData.tvaNumber}
-                  onChange={e => handleCompanyChange('tvaNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="FR12345678901"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.rcsNumber}</label>
-                <input
-                  type="text"
-                  value={companyData.rcsNumber}
-                  onChange={e => handleCompanyChange('rcsNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="123 456 789 RCS Paris"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Almanya */}
-          <div className="border border-gray-200 rounded-lg p-4 mb-4">
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-              🇩🇪 {text.company.legalFields.germany.title}
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.steuernummer}</label>
-                <input
-                  type="text"
-                  value={companyData.steuernummer}
-                  onChange={e => handleCompanyChange('steuernummer', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="12/345/67890"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.umsatzsteuerID}</label>
-                <input
-                  type="text"
-                  value={companyData.umsatzsteuerID}
-                  onChange={e => handleCompanyChange('umsatzsteuerID', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="DE123456789"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.handelsregisternummer}</label>
-                <input
-                  type="text"
-                  value={companyData.handelsregisternummer}
-                  onChange={e => handleCompanyChange('handelsregisternummer', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="HRB 12345"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.germany.geschaeftsfuehrer}</label>
-                <input
-                  type="text"
-                  value={companyData.geschaeftsfuehrer}
-                  onChange={e => handleCompanyChange('geschaeftsfuehrer', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Max Mustermann"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Amerika */}
-          <div className="border border-gray-200 rounded-lg p-4 mb-4">
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-              🇺🇸 {text.company.legalFields.usa.title}
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.einNumber}</label>
-                <input
-                  type="text"
-                  value={companyData.einNumber}
-                  onChange={e => handleCompanyChange('einNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="12-3456789"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.taxId}</label>
-                <input
-                  type="text"
-                  value={companyData.taxId}
-                  onChange={e => handleCompanyChange('taxId', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="123-45-6789"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.businessLicenseNumber}</label>
-                <input
-                  type="text"
-                  value={companyData.businessLicenseNumber}
-                  onChange={e => handleCompanyChange('businessLicenseNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="BL123456"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.stateOfIncorporation}</label>
-                <input
-                  type="text"
-                  value={companyData.stateOfIncorporation}
-                  onChange={e => handleCompanyChange('stateOfIncorporation', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Delaware"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.company.iban.sectionTitle}</h3>
-          {hasBanks ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.iban.bankOption}</label>
-              <select
-                value={companyData.bankAccountId || ''}
-                onChange={e => handleCompanyChange('bankAccountId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">{text.company.iban.bankSelectPlaceholder}</option>
-                {bankAccounts.map(bank => (
-                  <option key={bank.id} value={bank.id}>
-                    {bank.bankName} - {bank.accountName}
-                  </option>
-                ))}
-              </select>
-              {selectedBank && (
-                <p className="text-sm text-gray-500 mt-1">
-                  IBAN: {selectedBank.iban}
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-gray-600">{text.company.iban.noBanks}</p>
-          )}
-        </div>
+          </Section>
+        )}
       </div>
     );
   };
@@ -1683,92 +2005,7 @@ export default function SettingsPage({
     </div>
   );
 
-  const renderSystemTab = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.system.title}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.currencyLabel}</label>
-            <select
-              value={currency}
-              onChange={e => {
-                console.log('[SettingsPage] Currency dropdown changed to:', e.target.value);
-                handleSystemChange('currency', e.target.value);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="TRY">{text.system.currencies.TRY}</option>
-              <option value="USD">{text.system.currencies.USD}</option>
-              <option value="EUR">{text.system.currencies.EUR}</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.dateFormatLabel}</label>
-            <select
-              value={systemSettings.dateFormat}
-              onChange={e => handleSystemChange('dateFormat', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-              <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.timezoneLabel}</label>
-            <select
-              value={systemSettings.timezone}
-              onChange={e => handleSystemChange('timezone', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Europe/Istanbul">{text.system.timezones['Europe/Istanbul']}</option>
-              <option value="UTC">{text.system.timezones['UTC']}</option>
-              <option value="America/New_York">{text.system.timezones['America/New_York']}</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* TODO: Otomatik Yedekleme - Backend servisi eklendiğinde aktif edilecek
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.system.backup.title}</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div>
-              <div className="font-medium text-gray-900">{text.system.backup.toggleLabel}</div>
-              <div className="text-sm text-gray-500">{text.system.backup.toggleDescription}</div>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={systemSettings.autoBackup}
-                onChange={e => handleSystemChange('autoBackup', e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className='w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[""] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600'></div>
-            </label>
-          </div>
-
-          {systemSettings.autoBackup && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.backup.frequencyLabel}</label>
-              <select
-                value={systemSettings.backupFrequency}
-                onChange={e => handleSystemChange('backupFrequency', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="daily">{text.system.backup.options.daily}</option>
-                <option value="weekly">{text.system.backup.options.weekly}</option>
-                <option value="monthly">{text.system.backup.options.monthly}</option>
-              </select>
-            </div>
-          )}
-        </div>
-      </div>
-      */}
-    </div>
-  );
+  // System sekmesi kaldırıldı; ayarlar şirket sekmesine taşındı
 
   const renderSecurityTab = () => (
   <div className="space-y-6">
@@ -1836,7 +2073,7 @@ export default function SettingsPage({
         const token = localStorage.getItem('auth_token');
         console.log('Token found:', token ? 'YES' : 'NO');
         if (!token) {
-          alert('Lütfen önce giriş yapın.');
+          openInfo(text.modals.authRequired.title, text.modals.authRequired.message, 'error');
           return;
         }
 
@@ -1851,7 +2088,7 @@ export default function SettingsPage({
         console.log('Response status:', response.status);
         if (!response.ok) {
           if (response.status === 401) {
-            alert('Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.');
+            openInfo(text.modals.sessionExpired.title, text.modals.sessionExpired.message, 'error');
             return;
           }
           const errorText = await response.text();
@@ -1871,6 +2108,7 @@ export default function SettingsPage({
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
 
+        // Lokalize edilmemiş; isterseniz modala çevrilebilir
         alert('Data exported successfully!');
       } catch (error) {
         console.error('Export error:', error);
@@ -1886,7 +2124,7 @@ export default function SettingsPage({
         
         const token = localStorage.getItem('auth_token');
         if (!token) {
-          alert('Lütfen önce giriş yapın.');
+          openInfo(text.modals.authRequired.title, text.modals.authRequired.message, 'error');
           setIsDeletingAccount(false);
           return;
         }
@@ -1901,7 +2139,7 @@ export default function SettingsPage({
 
         if (!response.ok) {
           if (response.status === 401) {
-            alert('Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.');
+            openInfo(text.modals.sessionExpired.title, text.modals.sessionExpired.message, 'error');
             setIsDeletingAccount(false);
             return;
           }
@@ -1909,11 +2147,11 @@ export default function SettingsPage({
         }
 
         const result = await response.json();
-        alert(`Account deletion requested successfully. ${result.message}`);
+        openInfo(text.modals.deleteRequested.title, result?.message || text.modals.deleteRequested.message, 'success');
         setIsDeleteDialogOpen(false);
       } catch (error) {
         console.error('Account deletion error:', error);
-        alert('Failed to request account deletion. Please try again.');
+        openInfo(text.modals.deleteFailed.title, text.modals.deleteFailed.message, 'error');
       } finally {
         setIsDeletingAccount(false);
       }
@@ -2005,7 +2243,7 @@ export default function SettingsPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+  {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
@@ -2033,7 +2271,7 @@ export default function SettingsPage({
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-2 border-b border-gray-200 mt-6">
+        <div className="flex space-x-2 border-b border-gray-200 mt-6 sticky top-16 z-20 bg-white">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -2059,12 +2297,41 @@ export default function SettingsPage({
         <div className="p-6">
           {activeTab === 'profile' && renderProfileTab()}
           {activeTab === 'company' && renderCompanyTab()}
+          {activeTab === 'organization' && <OrganizationMembersPage />}
+          {activeTab === 'fiscal-periods' && <FiscalPeriodsPage />}
           {activeTab === 'notifications' && renderNotificationsTab()}
-          {activeTab === 'system' && renderSystemTab()}
+          {/* System sekmesi kaldırıldı */}
           {activeTab === 'security' && renderSecurityTab()}
           {activeTab === 'privacy' && renderPrivacyTab()}
         </div>
       </div>
+
+      {/* Save result modals */}
+      <InfoModal
+        isOpen={showSaveSuccess}
+        onClose={() => setShowSaveSuccess(false)}
+        title={text.modals.saveSuccess.title}
+        message={text.modals.saveSuccess.message}
+        confirmLabel={text.modals.saveSuccess.confirm}
+        tone="success"
+        autoCloseMs={1800}
+      />
+      <InfoModal
+        isOpen={showSaveError}
+        onClose={() => setShowSaveError(false)}
+        title={text.modals.saveError.title}
+        message={text.modals.saveError.message}
+        confirmLabel={text.modals.saveError.confirm}
+        tone="error"
+      />
+      <InfoModal
+        isOpen={infoModal.open}
+        onClose={() => setInfoModal(m => ({ ...m, open: false }))}
+        title={infoModal.title}
+        message={infoModal.message}
+        confirmLabel={text.modals.saveSuccess.confirm}
+        tone={infoModal.tone}
+      />
     </div>
   );
 }
