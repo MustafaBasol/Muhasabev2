@@ -5,7 +5,8 @@
   Users,
   Building2,
   CreditCard,
-  Package
+  Package,
+  PlusCircle
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,6 +14,7 @@ interface QuickActionsProps {
   onNewInvoice: () => void;
   onNewExpense: () => void;
   onNewSale: () => void;
+  onNewQuote?: () => void;
   onNewCustomer: () => void;
   onNewProduct: () => void;
   onViewCustomers: () => void;
@@ -29,6 +31,7 @@ export default function QuickActions({
   onNewInvoice,
   onNewExpense,
   onNewSale,
+  onNewQuote,
   onNewCustomer,
   onNewProduct,
   onViewCustomers,
@@ -65,6 +68,16 @@ export default function QuickActions({
       color: 'bg-green-500 hover:bg-green-600',
       onClick: onNewSale,
     },
+    // Optional: New Quote quick action
+    ...(onNewQuote
+      ? [{
+          title: t('quickActions.newQuote'),
+          description: t('quickActions.newQuoteDesc'),
+          icon: PlusCircle,
+          color: 'bg-indigo-500 hover:bg-indigo-600',
+          onClick: onNewQuote,
+        }]
+      : []),
     {
       title: t('quickActions.newCustomer'),
       description: t('quickActions.newCustomerDesc'),

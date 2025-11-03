@@ -21,6 +21,25 @@
 - **[FRONTEND_INTEGRATION.md](./FRONTEND_INTEGRATION.md)** - Frontend entegrasyonu
  - **[BANK_ACCOUNTS_API.md](./BANK_ACCOUNTS_API.md)** - Banka hesapları API ve plan limitleri
 
+### 🧾 Teklif Sistemi (Quotes) — YENİ! ✨
+- **[docs/quotes/QUOTATION_SYSTEM_SPEC.md](./docs/quotes/QUOTATION_SYSTEM_SPEC.md)** — Evrensel teklif sistemi ürün özeti
+- **[docs/quotes/QUOTE_USER_FLOWS_AND_ACCEPTANCE.md](./docs/quotes/QUOTE_USER_FLOWS_AND_ACCEPTANCE.md)** — Kullanıcı akışları ve kabul kriterleri
+- **[docs/quotes/QUOTE_PDF_TEMPLATE_GUIDE.md](./docs/quotes/QUOTE_PDF_TEMPLATE_GUIDE.md)** — PDF şablon rehberi
+- **[docs/quotes/QUOTES_EMAIL_TEMPLATES.md](./docs/quotes/QUOTES_EMAIL_TEMPLATES.md)** — E‑posta şablonları (EN/FR/DE/TR)
+- **[docs/quotes/QUOTES_REMINDER_EMAIL_TEMPLATES.md](./docs/quotes/QUOTES_REMINDER_EMAIL_TEMPLATES.md)** — Hatırlatma e‑postaları
+- **[docs/quotes/CUSTOMER_PUBLIC_QUOTE_PAGE.md](./docs/quotes/CUSTOMER_PUBLIC_QUOTE_PAGE.md)** — Herkese açık müşteri sayfası UX & güvenlik
+- **[docs/quotes/QUOTES_DASHBOARD_AND_FILTERS.md](./docs/quotes/QUOTES_DASHBOARD_AND_FILTERS.md)** — Panolar ve filtreler
+- **[docs/quotes/QUOTES_DATA_MODEL_OVERVIEW.md](./docs/quotes/QUOTES_DATA_MODEL_OVERVIEW.md)** — Kavramsal veri modeli
+- **[docs/quotes/QUOTES_EXPORTS.md](./docs/quotes/QUOTES_EXPORTS.md)** — Dışa aktarımlar (CSV/PDF)
+- **[docs/quotes/QUOTE_INTERNAL_DETAIL_PAGE.md](./docs/quotes/QUOTE_INTERNAL_DETAIL_PAGE.md)** — İç detay sayfası içerik/aksiyonlar
+- **[docs/quotes/TEMPLATES_LIBRARY.md](./docs/quotes/TEMPLATES_LIBRARY.md)** — Şablon kütüphanesi ve metin blokları
+- **[docs/quotes/NUMBERING_AND_IDS.md](./docs/quotes/NUMBERING_AND_IDS.md)** — Numara kalıpları ve herkese açık link ID’leri
+- **[docs/quotes/LEGAL_BLOCKS_BY_COUNTRY.md](./docs/quotes/LEGAL_BLOCKS_BY_COUNTRY.md)** — Ülke bazlı yasal dipnot rehberi
+- **[docs/quotes/QUOTES_ROLES_AND_PERMISSIONS.md](./docs/quotes/QUOTES_ROLES_AND_PERMISSIONS.md)** — Roller ve yetkiler
+- **[docs/quotes/QUOTES_ROLLOUT_PLAN.md](./docs/quotes/QUOTES_ROLLOUT_PLAN.md)** — Aşamalı yayın planı
+- **[docs/quotes/QUOTES_STATUS_AND_ACTIONS.md](./docs/quotes/QUOTES_STATUS_AND_ACTIONS.md)** — Durumlar, geçişler ve hızlı aksiyonlar
+- **[docs/quotes/QUOTES_ACCEPTANCE_TEST_CHECKLIST.md](./docs/quotes/QUOTES_ACCEPTANCE_TEST_CHECKLIST.md)** — Kabul testi kontrol listesi
+
 ### 📋 Geliştirme
 - **[MULTI_USER_QUICKSTART.md](./MULTI_USER_QUICKSTART.md)** - Multi-tenant hızlı başlangıç
 - **[MULTI_USER_ROADMAP.md](./MULTI_USER_ROADMAP.md)** - Multi-tenant yol haritası
@@ -63,4 +82,4 @@
 
 Yeni dokümantasyon eklerken bu dosyayı da güncellemeyi unutmayın!
 
-**Son Güncelleme:** 2 Kasım 2025
+**Son Güncelleme:** 3 Kasım 2025

@@ -229,6 +229,7 @@
     "cancel": "Annuler",
     "delete": "Supprimer",
     "edit": "Modifier",
+    "update": "Mettre à jour",
     "add": "Ajouter",
     "search": "Rechercher",
     "close": "Fermer",
@@ -310,6 +311,8 @@
     "newExpenseDesc": "Ajouter un enregistrement de dépense",
     "newSale": "Nouvelle Vente",
     "newSaleDesc": "Enregistrer une transaction de vente",
+    "newQuote": "Nouveau Devis",
+    "newQuoteDesc": "Créer un devis pour un client",
     "newCustomer": "Nouveau Client",
     "newCustomerDesc": "Ajouter des informations client",
     "newProduct": "Nouveau Produit",
@@ -370,6 +373,7 @@
     "suppliers": "Fournisseurs",
     "banks": "Banques",
     "sales": "Ventes",
+    "quotes": "Devis",
     "reports": "Rapports",
     "accounting": "Comptabilité",
     "chartOfAccounts": "Plan Comptable",
@@ -377,6 +381,70 @@
     "organization": "Organisation",
     "settings": "Paramètres",
     "close": "Fermer"
+  },
+  "quotes": {
+    "title": "Devis",
+    "newQuote": "Nouveau Devis",
+    "comingSoon": "La page de base du module Devis est prête. Liste avancée, statuts et modèles PDF à venir.",
+    "placeholderDescription": "La création, l'envoi, la page publique et les flux d'acceptation/refus seront ici. L'intégration de la navigation et du menu est en place.",
+    "search": "Rechercher des devis...",
+    "filterAll": "Tous les Statuts",
+    "viewModal": {
+      "details": "Détails du devis"
+    },
+    "validUntil": "Valable jusqu'au",
+    "expiresIn": "(expire dans {{days}} jours)",
+    "expiredOn": "(expiré le {{date}})",
+  "version": "v{{n}}",
+  "confirmAccept": "Êtes-vous sûr de vouloir accepter ce devis ?",
+  "acceptedThanks": "Merci, le devis a été accepté.",
+  "confirmDecline": "Êtes-vous sûr de vouloir refuser ce devis ?",
+  "declinedInfo": "Le devis a été refusé.",
+    "actions": {
+      "send": "Envoyer",
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "downloadPdf": "Télécharger PDF",
+      "copyLink": "Copier le lien public",
+      "resendEmail": "Renvoyer l'e-mail",
+      "revise": "Réviser"
+    },
+    "editModal": {
+      "title": "Modifier le devis",
+      "subtitle": "Mettez à jour les informations du devis",
+      "quoteNumber": "N° de devis"
+    },
+    "table": {
+      "quote": "Devis",
+      "customer": "Client",
+      "amount": "Montant",
+      "status": "Statut",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "noQuotes": "Aucun devis pour le moment",
+    "noQuotesDesc": "Commencez par créer votre premier devis.",
+    "noQuotesFound": "Aucun devis trouvé",
+    "noQuotesFoundDesc": "Aucun devis ne correspond à vos critères de recherche.",
+    "createFirstQuote": "Créer le Premier Devis",
+    "view": "Voir",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "statusLabels": {
+      "viewed": "Vu",
+      "accepted": "Accepté",
+      "declined": "Refusé",
+      "expired": "Expiré"
+    },
+    "createModal": {
+      "title": "Créer un Devis",
+      "customer": "Client",
+      "customerPlaceholder": "Saisir le nom du client",
+      "currency": "Devise",
+      "date": "Date d'Émission",
+      "amount": "Montant",
+      "create": "Créer"
+    }
   },
   "stats": {
     "thisMonth": "ce mois",

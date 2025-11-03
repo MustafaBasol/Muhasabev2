@@ -22,7 +22,8 @@ import { useTranslation } from 'react-i18next';
 import ProductCategoryModal from './ProductCategoryModal';
 import InfoModal from './InfoModal';
 import ConfirmModal from './ConfirmModal';
-import { productCategoriesApi } from '../api/product-categories';
+// product-categories API'yi dinamik içeri aktararak kod bölmeyi (code-splitting) iyileştir
+const loadProductCategoriesApi = async () => (await import('../api/product-categories')).productCategoriesApi;
 import type { ProductCategory } from '../types';
 
 // Ana kategori isimlerini çeviren yardımcı fonksiyon
@@ -111,7 +112,8 @@ export default function ProductList({
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const data = await productCategoriesApi.getAll();
+        const api = await loadProductCategoriesApi();
+        const data = await api.getAll();
         setCategoryObjects(data);
       } catch (error) {
         console.error('Kategoriler yüklenirken hata:', error);
@@ -321,14 +323,15 @@ export default function ProductList({
     if (!editingCategoryData) {
       // Yeni kategori ekleniyor
       try {
-        await productCategoriesApi.create({
+        const api = await loadProductCategoriesApi();
+        await api.create({
           name: newName.trim(),
           taxRate: newTaxRate,
           parentId,
         });
         
         // Kategori listesini yenile
-        const updatedCategories = await productCategoriesApi.getAll();
+        const updatedCategories = await (await loadProductCategoriesApi()).getAll();
         setCategoryObjects(updatedCategories);
         
         // Modal'ı kapat
@@ -367,13 +370,14 @@ export default function ProductList({
     
     try {
       // Backend'e KDV oranı güncellemesini gönder
-      await productCategoriesApi.update(categoryObj.id, {
+      const api = await loadProductCategoriesApi();
+      await api.update(categoryObj.id, {
         name: updated !== currentName ? updated : undefined,
         taxRate: newTaxRate !== editingCategoryData.taxRate ? newTaxRate : undefined,
       });
       
       // Kategori listesini yenile
-      const updatedCategories = await productCategoriesApi.getAll();
+      const updatedCategories = await (await loadProductCategoriesApi()).getAll();
       setCategoryObjects(updatedCategories);
       
       // İsim değiştiyse parent component'i bilgilendir
@@ -428,8 +432,9 @@ export default function ProductList({
       onConfirm: async () => {
         try {
           if (categoryObj) {
-            await productCategoriesApi.delete(categoryObj.id);
-            const updatedCategories = await productCategoriesApi.getAll();
+            const api = await loadProductCategoriesApi();
+            await api.delete(categoryObj.id);
+            const updatedCategories = await (await loadProductCategoriesApi()).getAll();
             setCategoryObjects(updatedCategories);
           }
           onDeleteCategory(category);

@@ -312,6 +312,8 @@
     "newExpenseDesc": "Add expense record",
     "newSale": "New Sale",
     "newSaleDesc": "Record sales transaction",
+    "newQuote": "New Quote",
+    "newQuoteDesc": "Create a quote for a customer",
     "newCustomer": "New Customer",
     "newCustomerDesc": "Add customer information",
     "newProduct": "New Product",
@@ -372,6 +374,7 @@
     "suppliers": "Suppliers",
     "banks": "Banks",
     "sales": "Sales",
+    "quotes": "Quotes",
     "reports": "Reports",
     "accounting": "Accounting",
     "chartOfAccounts": "Chart of Accounts",
@@ -379,6 +382,70 @@
     "organization": "Organization",
     "settings": "Settings",
     "close": "Close"
+  },
+  "quotes": {
+    "title": "Quotes",
+    "newQuote": "New Quote",
+    "comingSoon": "Quotes module base page is ready. Advanced list, statuses, and PDF templates are next.",
+    "placeholderDescription": "Creating, sending, public view, and accept/decline flows will live here. Navigation and menu integration are done for now.",
+    "search": "Search quotes...",
+    "filterAll": "All Statuses",
+    "viewModal": {
+      "details": "Quote Details"
+    },
+    "validUntil": "Valid Until",
+    "expiresIn": "(expires in {{days}} days)",
+    "expiredOn": "(expired on {{date}})",
+    "version": "v{{n}}",
+  "confirmAccept": "Are you sure you want to accept this quote?",
+  "acceptedThanks": "Thanks, the quote has been accepted.",
+  "confirmDecline": "Are you sure you want to decline this quote?",
+  "declinedInfo": "The quote has been declined.",
+    "actions": {
+      "send": "Send",
+      "accept": "Accept",
+      "decline": "Decline",
+      "downloadPdf": "Download PDF",
+      "copyLink": "Copy public link",
+      "resendEmail": "Resend email",
+      "revise": "Revise"
+    },
+    "editModal": {
+      "title": "Edit Quote",
+      "subtitle": "Update quote information",
+      "quoteNumber": "Quote No"
+    },
+    "table": {
+      "quote": "Quote",
+      "customer": "Customer",
+      "amount": "Amount",
+      "status": "Status",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "noQuotes": "No quotes yet",
+    "noQuotesDesc": "Start by creating your first quote.",
+    "noQuotesFound": "No quotes found",
+    "noQuotesFoundDesc": "No quotes match your search criteria.",
+    "createFirstQuote": "Create First Quote",
+    "view": "View",
+    "edit": "Edit",
+    "delete": "Delete",
+    "statusLabels": {
+      "viewed": "Viewed",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired"
+    },
+    "createModal": {
+      "title": "Create Quote",
+      "customer": "Customer",
+      "customerPlaceholder": "Enter customer name",
+      "currency": "Currency",
+      "date": "Issue Date",
+      "amount": "Amount",
+      "create": "Create"
+    }
   },
   "stats": {
     "thisMonth": "this month",

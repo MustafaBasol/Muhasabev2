@@ -229,6 +229,7 @@
     "cancel": "Abbrechen",
     "delete": "Löschen",
     "edit": "Bearbeiten",
+    "update": "Aktualisieren",
     "add": "Hinzufügen",
     "search": "Suchen",
     "close": "Schließen",
@@ -311,6 +312,8 @@
     "newExpenseDesc": "Ausgabendatensatz hinzufügen",
     "newSale": "Neuer Verkauf",
     "newSaleDesc": "Verkaufstransaktion erfassen",
+    "newQuote": "Neues Angebot",
+    "newQuoteDesc": "Angebot für einen Kunden erstellen",
     "newCustomer": "Neuer Kunde",
     "newCustomerDesc": "Kundeninformationen hinzufügen",
     "newProduct": "Neues Produkt",
@@ -372,6 +375,7 @@
     "suppliers": "Lieferanten",
     "banks": "Banken",
     "sales": "Verkäufe",
+    "quotes": "Angebote",
     "reports": "Berichte",
     "accounting": "Buchhaltung",
     "chartOfAccounts": "Kontenplan",
@@ -379,6 +383,71 @@
     "organization": "Organisation",
     "settings": "Einstellungen",
     "close": "Schließen"
+  },
+  "quotes": {
+    "title": "Angebote",
+    "newQuote": "Neues Angebot",
+    "comingSoon": "Basis-Seite des Angebotsmoduls ist bereit. Erweiterte Liste, Status und PDF-Vorlagen folgen.",
+    "placeholderDescription": "Erstellen, Senden, öffentliche Ansicht und Annehmen/Ablehnen-Flows werden hier sein. Navigation und Menü-Integration sind vorerst erledigt.",
+    "search": "Angebote suchen...",
+    "filterAll": "Alle Status",
+    "validUntil": "Gültig bis",
+    "expiresIn": "(läuft in {{days}} Tagen ab)",
+    "expiredOn": "(abgelaufen am {{date}})",
+    "version": "v{{n}}",
+    "confirmAccept": "Sind Sie sicher, dass Sie dieses Angebot annehmen möchten?",
+    "acceptedThanks": "Danke, das Angebot wurde angenommen.",
+    "confirmDecline": "Sind Sie sicher, dass Sie dieses Angebot ablehnen möchten?",
+    "declinedInfo": "Das Angebot wurde abgelehnt.",
+    "viewModal": {
+      "details": "Angebotsdetails"
+    },
+    "actions": {
+      "send": "Senden",
+      "accept": "Annehmen",
+      "decline": "Ablehnen",
+      "downloadPdf": "PDF Herunterladen",
+      "copyLink": "Öffentlichen Link kopieren",
+      "resendEmail": "E-Mail erneut senden",
+      "revise": "Überarbeiten"
+    },
+    "editModal": {
+      "title": "Angebot bearbeiten",
+      "subtitle": "Angebotsinformationen aktualisieren",
+      "quoteNumber": "Angebots-Nr."
+    },
+    "table": {
+      "quote": "Angebot",
+      "customer": "Kunde",
+      "amount": "Betrag",
+      "status": "Status",
+      "date": "Datum",
+      "actions": "Aktionen"
+    },
+    "noQuotes": "Noch keine Angebote",
+    "noQuotesDesc": "Beginnen Sie mit der Erstellung Ihres ersten Angebots.",
+    "noQuotesFound": "Keine Angebote gefunden",
+    "noQuotesFoundDesc": "Keine Angebote entsprechen Ihren Suchkriterien.",
+    "createFirstQuote": "Erstes Angebot Erstellen",
+    "view": "Ansehen",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "statusLabels": {
+      "viewed": "Angesehen",
+      "accepted": "Angenommen",
+      "declined": "Abgelehnt",
+      "expired": "Abgelaufen"
+    },
+    "createModal": {
+      "title": "Angebot Erstellen",
+      "customer": "Kunde",
+      "customerPlaceholder": "Kundennamen eingeben",
+      "currency": "Währung",
+      "date": "Ausstellungsdatum",
+      "validUntil": "Gültig bis",
+      "amount": "Betrag",
+      "create": "Erstellen"
+    }
   },
   "stats": {
     "thisMonth": "diesen Monat",

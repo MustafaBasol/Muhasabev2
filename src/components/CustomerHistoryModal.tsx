@@ -41,6 +41,16 @@ export default function CustomerHistoryModal({
     return nameMatch || emailMatch;
   });
 
+  // Quotes: localStorage'dan oku ve müşteriye ait olanları listele
+  let customerQuotes: Array<any> = [];
+  try {
+    const raw = localStorage.getItem('quotes_cache');
+    const list = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(list)) {
+      customerQuotes = list.filter((q: any) => q?.customerName === customer.name);
+    }
+  } catch {}
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('tr-TR');
   };
@@ -71,7 +81,7 @@ export default function CustomerHistoryModal({
         </div>
 
         <div className="p-6">
-          {invoices.length === 0 && customerSales.length === 0 ? (
+              {invoices.length === 0 && customerSales.length === 0 && customerQuotes.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <FileText className="w-8 h-8 text-gray-400" />
@@ -96,6 +106,36 @@ export default function CustomerHistoryModal({
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Teklifler */}
+              {customerQuotes.map((q, index) => (
+                <div key={`quote-${index}`} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span className="text-purple-600 text-sm font-bold">Q</span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-purple-600">
+                          {q.quoteNumber} {q.version && q.version > 1 ? <span className="ml-1 text-xs text-gray-500">v{q.version}</span> : null}
+                        </div>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          {new Date(q.issueDate).toLocaleDateString('tr-TR')}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-gray-900">
+                        {formatAmount(Number(q.total || 0))}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {q.status}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
               {/* Satışlar */}
               {customerSales.map((sale, index) => (
                 <div key={`sale-${index}`} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">

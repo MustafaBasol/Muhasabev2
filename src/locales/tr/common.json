@@ -190,16 +190,18 @@
   "auth": {
     "welcomeTitle": "Hoş Geldiniz",
     "welcomeSubtitle": "Devam etmek için hesabınıza giriş yapın",
-    "emailAddress": "E-posta Adresi",
+    "validUntil": "Geçerlilik Tarihi",
     "emailPlaceholder": "ad@ornek.com",
     "password": "Şifre",
+    "version": "v{{n}}",
     "passwordPlaceholder": "••••••••",
     "rememberMe": "Beni hatırla",
     "forgotPassword": "Şifremi unuttum",
     "signIn": "Giriş Yap",
     "demoAccount": "Demo Hesap:",
     "email": "E-posta",
-    "or": "veya",
+      "resendEmail": "E-postayı yeniden gönder",
+      "revise": "Revize Et",
     "adminLogin": "Yönetici Girişi",
     "noAccount": "Hesabınız yok mu?",
     "createFreeAccount": "Ücretsiz hesap oluşturun",
@@ -402,6 +404,8 @@
     "newExpenseDesc": "Gider kaydı ekle",
     "newSale": "Yeni Satış",
     "newSaleDesc": "Satış işlemi kaydet",
+    "newQuote": "Yeni Teklif",
+    "newQuoteDesc": "Müşteri için teklif oluştur",
     "newCustomer": "Yeni Müşteri",
     "newCustomerDesc": "Müşteri bilgisi ekle",
     "newProduct": "Yeni Ürün",
@@ -462,6 +466,7 @@
     "suppliers": "Tedarikçiler",
     "banks": "Bankalar",
     "sales": "Satışlar",
+    "quotes": "Teklifler",
     "reports": "Raporlar",
     "accounting": "Muhasebe",
     "chartOfAccounts": "Hesap Planı",
@@ -469,6 +474,70 @@
     "organization": "Organizasyon",
     "settings": "Ayarlar",
     "close": "Kapat"
+  },
+  "quotes": {
+    "title": "Teklifler",
+    "newQuote": "Yeni Teklif",
+    "comingSoon": "Teklifler modülü için temel sayfa hazır. Gelişmiş liste, durumlar ve PDF şablonları sırada.",
+    "placeholderDescription": "Teklif oluşturma, gönderme, müşteri tarafından görüntüleme ve kabul/ret akışları bu sayfada yer alacaktır. Şimdilik yönlendirme ve menü entegrasyonu tamamlandı.",
+    "search": "Teklif ara...",
+    "filterAll": "Tüm Durumlar",
+    "viewModal": {
+      "details": "Teklif Detayları"
+    },
+    "validUntil": "Geçerlilik Tarihi",
+    "expiresIn": "({{days}} gün içinde sona erer)",
+    "expiredOn": "({{date}} tarihinde sona erdi)",
+  "version": "v{{n}}",
+  "confirmAccept": "Teklifi kabul etmek istediğinizden emin misiniz?",
+  "acceptedThanks": "Teşekkürler, teklif kabul edildi.",
+  "confirmDecline": "Teklifi reddetmek istediğinizden emin misiniz?",
+  "declinedInfo": "Teklif reddedildi.",
+    "actions": {
+      "send": "Gönder",
+      "accept": "Kabul Et",
+      "decline": "Reddet",
+      "downloadPdf": "PDF İndir",
+      "copyLink": "Genel bağlantıyı kopyala",
+      "resendEmail": "E-postayı yeniden gönder",
+      "revise": "Revize Et"
+    },
+    "editModal": {
+      "title": "Teklifi Düzenle",
+      "subtitle": "Teklif bilgilerini güncelleyin",
+      "quoteNumber": "Teklif No"
+    },
+    "table": {
+      "quote": "Teklif",
+      "customer": "Müşteri",
+      "amount": "Tutar",
+      "status": "Durum",
+      "date": "Tarih",
+      "actions": "İşlemler"
+    },
+    "noQuotes": "Henüz teklif yok",
+    "noQuotesDesc": "İlk teklifinizi oluşturarak başlayın.",
+    "noQuotesFound": "Teklif bulunamadı",
+    "noQuotesFoundDesc": "Arama kriterlerinizle eşleşen teklif yok.",
+    "createFirstQuote": "İlk Teklifi Oluştur",
+    "view": "Görüntüle",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "statusLabels": {
+      "viewed": "Görüntülendi",
+      "accepted": "Kabul Edildi",
+      "declined": "Reddedildi",
+      "expired": "Süresi Doldu"
+    },
+    "createModal": {
+      "title": "Teklif Oluştur",
+      "customer": "Müşteri",
+      "customerPlaceholder": "Müşteri adı girin",
+      "currency": "Para Birimi",
+      "date": "Düzenleme Tarihi",
+      "amount": "Tutar",
+      "create": "Oluştur"
+    }
   },
   "stats": {
     "thisMonth": "bu ay",

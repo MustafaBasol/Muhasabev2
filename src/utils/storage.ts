@@ -52,18 +52,39 @@ const secureEncrypt = async (text: string, password: string): Promise<string> =>
     result.set(salt);
     result.set(iv, salt.length);
     result.set(new Uint8Array(encrypted), salt.length + iv.length);
-    
-    return btoa(String.fromCharCode(...result));
+
+    // Büyük verilerde (örn. base64 logo) call stack taşmaması için chunk'lı base64 dönüşümü
+    let binary = '';
+    const chunkSize = 0x8000; // 32KB
+    for (let i = 0; i < result.length; i += chunkSize) {
+      const chunk = result.subarray(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
   } catch (error) {
     console.error('Encryption failed:', error);
     return '';
   }
 };
 
+// Basit base64 kontrolü (tam garantili değil ama pratik)
+const isProbablyBase64 = (str: string): boolean => {
+  if (!str) return false;
+  // JSON benzeri içerikleri hemen ele
+  if (str.trim().startsWith('{') || str.trim().startsWith('[') || str.includes(':"')) return false;
+  // Base64 karakter seti ve padding kontrolü
+  const base64Regex = /^[A-Za-z0-9+/=\s]+$/;
+  if (!base64Regex.test(str)) return false;
+  const cleaned = str.replace(/\s+/g, '');
+  return cleaned.length % 4 === 0;
+};
+
 const secureDecrypt = async (encryptedData: string, password: string): Promise<string> => {
   if (!encryptedData) return '';
   
   try {
+    // Şifrelenmemiş (düz) veri gelmişse sessizce vazgeç
+    if (!isProbablyBase64(encryptedData)) return '';
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
     
@@ -109,8 +130,8 @@ const secureDecrypt = async (encryptedData: string, password: string): Promise<s
     );
     
     return decoder.decode(decrypted);
-  } catch (error) {
-    console.error('Decryption failed:', error);
+  } catch {
+    // Sessizce fallback'a izin ver (legacy/plaintext durumları için)
     return '';
   }
 };
@@ -182,6 +203,11 @@ export const secureStorage = {
       
       if (!ENABLE_ENCRYPTION) {
         return stored;
+      }
+
+      // Eski/şifresiz kayıtlar için hızlı kaçış
+      if (!isProbablyBase64(stored)) {
+        return stored; // plaintext fallback
       }
 
       if (USE_SECURE_CRYPTO && window.crypto && window.crypto.subtle) {

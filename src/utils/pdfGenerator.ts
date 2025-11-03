@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import DOMPurify from 'dompurify';
 import i18n from '../i18n/config';
 import { logger } from './logger';
+import { secureStorage } from './storage';
 
 // ——— Tipler ——————————————————————————————————————
 interface Invoice {
@@ -103,7 +104,7 @@ export type CompanyProfile = {
 };
 
 type OpenOpts = { targetWindow?: Window | null; filename?: string; company?: CompanyProfile; lang?: string; currency?: Currency };
-type Currency = 'TRY' | 'USD' | 'EUR';
+type Currency = 'TRY' | 'USD' | 'EUR' | 'GBP';
 
 // ——— Yardımcılar ——————————————————————————————————
 
@@ -136,6 +137,7 @@ const getCurrencySymbol = (cur: Currency): string => {
     case 'TRY': return '₺';
     case 'USD': return '$';
     case 'EUR': return '€';
+    case 'GBP': return '£';
     default: return '₺';
   }
 };
@@ -148,6 +150,7 @@ const makeCurrencyFormatter = (cur: Currency) => (amount: unknown): string => {
       return `${symbol}${safe.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     case 'USD':
     case 'EUR':
+    case 'GBP':
       return `${symbol}${safe.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     default:
       return `${symbol}${safe.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -245,9 +248,60 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
   document.body.appendChild(tempDiv);
 
   try {
+    // Sayfa kırılma koruması: belirli bölümleri sayfa arasında bölme
+    // Ölçek ve tahmini sayfa piksel yüksekliğini hesapla
+  const scale = 2;
+  const containerWidthPx = tempDiv.scrollWidth || 794;
+  const imgWEst = containerWidthPx * scale; // html2canvas çıktısının tahmini genişliği
+    // jsPDF A4 mm cinsinden: 210 x 297; sayfa piksel yüksekliği: pdfH * imgW / pdfW
+  const pdfWmm = 210; const pdfHmm = 297;
+  const pageCanvasHeightPxEst = (pdfHmm * imgWEst) / pdfWmm;
+  const pageCssHeightPx = pageCanvasHeightPxEst / scale; // DOM piksel cinsinden
+
+    // data-avoid-split işaretli tüm blokları sonraki sayfaya taşımak için boşluk ekle
+    const blockers = Array.from(tempDiv.querySelectorAll('[data-avoid-split="true"]')) as HTMLElement[];
+    blockers.forEach(el => {
+      try {
+        // tempDiv'e göre üst konum
+        let top = 0; let node: HTMLElement | null = el;
+        while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
+        const blockH = el.offsetHeight || 0;
+        // Not: 2. ve sonraki sayfalarda fazladan üst marj bırakıyoruz (mm→px farkını tolere etmek için)
+        // biraz daha cömert bir alt pay bırakın ki bölünme riski azalssın
+        const marginBottomReserve = 48; // sayfa dibinde bırakılacak güvenli boşluk (CSS px)
+        const posInPage = top % pageCssHeightPx;
+        if (posInPage + blockH > (pageCssHeightPx - marginBottomReserve)) {
+          const spacer = document.createElement('div');
+          spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
+          spacer.style.width = '100%';
+          spacer.style.display = 'block';
+          el.parentElement?.insertBefore(spacer, el);
+        }
+      } catch {}
+    });
+
+    // Tablo satırlarını (tr) sayfa arasında bölünmeyecek şekilde önceden ittir
+    const tableRows = Array.from(tempDiv.querySelectorAll('table tbody tr')) as HTMLElement[];
+    tableRows.forEach(rowEl => {
+      try {
+        let top = 0; let node: HTMLElement | null = rowEl;
+        while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
+        const rowH = rowEl.offsetHeight || 0;
+        const reserve = 48; // sayfa alt güvenlik payı (CSS px)
+        const posInPage = top % pageCssHeightPx;
+        if (posInPage + rowH > (pageCssHeightPx - reserve)) {
+          const spacer = document.createElement('div');
+          spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
+          spacer.style.width = '100%';
+          spacer.style.display = 'block';
+          rowEl.parentElement?.insertBefore(spacer, rowEl);
+        }
+      } catch {}
+    });
+
     // Yüksek kaliteli canvas
     const canvas = await html2canvas(tempDiv, {
-      scale: 2,                 // kalite
+      scale,                 // kalite
       backgroundColor: '#ffffff',
       useCORS: true,
       allowTaint: true,
@@ -260,11 +314,21 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
     const pdfW = pdf.internal.pageSize.getWidth();     // 210mm
     const pdfH = pdf.internal.pageSize.getHeight();    // 297mm
 
+    // Sayfa marjları (mm)
+    const topMarginOtherMm = 12; // 2. ve sonraki sayfalar için üst boşluk
+    const bottomMarginMm = 0;    // şimdilik ek alt marj yok
+
     // Canvas → PDF’e ölçek
     const imgW = canvas.width;
     const imgH = canvas.height;
     const ratio = pdfW / imgW;
-    const pageCanvasHeightPx = Math.floor(pdfH / ratio); // Bir PDF sayfasına sığacak piksel yüksekliği
+  // İlk sayfa: yazdırılabilir alan için alt marj ayır
+  const bottomMarginFirstMm = 12;
+  const availableHmmFirst = pdfH - bottomMarginFirstMm;
+  const pageCanvasHeightPxFirst = Math.floor(availableHmmFirst / ratio);
+    // Sonraki sayfalar: üst marjı rezerve et
+    const availableHmmNext = pdfH - topMarginOtherMm - bottomMarginMm;
+    const pageCanvasHeightPxNext = Math.floor(availableHmmNext / ratio);
 
     // Büyük canvas’ı sayfa sayfa dilimle
     let rendered = 0;
@@ -272,8 +336,10 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
     const ctx = pageCanvas.getContext('2d')!;
     pageCanvas.width = imgW;
 
+    let pageIndex = 0;
     while (rendered < imgH) {
-      const sliceH = Math.min(pageCanvasHeightPx, imgH - rendered);
+      const perPagePx = pageIndex === 0 ? pageCanvasHeightPxFirst : pageCanvasHeightPxNext;
+      const sliceH = Math.min(perPagePx, imgH - rendered);
       pageCanvas.height = sliceH;
 
       // Ana canvas’tan bir dilim kopyala
@@ -288,11 +354,13 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
 
       const imgData = pageCanvas.toDataURL('image/png');
 
-      // Sayfaya ekle
+      // Sayfaya ekle (ilk sayfada 0, sonrakilerde üst marj kadar aşağıdan başla)
       if (rendered > 0) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfW, sliceH * ratio);
+      const yOffsetMm = pageIndex === 0 ? 0 : topMarginOtherMm;
+      pdf.addImage(imgData, 'PNG', 0, yOffsetMm, pdfW, sliceH * ratio);
 
       rendered += sliceH;
+      pageIndex += 1;
     }
 
   const blob = pdf.output('blob');
@@ -359,7 +427,8 @@ const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow
 
 // ——— ŞABLON ÜRETİCİLERİ ———————————————————————
 const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}, lang?: string, currency?: Currency) => {
-  const hasLogo = !!c.logoDataUrl;
+  // Logo yalnızca geçerli data URL ise gösterilsin; aksi halde boş alan kalmasın
+  const hasLogo = !!(c.logoDataUrl && /^data:image\//.test(c.logoDataUrl));
   const activeLang = normalizeLang(lang);
   // Öncelik: şirket ayarlarındaki ülke; yoksa dilden türet
   const country: CountryCode = (c.country as CountryCode) || countryFromLang(activeLang);
@@ -624,4 +693,235 @@ export const generateSalePDF = async (sale: Sale, opts: OpenOpts = {}) => {
   const html = buildSaleHtml(sale, opts.lang, opts.currency);
   const blob = await htmlToPdfBlob(html);
   openPdfInWindow(blob, `${opts.filename ?? (sale.saleNumber || `SAL-${sale.id}`)}.pdf`, opts.targetWindow);
+};
+
+// ===== QUOTE (TEKLIF) =====
+export interface QuoteForPdfItem {
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+  total?: number;
+}
+
+export interface QuoteForPdf {
+  id: string;
+  quoteNumber: string;
+  customerName: string;
+  customerId?: string;
+  issueDate: string;
+  validUntil?: string;
+  status?: 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'expired';
+  currency?: Currency;
+  total?: number;
+  items?: QuoteForPdfItem[];
+}
+
+const buildQuoteHtml = (
+  quote: QuoteForPdf,
+  c: CompanyProfile = {},
+  lang?: string,
+  currency?: Currency,
+  prepared?: { label: string; name?: string }
+) => {
+  const hasLogo = !!c.logoDataUrl;
+  const activeLang = normalizeLang(lang);
+  const country: CountryCode = (c.country as CountryCode) || countryFromLang(activeLang);
+  const dloc = localeFromLang(activeLang);
+  const activeCurrency: Currency = currency ?? getSelectedCurrency();
+  const fmt = makeCurrencyFormatter(activeCurrency);
+
+  // Basit çok dilli metinler
+  const L = {
+    tr: {
+      title: 'Teklif', appSubtitle: 'Teklif dökümanı', customerInfo: 'Müşteri Bilgileri',
+      quoteNumber: 'Teklif No', issueDate: 'Düzenleme Tarihi', validUntil: 'Geçerlilik Tarihi', status: 'Durum',
+      items: { description: 'Açıklama', quantity: 'Miktar', unitPrice: 'Birim Fiyat', total: 'Toplam' },
+      totals: { grandTotal: 'Genel Toplam' }, footer: 'Bu belge bilgi amaçlıdır.'
+    },
+    en: {
+      title: 'Quote', appSubtitle: 'Quotation document', customerInfo: 'Customer Information',
+      quoteNumber: 'Quote No', issueDate: 'Issue Date', validUntil: 'Valid Until', status: 'Status',
+      items: { description: 'Description', quantity: 'Qty', unitPrice: 'Unit Price', total: 'Total' },
+      totals: { grandTotal: 'Grand Total' }, footer: 'This document is for information purposes.'
+    },
+    fr: {
+      title: 'Devis', appSubtitle: 'Document de devis', customerInfo: 'Informations client',
+      quoteNumber: 'N° de devis', issueDate: 'Date', validUntil: 'Valable jusqu’au', status: 'Statut',
+      items: { description: 'Description', quantity: 'Qté', unitPrice: 'Prix unitaire', total: 'Total' },
+      totals: { grandTotal: 'Total général' }, footer: 'Document à titre indicatif.'
+    },
+    de: {
+      title: 'Angebot', appSubtitle: 'Angebotsdokument', customerInfo: 'Kundeninformationen',
+      quoteNumber: 'Angebotsnr.', issueDate: 'Datum', validUntil: 'Gültig bis', status: 'Status',
+      items: { description: 'Beschreibung', quantity: 'Menge', unitPrice: 'Einzelpreis', total: 'Summe' },
+      totals: { grandTotal: 'Gesamtsumme' }, footer: 'Dieses Dokument dient nur zur Information.'
+    }
+  }[activeLang];
+
+  const companyBlock = `
+    <div>
+      <div style="font-size:18px;font-weight:700;color:#111827;">${c.name ?? ''}</div>
+      ${c.address ? `<div style="font-size:12px;color:#4B5563;white-space:pre-line;margin-top:2px;">${c.address}</div>` : ''}
+      ${buildLegalFieldsHtml(c, country)}
+      ${c.iban ? `<div style="font-size:11px;color:#111827;margin-top:4px;"><strong>IBAN:</strong> ${formatIban(c.iban)}</div>` : ''}
+      ${c.phone ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Tel:</strong> ${c.phone}</div>` : ''}
+      ${c.email ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Email:</strong> ${c.email}</div>` : ''}
+      ${c.website ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Web:</strong> ${c.website}</div>` : ''}
+    </div>
+  `;
+
+  // Müşteri bilgilerini customers_cache üzerinden zenginleştir
+  let customerEmail = '';
+  let customerPhone = '';
+  let customerAddress = '';
+  try {
+    const raw = localStorage.getItem('customers_cache');
+    const arr = raw ? (JSON.parse(raw) as any[]) : [];
+    const found = Array.isArray(arr) ? arr.find((c: any) => (quote.customerId && String(c.id) === String(quote.customerId)) || (c.name === quote.customerName)) : null;
+    if (found) {
+      customerEmail = found.email || '';
+      customerPhone = found.phone || '';
+      customerAddress = found.address || '';
+    }
+  } catch {}
+
+  const customerBlock = `
+    <div style="text-align:right;">
+      <h3 style="color:#1F2937;margin:0 0 6px 0;">${L.customerInfo}</h3>
+      <div style="font-weight:700;margin-bottom:2px;">${quote.customerName}</div>
+      ${customerEmail ? `<div style="font-size:12px;margin-top:2px;">${customerEmail}</div>` : ''}
+  ${customerPhone ? `<div style="font-size:12px;margin-top:2px;">${customerPhone}</div>` : ''}
+      ${customerAddress ? `<div style="font-size:12px;margin-top:2px;white-space:pre-line;">${customerAddress}</div>` : ''}
+    </div>
+  `;
+
+  const items = Array.isArray(quote.items) ? quote.items : [];
+  const computedTotal = items.reduce((sum, it) => sum + (toNum(it.total) || (toNum(it.unitPrice) * toNum(it.quantity))), 0);
+  const totalVal = toNum(quote.total) || computedTotal;
+        const statusLabel = (() => {
+          const s = String(quote.status || '').toLowerCase();
+          switch (activeLang) {
+            case 'tr':
+              return s === 'accepted' ? 'Kabul Edildi' : s === 'declined' ? 'Reddedildi' : s === 'sent' ? 'Gönderildi' : s === 'viewed' ? 'Görüntülendi' : s === 'expired' ? 'Süresi Doldu' : 'Taslak';
+            case 'fr':
+              return s === 'accepted' ? 'Accepté' : s === 'declined' ? 'Refusé' : s === 'sent' ? 'Envoyé' : s === 'viewed' ? 'Consulté' : s === 'expired' ? 'Expiré' : 'Brouillon';
+            case 'de':
+              return s === 'accepted' ? 'Akzeptiert' : s === 'declined' ? 'Abgelehnt' : s === 'sent' ? 'Gesendet' : s === 'viewed' ? 'Gesehen' : s === 'expired' ? 'Abgelaufen' : 'Entwurf';
+            default:
+              return s || '';
+          }
+        })();
+  const validityDays = (() => {
+    if (quote.validUntil) {
+      try {
+        const start = new Date(quote.issueDate).getTime();
+        const end = new Date(quote.validUntil).getTime();
+        const diff = Math.round((end - start) / 86400000);
+        return diff > 0 ? diff : 30;
+      } catch { return 30; }
+    }
+    return 30;
+  })();
+
+  return `
+    <div style="max-width:170mm;margin:0 auto;padding-top:22mm;padding-bottom:12mm;display:flex;flex-direction:column;min-height:263mm;box-sizing:border-box;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:2px solid #6366F1;padding-bottom:12px;">
+        <div style="display:flex;align-items:flex-end;">
+          ${hasLogo ? `<img src="${c.logoDataUrl}" alt="logo" style="height:120px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
+        </div>
+        <div style="text-align:right;line-height:1;">
+          <div style="color:#6366F1;font-size:28px;font-weight:800;">${L.title}</div>
+          <div style="color:#6B7280;font-size:12px;margin-top:4px;">${L.appSubtitle}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;gap:24px;margin:16px 0 18px 0;">
+        <div>${companyBlock}</div>
+        <div>${customerBlock}</div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;margin-bottom:18px;">
+        <div>
+          <p style="margin:4px 0;"><strong>${L.quoteNumber}:</strong> ${quote.quoteNumber}</p>
+          <p style="margin:4px 0;"><strong>${L.issueDate}:</strong> ${formatDate(quote.issueDate, dloc)}</p>
+          ${quote.validUntil ? `<p style="margin:4px 0;"><strong>${L.validUntil}:</strong> ${formatDate(quote.validUntil, dloc)}</p>` : ''}
+          ${quote.status ? `<p style="margin:4px 0;"><strong>${L.status}:</strong> ${statusLabel}</p>` : ''}
+        </div>
+        <div></div>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <thead>
+          <tr style="background-color:#F3F4F6;">
+            <th style="border:1px solid #D1D5DB;padding:10px;text-align:left;">${L.items.description}</th>
+            <th style="border:1px solid #D1D5DB;padding:10px;text-align:center;">${L.items.quantity}</th>
+            <th style="border:1px solid #D1D5DB;padding:10px;text-align:right;">${L.items.unitPrice}</th>
+            <th style="border:1px solid #D1D5DB;padding:10px;text-align:right;">${L.items.total}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((it) => `
+            <tr>
+              <td style="border:1px solid #D1D5DB;padding:10px;">${it.description ?? ''}</td>
+              <td style="border:1px solid #D1D5DB;padding:10px;text-align:center;">${it.quantity ?? ''}</td>
+              <td style="border:1px solid #D1D5DB;padding:10px;text-align:right;">${fmt(it.unitPrice)}</td>
+              <td style="border:1px solid #D1D5DB;padding:10px;text-align:right;">${fmt(toNum(it.total) || (toNum(it.unitPrice) * toNum(it.quantity)))}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div style="display:flex;justify-content:flex-end;margin-bottom:24px;" data-avoid-split="true">
+        <div style="width:300px;">
+          <div style="display:flex;justify-content:space-between;padding:12px 0;font-weight:bold;font-size:18px;border-top:2px solid #1F2937;">
+            <span>${L.totals.grandTotal}:</span><span>${fmt(totalVal)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Açıklamalar -->
+      <div style="margin-top:12px;" data-avoid-split="true">
+        <h4 style="margin:0 0 6px 0;color:#111827;">${activeLang === 'tr' ? 'AÇIKLAMA' : activeLang === 'fr' ? 'REMARQUES' : activeLang === 'de' ? 'ANMERKUNGEN' : 'NOTES'}</h4>
+        <div style="margin:0;padding-left:0;color:#111827;">
+          <div style="margin:4px 0;">1. ${activeLang === 'tr' ? 'Teklifimiz KDV hariç olarak paylaşılmıştır.' : activeLang === 'fr' ? 'Notre offre est indiquée hors TVA.' : activeLang === 'de' ? 'Unser Angebot ist exkl. MwSt.' : 'Our offer is exclusive of VAT.'}</div>
+          <div style="margin:4px 0;">2. ${activeLang === 'tr' ? `Teklifimiz ${validityDays} gün geçerlidir.` : activeLang === 'fr' ? `Notre offre est valable ${validityDays} jours.` : activeLang === 'de' ? `Unser Angebot ist ${validityDays} Tage gültig.` : `Our offer is valid for ${validityDays} days.`}</div>
+        </div>
+      </div>
+      
+      ${prepared?.name ? `<div style=\"text-align:right;margin-top:24px;font-size:12px;color:#111827;\" data-avoid-split=\"true\"><strong>${prepared.label}:</strong> ${prepared.name}</div>` : ''}
+      
+    </div>
+  `;
+};
+
+export const generateQuotePDF = async (quote: QuoteForPdf, opts: OpenOpts & { preparedByName?: string } = {}) => {
+  let company: CompanyProfile | undefined = opts.company;
+  if (!company) {
+    try { company = await secureStorage.getJSON<CompanyProfile>('companyProfile') ?? undefined; } catch { company = undefined; }
+    // Fallback: plain localStorage
+    if (!company) {
+      try {
+        const raw = localStorage.getItem('companyProfile') || localStorage.getItem('company');
+        if (raw) company = JSON.parse(raw);
+      } catch {}
+    }
+  }
+
+  // Hazırlayan adı localStorage'daki user'dan
+  let preparedBy = opts.preparedByName;
+  if (!preparedBy) {
+    try {
+      const raw = localStorage.getItem('user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        preparedBy = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
+      }
+    } catch { /* ignore */ }
+  }
+
+  const label = (() => { const l = normalizeLang(opts.lang); return l === 'tr' ? 'Teklifi Hazırlayan' : l === 'fr' ? 'Préparé par' : l === 'de' ? 'Erstellt von' : 'Prepared by'; })();
+  const finalHtml = buildQuoteHtml(quote, company ?? {}, opts.lang, opts.currency, { label, name: preparedBy });
+
+  const blob = await htmlToPdfBlob(finalHtml);
+  openPdfInWindow(blob, `${opts.filename ?? quote.quoteNumber ?? 'Quote'}.pdf`, opts.targetWindow);
 };
