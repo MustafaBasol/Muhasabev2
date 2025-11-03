@@ -10,12 +10,7 @@ import { EmailService } from '../services/email.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Organization,
-      OrganizationMember,
-      Invite,
-      User,
-    ]),
+    TypeOrmModule.forFeature([Organization, OrganizationMember, Invite, User]),
   ],
   controllers: [OrganizationsController],
   providers: [OrganizationsService, EmailService],

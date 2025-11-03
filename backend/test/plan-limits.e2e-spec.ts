@@ -18,11 +18,13 @@ describe('Plan Limits (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
 
     // Register a FREE plan tenant (default)
@@ -109,7 +111,12 @@ describe('Plan Limits (e2e)', () => {
             issueDate: today,
             dueDate: today,
             lineItems: [
-              { description: `Service ${i}`, quantity: 1, unitPrice: 100, taxRate: 18 }
+              {
+                description: `Service ${i}`,
+                quantity: 1,
+                unitPrice: 100,
+                taxRate: 18,
+              },
             ],
           })
           .expect(201);
@@ -126,7 +133,14 @@ describe('Plan Limits (e2e)', () => {
           customerId,
           issueDate: today,
           dueDate: today,
-          lineItems: [ { description: 'Service 6', quantity: 1, unitPrice: 100, taxRate: 18 } ],
+          lineItems: [
+            {
+              description: 'Service 6',
+              quantity: 1,
+              unitPrice: 100,
+              taxRate: 18,
+            },
+          ],
         })
         .expect(400);
 

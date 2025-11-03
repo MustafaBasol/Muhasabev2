@@ -10,7 +10,9 @@ import {
 import { Organization } from './organization.entity';
 import { Role } from '../../common/enums/organization.enum';
 
-const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+const __isTestEnv =
+  process.env.NODE_ENV === 'test' ||
+  typeof process.env.JEST_WORKER_ID !== 'undefined';
 
 @Entity('invites')
 @Index(['token'], { unique: true })

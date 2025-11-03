@@ -14,7 +14,11 @@ import {
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
-import { Enable2FADto, Verify2FADto, Disable2FADto } from './dto/enable-2fa.dto';
+import {
+  Enable2FADto,
+  Verify2FADto,
+  Disable2FADto,
+} from './dto/enable-2fa.dto';
 import { TwoFactorSecretResponse } from '../common/two-factor.service';
 
 @Controller('users')
@@ -37,11 +41,11 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   async updateProfile(@Request() req, @Body() updateData: any) {
     const userId = req.user.id;
-    
+
     console.log('📝 Update data received:', updateData);
-    
+
     const filteredData: any = {};
-    
+
     // name field'ı gelirse firstName/lastName olarak ayır
     if (updateData.name) {
       const nameParts = updateData.name.trim().split(' ');
@@ -49,7 +53,7 @@ export class UsersController {
       filteredData.lastName = nameParts.slice(1).join(' ') || '';
       console.log('✅ Name parsed:', filteredData);
     }
-    
+
     // firstName ve lastName direkt gelirse kullan
     if (updateData.firstName !== undefined) {
       filteredData.firstName = updateData.firstName;
@@ -77,19 +81,19 @@ export class UsersController {
     try {
       const userId = req.user.id;
       const zipBuffer = await this.usersService.exportUserData(userId);
-      
+
       res.set({
         'Content-Type': 'application/zip',
         'Content-Disposition': 'attachment; filename="my_data_export.zip"',
         'Content-Length': zipBuffer.length.toString(),
       });
-      
+
       res.send(zipBuffer);
     } catch (error) {
       console.error('Data export error:', error);
-      res.status(500).json({ 
-        error: 'Data export failed', 
-        message: error.message 
+      res.status(500).json({
+        error: 'Data export failed',
+        message: error.message,
       });
     }
   }
@@ -99,21 +103,27 @@ export class UsersController {
    */
   @Post('me/delete')
   @HttpCode(HttpStatus.OK)
-  async requestDeletion(@Request() req, @Body() deleteRequest: { confirmPassword?: string }) {
+  async requestDeletion(
+    @Request() req,
+    @Body() deleteRequest: { confirmPassword?: string },
+  ) {
     const userId = req.user.id;
-    
+
     // In production, you might want to verify password
     // const isPasswordValid = await this.usersService.verifyPassword(userId, deleteRequest.confirmPassword);
     // if (!isPasswordValid) {
     //   throw new UnauthorizedException('Password verification required');
     // }
-    
+
     await this.usersService.requestAccountDeletion(userId);
-    
+
     return {
-      message: 'Account deletion has been scheduled. You will receive a confirmation email.',
+      message:
+        'Account deletion has been scheduled. You will receive a confirmation email.',
       status: 'pending_deletion',
-      deletionDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+      deletionDate: new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000,
+      ).toISOString(), // 30 days from now
     };
   }
 
@@ -131,7 +141,7 @@ export class UsersController {
   @Post('2fa/enable')
   async enableTwoFactor(
     @Request() req,
-    @Body() dto: Enable2FADto
+    @Body() dto: Enable2FADto,
   ): Promise<{ message: string; backupCodes: string[] }> {
     return this.usersService.enableTwoFactor(req.user.userId, dto);
   }
@@ -142,7 +152,7 @@ export class UsersController {
   @Post('2fa/verify')
   async verifyTwoFactor(
     @Request() req,
-    @Body() dto: Verify2FADto
+    @Body() dto: Verify2FADto,
   ): Promise<{ valid: boolean }> {
     const valid = await this.usersService.verifyTwoFactor(req.user.userId, dto);
     return { valid };
@@ -154,7 +164,7 @@ export class UsersController {
   @Post('2fa/disable')
   async disableTwoFactor(
     @Request() req,
-    @Body() dto: Disable2FADto
+    @Body() dto: Disable2FADto,
   ): Promise<{ message: string }> {
     return this.usersService.disableTwoFactor(req.user.userId, dto);
   }
@@ -164,7 +174,7 @@ export class UsersController {
    */
   @Get('2fa/status')
   async getTwoFactorStatus(
-    @Request() req
+    @Request() req,
   ): Promise<{ enabled: boolean; backupCodesCount: number }> {
     return this.usersService.getTwoFactorStatus(req.user.userId);
   }

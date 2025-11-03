@@ -5,12 +5,12 @@ import { AppModule } from '../src/app.module';
 
 describe('Multi-Tenant Isolation (e2e)', () => {
   let app: INestApplication;
-  
+
   // Tenant 1
   let tenant1Token: string;
   let tenant1CustomerId: string;
   let tenant1ProductId: string;
-  
+
   // Tenant 2
   let tenant2Token: string;
 
@@ -20,11 +20,13 @@ describe('Multi-Tenant Isolation (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
 
     // Register Tenant 1
@@ -95,7 +97,12 @@ describe('Multi-Tenant Isolation (e2e)', () => {
         .expect(200);
 
       expect(response.body.length).toBeGreaterThan(0);
-      expect(response.body.every((c: any) => c.name.includes('Tenant 1') || c.name === 'Tenant 1 Customer')).toBe(true);
+      expect(
+        response.body.every(
+          (c: any) =>
+            c.name.includes('Tenant 1') || c.name === 'Tenant 1 Customer',
+        ),
+      ).toBe(true);
     });
 
     it('tenant 2 should only see their own customers', async () => {
@@ -105,7 +112,12 @@ describe('Multi-Tenant Isolation (e2e)', () => {
         .expect(200);
 
       expect(response.body.length).toBeGreaterThan(0);
-      expect(response.body.every((c: any) => c.name.includes('Tenant 2') || c.name === 'Tenant 2 Customer')).toBe(true);
+      expect(
+        response.body.every(
+          (c: any) =>
+            c.name.includes('Tenant 2') || c.name === 'Tenant 2 Customer',
+        ),
+      ).toBe(true);
     });
 
     it('tenant 2 should NOT be able to access tenant 1 customer', async () => {
@@ -172,8 +184,12 @@ describe('Multi-Tenant Isolation (e2e)', () => {
         .expect(200);
 
       expect(response.body.length).toBeGreaterThan(0);
-      expect(response.body.some((p: any) => p.name === 'Tenant 1 Product')).toBe(true);
-      expect(response.body.some((p: any) => p.name === 'Tenant 2 Product')).toBe(false);
+      expect(
+        response.body.some((p: any) => p.name === 'Tenant 1 Product'),
+      ).toBe(true);
+      expect(
+        response.body.some((p: any) => p.name === 'Tenant 2 Product'),
+      ).toBe(false);
     });
 
     it('tenant 2 should only see their own products', async () => {
@@ -183,8 +199,12 @@ describe('Multi-Tenant Isolation (e2e)', () => {
         .expect(200);
 
       expect(response.body.length).toBeGreaterThan(0);
-      expect(response.body.some((p: any) => p.name === 'Tenant 2 Product')).toBe(true);
-      expect(response.body.some((p: any) => p.name === 'Tenant 1 Product')).toBe(false);
+      expect(
+        response.body.some((p: any) => p.name === 'Tenant 2 Product'),
+      ).toBe(true);
+      expect(
+        response.body.some((p: any) => p.name === 'Tenant 1 Product'),
+      ).toBe(false);
     });
 
     it('tenant 2 should NOT be able to access tenant 1 product', async () => {

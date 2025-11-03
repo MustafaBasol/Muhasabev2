@@ -1,12 +1,12 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Param, 
-  Delete, 
-  UseGuards 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
@@ -27,10 +27,7 @@ export class ProductsController {
   @Post()
   @ApiOperation({ summary: 'Create product' })
   @Audit('Product', AuditAction.CREATE)
-  async create(
-    @Body() createProductDto: CreateProductDto,
-    @User() user: any,
-  ) {
+  async create(@Body() createProductDto: CreateProductDto, @User() user: any) {
     return this.productsService.create(createProductDto, user.tenantId);
   }
 

@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PeriodLockGuard } from '../common/guards/period-lock.guard';
@@ -39,13 +49,21 @@ export class InvoicesController {
   @Patch(':id')
   @UseGuards(PeriodLockGuard)
   @Audit('Invoice', AuditAction.UPDATE)
-  update(@Req() req: any, @Param('id') id: string, @Body() updateInvoiceDto: any) {
+  update(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() updateInvoiceDto: any,
+  ) {
     return this.invoicesService.update(req.user.tenantId, id, updateInvoiceDto);
   }
 
   @Patch(':id/status')
   @Audit('Invoice', AuditAction.UPDATE)
-  updateStatus(@Req() req: any, @Param('id') id: string, @Body('status') status: InvoiceStatus) {
+  updateStatus(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body('status') status: InvoiceStatus,
+  ) {
     return this.invoicesService.updateStatus(req.user.tenantId, id, status);
   }
 
@@ -58,8 +76,17 @@ export class InvoicesController {
 
   @Patch(':id/void')
   @Audit('Invoice', AuditAction.UPDATE)
-  voidInvoice(@Req() req: any, @Param('id') id: string, @Body('reason') reason?: string) {
-    return this.invoicesService.voidInvoice(req.user.tenantId, id, req.user.userId, reason);
+  voidInvoice(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.invoicesService.voidInvoice(
+      req.user.tenantId,
+      id,
+      req.user.userId,
+      reason,
+    );
   }
 
   @Patch(':id/restore')

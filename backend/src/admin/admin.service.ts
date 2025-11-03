@@ -1,8 +1,17 @@
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity';
-import { Tenant, SubscriptionPlan, TenantStatus } from '../tenants/entities/tenant.entity';
+import {
+  Tenant,
+  SubscriptionPlan,
+  TenantStatus,
+} from '../tenants/entities/tenant.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { Supplier } from '../suppliers/entities/supplier.entity';
 import { Product } from '../products/entities/product.entity';
@@ -59,7 +68,10 @@ export class AdminService {
 
     if (adminPasswordHash) {
       // Hash ile doğrula
-      isPasswordValid = await this.securityService.comparePassword(password, adminPasswordHash);
+      isPasswordValid = await this.securityService.comparePassword(
+        password,
+        adminPasswordHash,
+      );
     } else if (adminPasswordPlain) {
       // Düz şifre ile doğrula (DEV amaçlı)
       isPasswordValid = password === adminPasswordPlain;
@@ -67,7 +79,9 @@ export class AdminService {
         throw new UnauthorizedException('Invalid admin credentials');
       }
       // Uyarı: üretimde kullanılmamalı
-      console.warn('⚠️ ADMIN_PASSWORD_HASH is not set. Using ADMIN_PASSWORD for admin auth (dev only).');
+      console.warn(
+        '⚠️ ADMIN_PASSWORD_HASH is not set. Using ADMIN_PASSWORD for admin auth (dev only).',
+      );
     } else {
       // Son çare olarak geliştirme kolaylığı: admin/admin123
       const defaultDevPassword = 'admin123';
@@ -75,21 +89,26 @@ export class AdminService {
       if (!isPasswordValid) {
         throw new UnauthorizedException('Admin credentials not configured');
       }
-      console.warn('⚠️ Admin credentials not configured. Falling back to default dev credentials (admin/admin123). DO NOT USE IN PRODUCTION.');
+      console.warn(
+        '⚠️ Admin credentials not configured. Falling back to default dev credentials (admin/admin123). DO NOT USE IN PRODUCTION.',
+      );
     }
 
     // Güvenli random token üret
     const adminToken = this.securityService.generateRandomString(32);
-    
+
     // Token'ı geçici olarak cache'de sakla (Redis kullanılmalı)
     // Şu an basit in-memory cache kullanıyoruz
     this.activeAdminTokens = this.activeAdminTokens || new Set();
     this.activeAdminTokens.add(adminToken);
-    
+
     // 1 saat sonra token'ı geçersiz kıl
-    setTimeout(() => {
-      this.activeAdminTokens?.delete(adminToken);
-    }, 60 * 60 * 1000);
+    setTimeout(
+      () => {
+        this.activeAdminTokens?.delete(adminToken);
+      },
+      60 * 60 * 1000,
+    );
 
     return {
       success: true,
@@ -150,7 +169,15 @@ export class AdminService {
     return { success: true };
   }
 
-  async updateUser(userId: string, payload: { firstName?: string; lastName?: string; email?: string; phone?: string }) {
+  async updateUser(
+    userId: string,
+    payload: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+    },
+  ) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -161,8 +188,13 @@ export class AdminService {
     // Phone alanını tabloya ekleyip güncellemeye çalış (kolon yoksa sessiz geç)
     if (payload.phone !== undefined) {
       try {
-        await this.dataSource.query('ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" varchar(50)');
-        await this.dataSource.query('UPDATE "users" SET "phone" = $1 WHERE id = $2', [payload.phone, userId]);
+        await this.dataSource.query(
+          'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" varchar(50)',
+        );
+        await this.dataSource.query(
+          'UPDATE "users" SET "phone" = $1 WHERE id = $2',
+          [payload.phone, userId],
+        );
       } catch (err) {
         // Yumuşak hata: phone kolonu eklenemezse veya yazılamazsa logla ve devam et
         console.warn('Phone column update skipped:', err?.message || err);
@@ -192,14 +224,21 @@ export class AdminService {
       html: `<p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
              <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanabilirsiniz:</p>
              <p><a href="${resetLink}">${resetLink}</a></p>
-             <p>Bu işlem bir saat içinde geçerlidir.</p>`
+             <p>Bu işlem bir saat içinde geçerlidir.</p>`,
     });
 
     return { success: true, message: 'Password reset email sent' };
   }
 
-  async getAllTenants(filters?: { status?: TenantStatus; plan?: SubscriptionPlan; startFrom?: string; startTo?: string }) {
-    const qb = this.tenantRepository.createQueryBuilder('tenant').leftJoinAndSelect('tenant.users', 'user');
+  async getAllTenants(filters?: {
+    status?: TenantStatus;
+    plan?: SubscriptionPlan;
+    startFrom?: string;
+    startTo?: string;
+  }) {
+    const qb = this.tenantRepository
+      .createQueryBuilder('tenant')
+      .leftJoinAndSelect('tenant.users', 'user');
 
     if (filters?.status) {
       qb.andWhere('tenant.status = :status', { status: filters.status });
@@ -209,12 +248,14 @@ export class AdminService {
     }
     if (filters?.startFrom) {
       const from = new Date(filters.startFrom);
-      if (isNaN(from.getTime())) throw new BadRequestException('Invalid startFrom date');
+      if (isNaN(from.getTime()))
+        throw new BadRequestException('Invalid startFrom date');
       qb.andWhere('tenant.createdAt >= :from', { from });
     }
     if (filters?.startTo) {
       const to = new Date(filters.startTo);
-      if (isNaN(to.getTime())) throw new BadRequestException('Invalid startTo date');
+      if (isNaN(to.getTime()))
+        throw new BadRequestException('Invalid startTo date');
       qb.andWhere('tenant.createdAt <= :to', { to });
     }
 
@@ -222,7 +263,13 @@ export class AdminService {
 
     const tenantsWithStats = await Promise.all(
       tenants.map(async (tenant) => {
-        const [customerCount, supplierCount, productCount, invoiceCount, expenseCount] = await Promise.all([
+        const [
+          customerCount,
+          supplierCount,
+          productCount,
+          invoiceCount,
+          expenseCount,
+        ] = await Promise.all([
           this.customerRepository.count({ where: { tenantId: tenant.id } }),
           this.supplierRepository.count({ where: { tenantId: tenant.id } }),
           this.productRepository.count({ where: { tenantId: tenant.id } }),
@@ -270,16 +317,23 @@ export class AdminService {
       throw new NotFoundException('Tenant not found');
     }
 
-    const [customers, suppliers, products, productCategories, invoices, expenses] = await Promise.all([
+    const [
+      customers,
+      suppliers,
+      products,
+      productCategories,
+      invoices,
+      expenses,
+    ] = await Promise.all([
       this.customerRepository.find({ where: { tenantId } }),
       this.supplierRepository.find({ where: { tenantId } }),
       this.productRepository.find({ where: { tenantId } }),
       this.productCategoryRepository.find({ where: { tenantId } }),
-      this.invoiceRepository.find({ 
+      this.invoiceRepository.find({
         where: { tenantId },
         relations: ['customer'],
       }),
-      this.expenseRepository.find({ 
+      this.expenseRepository.find({
         where: { tenantId },
         relations: ['supplier'],
       }),
@@ -309,9 +363,16 @@ export class AdminService {
 
   async updateTenantSubscription(
     tenantId: string,
-    payload: { plan?: SubscriptionPlan; status?: TenantStatus; nextBillingAt?: string; cancel?: boolean },
+    payload: {
+      plan?: SubscriptionPlan;
+      status?: TenantStatus;
+      nextBillingAt?: string;
+      cancel?: boolean;
+    },
   ) {
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
     if (payload.cancel) {
@@ -327,7 +388,8 @@ export class AdminService {
     }
     if (payload.nextBillingAt) {
       const dt = new Date(payload.nextBillingAt);
-      if (isNaN(dt.getTime())) throw new BadRequestException('Invalid nextBillingAt');
+      if (isNaN(dt.getTime()))
+        throw new BadRequestException('Invalid nextBillingAt');
       tenant.subscriptionExpiresAt = dt;
     }
 
@@ -351,29 +413,42 @@ export class AdminService {
     `;
 
     const columns = await this.dataSource.query(query);
-    
-    // Tabloları grupla
-    const tables = columns.reduce((acc, col) => {
-      if (!acc[col.table_name]) {
-        acc[col.table_name] = {
+
+    // Tabloları grupla (tip güvenli)
+    type TableInfo = {
+      name: string;
+      columns: Array<{
+        name: string;
+        type: string;
+        nullable: boolean;
+        default: any;
+      }>;
+      recordCount?: number;
+    };
+
+    const tables: Record<string, TableInfo> = {};
+    for (const col of columns) {
+      if (!tables[col.table_name]) {
+        tables[col.table_name] = {
           name: col.table_name,
           columns: [],
         };
       }
-      acc[col.table_name].columns.push({
+      tables[col.table_name].columns.push({
         name: col.column_name,
         type: col.data_type,
         nullable: col.is_nullable === 'YES',
         default: col.column_default,
       });
-      return acc;
-    }, {});
+    }
 
     // Her tablo için kayıt sayısını al
-    const tableList = Object.values(tables) as any[];
+    const tableList = Object.values(tables);
     for (const table of tableList) {
       try {
-        const countResult = await this.dataSource.query(`SELECT COUNT(*) as count FROM "${table.name}"`);
+        const countResult = await this.dataSource.query(
+          `SELECT COUNT(*) as count FROM "${table.name}"`,
+        );
         table.recordCount = parseInt(countResult[0].count);
       } catch (error) {
         table.recordCount = 0;
@@ -383,11 +458,22 @@ export class AdminService {
     return tableList;
   }
 
-  async getTableData(tableName: string, tenantId?: string, limit = 100, offset = 0) {
+  async getTableData(
+    tableName: string,
+    tenantId?: string,
+    limit = 100,
+    offset = 0,
+  ) {
     // Güvenlik kontrolü - sadece belirli tablolara erişim
     const allowedTables = [
-      'users', 'tenants', 'customers', 'suppliers', 
-      'products', 'product_categories', 'invoices', 'expenses'
+      'users',
+      'tenants',
+      'customers',
+      'suppliers',
+      'products',
+      'product_categories',
+      'invoices',
+      'expenses',
     ];
 
     if (!allowedTables.includes(tableName)) {
@@ -400,11 +486,14 @@ export class AdminService {
     // TenantId filtresi ekle
     if (tenantId && tableName !== 'tenants') {
       // Tabloda tenantId kolonu var mı kontrol et
-      const hasTenanIdColumn = await this.dataSource.query(`
+      const hasTenanIdColumn = await this.dataSource.query(
+        `
         SELECT column_name 
         FROM information_schema.columns 
         WHERE table_name = $1 AND column_name = 'tenantId'
-      `, [tableName]);
+      `,
+        [tableName],
+      );
 
       if (hasTenanIdColumn.length > 0) {
         query += ` WHERE "tenantId" = $1`;
@@ -420,13 +509,16 @@ export class AdminService {
     // Toplam kayıt sayısını al
     let countQuery = `SELECT COUNT(*) as count FROM "${tableName}"`;
     const countParams: any[] = [];
-    
+
     if (tenantId && tableName !== 'tenants') {
-      const hasTenanIdColumn = await this.dataSource.query(`
+      const hasTenanIdColumn = await this.dataSource.query(
+        `
         SELECT column_name 
         FROM information_schema.columns 
         WHERE table_name = $1 AND column_name = 'tenantId'
-      `, [tableName]);
+      `,
+        [tableName],
+      );
 
       if (hasTenanIdColumn.length > 0) {
         countQuery += ` WHERE "tenantId" = $1`;
@@ -450,13 +542,13 @@ export class AdminService {
   }
 
   // Data Retention Methods
-  
+
   async getRetentionConfig() {
     try {
-  const configPath = path.join(process.cwd(), 'config', 'retention.json');
-  const configData = fs.readFileSync(configPath, 'utf8');
+      const configPath = path.join(process.cwd(), 'config', 'retention.json');
+      const configData = fs.readFileSync(configPath, 'utf8');
       const config = JSON.parse(configData);
-      
+
       return {
         success: true,
         config,
@@ -484,9 +576,11 @@ export class AdminService {
       // Get expired tenants
       const expiredTenants = await this.tenantRepository
         .createQueryBuilder('tenant')
-        .where('tenant.status IN (:...statuses)', { statuses: ['expired', 'suspended'] })
-        .andWhere('tenant.updatedAt < :cutoffDate', { 
-          cutoffDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // 1 year ago
+        .where('tenant.status IN (:...statuses)', {
+          statuses: ['expired', 'suspended'],
+        })
+        .andWhere('tenant.updatedAt < :cutoffDate', {
+          cutoffDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
         })
         .getCount();
 
@@ -494,13 +588,13 @@ export class AdminService {
       let backupFileCount = 0;
       try {
         const backupDir = path.join(process.cwd(), 'backups');
-        
+
         if (fs.existsSync(backupDir)) {
           const files = fs.readdirSync(backupDir);
           const cutoffDateBackup = new Date();
           cutoffDateBackup.setDate(cutoffDateBackup.getDate() - 30); // 30 days
-          
-          backupFileCount = files.filter(file => {
+
+          backupFileCount = files.filter((file) => {
             const filePath = path.join(backupDir, file);
             const stats = fs.statSync(filePath);
             return stats.mtime < cutoffDateBackup;
@@ -516,7 +610,8 @@ export class AdminService {
           eligibleAuditLogs,
           expiredTenants,
           expiredBackupFiles: backupFileCount,
-          totalEligibleRecords: eligibleAuditLogs + expiredTenants + backupFileCount,
+          totalEligibleRecords:
+            eligibleAuditLogs + expiredTenants + backupFileCount,
         },
         lastUpdated: new Date().toISOString(),
       };
@@ -546,7 +641,7 @@ export class AdminService {
 
       return {
         success: true,
-        history: history.map(log => ({
+        history: history.map((log) => ({
           id: log.id,
           timestamp: log.createdAt,
           action: log.action,
@@ -570,14 +665,22 @@ export class AdminService {
   }
 
   async executeRetentionDryRun() {
-    return new Promise((resolve, reject) => {
-  const scriptPath = path.join(process.cwd(), 'scripts', 'data-retention.ts');
-      
+    return new Promise((resolve) => {
+      const scriptPath = path.join(
+        process.cwd(),
+        'scripts',
+        'data-retention.ts',
+      );
+
       // Execute the retention script in dry-run mode
-      const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', scriptPath], {
-        cwd: process.cwd(),
-        stdio: 'pipe',
-      });
+      const child = spawn(
+        'npx',
+        ['ts-node', '-r', 'tsconfig-paths/register', scriptPath],
+        {
+          cwd: process.cwd(),
+          stdio: 'pipe',
+        },
+      );
 
       let output = '';
       let errorOutput = '';
@@ -599,7 +702,7 @@ export class AdminService {
             timestamp: new Date().toISOString(),
           });
         } else {
-          reject({
+          resolve({
             success: false,
             error: errorOutput || 'Dry-run failed',
             output,
@@ -609,7 +712,7 @@ export class AdminService {
       });
 
       child.on('error', (error) => {
-        reject({
+        resolve({
           success: false,
           error: 'Failed to execute retention script: ' + error.message,
         });
@@ -618,14 +721,29 @@ export class AdminService {
   }
 
   async executeRetention() {
-    return new Promise((resolve, reject) => {
-  const scriptPath = path.join(process.cwd(), 'scripts', 'data-retention.ts');
-      
+    return new Promise((resolve) => {
+      const scriptPath = path.join(
+        process.cwd(),
+        'scripts',
+        'data-retention.ts',
+      );
+
       // Execute the retention script in live mode
-      const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', scriptPath, '--execute', '--force'], {
-        cwd: process.cwd(),
-        stdio: 'pipe',
-      });
+      const child = spawn(
+        'npx',
+        [
+          'ts-node',
+          '-r',
+          'tsconfig-paths/register',
+          scriptPath,
+          '--execute',
+          '--force',
+        ],
+        {
+          cwd: process.cwd(),
+          stdio: 'pipe',
+        },
+      );
 
       let output = '';
       let errorOutput = '';
@@ -647,7 +765,7 @@ export class AdminService {
             timestamp: new Date().toISOString(),
           });
         } else {
-          reject({
+          resolve({
             success: false,
             error: errorOutput || 'Live purge failed',
             output,
@@ -657,7 +775,7 @@ export class AdminService {
       });
 
       child.on('error', (error) => {
-        reject({
+        resolve({
           success: false,
           error: 'Failed to execute retention script: ' + error.message,
         });

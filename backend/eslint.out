@@ -1,0 +1,873 @@
+
+/workspaces/Muhasabev2/backend/src/admin/admin-organizations.controller.ts
+  31:11  warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  31:32  warning  Unsafe member access ['admin-token'] on an `any` value                  @typescript-eslint/no-unsafe-member-access
+  33:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  41:32  warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  76:21  warning  Unsafe member access .role on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/admin/admin.controller.ts
+  15:3   warning  'ApiBearerAuth' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  30:11  warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+  30:32  warning  Unsafe member access ['admin-token'] on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  36:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+
+/workspaces/Muhasabev2/backend/src/admin/admin.service.ts
+  138:13  warning  Unsafe member access .tenantId on an `any` value                                                                @typescript-eslint/no-unsafe-member-access
+  141:7   warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  200:59  warning  Unsafe member access .message on an `any` value                                                                 @typescript-eslint/no-unsafe-member-access
+  415:11  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  418:11  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  418:20  warning  Unsafe call of a(n) `any` typed value                                                                           @typescript-eslint/no-unsafe-call
+  418:28  warning  Unsafe member access .reduce on an `any` value                                                                  @typescript-eslint/no-unsafe-member-access
+  419:16  warning  Unsafe member access [col.table_name] on an `any` value                                                         @typescript-eslint/no-unsafe-member-access
+  419:16  warning  Computed name [col.table_name] resolves to an `any` value                                                       @typescript-eslint/no-unsafe-member-access
+  419:20  warning  Unsafe member access .table_name on an `any` value                                                              @typescript-eslint/no-unsafe-member-access
+  420:13  warning  Unsafe member access [col.table_name] on an `any` value                                                         @typescript-eslint/no-unsafe-member-access
+  420:13  warning  Computed name [col.table_name] resolves to an `any` value                                                       @typescript-eslint/no-unsafe-member-access
+  420:17  warning  Unsafe member access .table_name on an `any` value                                                              @typescript-eslint/no-unsafe-member-access
+  421:11  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  421:21  warning  Unsafe member access .table_name on an `any` value                                                              @typescript-eslint/no-unsafe-member-access
+  425:7   warning  Unsafe call of a(n) `any` typed value                                                                           @typescript-eslint/no-unsafe-call
+  425:11  warning  Unsafe member access [col.table_name] on an `any` value                                                         @typescript-eslint/no-unsafe-member-access
+  425:11  warning  Computed name [col.table_name] resolves to an `any` value                                                       @typescript-eslint/no-unsafe-member-access
+  425:15  warning  Unsafe member access .table_name on an `any` value                                                              @typescript-eslint/no-unsafe-member-access
+  426:9   warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  426:19  warning  Unsafe member access .column_name on an `any` value                                                             @typescript-eslint/no-unsafe-member-access
+  427:9   warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  427:19  warning  Unsafe member access .data_type on an `any` value                                                               @typescript-eslint/no-unsafe-member-access
+  428:23  warning  Unsafe member access .is_nullable on an `any` value                                                             @typescript-eslint/no-unsafe-member-access
+  429:9   warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  429:22  warning  Unsafe member access .column_default on an `any` value                                                          @typescript-eslint/no-unsafe-member-access
+  431:7   warning  Unsafe return of a value of type `any`                                                                          @typescript-eslint/no-unsafe-return
+  435:37  warning  Unsafe argument of type `any` assigned to a parameter of type `{ [s: string]: unknown; } | ArrayLike<unknown>`  @typescript-eslint/no-unsafe-argument
+  438:15  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  441:38  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                          @typescript-eslint/no-unsafe-argument
+  441:50  warning  Unsafe member access [0] on an `any` value                                                                      @typescript-eslint/no-unsafe-member-access
+  478:13  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  487:28  warning  Unsafe member access .length on an `any` value                                                                  @typescript-eslint/no-unsafe-member-access
+  496:11  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  503:13  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  512:28  warning  Unsafe member access .length on an `any` value                                                                  @typescript-eslint/no-unsafe-member-access
+  518:11  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  519:33  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                                          @typescript-eslint/no-unsafe-argument
+  519:45  warning  Unsafe member access [0] on an `any` value                                                                      @typescript-eslint/no-unsafe-member-access
+  523:7   warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  539:13  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  543:9   warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  549:67  warning  Unsafe member access .message on an `any` value                                                                 @typescript-eslint/no-unsafe-member-access
+  610:59  warning  Unsafe member access .message on an `any` value                                                                 @typescript-eslint/no-unsafe-member-access
+  651:60  warning  Unsafe member access .message on an `any` value                                                                 @typescript-eslint/no-unsafe-member-access
+  678:19  warning  Unsafe call of a(n) `any` typed value                                                                           @typescript-eslint/no-unsafe-call
+  678:24  warning  Unsafe member access .toString on an `any` value                                                                @typescript-eslint/no-unsafe-member-access
+  682:24  warning  Unsafe call of a(n) `any` typed value                                                                           @typescript-eslint/no-unsafe-call
+  682:29  warning  Unsafe member access .toString on an `any` value                                                                @typescript-eslint/no-unsafe-member-access
+  694:11  error    Expected the Promise rejection reason to be an Error                                                            @typescript-eslint/prefer-promise-reject-errors
+  704:9   error    Expected the Promise rejection reason to be an Error                                                            @typescript-eslint/prefer-promise-reject-errors
+  741:19  warning  Unsafe call of a(n) `any` typed value                                                                           @typescript-eslint/no-unsafe-call
+  741:24  warning  Unsafe member access .toString on an `any` value                                                                @typescript-eslint/no-unsafe-member-access
+  745:24  warning  Unsafe call of a(n) `any` typed value                                                                           @typescript-eslint/no-unsafe-call
+  745:29  warning  Unsafe member access .toString on an `any` value                                                                @typescript-eslint/no-unsafe-member-access
+  757:11  error    Expected the Promise rejection reason to be an Error                                                            @typescript-eslint/prefer-promise-reject-errors
+  767:9   error    Expected the Promise rejection reason to be an Error                                                            @typescript-eslint/prefer-promise-reject-errors
+
+/workspaces/Muhasabev2/backend/src/admin/backup.controller.ts
+   12:25  warning  'BackupMetadata' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   23:11  warning  Unsafe assignment of an `any` value                                               @typescript-eslint/no-unsafe-assignment
+   23:32  warning  Unsafe member access ['admin-token'] on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   27:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`            @typescript-eslint/no-unsafe-argument
+  171:5   warning  Unsafe return of a value of type `Promise<any>`                                   @typescript-eslint/no-unsafe-return
+
+/workspaces/Muhasabev2/backend/src/admin/backup.service.ts
+   44:7   warning  Unsafe return of a value of type `any`                  @typescript-eslint/no-unsafe-return
+  143:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  147:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  151:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  155:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  159:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  210:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  214:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  218:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  222:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  226:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  230:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  234:7   warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  290:26  error    Invalid type "Date" of template literal expression      @typescript-eslint/restrict-template-expressions
+  309:11  warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  316:13  warning  Unsafe assignment of an `any` value                     @typescript-eslint/no-unsafe-assignment
+  316:35  warning  Unsafe member access .user on an `any` value            @typescript-eslint/no-unsafe-member-access
+  336:22  warning  Unsafe member access .customers on an `any` value       @typescript-eslint/no-unsafe-member-access
+  337:43  warning  Unsafe member access .customers on an `any` value       @typescript-eslint/no-unsafe-member-access
+  342:24  warning  Unsafe member access .id on an `any` value              @typescript-eslint/no-unsafe-member-access
+  343:24  warning  Unsafe member access .name on an `any` value            @typescript-eslint/no-unsafe-member-access
+  344:24  warning  Unsafe member access .email on an `any` value           @typescript-eslint/no-unsafe-member-access
+  345:24  warning  Unsafe member access .phone on an `any` value           @typescript-eslint/no-unsafe-member-access
+  346:24  warning  Unsafe member access .address on an `any` value         @typescript-eslint/no-unsafe-member-access
+  347:24  warning  Unsafe member access .taxNumber on an `any` value       @typescript-eslint/no-unsafe-member-access
+  348:24  warning  Unsafe member access .company on an `any` value         @typescript-eslint/no-unsafe-member-access
+  349:24  warning  Unsafe member access .balance on an `any` value         @typescript-eslint/no-unsafe-member-access
+  350:24  warning  Unsafe member access .tenantId on an `any` value        @typescript-eslint/no-unsafe-member-access
+  351:24  warning  Unsafe member access .createdAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  352:24  warning  Unsafe member access .updatedAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  358:22  warning  Unsafe member access .suppliers on an `any` value       @typescript-eslint/no-unsafe-member-access
+  359:43  warning  Unsafe member access .suppliers on an `any` value       @typescript-eslint/no-unsafe-member-access
+  364:24  warning  Unsafe member access .id on an `any` value              @typescript-eslint/no-unsafe-member-access
+  365:24  warning  Unsafe member access .name on an `any` value            @typescript-eslint/no-unsafe-member-access
+  366:24  warning  Unsafe member access .email on an `any` value           @typescript-eslint/no-unsafe-member-access
+  367:24  warning  Unsafe member access .phone on an `any` value           @typescript-eslint/no-unsafe-member-access
+  368:24  warning  Unsafe member access .address on an `any` value         @typescript-eslint/no-unsafe-member-access
+  369:24  warning  Unsafe member access .taxNumber on an `any` value       @typescript-eslint/no-unsafe-member-access
+  370:24  warning  Unsafe member access .company on an `any` value         @typescript-eslint/no-unsafe-member-access
+  371:24  warning  Unsafe member access .balance on an `any` value         @typescript-eslint/no-unsafe-member-access
+  372:24  warning  Unsafe member access .tenantId on an `any` value        @typescript-eslint/no-unsafe-member-access
+  373:24  warning  Unsafe member access .createdAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  374:24  warning  Unsafe member access .updatedAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  380:22  warning  Unsafe member access .products on an `any` value        @typescript-eslint/no-unsafe-member-access
+  381:42  warning  Unsafe member access .products on an `any` value        @typescript-eslint/no-unsafe-member-access
+  386:23  warning  Unsafe member access .id on an `any` value              @typescript-eslint/no-unsafe-member-access
+  387:23  warning  Unsafe member access .name on an `any` value            @typescript-eslint/no-unsafe-member-access
+  388:23  warning  Unsafe member access .code on an `any` value            @typescript-eslint/no-unsafe-member-access
+  389:23  warning  Unsafe member access .description on an `any` value     @typescript-eslint/no-unsafe-member-access
+  390:23  warning  Unsafe member access .price on an `any` value           @typescript-eslint/no-unsafe-member-access
+  391:23  warning  Unsafe member access .cost on an `any` value            @typescript-eslint/no-unsafe-member-access
+  392:23  warning  Unsafe member access .stock on an `any` value           @typescript-eslint/no-unsafe-member-access
+  393:23  warning  Unsafe member access .minStock on an `any` value        @typescript-eslint/no-unsafe-member-access
+  394:23  warning  Unsafe member access .unit on an `any` value            @typescript-eslint/no-unsafe-member-access
+  395:23  warning  Unsafe member access .category on an `any` value        @typescript-eslint/no-unsafe-member-access
+  396:23  warning  Unsafe member access .taxRate on an `any` value         @typescript-eslint/no-unsafe-member-access
+  397:23  warning  Unsafe member access .isActive on an `any` value        @typescript-eslint/no-unsafe-member-access
+  398:23  warning  Unsafe member access .tenantId on an `any` value        @typescript-eslint/no-unsafe-member-access
+  399:23  warning  Unsafe member access .createdAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  400:23  warning  Unsafe member access .updatedAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  406:22  warning  Unsafe member access .invoices on an `any` value        @typescript-eslint/no-unsafe-member-access
+  407:42  warning  Unsafe member access .invoices on an `any` value        @typescript-eslint/no-unsafe-member-access
+  412:23  warning  Unsafe member access .id on an `any` value              @typescript-eslint/no-unsafe-member-access
+  413:23  warning  Unsafe member access .invoiceNumber on an `any` value   @typescript-eslint/no-unsafe-member-access
+  414:23  warning  Unsafe member access .tenantId on an `any` value        @typescript-eslint/no-unsafe-member-access
+  415:23  warning  Unsafe member access .customerId on an `any` value      @typescript-eslint/no-unsafe-member-access
+  416:23  warning  Unsafe member access .issueDate on an `any` value       @typescript-eslint/no-unsafe-member-access
+  417:23  warning  Unsafe member access .dueDate on an `any` value         @typescript-eslint/no-unsafe-member-access
+  418:23  warning  Unsafe member access .subtotal on an `any` value        @typescript-eslint/no-unsafe-member-access
+  419:23  warning  Unsafe member access .taxAmount on an `any` value       @typescript-eslint/no-unsafe-member-access
+  420:23  warning  Unsafe member access .discountAmount on an `any` value  @typescript-eslint/no-unsafe-member-access
+  421:23  warning  Unsafe member access .total on an `any` value           @typescript-eslint/no-unsafe-member-access
+  422:23  warning  Unsafe member access .status on an `any` value          @typescript-eslint/no-unsafe-member-access
+  423:23  warning  Unsafe member access .notes on an `any` value           @typescript-eslint/no-unsafe-member-access
+  424:23  warning  Unsafe member access .createdAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  425:23  warning  Unsafe member access .updatedAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  431:22  warning  Unsafe member access .expenses on an `any` value        @typescript-eslint/no-unsafe-member-access
+  432:42  warning  Unsafe member access .expenses on an `any` value        @typescript-eslint/no-unsafe-member-access
+  437:23  warning  Unsafe member access .id on an `any` value              @typescript-eslint/no-unsafe-member-access
+  438:23  warning  Unsafe member access .expenseNumber on an `any` value   @typescript-eslint/no-unsafe-member-access
+  439:23  warning  Unsafe member access .tenantId on an `any` value        @typescript-eslint/no-unsafe-member-access
+  440:23  warning  Unsafe member access .supplierId on an `any` value      @typescript-eslint/no-unsafe-member-access
+  441:23  warning  Unsafe member access .description on an `any` value     @typescript-eslint/no-unsafe-member-access
+  442:23  warning  Unsafe member access .expenseDate on an `any` value     @typescript-eslint/no-unsafe-member-access
+  443:23  warning  Unsafe member access .amount on an `any` value          @typescript-eslint/no-unsafe-member-access
+  444:23  warning  Unsafe member access .category on an `any` value        @typescript-eslint/no-unsafe-member-access
+  445:23  warning  Unsafe member access .status on an `any` value          @typescript-eslint/no-unsafe-member-access
+  446:23  warning  Unsafe member access .notes on an `any` value           @typescript-eslint/no-unsafe-member-access
+  447:23  warning  Unsafe member access .createdAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  448:23  warning  Unsafe member access .updatedAt on an `any` value       @typescript-eslint/no-unsafe-member-access
+  458:40  error    Invalid type "Date" of template literal expression      @typescript-eslint/restrict-template-expressions
+
+/workspaces/Muhasabev2/backend/src/admin/decorators/admin-token.decorator.ts
+   9:11  warning  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+  10:11  warning  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+  10:32  warning  Unsafe member access .headers on an `any` value  @typescript-eslint/no-unsafe-member-access
+  16:5   warning  Unsafe return of a value of type `any`           @typescript-eslint/no-unsafe-return
+
+/workspaces/Muhasabev2/backend/src/audit/audit.controller.ts
+   34:11  warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+   34:22  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   35:11  warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+   35:27  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+   78:7   warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+   94:11  warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+   94:22  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   95:11  warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+   95:27  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  103:7   warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  121:11  warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  121:22  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  122:11  warning  Unsafe assignment of an `any` value                                     @typescript-eslint/no-unsafe-assignment
+  122:27  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  132:49  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+
+/workspaces/Muhasabev2/backend/src/audit/audit.interceptor.ts
+   52:11  warning  'originalData' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   55:11  error    Promise returned in function argument where a void return was expected                   @typescript-eslint/no-misused-promises
+   57:17  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+   57:41  warning  Unsafe member access .user on an `any` value                                             @typescript-eslint/no-unsafe-member-access
+   58:17  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+   58:34  warning  Unsafe member access .tenantId on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+   59:17  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+   59:32  warning  Unsafe member access .id on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+   80:36  warning  Unsafe member access .id on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+   81:17  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+   81:35  warning  Unsafe member access .id on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+   87:36  warning  Unsafe member access .id on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+   88:17  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+   88:35  warning  Unsafe member access .id on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+   91:23  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+   91:56  warning  Unsafe member access .originalValue on an `any` value                                    @typescript-eslint/no-unsafe-member-access
+   98:36  warning  Unsafe member access .id on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+   99:17  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+   99:35  warning  Unsafe member access .id on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+  110:13  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+  111:13  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+  134:11  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+  134:55  warning  Unsafe argument of type `any` assigned to a parameter of type `Object`                   @typescript-eslint/no-unsafe-argument
+  135:11  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+  135:58  warning  Unsafe argument of type `any` assigned to a parameter of type `Object`                   @typescript-eslint/no-unsafe-argument
+  137:11  warning  Unsafe assignment of an `any` value                                                      @typescript-eslint/no-unsafe-assignment
+  143:5   warning  Unsafe return of a value of type `any`                                                   @typescript-eslint/no-unsafe-return
+  166:52  warning  Unsafe argument of type `any` assigned to a parameter of type `Object`                   @typescript-eslint/no-unsafe-argument
+  169:52  warning  Unsafe argument of type `any` assigned to a parameter of type `Object`                   @typescript-eslint/no-unsafe-argument
+
+/workspaces/Muhasabev2/backend/src/audit/audit.service.ts
+  154:13  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  155:49  warning  Unsafe argument of type `any` assigned to a parameter of type `ArrayLike<unknown> | { [s: string]: unknown; }`  @typescript-eslint/no-unsafe-argument
+  163:22  warning  Unsafe member access [key] on an `any` value                                                                    @typescript-eslint/no-unsafe-member-access
+  166:22  warning  Unsafe member access [key] on an `any` value                                                                    @typescript-eslint/no-unsafe-member-access
+  170:11  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  170:18  warning  Unsafe member access [key] on an `any` value                                                                    @typescript-eslint/no-unsafe-member-access
+  177:5   warning  Unsafe return of a value of type `any`                                                                          @typescript-eslint/no-unsafe-return
+  188:16  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  193:16  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  198:22  warning  Unsafe argument of type `any` assigned to a parameter of type `{}`                                              @typescript-eslint/no-unsafe-argument
+  199:22  warning  Unsafe argument of type `any` assigned to a parameter of type `{}`                                              @typescript-eslint/no-unsafe-argument
+  203:13  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  203:31  warning  Unsafe member access [key] on an `any` value                                                                    @typescript-eslint/no-unsafe-member-access
+  204:13  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  204:31  warning  Unsafe member access [key] on an `any` value                                                                    @typescript-eslint/no-unsafe-member-access
+  208:11  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+  209:11  warning  Unsafe assignment of an `any` value                                                                             @typescript-eslint/no-unsafe-assignment
+
+/workspaces/Muhasabev2/backend/src/auth/auth.service.ts
+   84:13  warning  Empty block statement                                                                   no-empty
+  179:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  179:18  warning  Unsafe member access .id on an `any` value                                              @typescript-eslint/no-unsafe-member-access
+  180:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  180:21  warning  Unsafe member access .email on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  181:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  181:25  warning  Unsafe member access .firstName on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  182:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  182:24  warning  Unsafe member access .lastName on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  183:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  183:20  warning  Unsafe member access .role on an `any` value                                            @typescript-eslint/no-unsafe-member-access
+  184:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  184:24  warning  Unsafe member access .tenantId on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  186:20  warning  Unsafe member access .tenant on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+  188:13  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  188:22  warning  Unsafe member access .tenant on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+  189:13  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  189:24  warning  Unsafe member access .tenant on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+  190:13  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  190:24  warning  Unsafe member access .tenant on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+  191:13  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  191:36  warning  Unsafe member access .tenant on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+  192:13  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  192:26  warning  Unsafe member access .tenant on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+  242:13  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  242:52  warning  Unsafe member access .userRepository on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  243:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  243:22  warning  Unsafe call of a(n) `any` typed value                                                   @typescript-eslint/no-unsafe-call
+  243:27  warning  Unsafe member access .findOne on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+  244:13  warning  Empty block statement                                                                   no-empty
+  248:36  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                  @typescript-eslint/no-unsafe-argument
+  248:43  warning  Unsafe member access .id on an `any` value                                              @typescript-eslint/no-unsafe-member-access
+  251:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  297:13  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  297:52  warning  Unsafe member access .userRepository on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  298:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  298:22  warning  Unsafe call of a(n) `any` typed value                                                   @typescript-eslint/no-unsafe-call
+  298:27  warning  Unsafe member access .findOne on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+  299:13  warning  Empty block statement                                                                   no-empty
+  302:15  warning  Unsafe member access .passwordResetExpiresAt on an `any` value                          @typescript-eslint/no-unsafe-member-access
+  303:16  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | Date`  @typescript-eslint/no-unsafe-argument
+  303:23  warning  Unsafe member access .passwordResetExpiresAt on an `any` value                          @typescript-eslint/no-unsafe-member-access
+  307:36  warning  Unsafe argument of type `any` assigned to a parameter of type `string`                  @typescript-eslint/no-unsafe-argument
+  307:43  warning  Unsafe member access .id on an `any` value                                              @typescript-eslint/no-unsafe-member-access
+  309:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  310:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+
+/workspaces/Muhasabev2/backend/src/auth/dto/register.dto.ts
+  14:3   warning  'StrongPassword' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  69:30  warning  Unsafe return of a value of type `any`                                            @typescript-eslint/no-unsafe-return
+
+/workspaces/Muhasabev2/backend/src/auth/guards/roles.guard.ts
+  19:11  warning  Unsafe assignment of an `any` value           @typescript-eslint/no-unsafe-assignment
+  20:46  warning  Unsafe member access .role on an `any` value  @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/bank-accounts/bank-accounts.controller.ts
+  18:49  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  18:54  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  26:45  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  26:50  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/common/csrf.middleware.ts
+  115:9   warning  Unsafe assignment of an `any` value                      @typescript-eslint/no-unsafe-assignment
+  115:35  warning  Unsafe member access ['csrf-session'] on an `any` value  @typescript-eslint/no-unsafe-member-access
+  127:5   warning  Unsafe return of a value of type `any`                   @typescript-eslint/no-unsafe-return
+  134:5   warning  Unsafe return of a value of type `any`                   @typescript-eslint/no-unsafe-return
+  134:26  warning  Unsafe member access ['csrf-session'] on an `any` value  @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/common/decorators/current-tenant.decorator.ts
+   9:11  warning  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  10:11  warning  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  10:26  warning  Unsafe member access .user on an `any` value      @typescript-eslint/no-unsafe-member-access
+  12:24  warning  Unsafe member access .tenantId on an `any` value  @typescript-eslint/no-unsafe-member-access
+  16:5   warning  Unsafe return of a value of type `any`            @typescript-eslint/no-unsafe-return
+  16:17  warning  Unsafe member access .tenantId on an `any` value  @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/common/decorators/user.decorator.ts
+  5:11  warning  Unsafe assignment of an `any` value           @typescript-eslint/no-unsafe-assignment
+  6:5   warning  Unsafe return of a value of type `any`        @typescript-eslint/no-unsafe-return
+  6:20  warning  Unsafe member access .user on an `any` value  @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/common/filters/global-exception.filter.ts
+  39:9   warning  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+  39:42  warning  Unsafe member access .message on an `any` value  @typescript-eslint/no-unsafe-member-access
+  72:9   warning  Unsafe assignment of an `any` value              @typescript-eslint/no-unsafe-assignment
+
+/workspaces/Muhasabev2/backend/src/common/guards/period-lock.guard.ts
+   42:11  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+   51:21  warning  Unsafe member access .method on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+   52:13  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+   52:32  warning  Unsafe member access .route on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+   52:59  warning  Unsafe member access .url on an `any` value                                             @typescript-eslint/no-unsafe-member-access
+   54:11  warning  Unsafe call of a(n) `any` typed value                                                   @typescript-eslint/no-unsafe-call
+   54:16  warning  Unsafe member access .includes on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+   61:18  warning  Unsafe call of a(n) `any` typed value                                                   @typescript-eslint/no-unsafe-call
+   61:23  warning  Unsafe member access .includes on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  102:16  warning  Unsafe member access [field] on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+  103:31  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | Date`  @typescript-eslint/no-unsafe-argument
+  103:36  warning  Unsafe member access [field] on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/common/guards/tenant.guard.ts
+  18:11  warning  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  19:11  warning  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  19:26  warning  Unsafe member access .user on an `any` value      @typescript-eslint/no-unsafe-member-access
+  21:24  warning  Unsafe member access .tenantId on an `any` value  @typescript-eslint/no-unsafe-member-access
+  26:5   warning  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  26:13  warning  Unsafe member access .tenantId on an `any` value  @typescript-eslint/no-unsafe-member-access
+  26:29  warning  Unsafe member access .tenantId on an `any` value  @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/common/interceptors/logging.interceptor.ts
+  30:16  warning  'data' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  39:67  warning  Unsafe member access .message on an `any` value                         @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/common/interceptors/tenant.interceptor.ts
+  19:11  warning  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  20:11  warning  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  20:26  warning  Unsafe member access .user on an `any` value      @typescript-eslint/no-unsafe-member-access
+  22:22  warning  Unsafe member access .tenantId on an `any` value  @typescript-eslint/no-unsafe-member-access
+  24:7   warning  Unsafe assignment of an `any` value               @typescript-eslint/no-unsafe-assignment
+  24:15  warning  Unsafe member access .tenantId on an `any` value  @typescript-eslint/no-unsafe-member-access
+  24:31  warning  Unsafe member access .tenantId on an `any` value  @typescript-eslint/no-unsafe-member-access
+  29:26  warning  Unsafe member access .tenantId on an `any` value  @typescript-eslint/no-unsafe-member-access
+  29:47  warning  Unsafe member access .method on an `any` value    @typescript-eslint/no-unsafe-member-access
+  29:65  warning  Unsafe member access .url on an `any` value       @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/common/services/security-logger.service.ts
+  42:7  warning  Unsafe assignment of an `any` value  @typescript-eslint/no-unsafe-assignment
+
+/workspaces/Muhasabev2/backend/src/customers/customers.controller.ts
+  34:60  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  34:65  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  40:42  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  40:47  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  46:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  46:51  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  57:64  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  57:69  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  64:45  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  64:50  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/database/seed.service.ts
+  19:13  warning  Unsafe assignment of an `any` value         @typescript-eslint/no-unsafe-assignment
+  23:21  warning  Unsafe member access [0] on an `any` value  @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/expenses/expenses.controller.ts
+  31:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  31:44  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  36:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  36:45  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  41:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  41:51  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  46:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  46:45  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  57:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  57:44  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  67:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  67:50  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  74:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  74:44  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  85:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  85:11  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  87:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  87:11  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  95:48  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  95:52  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/expenses/expenses.service.ts
+   57:11  warning  Unsafe assignment of an `any` value                                                               @typescript-eslint/no-unsafe-assignment
+   58:24  warning  Unsafe member access .expenseNumber on an `any` value                                             @typescript-eslint/no-unsafe-member-access
+   62:11  warning  Unsafe assignment of an `any` value                                                               @typescript-eslint/no-unsafe-assignment
+   63:24  warning  Unsafe member access .expenseDate on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+   64:24  warning  Unsafe member access .date on an `any` value                                                      @typescript-eslint/no-unsafe-member-access
+   67:52  warning  Unsafe argument of type `any` assigned to a parameter of type `DeepPartial<Expense>[]`            @typescript-eslint/no-unsafe-argument
+   70:7   warning  Unsafe assignment of an `any` value                                                               @typescript-eslint/no-unsafe-assignment
+   71:7   warning  Unsafe assignment of an `any` value                                                               @typescript-eslint/no-unsafe-assignment
+   91:22  warning  Unsafe member access .isVoided on an `any` value                                                  @typescript-eslint/no-unsafe-member-access
+   95:7   warning  Unsafe assignment of an `any` value                                                               @typescript-eslint/no-unsafe-assignment
+  119:28  warning  Unsafe member access .date on an `any` value                                                      @typescript-eslint/no-unsafe-member-access
+  119:54  warning  Unsafe member access .expenseDate on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+  120:9   warning  Unsafe assignment of an `any` value                                                               @typescript-eslint/no-unsafe-assignment
+  120:26  warning  Unsafe member access .expenseDate on an `any` value                                               @typescript-eslint/no-unsafe-member-access
+  120:57  warning  Unsafe member access .date on an `any` value                                                      @typescript-eslint/no-unsafe-member-access
+  121:33  warning  Unsafe member access .date on an `any` value                                                      @typescript-eslint/no-unsafe-member-access
+  133:14  warning  Unsafe argument of type `any` assigned to a parameter of type `_QueryDeepPartialEntity<Expense>`  @typescript-eslint/no-unsafe-argument
+
+/workspaces/Muhasabev2/backend/src/fiscal-periods/fiscal-periods.controller.ts
+  37:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  37:18  warning  Unsafe member access .name on an `any` value                                            @typescript-eslint/no-unsafe-member-access
+  38:29  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | Date`  @typescript-eslint/no-unsafe-argument
+  38:34  warning  Unsafe member access .startDate on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  39:27  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | Date`  @typescript-eslint/no-unsafe-argument
+  39:32  warning  Unsafe member access .endDate on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+  62:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  62:18  warning  Unsafe member access .name on an `any` value                                            @typescript-eslint/no-unsafe-member-access
+  63:29  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | Date`  @typescript-eslint/no-unsafe-argument
+  63:34  warning  Unsafe member access .startDate on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  64:27  warning  Unsafe argument of type `any` assigned to a parameter of type `string | number | Date`  @typescript-eslint/no-unsafe-argument
+  64:32  warning  Unsafe member access .endDate on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/fiscal-periods/fiscal-periods.service.ts
+  7:22  warning  'Between' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  7:31  warning  'Not' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+
+/workspaces/Muhasabev2/backend/src/invoices/invoices.controller.ts
+  31:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  31:44  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  36:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  36:45  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  41:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  41:51  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  46:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  46:45  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  57:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  57:44  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  67:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  67:50  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  74:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  74:44  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  85:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  85:11  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  87:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  87:11  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  95:48  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  95:52  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/invoices/invoices.service.ts
+   53:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+   53:42  warning  Unsafe member access .invoiceNumber on an `any` value                                   @typescript-eslint/no-unsafe-member-access
+   87:11  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+   87:36  warning  Unsafe member access .lineItems on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+   87:66  warning  Unsafe member access .items on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+   90:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+   90:24  warning  Unsafe member access .length on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+   91:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+   91:24  warning  Unsafe member access [0] on an `any` value                                              @typescript-eslint/no-unsafe-member-access
+   98:5   warning  Unsafe call of a(n) `any` typed value                                                   @typescript-eslint/no-unsafe-call
+   98:11  warning  Unsafe member access .forEach on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+  100:22  warning  Unsafe member access .quantity on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  100:53  warning  Unsafe member access .unitPrice on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  101:39  warning  Unsafe member access .taxRate on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+  105:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  105:23  warning  Unsafe member access .productName on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  105:43  warning  Unsafe member access .description on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  106:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  106:24  warning  Unsafe member access .quantity on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  107:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  107:25  warning  Unsafe member access .unitPrice on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  109:9   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  109:23  warning  Unsafe member access .taxRate on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+  117:52  warning  Unsafe member access .discountAmount on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  127:52  warning  Unsafe argument of type `any` assigned to a parameter of type `DeepPartial<Invoice>[]`  @typescript-eslint/no-unsafe-argument
+  130:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  131:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  138:11  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  139:11  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  139:53  warning  Unsafe member access .id on an `any` value                                              @typescript-eslint/no-unsafe-member-access
+  139:64  warning  Unsafe member access .id on an `any` value                                              @typescript-eslint/no-unsafe-member-access
+  143:16  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  169:22  warning  Unsafe member access .isVoided on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  173:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  192:26  warning  Unsafe member access .lineItems on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  192:56  warning  Unsafe member access .items on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  193:13  warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  193:38  warning  Unsafe member access .lineItems on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  193:68  warning  Unsafe member access .items on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  199:7   warning  Unsafe call of a(n) `any` typed value                                                   @typescript-eslint/no-unsafe-call
+  199:13  warning  Unsafe member access .forEach on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+  201:24  warning  Unsafe member access .quantity on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  201:55  warning  Unsafe member access .unitPrice on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  202:41  warning  Unsafe member access .taxRate on an `any` value                                         @typescript-eslint/no-unsafe-member-access
+  210:33  warning  Unsafe member access .discountAmount on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  213:7   warning  Unsafe assignment of an `any` value                                                     @typescript-eslint/no-unsafe-assignment
+  213:24  warning  Unsafe member access .items on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+  214:24  warning  Unsafe member access .subtotal on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  215:24  warning  Unsafe member access .taxAmount on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+  216:24  warning  Unsafe member access .total on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/main.ts
+   42:11  warning  Unsafe call of a(n) `error` type typed value                                                                                                                        @typescript-eslint/no-unsafe-call
+   94:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+   94:32  warning  Unsafe member access .cookie on an `any` value                                                                                                                      @typescript-eslint/no-unsafe-member-access
+   95:9   warning  Unsafe member access .cookie on an `any` value                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  105:7   warning  Unsafe return of a value of type `any`                                                                                                                              @typescript-eslint/no-unsafe-return
+  105:14  warning  Unsafe call of a(n) `any` typed value                                                                                                                               @typescript-eslint/no-unsafe-call
+  105:29  warning  Unsafe member access .call on an `any` value                                                                                                                        @typescript-eslint/no-unsafe-member-access
+  107:5   warning  Unsafe call of a(n) `any` typed value                                                                                                                               @typescript-eslint/no-unsafe-call
+  153:1   warning  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+
+/workspaces/Muhasabev2/backend/src/migrations/1698854400000-AddMultiTenantSupport.ts
+   93:11  warning  Unsafe assignment of an `any` value                @typescript-eslint/no-unsafe-assignment
+   99:31  warning  Unsafe member access .firstName on an `any` value  @typescript-eslint/no-unsafe-member-access
+   99:49  warning  Unsafe member access .lastName on an `any` value   @typescript-eslint/no-unsafe-member-access
+  100:13  warning  Unsafe assignment of an `any` value                @typescript-eslint/no-unsafe-assignment
+  105:38  warning  Unsafe member access .length on an `any` value     @typescript-eslint/no-unsafe-member-access
+  106:9   warning  Unsafe assignment of an `any` value                @typescript-eslint/no-unsafe-assignment
+  106:29  warning  Unsafe member access [0] on an `any` value         @typescript-eslint/no-unsafe-member-access
+  108:15  warning  Unsafe assignment of an `any` value                @typescript-eslint/no-unsafe-assignment
+  116:9   warning  Unsafe assignment of an `any` value                @typescript-eslint/no-unsafe-assignment
+  116:27  warning  Unsafe member access [0] on an `any` value         @typescript-eslint/no-unsafe-member-access
+  120:13  warning  Unsafe assignment of an `any` value                @typescript-eslint/no-unsafe-assignment
+  122:22  warning  Unsafe member access .id on an `any` value         @typescript-eslint/no-unsafe-member-access
+  124:41  warning  Unsafe member access .length on an `any` value     @typescript-eslint/no-unsafe-member-access
+  130:24  warning  Unsafe member access .id on an `any` value         @typescript-eslint/no-unsafe-member-access
+  139:22  warning  Unsafe member access .id on an `any` value         @typescript-eslint/no-unsafe-member-access
+  144:25  warning  Unsafe member access .length on an `any` value     @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/migrations/1762000000000-AddEmailVerificationAndReset.ts
+  32:13  warning  Empty block statement  no-empty
+  37:13  warning  Empty block statement  no-empty
+
+/workspaces/Muhasabev2/backend/src/organizations/dto/member.dto.ts
+  1:37  warning  'IsOptional' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/workspaces/Muhasabev2/backend/src/organizations/organizations.controller.ts
+   45:68  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   45:72  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   55:59  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   55:63  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   66:50  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   66:54  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+   87:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+   87:11  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  102:49  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  102:53  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  120:68  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  120:72  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  136:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  136:11  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  147:53  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  147:57  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  170:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  170:11  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  189:65  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  189:69  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  203:60  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  203:64  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  215:61  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  215:65  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  237:65  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  237:69  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  259:65  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  259:69  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/products/dto/create-product.dto.ts
+  5:3  warning  'IsBoolean' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/workspaces/Muhasabev2/backend/src/products/product-categories.controller.ts
+  24:43  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  24:47  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  29:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  29:51  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  34:61  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  34:65  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  46:7   warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  46:11  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  52:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  52:50  warning  Unsafe member access .user on an `any` value                            @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/products/products.controller.ts
+  31:58  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  31:63  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  37:41  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  37:46  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  43:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  43:51  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  49:45  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  49:50  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  60:62  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  60:67  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  67:44  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  67:49  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/seeds/demo-data.seed.ts
+   16:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+   36:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+   56:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+   76:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+   76:31  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+   77:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+   77:31  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+   78:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+   78:31  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  340:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  344:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  349:19  warning  Unsafe member access .length on an `any` value                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  349:42  warning  Unsafe member access .length on an `any` value                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  352:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  352:31  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  353:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  353:33  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  355:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  355:31  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  356:27  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  362:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  362:31  warning  Unsafe member access [1] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  362:50  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  363:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  363:33  warning  Unsafe member access [1] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  363:54  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  365:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  365:31  warning  Unsafe member access [1] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  365:53  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  366:28  warning  Unsafe member access [1] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  366:50  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  381:21  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  393:21  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  412:11  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  416:19  warning  Unsafe member access .length on an `any` value                                                                                                                      @typescript-eslint/no-unsafe-member-access
+  428:21  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  437:21  warning  Unsafe member access [0] on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+  464:1   warning  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+
+/workspaces/Muhasabev2/backend/src/suppliers/suppliers.controller.ts
+  34:60  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  34:65  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  40:42  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  40:47  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  46:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  46:51  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  57:64  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  57:69  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  64:45  warning  Unsafe argument of type `any` assigned to a parameter of type `string`  @typescript-eslint/no-unsafe-argument
+  64:50  warning  Unsafe member access .tenantId on an `any` value                        @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/suppliers/suppliers.service.ts
+  100:13  warning  'expenseNumbers' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/workspaces/Muhasabev2/backend/src/tenants/tenants.controller.ts
+   6:3   warning  'Param' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  26:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`   @typescript-eslint/no-unsafe-argument
+  26:45  warning  Unsafe member access .tenantId on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  35:39  warning  Unsafe argument of type `any` assigned to a parameter of type `string`   @typescript-eslint/no-unsafe-argument
+  35:44  warning  Unsafe member access .tenantId on an `any` value                         @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/users/entities/user.entity.ts
+  9:3  warning  'OneToMany' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/workspaces/Muhasabev2/backend/src/users/users.controller.ts
+   12:3   warning  'Param' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   34:38  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+   34:42  warning  Unsafe member access .user on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+   43:11  warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+   43:24  warning  Unsafe member access .user on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+   50:20  warning  Unsafe member access .name on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+   51:13  warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+   51:25  warning  Unsafe call of a(n) `any` typed value                                            @typescript-eslint/no-unsafe-call
+   51:25  warning  Unsafe call of a(n) `any` typed value                                            @typescript-eslint/no-unsafe-call
+   51:36  warning  Unsafe member access .name on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+   51:48  warning  Unsafe member access .split on an `any` value                                    @typescript-eslint/no-unsafe-member-access
+   52:7   warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+   52:20  warning  Unsafe member access .firstName on an `any` value                                @typescript-eslint/no-unsafe-member-access
+   52:42  warning  Unsafe member access [0] on an `any` value                                       @typescript-eslint/no-unsafe-member-access
+   53:7   warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+   53:20  warning  Unsafe member access .lastName on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+   53:31  warning  Unsafe call of a(n) `any` typed value                                            @typescript-eslint/no-unsafe-call
+   53:31  warning  Unsafe call of a(n) `any` typed value                                            @typescript-eslint/no-unsafe-call
+   53:41  warning  Unsafe member access .slice on an `any` value                                    @typescript-eslint/no-unsafe-member-access
+   53:50  warning  Unsafe member access .join on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+   58:20  warning  Unsafe member access .firstName on an `any` value                                @typescript-eslint/no-unsafe-member-access
+   59:7   warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+   59:20  warning  Unsafe member access .firstName on an `any` value                                @typescript-eslint/no-unsafe-member-access
+   59:43  warning  Unsafe member access .firstName on an `any` value                                @typescript-eslint/no-unsafe-member-access
+   61:20  warning  Unsafe member access .lastName on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+   62:7   warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+   62:20  warning  Unsafe member access .lastName on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+   62:42  warning  Unsafe member access .lastName on an `any` value                                 @typescript-eslint/no-unsafe-member-access
+   68:21  warning  Unsafe argument of type `any` assigned to a parameter of type `{}`               @typescript-eslint/no-unsafe-argument
+   70:40  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+   73:37  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+   73:45  warning  Unsafe argument of type `any` assigned to a parameter of type `Partial<User>`    @typescript-eslint/no-unsafe-argument
+   82:13  warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+   82:26  warning  Unsafe member access .user on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+   83:64  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+   96:9   warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+   96:24  warning  Unsafe member access .message on an `any` value                                  @typescript-eslint/no-unsafe-member-access
+  108:13  warning  'deleteRequest' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  110:11  warning  Unsafe assignment of an `any` value                                              @typescript-eslint/no-unsafe-assignment
+  110:24  warning  Unsafe member access .user on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  118:52  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+  135:45  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+  135:49  warning  Unsafe member access .user on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  146:46  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+  146:50  warning  Unsafe member access .user on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  157:59  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+  157:63  warning  Unsafe member access .user on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  169:47  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+  169:51  warning  Unsafe member access .user on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+  179:49  warning  Unsafe argument of type `any` assigned to a parameter of type `string`           @typescript-eslint/no-unsafe-argument
+  179:53  warning  Unsafe member access .user on an `any` value                                     @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/src/users/users.service.ts
+    9:18  warning  'SubscriptionPlan' is defined but never used. Allowed unused vars must match /^_/u                                                                                  @typescript-eslint/no-unused-vars
+   11:10  warning  'Readable' is defined but never used. Allowed unused vars must match /^_/u                                                                                          @typescript-eslint/no-unused-vars
+  271:50  warning  Unsafe member access .message on an `any` value                                                                                                                     @typescript-eslint/no-unsafe-member-access
+  391:7   warning  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+  401:15  warning  Unsafe member access .message on an `any` value                                                                                                                     @typescript-eslint/no-unsafe-member-access
+  428:15  warning  Unsafe member access .message on an `any` value                                                                                                                     @typescript-eslint/no-unsafe-member-access
+  446:33  warning  Unsafe argument of type `any` assigned to a parameter of type `{}`                                                                                                  @typescript-eslint/no-unsafe-argument
+  452:19  warning  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+  452:31  warning  Unsafe member access [header] on an `any` value                                                                                                                     @typescript-eslint/no-unsafe-member-access
+  453:13  warning  Unsafe return of a value of type `any`                                                                                                                              @typescript-eslint/no-unsafe-return
+
+/workspaces/Muhasabev2/backend/test/auth.e2e-spec.ts
+   41:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+   49:28  warning  Unsafe member access .user on an `any` value                         @typescript-eslint/no-unsafe-member-access
+   50:28  warning  Unsafe member access .user on an `any` value                         @typescript-eslint/no-unsafe-member-access
+   51:28  warning  Unsafe member access .tenant on an `any` value                       @typescript-eslint/no-unsafe-member-access
+   53:7   warning  Unsafe assignment of an `any` value                                  @typescript-eslint/no-unsafe-assignment
+   53:33  warning  Unsafe member access .token on an `any` value                        @typescript-eslint/no-unsafe-member-access
+   54:7   warning  Unsafe assignment of an `any` value                                  @typescript-eslint/no-unsafe-assignment
+   54:32  warning  Unsafe member access .user on an `any` value                         @typescript-eslint/no-unsafe-member-access
+   67:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+   73:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+   88:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  100:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  118:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  122:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  132:28  warning  Unsafe member access .user on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  136:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  146:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  158:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  164:28  warning  Unsafe member access .user on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  165:28  warning  Unsafe member access .user on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  166:28  warning  Unsafe member access .user on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  167:28  warning  Unsafe member access .user on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  171:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  175:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+
+/workspaces/Muhasabev2/backend/test/bank-accounts.e2e-spec.ts
+  37:36  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  42:5   warning  Unsafe assignment of an `any` value                                  @typescript-eslint/no-unsafe-assignment
+  42:31  warning  Unsafe member access .token on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  50:31  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  60:31  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  66:21  warning  Unsafe member access .message on an `any` value                      @typescript-eslint/no-unsafe-member-access
+
+/workspaces/Muhasabev2/backend/test/multi-tenant.e2e-spec.ts
+   33:43  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+   42:5   warning  Unsafe assignment of an `any` value                                  @typescript-eslint/no-unsafe-assignment
+   42:41  warning  Unsafe member access .token on an `any` value                        @typescript-eslint/no-unsafe-member-access
+   45:43  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+   54:5   warning  Unsafe assignment of an `any` value                                  @typescript-eslint/no-unsafe-assignment
+   54:41  warning  Unsafe member access .token on an `any` value                        @typescript-eslint/no-unsafe-member-access
+   63:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+   74:7   warning  Unsafe assignment of an `any` value                                  @typescript-eslint/no-unsafe-assignment
+   74:41  warning  Unsafe member access .id on an `any` value                           @typescript-eslint/no-unsafe-member-access
+   75:28  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+   79:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+   90:28  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+   94:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+   99:28  warning  Unsafe member access .length on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  101:9   warning  Unsafe call of a(n) `any` typed value                                @typescript-eslint/no-unsafe-call
+  101:23  warning  Unsafe member access .every on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  103:13  warning  Unsafe return of a value of type `any`                               @typescript-eslint/no-unsafe-return
+  103:13  warning  Unsafe call of a(n) `any` typed value                                @typescript-eslint/no-unsafe-call
+  103:15  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  103:46  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  109:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  114:28  warning  Unsafe member access .length on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  116:9   warning  Unsafe call of a(n) `any` typed value                                @typescript-eslint/no-unsafe-call
+  116:23  warning  Unsafe member access .every on an `any` value                        @typescript-eslint/no-unsafe-member-access
+  118:13  warning  Unsafe return of a value of type `any`                               @typescript-eslint/no-unsafe-return
+  118:13  warning  Unsafe call of a(n) `any` typed value                                @typescript-eslint/no-unsafe-call
+  118:15  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  118:46  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  124:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  131:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  139:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  148:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  160:7   warning  Unsafe assignment of an `any` value                                  @typescript-eslint/no-unsafe-assignment
+  160:40  warning  Unsafe member access .id on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  161:28  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  165:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  177:28  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  181:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  186:28  warning  Unsafe member access .length on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  188:9   warning  Unsafe call of a(n) `any` typed value                                @typescript-eslint/no-unsafe-call
+  188:23  warning  Unsafe member access .some on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  188:42  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  191:9   warning  Unsafe call of a(n) `any` typed value                                @typescript-eslint/no-unsafe-call
+  191:23  warning  Unsafe member access .some on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  191:42  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  196:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  201:28  warning  Unsafe member access .length on an `any` value                       @typescript-eslint/no-unsafe-member-access
+  203:9   warning  Unsafe call of a(n) `any` typed value                                @typescript-eslint/no-unsafe-call
+  203:23  warning  Unsafe member access .some on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  203:42  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  206:9   warning  Unsafe call of a(n) `any` typed value                                @typescript-eslint/no-unsafe-call
+  206:23  warning  Unsafe member access .some on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  206:42  warning  Unsafe member access .name on an `any` value                         @typescript-eslint/no-unsafe-member-access
+  211:21  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  220:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  229:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  240:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+  249:38  warning  Unsafe argument of type `any` assigned to a parameter of type `App`  @typescript-eslint/no-unsafe-argument
+
+/workspaces/Muhasabev2/backend/test/plan-limits.e2e-spec.ts
+   13:7   warning  'supplierId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   32:31  warning  Unsafe argument of type `any` assigned to a parameter of type `App`                    @typescript-eslint/no-unsafe-argument
+   43:5   warning  Unsafe assignment of an `any` value                                                    @typescript-eslint/no-unsafe-assignment
+   43:22  warning  Unsafe member access .token on an `any` value                                          @typescript-eslint/no-unsafe-member-access
+   53:33  warning  Unsafe argument of type `any` assigned to a parameter of type `App`                    @typescript-eslint/no-unsafe-argument
+   59:7   warning  Unsafe assignment of an `any` value                                                    @typescript-eslint/no-unsafe-assignment
+   59:29  warning  Unsafe member access .id on an `any` value                                             @typescript-eslint/no-unsafe-member-access
+   60:23  warning  Unsafe member access .name on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+   64:33  warning  Unsafe argument of type `any` assigned to a parameter of type `App`                    @typescript-eslint/no-unsafe-argument
+   70:13  warning  Unsafe assignment of an `any` value                                                    @typescript-eslint/no-unsafe-assignment
+   70:29  warning  Unsafe member access .message on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+   78:33  warning  Unsafe argument of type `any` assigned to a parameter of type `App`                    @typescript-eslint/no-unsafe-argument
+   84:7   warning  Unsafe assignment of an `any` value                                                    @typescript-eslint/no-unsafe-assignment
+   84:29  warning  Unsafe member access .id on an `any` value                                             @typescript-eslint/no-unsafe-member-access
+   85:23  warning  Unsafe member access .name on an `any` value                                           @typescript-eslint/no-unsafe-member-access
+   89:33  warning  Unsafe argument of type `any` assigned to a parameter of type `App`                    @typescript-eslint/no-unsafe-argument
+   95:13  warning  Unsafe assignment of an `any` value                                                    @typescript-eslint/no-unsafe-assignment
+   95:29  warning  Unsafe member access .message on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  106:35  warning  Unsafe argument of type `any` assigned to a parameter of type `App`                    @typescript-eslint/no-unsafe-argument
+  129:33  warning  Unsafe argument of type `any` assigned to a parameter of type `App`                    @typescript-eslint/no-unsafe-argument
+  147:13  warning  Unsafe assignment of an `any` value                                                    @typescript-eslint/no-unsafe-assignment
+  147:29  warning  Unsafe member access .message on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+  158:35  warning  Unsafe argument of type `any` assigned to a parameter of type `App`                    @typescript-eslint/no-unsafe-argument
+  173:33  warning  Unsafe argument of type `any` assigned to a parameter of type `App`                    @typescript-eslint/no-unsafe-argument
+  183:13  warning  Unsafe assignment of an `any` value                                                    @typescript-eslint/no-unsafe-assignment
+  183:29  warning  Unsafe member access .message on an `any` value                                        @typescript-eslint/no-unsafe-member-access
+
+✖ 772 problems (7 errors, 765 warnings)
+

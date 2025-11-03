@@ -1,11 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Organization } from './entities/organization.entity';
 import { OrganizationMember } from './entities/organization-member.entity';
 import { Invite } from './entities/invite.entity';
 import { User } from '../users/entities/user.entity';
-import { CreateOrganizationDto, UpdateOrganizationDto } from './dto/organization.dto';
+import {
+  CreateOrganizationDto,
+  UpdateOrganizationDto,
+} from './dto/organization.dto';
 import { InviteUserDto, UpdateMemberRoleDto } from './dto/member.dto';
 import { Role, Plan } from '../common/enums/organization.enum';
 import { PlanLimitService } from '../common/plan-limits.service';
@@ -26,7 +34,10 @@ export class OrganizationsService {
     private emailService: EmailService,
   ) {}
 
-  async create(createOrganizationDto: CreateOrganizationDto, ownerId: string): Promise<Organization> {
+  async create(
+    createOrganizationDto: CreateOrganizationDto,
+    ownerId: string,
+  ): Promise<Organization> {
     const user = await this.userRepository.findOne({ where: { id: ownerId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -38,7 +49,8 @@ export class OrganizationsService {
       plan: createOrganizationDto.plan || Plan.STARTER,
     });
 
-    const savedOrganization = await this.organizationRepository.save(organization);
+    const savedOrganization =
+      await this.organizationRepository.save(organization);
 
     // Create organization member with OWNER role
     const member = this.memberRepository.create({
@@ -58,14 +70,18 @@ export class OrganizationsService {
       relations: ['organization'],
     });
 
-    return members.map(member => member.organization);
+    return members.map((member) => member.organization);
   }
 
   async findOne(id: string, userId: string): Promise<Organization> {
     // Check if user is a member of this organization
     const member = await this.memberRepository.findOne({
       where: { organizationId: id, userId },
-      relations: ['organization', 'organization.members', 'organization.members.user'],
+      relations: [
+        'organization',
+        'organization.members',
+        'organization.members.user',
+      ],
     });
 
     if (!member) {
@@ -75,14 +91,20 @@ export class OrganizationsService {
     return member.organization;
   }
 
-  async update(id: string, updateOrganizationDto: UpdateOrganizationDto, userId: string): Promise<Organization> {
+  async update(
+    id: string,
+    updateOrganizationDto: UpdateOrganizationDto,
+    userId: string,
+  ): Promise<Organization> {
     // Check if user is owner or admin
     const member = await this.memberRepository.findOne({
       where: { organizationId: id, userId },
     });
 
     if (!member || (member.role !== Role.OWNER && member.role !== Role.ADMIN)) {
-      throw new ForbiddenException('Insufficient permissions to update organization');
+      throw new ForbiddenException(
+        'Insufficient permissions to update organization',
+      );
     }
 
     await this.organizationRepository.update(id, updateOrganizationDto);
@@ -96,19 +118,28 @@ export class OrganizationsService {
     });
 
     if (!member) {
-      throw new ForbiddenException('Only organization owners can delete organizations');
+      throw new ForbiddenException(
+        'Only organization owners can delete organizations',
+      );
     }
 
     await this.organizationRepository.delete(id);
   }
 
-  async inviteUser(organizationId: string, inviteUserDto: InviteUserDto, inviterId: string): Promise<Invite> {
+  async inviteUser(
+    organizationId: string,
+    inviteUserDto: InviteUserDto,
+    inviterId: string,
+  ): Promise<Invite> {
     // Check if inviter has permission (owner or admin)
     const inviterMember = await this.memberRepository.findOne({
       where: { organizationId, userId: inviterId },
     });
 
-    if (!inviterMember || (inviterMember.role !== Role.OWNER && inviterMember.role !== Role.ADMIN)) {
+    if (
+      !inviterMember ||
+      (inviterMember.role !== Role.OWNER && inviterMember.role !== Role.ADMIN)
+    ) {
       throw new ForbiddenException('Insufficient permissions to invite users');
     }
 
@@ -125,16 +156,18 @@ export class OrganizationsService {
     const currentMemberCount = await this.memberRepository.count({
       where: { organizationId },
     });
-    
+
     const pendingInviteCount = await this.inviteRepository.count({
       where: { organizationId, acceptedAt: IsNull() },
     });
-    
+
     const totalCount = currentMemberCount + pendingInviteCount;
 
     const canAdd = PlanLimitService.canAddMember(totalCount, organization.plan);
     if (!canAdd) {
-      const errorMessage = PlanLimitService.getMemberLimitError(organization.plan);
+      const errorMessage = PlanLimitService.getMemberLimitError(
+        organization.plan,
+      );
       throw new BadRequestException(errorMessage);
     }
 
@@ -145,12 +178,18 @@ export class OrganizationsService {
     });
 
     if (existingMember?.user?.email === inviteUserDto.email) {
-      throw new BadRequestException('User is already a member of this organization');
+      throw new BadRequestException(
+        'User is already a member of this organization',
+      );
     }
 
     // Check if there's already a pending invite
     const existingInvite = await this.inviteRepository.findOne({
-      where: { organizationId, email: inviteUserDto.email, acceptedAt: IsNull() },
+      where: {
+        organizationId,
+        email: inviteUserDto.email,
+        acceptedAt: IsNull(),
+      },
     });
 
     if (existingInvite) {
@@ -173,7 +212,7 @@ export class OrganizationsService {
       // Use hash-based route so static hosting works without server-side rewrites
       const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5174';
       const inviteUrl = `${frontendBase}/#join?token=${savedInvite.token}`;
-      
+
       await this.emailService.sendEmail({
         to: inviteUserDto.email,
         subject: `Invitation to join ${organization.name}`,
@@ -210,19 +249,25 @@ Accept invitation: ${inviteUrl}
 This invitation will expire in 7 days.
 
 MoneyFlow Accounting System
-        `
+        `,
       });
 
       console.log(`✅ Invitation email sent to ${inviteUserDto.email}`);
     } catch (error) {
-      console.error(`❌ Failed to send invitation email to ${inviteUserDto.email}:`, error);
+      console.error(
+        `❌ Failed to send invitation email to ${inviteUserDto.email}:`,
+        error,
+      );
       // Don't throw error - invitation is still created even if email fails
     }
 
     return savedInvite;
   }
 
-  async acceptInvite(token: string, userId: string): Promise<OrganizationMember> {
+  async acceptInvite(
+    token: string,
+    userId: string,
+  ): Promise<OrganizationMember> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -242,7 +287,9 @@ MoneyFlow Accounting System
     }
 
     if (invite.email !== user.email) {
-      throw new BadRequestException('Invitation email does not match user email');
+      throw new BadRequestException(
+        'Invitation email does not match user email',
+      );
     }
 
     // Check if user is already a member
@@ -251,7 +298,9 @@ MoneyFlow Accounting System
     });
 
     if (existingMember) {
-      throw new BadRequestException('User is already a member of this organization');
+      throw new BadRequestException(
+        'User is already a member of this organization',
+      );
     }
 
     // Check plan limits before accepting the invite
@@ -259,9 +308,14 @@ MoneyFlow Accounting System
       where: { organizationId: invite.organizationId },
     });
 
-    const canAdd = PlanLimitService.canAddMember(currentMemberCount, invite.organization.plan);
+    const canAdd = PlanLimitService.canAddMember(
+      currentMemberCount,
+      invite.organization.plan,
+    );
     if (!canAdd) {
-      const errorMessage = PlanLimitService.getMemberLimitError(invite.organization.plan);
+      const errorMessage = PlanLimitService.getMemberLimitError(
+        invite.organization.plan,
+      );
       throw new BadRequestException(errorMessage);
     }
 
@@ -281,7 +335,10 @@ MoneyFlow Accounting System
     return savedMember;
   }
 
-  async getMembers(organizationId: string, userId: string): Promise<OrganizationMember[]> {
+  async getMembers(
+    organizationId: string,
+    userId: string,
+  ): Promise<OrganizationMember[]> {
     // Check if user is a member of this organization
     const userMember = await this.memberRepository.findOne({
       where: { organizationId, userId },
@@ -297,14 +354,24 @@ MoneyFlow Accounting System
     });
   }
 
-  async updateMemberRole(organizationId: string, memberId: string, updateMemberRoleDto: UpdateMemberRoleDto, userId: string): Promise<OrganizationMember> {
+  async updateMemberRole(
+    organizationId: string,
+    memberId: string,
+    updateMemberRoleDto: UpdateMemberRoleDto,
+    userId: string,
+  ): Promise<OrganizationMember> {
     // Check if user is owner or admin
     const userMember = await this.memberRepository.findOne({
       where: { organizationId, userId },
     });
 
-    if (!userMember || (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)) {
-      throw new ForbiddenException('Insufficient permissions to update member roles');
+    if (
+      !userMember ||
+      (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)
+    ) {
+      throw new ForbiddenException(
+        'Insufficient permissions to update member roles',
+      );
     }
 
     const targetMember = await this.memberRepository.findOne({
@@ -335,14 +402,23 @@ MoneyFlow Accounting System
     return this.memberRepository.save(targetMember);
   }
 
-  async removeMember(organizationId: string, memberId: string, userId: string): Promise<void> {
+  async removeMember(
+    organizationId: string,
+    memberId: string,
+    userId: string,
+  ): Promise<void> {
     // Check if user is owner or admin
     const userMember = await this.memberRepository.findOne({
       where: { organizationId, userId },
     });
 
-    if (!userMember || (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)) {
-      throw new ForbiddenException('Insufficient permissions to remove members');
+    if (
+      !userMember ||
+      (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)
+    ) {
+      throw new ForbiddenException(
+        'Insufficient permissions to remove members',
+      );
     }
 
     const targetMember = await this.memberRepository.findOne({
@@ -372,13 +448,19 @@ MoneyFlow Accounting System
     await this.memberRepository.remove(targetMember);
   }
 
-  async getPendingInvites(organizationId: string, userId: string): Promise<Invite[]> {
+  async getPendingInvites(
+    organizationId: string,
+    userId: string,
+  ): Promise<Invite[]> {
     // Check if user is owner or admin
     const userMember = await this.memberRepository.findOne({
       where: { organizationId, userId },
     });
 
-    if (!userMember || (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)) {
+    if (
+      !userMember ||
+      (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)
+    ) {
       throw new ForbiddenException('Insufficient permissions to view invites');
     }
 
@@ -388,7 +470,9 @@ MoneyFlow Accounting System
     });
   }
 
-  async getUserOrganizations(userId: string): Promise<{ organization: Organization; role: Role }[]> {
+  async getUserOrganizations(
+    userId: string,
+  ): Promise<{ organization: Organization; role: Role }[]> {
     const members = await this.memberRepository.find({
       where: { userId },
       relations: ['organization'],
@@ -397,9 +481,11 @@ MoneyFlow Accounting System
 
     // If user has no organizations, create a default one
     if (members.length === 0) {
-      console.log(`📦 User ${userId} has no organizations, creating default organization...`);
+      console.log(
+        `📦 User ${userId} has no organizations, creating default organization...`,
+      );
       const defaultOrg = await this.migrateUserToOrganization(userId);
-      
+
       // Fetch the member record for the new organization
       const newMember = await this.memberRepository.findOne({
         where: { userId, organizationId: defaultOrg.id },
@@ -407,21 +493,28 @@ MoneyFlow Accounting System
       });
 
       if (newMember) {
-        console.log(`✅ Default organization created for user ${userId}: ${defaultOrg.name}`);
-        return [{
-          organization: newMember.organization,
-          role: newMember.role,
-        }];
+        console.log(
+          `✅ Default organization created for user ${userId}: ${defaultOrg.name}`,
+        );
+        return [
+          {
+            organization: newMember.organization,
+            role: newMember.role,
+          },
+        ];
       }
     }
 
-    return members.map(member => ({
+    return members.map((member) => ({
       organization: member.organization,
       role: member.role,
     }));
   }
 
-  async getUserRoleInOrganization(organizationId: string, userId: string): Promise<Role | null> {
+  async getUserRoleInOrganization(
+    organizationId: string,
+    userId: string,
+  ): Promise<Role | null> {
     const member = await this.memberRepository.findOne({
       where: { organizationId, userId },
     });
@@ -447,14 +540,20 @@ MoneyFlow Accounting System
 
     // Create default organization for existing user
     const organizationName = `${user.firstName} ${user.lastName}'s Organization`;
-    
-    return this.create({
-      name: organizationName,
-      plan: Plan.STARTER,
-    }, userId);
+
+    return this.create(
+      {
+        name: organizationName,
+        plan: Plan.STARTER,
+      },
+      userId,
+    );
   }
 
-  async getMembershipStats(organizationId: string, userId: string): Promise<{
+  async getMembershipStats(
+    organizationId: string,
+    userId: string,
+  ): Promise<{
     currentMembers: number;
     maxMembers: number;
     canAddMore: boolean;
@@ -482,7 +581,10 @@ MoneyFlow Accounting System
     });
 
     const maxMembers = PlanLimitService.getMaxMembers(organization.plan);
-    const canAddMore = PlanLimitService.canAddMember(currentMembers, organization.plan);
+    const canAddMore = PlanLimitService.canAddMember(
+      currentMembers,
+      organization.plan,
+    );
 
     return {
       currentMembers,
@@ -492,13 +594,20 @@ MoneyFlow Accounting System
     };
   }
 
-  async cancelInvite(organizationId: string, inviteId: string, userId: string): Promise<void> {
+  async cancelInvite(
+    organizationId: string,
+    inviteId: string,
+    userId: string,
+  ): Promise<void> {
     // Check if user has permission (OWNER or ADMIN)
     const userMember = await this.memberRepository.findOne({
       where: { organizationId, userId },
     });
 
-    if (!userMember || (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)) {
+    if (
+      !userMember ||
+      (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)
+    ) {
       throw new ForbiddenException('Only owners and admins can cancel invites');
     }
 
@@ -515,13 +624,20 @@ MoneyFlow Accounting System
     await this.inviteRepository.remove(invite);
   }
 
-  async resendInvite(organizationId: string, inviteId: string, userId: string): Promise<Invite> {
+  async resendInvite(
+    organizationId: string,
+    inviteId: string,
+    userId: string,
+  ): Promise<Invite> {
     // Check if user has permission (OWNER or ADMIN)
     const userMember = await this.memberRepository.findOne({
       where: { organizationId, userId },
     });
 
-    if (!userMember || (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)) {
+    if (
+      !userMember ||
+      (userMember.role !== Role.OWNER && userMember.role !== Role.ADMIN)
+    ) {
       throw new ForbiddenException('Only owners and admins can resend invites');
     }
 
@@ -538,7 +654,7 @@ MoneyFlow Accounting System
     // Update expiry date (extend by 7 days)
     const newExpiryDate = new Date();
     newExpiryDate.setDate(newExpiryDate.getDate() + 7);
-    
+
     invite.expiresAt = newExpiryDate;
 
     // Save updated invite
@@ -574,12 +690,15 @@ You still have a pending invitation to join ${invite.organization.name} as a ${i
 Accept invitation: ${inviteUrl}
 
 This invitation has been extended and will expire on ${newExpiryDate.toLocaleString()}.
-        `
+        `,
       });
 
       console.log(`📧 Resent invitation email to ${invite.email}`);
     } catch (error) {
-      console.error(`❌ Failed to resend invitation email to ${invite.email}:`, error);
+      console.error(
+        `❌ Failed to resend invitation email to ${invite.email}:`,
+        error,
+      );
       // Do not fail the request if email fails
     }
 

@@ -1,6 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-    import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
@@ -31,14 +31,18 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000, // 1 dakika
-      limit: 100, // Normal API endpoints için (middleware auth endpoints'i override eder)
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 dakika
+        limit: 100, // Normal API endpoints için (middleware auth endpoints'i override eder)
+      },
+    ]),
     TypeOrmModule.forRootAsync({
       useFactory: () => {
         const isProd = process.env.NODE_ENV === 'production';
-        const isTest = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+        const isTest =
+          process.env.NODE_ENV === 'test' ||
+          typeof process.env.JEST_WORKER_ID !== 'undefined';
 
         // Use in-memory SQLite for tests to avoid external DB dependency
         if (isTest) {
@@ -53,13 +57,20 @@ import { CSRFMiddleware } from './common/csrf.middleware';
         }
 
         const host = process.env.DATABASE_HOST || (isProd ? '' : 'localhost');
-        const port = parseInt(process.env.DATABASE_PORT || (isProd ? '0' : '5432'));
-        const username = process.env.DATABASE_USER || (isProd ? '' : 'postgres');
-        const password = process.env.DATABASE_PASSWORD || (isProd ? '' : 'password123');
-        const database = process.env.DATABASE_NAME || (isProd ? '' : 'postgres');
+        const port = parseInt(
+          process.env.DATABASE_PORT || (isProd ? '0' : '5432'),
+        );
+        const username =
+          process.env.DATABASE_USER || (isProd ? '' : 'postgres');
+        const password =
+          process.env.DATABASE_PASSWORD || (isProd ? '' : 'password123');
+        const database =
+          process.env.DATABASE_NAME || (isProd ? '' : 'postgres');
 
         if (isProd && (!host || !port || !username || !password || !database)) {
-          throw new Error('Database environment variables are required in production');
+          throw new Error(
+            'Database environment variables are required in production',
+          );
         }
 
         return {
@@ -86,7 +97,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     ProductsModule,
     InvoicesModule,
     ExpensesModule,
-  BankAccountsModule,
+    BankAccountsModule,
     AdminModule,
     AuditModule,
     FiscalPeriodsModule,
@@ -113,12 +124,8 @@ import { CSRFMiddleware } from './common/csrf.middleware';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(RateLimitMiddleware)
-      .forRoutes('*'); // Tüm route'lara rate limiting uygula
-    
-    consumer
-      .apply(CSRFMiddleware)
-      .forRoutes('*'); // Tüm route'lara CSRF koruması uygula
+    consumer.apply(RateLimitMiddleware).forRoutes('*'); // Tüm route'lara rate limiting uygula
+
+    consumer.apply(CSRFMiddleware).forRoutes('*'); // Tüm route'lara CSRF koruması uygula
   }
 }

@@ -1,9 +1,19 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Supplier } from '../../suppliers/entities/supplier.entity';
 import { User } from '../../users/entities/user.entity';
 
-const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+const __isTestEnv =
+  process.env.NODE_ENV === 'test' ||
+  typeof process.env.JEST_WORKER_ID !== 'undefined';
 
 export enum ExpenseCategory {
   OTHER = 'other',
@@ -84,7 +94,11 @@ export class Expense {
   @Column({ name: 'void_reason', type: 'text', nullable: true })
   voidReason: string | null;
 
-  @Column({ name: 'voided_at', type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  @Column({
+    name: 'voided_at',
+    type: __isTestEnv ? 'datetime' : 'timestamp',
+    nullable: true,
+  })
   voidedAt: Date | null;
 
   @Column({ name: 'voided_by', type: 'uuid', nullable: true })

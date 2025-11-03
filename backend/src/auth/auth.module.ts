@@ -18,7 +18,9 @@ import { SecurityService } from '../common/security.service';
       useFactory: async (configService: ConfigService) => {
         const jwtSecret = configService.get<string>('JWT_SECRET');
         if (!jwtSecret || jwtSecret === 'default-secret') {
-          throw new Error('JWT_SECRET environment variable must be set with a secure key');
+          throw new Error(
+            'JWT_SECRET environment variable must be set with a secure key',
+          );
         }
         return {
           secret: jwtSecret,

@@ -9,7 +9,6 @@ export interface TwoFactorSecretResponse {
 
 @Injectable()
 export class TwoFactorService {
-  
   /**
    * TOTP için güvenli secret üretir
    */
@@ -26,20 +25,20 @@ export class TwoFactorService {
     const time = Math.floor((timeWindow || Date.now()) / 30000);
     const timeBuffer = Buffer.alloc(8);
     timeBuffer.writeBigUInt64BE(BigInt(time), 0);
-    
+
     const secretBuffer = this.base32Decode(secret);
     const hmac = crypto.createHmac('sha1', secretBuffer);
     hmac.update(timeBuffer);
     const digest = hmac.digest();
-    
+
     const offset = digest[digest.length - 1] & 0xf;
-    const code = (
-      ((digest[offset] & 0x7f) << 24) |
-      ((digest[offset + 1] & 0xff) << 16) |
-      ((digest[offset + 2] & 0xff) << 8) |
-      (digest[offset + 3] & 0xff)
-    ) % 1000000;
-    
+    const code =
+      (((digest[offset] & 0x7f) << 24) |
+        ((digest[offset + 1] & 0xff) << 16) |
+        ((digest[offset + 2] & 0xff) << 8) |
+        (digest[offset + 3] & 0xff)) %
+      1000000;
+
     return code.toString().padStart(6, '0');
   }
 
@@ -48,29 +47,33 @@ export class TwoFactorService {
    */
   verifyToken(secret: string, token: string): boolean {
     const currentTime = Date.now();
-    
+
     // Mevcut zaman dilimi
     if (this.generateToken(secret, currentTime) === token) {
       return true;
     }
-    
+
     // Önceki zaman dilimi (30 saniye önce)
     if (this.generateToken(secret, currentTime - 30000) === token) {
       return true;
     }
-    
+
     // Sonraki zaman dilimi (30 saniye sonra)
     if (this.generateToken(secret, currentTime + 30000) === token) {
       return true;
     }
-    
+
     return false;
   }
 
   /**
    * QR kod URL'i oluşturur
    */
-  generateQRCodeUrl(secret: string, accountName: string, issuer: string = 'Muhasebe App'): string {
+  generateQRCodeUrl(
+    secret: string,
+    accountName: string,
+    issuer: string = 'Muhasebe App',
+  ): string {
     const encodedAccount = encodeURIComponent(accountName);
     const encodedIssuer = encodeURIComponent(issuer);
     return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
@@ -95,11 +98,11 @@ export class TwoFactorService {
     const secret = this.generateSecret();
     const qrCodeUrl = this.generateQRCodeUrl(secret, accountName);
     const backupCodes = this.generateBackupCodes();
-    
+
     return {
       secret,
       qrCodeUrl,
-      backupCodes
+      backupCodes,
     };
   }
 
@@ -111,21 +114,21 @@ export class TwoFactorService {
     let bits = 0;
     let value = 0;
     let output = '';
-    
+
     for (let i = 0; i < buffer.length; i++) {
       value = (value << 8) | buffer[i];
       bits += 8;
-      
+
       while (bits >= 5) {
         output += alphabet[(value >>> (bits - 5)) & 31];
         bits -= 5;
       }
     }
-    
+
     if (bits > 0) {
       output += alphabet[(value << (5 - bits)) & 31];
     }
-    
+
     return output;
   }
 
@@ -137,21 +140,21 @@ export class TwoFactorService {
     let bits = 0;
     let value = 0;
     let index = 0;
-    const output = Buffer.alloc(Math.ceil(encoded.length * 5 / 8));
-    
+    const output = Buffer.alloc(Math.ceil((encoded.length * 5) / 8));
+
     for (let i = 0; i < encoded.length; i++) {
       const charIndex = alphabet.indexOf(encoded.charAt(i).toUpperCase());
       if (charIndex === -1) continue;
-      
+
       value = (value << 5) | charIndex;
       bits += 5;
-      
+
       if (bits >= 8) {
         output[index++] = (value >>> (bits - 8)) & 255;
         bits -= 8;
       }
     }
-    
+
     return output.slice(0, index);
   }
 }

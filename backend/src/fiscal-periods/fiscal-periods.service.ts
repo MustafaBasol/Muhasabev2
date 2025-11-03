@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not } from 'typeorm';
 import { FiscalPeriod } from './entities/fiscal-period.entity';
@@ -20,19 +24,27 @@ export class FiscalPeriodsService {
     private readonly fiscalPeriodRepository: Repository<FiscalPeriod>,
   ) {}
 
-  async create(createDto: CreateFiscalPeriodDto, tenantId: string): Promise<FiscalPeriod> {
+  async create(
+    createDto: CreateFiscalPeriodDto,
+    tenantId: string,
+  ): Promise<FiscalPeriod> {
     // Check for overlapping periods - correct logic
     const overlapping = await this.fiscalPeriodRepository
       .createQueryBuilder('period')
       .where('period.tenantId = :tenantId', { tenantId })
-      .andWhere('(period.periodStart <= :endDate AND period.periodEnd >= :startDate)', {
-        startDate: createDto.periodStart,
-        endDate: createDto.periodEnd,
-      })
+      .andWhere(
+        '(period.periodStart <= :endDate AND period.periodEnd >= :startDate)',
+        {
+          startDate: createDto.periodStart,
+          endDate: createDto.periodEnd,
+        },
+      )
       .getOne();
 
     if (overlapping) {
-      throw new BadRequestException('Fiscal period overlaps with existing period');
+      throw new BadRequestException(
+        'Fiscal period overlaps with existing period',
+      );
     }
 
     const period = this.fiscalPeriodRepository.create({
@@ -64,7 +76,11 @@ export class FiscalPeriodsService {
     return period;
   }
 
-  async update(id: string, updateDto: Partial<CreateFiscalPeriodDto>, tenantId: string): Promise<FiscalPeriod> {
+  async update(
+    id: string,
+    updateDto: Partial<CreateFiscalPeriodDto>,
+    tenantId: string,
+  ): Promise<FiscalPeriod> {
     const period = await this.findOne(id, tenantId);
 
     // If dates are being updated, check for overlaps
@@ -76,14 +92,19 @@ export class FiscalPeriodsService {
         .createQueryBuilder('period')
         .where('period.tenantId = :tenantId', { tenantId })
         .andWhere('period.id != :id', { id }) // Exclude current period
-        .andWhere('(period.periodStart <= :endDate AND period.periodEnd >= :startDate)', {
-          startDate,
-          endDate,
-        })
+        .andWhere(
+          '(period.periodStart <= :endDate AND period.periodEnd >= :startDate)',
+          {
+            startDate,
+            endDate,
+          },
+        )
         .getOne();
 
       if (overlapping) {
-        throw new BadRequestException('Fiscal period overlaps with existing period');
+        throw new BadRequestException(
+          'Fiscal period overlaps with existing period',
+        );
       }
     }
 
@@ -91,7 +112,12 @@ export class FiscalPeriodsService {
     return this.fiscalPeriodRepository.save(period);
   }
 
-  async lockPeriod(id: string, lockDto: LockPeriodDto, tenantId: string, userId: string): Promise<FiscalPeriod> {
+  async lockPeriod(
+    id: string,
+    lockDto: LockPeriodDto,
+    tenantId: string,
+    userId: string,
+  ): Promise<FiscalPeriod> {
     const period = await this.findOne(id, tenantId);
 
     if (period.isLocked) {
@@ -126,18 +152,25 @@ export class FiscalPeriodsService {
       .createQueryBuilder('period')
       .where('period.tenantId = :tenantId', { tenantId })
       .andWhere('period.isLocked = :isLocked', { isLocked: true })
-      .andWhere(':date BETWEEN period.periodStart AND period.periodEnd', { date })
+      .andWhere(':date BETWEEN period.periodStart AND period.periodEnd', {
+        date,
+      })
       .getOne();
 
     return !!period;
   }
 
-  async getLockedPeriodForDate(date: Date, tenantId: string): Promise<FiscalPeriod | null> {
+  async getLockedPeriodForDate(
+    date: Date,
+    tenantId: string,
+  ): Promise<FiscalPeriod | null> {
     return this.fiscalPeriodRepository
       .createQueryBuilder('period')
       .where('period.tenantId = :tenantId', { tenantId })
       .andWhere('period.isLocked = :isLocked', { isLocked: true })
-      .andWhere(':date BETWEEN period.periodStart AND period.periodEnd', { date })
+      .andWhere(':date BETWEEN period.periodStart AND period.periodEnd', {
+        date,
+      })
       .getOne();
   }
 

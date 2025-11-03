@@ -8,7 +8,9 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
-const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+const __isTestEnv =
+  process.env.NODE_ENV === 'test' ||
+  typeof process.env.JEST_WORKER_ID !== 'undefined';
 
 export enum SubscriptionPlan {
   FREE = 'free',

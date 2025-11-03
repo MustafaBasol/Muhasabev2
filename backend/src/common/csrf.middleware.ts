@@ -13,10 +13,13 @@ interface CSRFTokenStore {
 export class CSRFMiddleware implements NestMiddleware {
   private readonly tokenStore: CSRFTokenStore = {};
   private readonly TOKEN_EXPIRY = 60 * 60 * 1000; // 1 hour
-  private readonly SECRET = process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex');
+  private readonly SECRET =
+    process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex');
 
   use(req: Request, res: Response, next: NextFunction) {
-    const isProtectedMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
+    const isProtectedMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(
+      req.method,
+    );
     const isCSRFProtectedRoute = this.needsCSRFProtection(req.path);
 
     // Her istek için (GET dahil) korunan rotalarda geçerli bir token üret ve döndür
@@ -35,7 +38,7 @@ export class CSRFMiddleware implements NestMiddleware {
     }
 
     // Protected method'larda token doğrula
-  if (isProtectedMethod && isCSRFProtectedRoute && this.shouldEnforceCSRF()) {
+    if (isProtectedMethod && isCSRFProtectedRoute && this.shouldEnforceCSRF()) {
       const sessionId = this.getSessionId(req);
       const providedToken = req.headers['x-csrf-token'] as string;
 
@@ -43,17 +46,17 @@ export class CSRFMiddleware implements NestMiddleware {
         return res.status(403).json({
           error: 'Forbidden',
           message: 'CSRF token missing',
-          statusCode: 403
+          statusCode: 403,
         });
       }
 
       const storedTokenData = this.tokenStore[sessionId];
-      
+
       if (!storedTokenData || storedTokenData.expires < Date.now()) {
         return res.status(403).json({
-          error: 'Forbidden', 
+          error: 'Forbidden',
           message: 'CSRF token expired',
-          statusCode: 403
+          statusCode: 403,
         });
       }
 
@@ -61,13 +64,14 @@ export class CSRFMiddleware implements NestMiddleware {
         return res.status(403).json({
           error: 'Forbidden',
           message: 'Invalid CSRF token',
-          statusCode: 403
+          statusCode: 403,
         });
       }
     }
 
     // Expired token'ları temizle (periodic cleanup)
-    if (Math.random() < 0.1) { // 10% chance per request
+    if (Math.random() < 0.1) {
+      // 10% chance per request
       this.cleanupExpiredTokens();
     }
 
@@ -96,10 +100,12 @@ export class CSRFMiddleware implements NestMiddleware {
       '/customers',
       '/suppliers',
       '/invoices',
-      '/expenses'
+      '/expenses',
     ];
 
-    return protectedPaths.some(protectedPath => normalizedPath.startsWith(protectedPath));
+    return protectedPaths.some((protectedPath) =>
+      normalizedPath.startsWith(protectedPath),
+    );
   }
 
   /**
@@ -107,14 +113,14 @@ export class CSRFMiddleware implements NestMiddleware {
    */
   private getOrCreateSessionId(req: Request, res: Response): string {
     let sessionId = req.cookies?.['csrf-session'];
-    
+
     if (!sessionId) {
       sessionId = crypto.randomBytes(32).toString('hex');
       res.cookie('csrf-session', sessionId, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: this.TOKEN_EXPIRY
+        maxAge: this.TOKEN_EXPIRY,
       });
     }
 
@@ -135,22 +141,25 @@ export class CSRFMiddleware implements NestMiddleware {
     const timestamp = Date.now().toString();
     const randomValue = crypto.randomBytes(16).toString('hex');
     const payload = `${sessionId}:${timestamp}:${randomValue}`;
-    
+
     const hmac = crypto.createHmac('sha256', this.SECRET);
     hmac.update(payload);
     const signature = hmac.digest('hex');
-    
+
     return Buffer.from(`${payload}:${signature}`).toString('base64');
   }
 
   /**
    * CSRF token doğrula
    */
-  private verifyCSRFToken(providedToken: string, expectedToken: string): boolean {
+  private verifyCSRFToken(
+    providedToken: string,
+    expectedToken: string,
+  ): boolean {
     try {
       return crypto.timingSafeEqual(
         Buffer.from(providedToken),
-        Buffer.from(expectedToken)
+        Buffer.from(expectedToken),
       );
     } catch (error) {
       return false;

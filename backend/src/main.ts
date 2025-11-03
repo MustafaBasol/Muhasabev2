@@ -9,33 +9,45 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { SeedService } from './database/seed.service';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: isProd ? ['error', 'warn', 'log'] : ['error', 'warn', 'log', 'debug', 'verbose'],
+    logger: isProd
+      ? ['error', 'warn', 'log']
+      : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
   // Güvenlik headers
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'"],
-        fontSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
-        frameSrc: ["'none'"],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+        },
       },
-    },
-    crossOriginEmbedderPolicy: false, // API için gerekli
-  }));
+      crossOriginEmbedderPolicy: false, // API için gerekli
+    }),
+  );
 
   // Cookie parser for secure cookie handling
   app.use(cookieParser());
+
+  // HTTP response compression (gzip/deflate)
+  app.use(
+    compression({
+      threshold: 1024, // 1KB ve üzerini sıkıştır
+    }),
+  );
 
   // Seed database if empty
   const seedService = app.get(SeedService);
@@ -45,12 +57,18 @@ async function bootstrap() {
   app.useStaticAssets(join(__dirname, '..', 'public'), {
     index: false, // Don't serve index.html automatically
     prefix: '/',
+    maxAge: '7d', // statik dosyaları 7 gün cachele
+    setHeaders: (res, path) => {
+      if (/\.(?:js|css|svg|png|jpg|jpeg|gif|woff2?)$/i.test(path)) {
+        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      }
+    },
   });
-  
+
   // Gelişmiş CORS yapılandırması - Codespaces ve prod için güvenli
   const allowedOrigins = (process.env.CORS_ORIGINS || '')
     .split(',')
-    .map(o => o.trim())
+    .map((o) => o.trim())
     .filter(Boolean);
 
   app.enableCors({
@@ -70,7 +88,14 @@ async function bootstrap() {
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true, // Secure cookies için gerekli
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-CSRF-Token'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'Origin',
+      'X-Requested-With',
+      'X-CSRF-Token',
+    ],
     exposedHeaders: ['Authorization', 'X-CSRF-Token'],
     maxAge: 86400,
     preflightContinue: false,
@@ -81,14 +106,15 @@ async function bootstrap() {
   app.use((req, res, next) => {
     // Override cookie method for secure settings
     const originalCookie = res.cookie;
-    res.cookie = function(name, value, options = {}) {
+    res.cookie = function (name, value, options = {}) {
       const secureOptions = {
         httpOnly: true, // XSS koruması
         secure: process.env.NODE_ENV === 'production', // HTTPS-only in production
-        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax' as const,
+        sameSite:
+          process.env.NODE_ENV === 'production' ? 'strict' : ('lax' as const),
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/',
-        ...options
+        ...options,
       };
       return originalCookie.call(this, name, value, secureOptions);
     };
@@ -96,11 +122,13 @@ async function bootstrap() {
   });
 
   // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // Global exception filter
   app.useGlobalFilters(new GlobalExceptionFilter());
@@ -115,7 +143,7 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-  
+
   const document = SwaggerModule.createDocument(app, config);
   // Global API prefix (development de de prod ile aynı olsun)
   app.setGlobalPrefix('api', { exclude: ['health'] });
@@ -124,7 +152,7 @@ async function bootstrap() {
 
   const port = parseInt(process.env.PORT || '3000', 10);
   const host = '0.0.0.0'; // Bu tüm interface'lerde dinlemeyi sağlar
-  
+
   await app.listen(port, host);
 
   const codespaceName = process.env.CODESPACE_NAME;
@@ -136,4 +164,5 @@ async function bootstrap() {
   console.log(`📚 Swagger documentation: ${externalUrl}/api`);
   console.log(`🔗 Local access: http://localhost:${port}`);
 }
-bootstrap();
+// Top-level bootstrap; explicitly ignore returned Promise to avoid floating-promises warning
+void bootstrap();

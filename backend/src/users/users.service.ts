@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
@@ -6,8 +10,15 @@ import { Tenant, SubscriptionPlan } from '../tenants/entities/tenant.entity';
 import archiver from 'archiver';
 import { Readable } from 'stream';
 import { SecurityService } from '../common/security.service';
-import { TwoFactorService, TwoFactorSecretResponse } from '../common/two-factor.service';
-import { Enable2FADto, Verify2FADto, Disable2FADto } from './dto/enable-2fa.dto';
+import {
+  TwoFactorService,
+  TwoFactorSecretResponse,
+} from '../common/two-factor.service';
+import {
+  Enable2FADto,
+  Verify2FADto,
+  Disable2FADto,
+} from './dto/enable-2fa.dto';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 
 export interface CreateUserDto {
@@ -32,7 +43,16 @@ export class UsersService {
 
   async findAll() {
     return this.userRepository.find({
-      select: ['id', 'email', 'firstName', 'lastName', 'role', 'isActive', 'lastLoginAt', 'createdAt'],
+      select: [
+        'id',
+        'email',
+        'firstName',
+        'lastName',
+        'role',
+        'isActive',
+        'lastLoginAt',
+        'createdAt',
+      ],
     });
   }
 
@@ -63,18 +83,28 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     // Plan limiti: Kullanıcı ekleme kontrolü
-    const tenant = await this.tenantRepository.findOne({ where: { id: createUserDto.tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: createUserDto.tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException('Tenant not found');
     }
 
-    const currentCount = await this.userRepository.count({ where: { tenantId: createUserDto.tenantId } });
-    if (!TenantPlanLimitService.canAddUser(currentCount, tenant.subscriptionPlan as SubscriptionPlan)) {
-      throw new BadRequestException(TenantPlanLimitService.errorMessageFor('user', tenant.subscriptionPlan as SubscriptionPlan));
+    const currentCount = await this.userRepository.count({
+      where: { tenantId: createUserDto.tenantId },
+    });
+    if (
+      !TenantPlanLimitService.canAddUser(currentCount, tenant.subscriptionPlan)
+    ) {
+      throw new BadRequestException(
+        TenantPlanLimitService.errorMessageFor('user', tenant.subscriptionPlan),
+      );
     }
 
-    const hashedPassword = await this.securityService.hashPassword(createUserDto.password);
-    
+    const hashedPassword = await this.securityService.hashPassword(
+      createUserDto.password,
+    );
+
     const user = this.userRepository.create({
       email: createUserDto.email,
       password: hashedPassword,
@@ -89,9 +119,11 @@ export class UsersService {
 
   async update(id: string, updateData: Partial<User>): Promise<User> {
     console.log('🔧 UsersService.update called with:', { id, updateData });
-    
+
     if (updateData.password) {
-      updateData.password = await this.securityService.hashPassword(updateData.password);
+      updateData.password = await this.securityService.hashPassword(
+        updateData.password,
+      );
     }
 
     console.log('📊 Calling repository.update with:', { id, updateData });
@@ -120,7 +152,7 @@ export class UsersService {
   async exportUserData(userId: string): Promise<Buffer> {
     const user = await this.findOne(userId);
     const tenantId = user.tenantId;
-    
+
     // Query all related data for this tenant - using TypeORM repositories instead of raw SQL
     let invoices = [];
     let expenses = [];
@@ -132,14 +164,20 @@ export class UsersService {
     try {
       // Use entity manager to get repositories dynamically
       const entityManager = this.userRepository.manager;
-      
+
       // Get invoices
       try {
-        invoices = await entityManager.query(`SELECT * FROM "invoice" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        invoices = await entityManager.query(
+          `SELECT * FROM "invoice" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+          [tenantId],
+        );
       } catch (e) {
         console.log('Invoice table query failed, trying alternatives...');
         try {
-          invoices = await entityManager.query(`SELECT * FROM invoices WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+          invoices = await entityManager.query(
+            `SELECT * FROM invoices WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+            [tenantId],
+          );
         } catch (e2) {
           console.log('No invoice data found');
         }
@@ -147,10 +185,16 @@ export class UsersService {
 
       // Get expenses
       try {
-        expenses = await entityManager.query(`SELECT * FROM "expense" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        expenses = await entityManager.query(
+          `SELECT * FROM "expense" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+          [tenantId],
+        );
       } catch (e) {
         try {
-          expenses = await entityManager.query(`SELECT * FROM expenses WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+          expenses = await entityManager.query(
+            `SELECT * FROM expenses WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+            [tenantId],
+          );
         } catch (e2) {
           console.log('No expense data found');
         }
@@ -158,10 +202,16 @@ export class UsersService {
 
       // Get customers
       try {
-        customers = await entityManager.query(`SELECT * FROM "customer" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        customers = await entityManager.query(
+          `SELECT * FROM "customer" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+          [tenantId],
+        );
       } catch (e) {
         try {
-          customers = await entityManager.query(`SELECT * FROM customers WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+          customers = await entityManager.query(
+            `SELECT * FROM customers WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+            [tenantId],
+          );
         } catch (e2) {
           console.log('No customer data found');
         }
@@ -169,10 +219,16 @@ export class UsersService {
 
       // Get suppliers
       try {
-        suppliers = await entityManager.query(`SELECT * FROM "supplier" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        suppliers = await entityManager.query(
+          `SELECT * FROM "supplier" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+          [tenantId],
+        );
       } catch (e) {
         try {
-          suppliers = await entityManager.query(`SELECT * FROM suppliers WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+          suppliers = await entityManager.query(
+            `SELECT * FROM suppliers WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+            [tenantId],
+          );
         } catch (e2) {
           console.log('No supplier data found');
         }
@@ -180,10 +236,16 @@ export class UsersService {
 
       // Get products
       try {
-        products = await entityManager.query(`SELECT * FROM "product" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        products = await entityManager.query(
+          `SELECT * FROM "product" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+          [tenantId],
+        );
       } catch (e) {
         try {
-          products = await entityManager.query(`SELECT * FROM products WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+          products = await entityManager.query(
+            `SELECT * FROM products WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+            [tenantId],
+          );
         } catch (e2) {
           console.log('No product data found');
         }
@@ -191,10 +253,16 @@ export class UsersService {
 
       // Get product categories
       try {
-        productCategories = await entityManager.query(`SELECT * FROM "product_category" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+        productCategories = await entityManager.query(
+          `SELECT * FROM "product_category" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+          [tenantId],
+        );
       } catch (e) {
         try {
-          productCategories = await entityManager.query(`SELECT * FROM product_categories WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+          productCategories = await entityManager.query(
+            `SELECT * FROM product_categories WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
+            [tenantId],
+          );
         } catch (e2) {
           console.log('No product category data found');
         }
@@ -215,15 +283,17 @@ export class UsersService {
         updatedAt: user.updatedAt,
         lastLoginAt: user.lastLoginAt,
       },
-      tenant: user.tenant ? {
-        id: user.tenant.id,
-        name: user.tenant.name,
-        slug: user.tenant.slug,
-        companyName: user.tenant.companyName,
-        subscriptionPlan: user.tenant.subscriptionPlan,
-        status: user.tenant.status,
-        createdAt: user.tenant.createdAt,
-      } : null,
+      tenant: user.tenant
+        ? {
+            id: user.tenant.id,
+            name: user.tenant.name,
+            slug: user.tenant.slug,
+            companyName: user.tenant.companyName,
+            subscriptionPlan: user.tenant.subscriptionPlan,
+            status: user.tenant.status,
+            createdAt: user.tenant.createdAt,
+          }
+        : null,
       invoices: invoices || [],
       expenses: expenses || [],
       customers: customers || [],
@@ -238,7 +308,16 @@ export class UsersService {
       userId: userId,
       email: user.email,
       tenantId: tenantId,
-      dataTypes: ['profile', 'tenant', 'invoices', 'expenses', 'customers', 'suppliers', 'products', 'productCategories'],
+      dataTypes: [
+        'profile',
+        'tenant',
+        'invoices',
+        'expenses',
+        'customers',
+        'suppliers',
+        'products',
+        'productCategories',
+      ],
       totalRecords: {
         invoices: invoices.length,
         expenses: expenses.length,
@@ -247,7 +326,8 @@ export class UsersService {
         products: products.length,
         productCategories: productCategories.length,
       },
-      retentionPolicy: 'Personal data will be retained for 7 years as required by accounting regulations.',
+      retentionPolicy:
+        'Personal data will be retained for 7 years as required by accounting regulations.',
       contact: 'privacy@comptario.com',
     };
 
@@ -260,45 +340,66 @@ export class UsersService {
       archive.on('error', reject);
 
       // Add files to archive
-      archive.append(JSON.stringify(userData, null, 2), { name: 'user_data.json' });
-      archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
-      
+      archive.append(JSON.stringify(userData, null, 2), {
+        name: 'user_data.json',
+      });
+      archive.append(JSON.stringify(manifest, null, 2), {
+        name: 'manifest.json',
+      });
+
       // Add CSV versions of all data
-      archive.append(this.convertToCSV([userData.profile]), { name: 'profile.csv' });
-      
+      archive.append(this.convertToCSV([userData.profile]), {
+        name: 'profile.csv',
+      });
+
       if (userData.invoices.length > 0) {
-        archive.append(this.convertToCSV(userData.invoices), { name: 'invoices.csv' });
+        archive.append(this.convertToCSV(userData.invoices), {
+          name: 'invoices.csv',
+        });
       }
-      
+
       if (userData.expenses.length > 0) {
-        archive.append(this.convertToCSV(userData.expenses), { name: 'expenses.csv' });
+        archive.append(this.convertToCSV(userData.expenses), {
+          name: 'expenses.csv',
+        });
       }
-      
+
       if (userData.customers.length > 0) {
-        archive.append(this.convertToCSV(userData.customers), { name: 'customers.csv' });
+        archive.append(this.convertToCSV(userData.customers), {
+          name: 'customers.csv',
+        });
       }
-      
+
       if (userData.suppliers.length > 0) {
-        archive.append(this.convertToCSV(userData.suppliers), { name: 'suppliers.csv' });
+        archive.append(this.convertToCSV(userData.suppliers), {
+          name: 'suppliers.csv',
+        });
       }
-      
+
       if (userData.products.length > 0) {
-        archive.append(this.convertToCSV(userData.products), { name: 'products.csv' });
+        archive.append(this.convertToCSV(userData.products), {
+          name: 'products.csv',
+        });
       }
-      
+
       if (userData.productCategories.length > 0) {
-        archive.append(this.convertToCSV(userData.productCategories), { name: 'productCategories.csv' });
+        archive.append(this.convertToCSV(userData.productCategories), {
+          name: 'productCategories.csv',
+        });
       }
 
       archive.finalize();
     });
-    
+
     // Send email notification after successful export
     try {
       // Email service integration would go here
       console.log('Data export ready for user:', user.email);
     } catch (error) {
-      console.log('⚠️  Failed to send export notification email:', error.message);
+      console.log(
+        '⚠️  Failed to send export notification email:',
+        error.message,
+      );
     }
   }
 
@@ -307,7 +408,7 @@ export class UsersService {
    */
   async requestAccountDeletion(userId: string): Promise<void> {
     const user = await this.findOne(userId);
-    
+
     // Mark user as pending deletion
     await this.userRepository.update(userId, {
       deletionRequestedAt: new Date(),
@@ -322,13 +423,18 @@ export class UsersService {
       console.log('Account deletion scheduled for user:', user.email);
       console.log(`📧 Deletion confirmation email sent to ${user.email}`);
     } catch (error) {
-      console.log('⚠️  Failed to send deletion confirmation email:', error.message);
+      console.log(
+        '⚠️  Failed to send deletion confirmation email:',
+        error.message,
+      );
     }
-    
+
     // TODO: Queue background job for actual deletion after retention period
     // await this.queueService.scheduleAccountDeletion(userId, 30); // 30 days
-    
-    console.log(`🗑️  Account deletion requested for user ${userId} (${user.email})`);
+
+    console.log(
+      `🗑️  Account deletion requested for user ${userId} (${user.email})`,
+    );
   }
 
   /**
@@ -336,18 +442,22 @@ export class UsersService {
    */
   private convertToCSV(data: any[]): string {
     if (!data.length) return '';
-    
+
     const headers = Object.keys(data[0]);
     const csvRows = [
       headers.join(','),
-      ...data.map(row => 
-        headers.map(header => {
-          const value = row[header];
-          return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value;
-        }).join(',')
-      )
+      ...data.map((row) =>
+        headers
+          .map((header) => {
+            const value = row[header];
+            return typeof value === 'string'
+              ? `"${value.replace(/"/g, '""')}"`
+              : value;
+          })
+          .join(','),
+      ),
     ];
-    
+
     return csvRows.join('\n');
   }
 
@@ -366,13 +476,13 @@ export class UsersService {
 
     // Yeni secret ve backup codes oluştur
     const setup = this.twoFactorService.generateTwoFactorSetup(user.email);
-    
+
     // Secret'ı database'e kaydet (henüz aktif değil)
     await this.userRepository.update(userId, {
       twoFactorSecret: setup.secret,
-      backupCodes: setup.backupCodes.map(code => 
-        this.securityService.hashPasswordSync(code) // Backup codes'ları hash'le
-      )
+      backupCodes: setup.backupCodes.map(
+        (code) => this.securityService.hashPasswordSync(code), // Backup codes'ları hash'le
+      ),
     });
 
     return setup;
@@ -381,7 +491,10 @@ export class UsersService {
   /**
    * 2FA Enable - TOTP token ile 2FA'yı aktif eder
    */
-  async enableTwoFactor(userId: string, dto: Enable2FADto): Promise<{ message: string; backupCodes: string[] }> {
+  async enableTwoFactor(
+    userId: string,
+    dto: Enable2FADto,
+  ): Promise<{ message: string; backupCodes: string[] }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -392,11 +505,16 @@ export class UsersService {
     }
 
     if (!user.twoFactorSecret) {
-      throw new BadRequestException('2FA setup not initiated. Call setupTwoFactor first');
+      throw new BadRequestException(
+        '2FA setup not initiated. Call setupTwoFactor first',
+      );
     }
 
     // TOTP token'ı doğrula
-    const isValidToken = this.twoFactorService.verifyToken(user.twoFactorSecret, dto.token);
+    const isValidToken = this.twoFactorService.verifyToken(
+      user.twoFactorSecret,
+      dto.token,
+    );
     if (!isValidToken) {
       throw new BadRequestException('Invalid TOTP token');
     }
@@ -404,20 +522,20 @@ export class UsersService {
     // 2FA'yı aktif et
     await this.userRepository.update(userId, {
       twoFactorEnabled: true,
-      twoFactorEnabledAt: new Date()
+      twoFactorEnabledAt: new Date(),
     });
 
     // Backup codes'ları kullanıcıya döndür (sadece bir kez gösterilir)
     const backupCodes = this.twoFactorService.generateBackupCodes();
     await this.userRepository.update(userId, {
-      backupCodes: backupCodes.map(code => 
-        this.securityService.hashPasswordSync(code)
-      )
+      backupCodes: backupCodes.map((code) =>
+        this.securityService.hashPasswordSync(code),
+      ),
     });
 
     return {
       message: '2FA enabled successfully',
-      backupCodes
+      backupCodes,
     };
   }
 
@@ -442,12 +560,17 @@ export class UsersService {
     // 8 haneli ise backup code
     if (dto.token.length === 8 && user.backupCodes) {
       for (const hashedCode of user.backupCodes) {
-        const isValidBackupCode = await this.securityService.comparePassword(dto.token, hashedCode);
+        const isValidBackupCode = await this.securityService.comparePassword(
+          dto.token,
+          hashedCode,
+        );
         if (isValidBackupCode) {
           // Kullanılan backup code'u listeden çıkar
-          const updatedBackupCodes = user.backupCodes.filter(code => code !== hashedCode);
+          const updatedBackupCodes = user.backupCodes.filter(
+            (code) => code !== hashedCode,
+          );
           await this.userRepository.update(userId, {
-            backupCodes: updatedBackupCodes
+            backupCodes: updatedBackupCodes,
           });
           return true;
         }
@@ -460,7 +583,10 @@ export class UsersService {
   /**
    * 2FA Disable - 2FA'yı deaktif eder
    */
-  async disableTwoFactor(userId: string, dto: Disable2FADto): Promise<{ message: string }> {
+  async disableTwoFactor(
+    userId: string,
+    dto: Disable2FADto,
+  ): Promise<{ message: string }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -481,30 +607,32 @@ export class UsersService {
       twoFactorEnabled: false,
       twoFactorSecret: undefined,
       backupCodes: undefined,
-      twoFactorEnabledAt: undefined
+      twoFactorEnabledAt: undefined,
     });
 
     return {
-      message: '2FA disabled successfully'
+      message: '2FA disabled successfully',
     };
   }
 
   /**
    * Kullanıcının 2FA durumunu kontrol eder
    */
-  async getTwoFactorStatus(userId: string): Promise<{ enabled: boolean; backupCodesCount: number }> {
-    const user = await this.userRepository.findOne({ 
+  async getTwoFactorStatus(
+    userId: string,
+  ): Promise<{ enabled: boolean; backupCodesCount: number }> {
+    const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['twoFactorEnabled', 'backupCodes']
+      select: ['twoFactorEnabled', 'backupCodes'],
     });
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     return {
       enabled: user.twoFactorEnabled || false,
-      backupCodesCount: user.backupCodes ? user.backupCodes.length : 0
+      backupCodesCount: user.backupCodes ? user.backupCodes.length : 0,
     };
   }
 }

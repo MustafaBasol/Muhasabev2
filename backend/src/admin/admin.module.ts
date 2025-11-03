@@ -37,7 +37,11 @@ import { EmailService } from '../services/email.service';
       Invite,
     ]),
   ],
-  controllers: [AdminController, BackupController, AdminOrganizationsController],
+  controllers: [
+    AdminController,
+    BackupController,
+    AdminOrganizationsController,
+  ],
   providers: [AdminService, BackupService, SecurityService, EmailService],
   exports: [AdminService, BackupService],
 })

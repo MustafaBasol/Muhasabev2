@@ -11,7 +11,9 @@ import {
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Organization } from '../../organizations/entities/organization.entity';
 
-const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+const __isTestEnv =
+  process.env.NODE_ENV === 'test' ||
+  typeof process.env.JEST_WORKER_ID !== 'undefined';
 
 export enum UserRole {
   SUPER_ADMIN = 'super_admin',
@@ -63,10 +65,19 @@ export class User {
   @Column({ name: 'twoFactorEnabled', default: false })
   twoFactorEnabled: boolean;
 
-  @Column({ name: 'twoFactorBackupCodes', type: __isTestEnv ? 'simple-json' : 'text', array: __isTestEnv ? undefined : true, nullable: true })
+  @Column({
+    name: 'twoFactorBackupCodes',
+    type: __isTestEnv ? 'simple-json' : 'text',
+    array: __isTestEnv ? undefined : true,
+    nullable: true,
+  })
   backupCodes: string[];
 
-  @Column({ name: 'twoFactorEnabledAt', type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  @Column({
+    name: 'twoFactorEnabledAt',
+    type: __isTestEnv ? 'datetime' : 'timestamp',
+    nullable: true,
+  })
   twoFactorEnabledAt: Date;
 
   // Email verification fields

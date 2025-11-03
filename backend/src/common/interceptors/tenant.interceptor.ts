@@ -22,7 +22,7 @@ export class TenantInterceptor implements NestInterceptor {
     if (user && user.tenantId) {
       // Add tenant context to the request
       request.tenantId = user.tenantId;
-      
+
       // Log tenant-specific requests (only in development)
       if (process.env.NODE_ENV === 'development') {
         this.logger.debug(

@@ -80,30 +80,45 @@ export class CreateAuditLogTable1730282000000 implements MigrationInterface {
     );
 
     // Indexes for better query performance
-    await queryRunner.createIndex('audit_log', new TableIndex({
-      name: 'IDX_audit_log_tenant_id',
-      columnNames: ['tenantId'],
-    }));
-    
-    await queryRunner.createIndex('audit_log', new TableIndex({
-      name: 'IDX_audit_log_user_id', 
-      columnNames: ['userId'],
-    }));
-    
-    await queryRunner.createIndex('audit_log', new TableIndex({
-      name: 'IDX_audit_log_entity',
-      columnNames: ['entity'],
-    }));
-    
-    await queryRunner.createIndex('audit_log', new TableIndex({
-      name: 'IDX_audit_log_created_at',
-      columnNames: ['createdAt'],
-    }));
-    
-    await queryRunner.createIndex('audit_log', new TableIndex({
-      name: 'IDX_audit_log_entity_composite',
-      columnNames: ['entity', 'entityId'],
-    }));
+    await queryRunner.createIndex(
+      'audit_log',
+      new TableIndex({
+        name: 'IDX_audit_log_tenant_id',
+        columnNames: ['tenantId'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'audit_log',
+      new TableIndex({
+        name: 'IDX_audit_log_user_id',
+        columnNames: ['userId'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'audit_log',
+      new TableIndex({
+        name: 'IDX_audit_log_entity',
+        columnNames: ['entity'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'audit_log',
+      new TableIndex({
+        name: 'IDX_audit_log_created_at',
+        columnNames: ['createdAt'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'audit_log',
+      new TableIndex({
+        name: 'IDX_audit_log_entity_composite',
+        columnNames: ['entity', 'entityId'],
+      }),
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

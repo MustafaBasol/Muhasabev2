@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PeriodLockGuard } from '../common/guards/period-lock.guard';
@@ -39,13 +49,21 @@ export class ExpensesController {
   @Patch(':id')
   @UseGuards(PeriodLockGuard)
   @Audit('Expense', AuditAction.UPDATE)
-  update(@Req() req: any, @Param('id') id: string, @Body() updateExpenseDto: any) {
+  update(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() updateExpenseDto: any,
+  ) {
     return this.expensesService.update(req.user.tenantId, id, updateExpenseDto);
   }
 
   @Patch(':id/status')
   @Audit('Expense', AuditAction.UPDATE)
-  updateStatus(@Req() req: any, @Param('id') id: string, @Body('status') status: ExpenseStatus) {
+  updateStatus(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body('status') status: ExpenseStatus,
+  ) {
     return this.expensesService.updateStatus(req.user.tenantId, id, status);
   }
 
@@ -58,8 +76,17 @@ export class ExpensesController {
 
   @Patch(':id/void')
   @Audit('Expense', AuditAction.UPDATE)
-  voidExpense(@Req() req: any, @Param('id') id: string, @Body('reason') reason?: string) {
-    return this.expensesService.voidExpense(req.user.tenantId, id, req.user.userId, reason);
+  voidExpense(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.expensesService.voidExpense(
+      req.user.tenantId,
+      id,
+      req.user.userId,
+      reason,
+    );
   }
 
   @Patch(':id/restore')

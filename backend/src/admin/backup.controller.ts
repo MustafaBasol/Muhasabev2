@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Delete, Param, Query, Body, Headers, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Query,
+  Body,
+  Headers,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { BackupService, BackupMetadata } from './backup.service';
 import { AdminService } from './admin.service';
 
@@ -23,7 +33,10 @@ export class BackupController {
    * Tüm backup'ları listele
    */
   @Get()
-  async listBackups(@Query('type') type?: 'system' | 'user' | 'tenant', @Headers() headers?: any) {
+  async listBackups(
+    @Query('type') type?: 'system' | 'user' | 'tenant',
+    @Headers() headers?: any,
+  ) {
     this.checkAdminAuth(headers);
     return this.backupService.listBackups(type);
   }
@@ -32,7 +45,10 @@ export class BackupController {
    * Belirli bir kullanıcının backup'larını listele
    */
   @Get('user/:userId')
-  async listUserBackups(@Param('userId') userId: string, @Headers() headers?: any) {
+  async listUserBackups(
+    @Param('userId') userId: string,
+    @Headers() headers?: any,
+  ) {
     this.checkAdminAuth(headers);
     return this.backupService.listUserBackups(userId);
   }
@@ -41,7 +57,10 @@ export class BackupController {
    * Sistem bazlı backup al (tüm sistem)
    */
   @Post('system')
-  async createSystemBackup(@Body('description') description?: string, @Headers() headers?: any) {
+  async createSystemBackup(
+    @Body('description') description?: string,
+    @Headers() headers?: any,
+  ) {
     this.checkAdminAuth(headers);
     return this.backupService.createSystemBackup(description);
   }
@@ -126,7 +145,10 @@ export class BackupController {
    * Backup sil
    */
   @Delete(':backupId')
-  async deleteBackup(@Param('backupId') backupId: string, @Headers() headers?: any) {
+  async deleteBackup(
+    @Param('backupId') backupId: string,
+    @Headers() headers?: any,
+  ) {
     this.checkAdminAuth(headers);
     return this.backupService.deleteBackup(backupId);
   }

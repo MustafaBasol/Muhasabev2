@@ -4,7 +4,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 export interface SecurityEvent {
-  type: 'login_attempt' | 'login_success' | 'login_failure' | 'admin_access' | 'suspicious_activity' | 'rate_limit_exceeded';
+  type:
+    | 'login_attempt'
+    | 'login_success'
+    | 'login_failure'
+    | 'admin_access'
+    | 'suspicious_activity'
+    | 'rate_limit_exceeded';
   userId?: string;
   ip: string;
   userAgent?: string;
@@ -27,7 +33,7 @@ export class SecurityLoggerService {
     };
 
     this.securityEvents.push(securityEvent);
-    
+
     // Console'a da logla
     this.logger.warn(`🔒 Security Event: ${event.type}`, {
       type: event.type,
@@ -52,16 +58,16 @@ export class SecurityLoggerService {
    */
   private handleCriticalEvent(event: SecurityEvent) {
     this.logger.error(`🚨 CRITICAL Security Event: ${event.type}`, event);
-    
+
     // Production'da bu olayları harici sisteme gönder
     // - Email notification
     // - Slack/Discord webhook
     // - Security monitoring service
-    
+
     if (process.env.NODE_ENV === 'production') {
       // Webhook example
-      this.sendSecurityAlert(event).catch(err => 
-        this.logger.error('Failed to send security alert:', err)
+      this.sendSecurityAlert(event).catch((err) =>
+        this.logger.error('Failed to send security alert:', err),
       );
     }
   }
@@ -79,16 +85,26 @@ export class SecurityLoggerService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: `🚨 Security Alert: ${event.type}`,
-          attachments: [{
-            color: 'danger',
-            fields: [
-              { title: 'Type', value: event.type, short: true },
-              { title: 'IP', value: event.ip, short: true },
-              { title: 'User ID', value: event.userId || 'N/A', short: true },
-              { title: 'Time', value: event.timestamp.toISOString(), short: true },
-              { title: 'Details', value: JSON.stringify(event.details, null, 2), short: false },
-            ],
-          }],
+          attachments: [
+            {
+              color: 'danger',
+              fields: [
+                { title: 'Type', value: event.type, short: true },
+                { title: 'IP', value: event.ip, short: true },
+                { title: 'User ID', value: event.userId || 'N/A', short: true },
+                {
+                  title: 'Time',
+                  value: event.timestamp.toISOString(),
+                  short: true,
+                },
+                {
+                  title: 'Details',
+                  value: JSON.stringify(event.details, null, 2),
+                  short: false,
+                },
+              ],
+            },
+          ],
         }),
       });
 
@@ -115,7 +131,7 @@ export class SecurityLoggerService {
   getEventsByIp(ip: string, hours = 24): SecurityEvent[] {
     const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
     return this.securityEvents.filter(
-      event => event.ip === ip && event.timestamp > cutoff
+      (event) => event.ip === ip && event.timestamp > cutoff,
     );
   }
 
@@ -124,9 +140,11 @@ export class SecurityLoggerService {
    */
   detectSuspiciousActivity(ip: string): boolean {
     const recentEvents = this.getEventsByIp(ip, 1); // Son 1 saat
-    
+
     // Çok fazla başarısız login denemesi
-    const failedLogins = recentEvents.filter(e => e.type === 'login_failure').length;
+    const failedLogins = recentEvents.filter(
+      (e) => e.type === 'login_failure',
+    ).length;
     if (failedLogins > 5) {
       this.logSecurityEvent({
         type: 'suspicious_activity',
@@ -155,7 +173,9 @@ export class SecurityLoggerService {
    */
   generateSecurityReport(hours = 24) {
     const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
-    const recentEvents = this.securityEvents.filter(e => e.timestamp > cutoff);
+    const recentEvents = this.securityEvents.filter(
+      (e) => e.timestamp > cutoff,
+    );
 
     const report = {
       period: `Last ${hours} hours`,
@@ -163,20 +183,21 @@ export class SecurityLoggerService {
       eventTypes: {} as Record<string, number>,
       topIPs: {} as Record<string, number>,
       suspiciousIPs: [] as string[],
-      criticalEvents: recentEvents.filter(e => 
-        ['suspicious_activity', 'rate_limit_exceeded'].includes(e.type)
+      criticalEvents: recentEvents.filter((e) =>
+        ['suspicious_activity', 'rate_limit_exceeded'].includes(e.type),
       ).length,
     };
 
     // Event türlerini say
-    recentEvents.forEach(event => {
+    recentEvents.forEach((event) => {
       report.eventTypes[event.type] = (report.eventTypes[event.type] || 0) + 1;
       report.topIPs[event.ip] = (report.topIPs[event.ip] || 0) + 1;
     });
 
     // Şüpheli IP'leri tespit et
     Object.entries(report.topIPs).forEach(([ip, count]) => {
-      if (count > 50) { // 24 saatte 50'den fazla event
+      if (count > 50) {
+        // 24 saatte 50'den fazla event
         report.suspiciousIPs.push(ip);
       }
     });

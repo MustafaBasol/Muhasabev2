@@ -40,7 +40,11 @@ export class ProductCategoriesController {
     @Body() updateCategoryDto: UpdateProductCategoryDto,
     @Request() req,
   ) {
-    return this.categoriesService.update(id, updateCategoryDto, req.user.tenantId);
+    return this.categoriesService.update(
+      id,
+      updateCategoryDto,
+      req.user.tenantId,
+    );
   }
 
   @Delete(':id')

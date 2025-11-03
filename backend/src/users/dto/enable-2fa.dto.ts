@@ -10,13 +10,17 @@ export class Enable2FADto {
 export class Verify2FADto {
   @IsString()
   @IsNotEmpty()
-  @Length(6, 8, { message: 'Token must be 6 digits (TOTP) or 8 characters (backup code)' })
+  @Length(6, 8, {
+    message: 'Token must be 6 digits (TOTP) or 8 characters (backup code)',
+  })
   token: string;
 }
 
 export class Disable2FADto {
   @IsString()
   @IsNotEmpty()
-  @Length(6, 8, { message: 'Token must be 6 digits (TOTP) or 8 characters (backup code)' })
+  @Length(6, 8, {
+    message: 'Token must be 6 digits (TOTP) or 8 characters (backup code)',
+  })
   token: string;
 }

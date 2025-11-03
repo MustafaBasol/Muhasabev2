@@ -28,14 +28,17 @@ export class AuditInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<Request>();
     const handler = context.getHandler();
     const controller = context.getClass();
-    
+
     // Get metadata about the audit configuration
     const auditConfig = this.getAuditConfig(controller, handler);
-    
+
     if (!this.isTestEnv()) {
-      console.log(`🎯 AuditInterceptor: ${request.method} ${request.url} - auditConfig:`, auditConfig);
+      console.log(
+        `🎯 AuditInterceptor: ${request.method} ${request.url} - auditConfig:`,
+        auditConfig,
+      );
     }
-    
+
     if (!auditConfig) {
       if (!this.isTestEnv()) {
         console.log('❌ AuditInterceptor: No audit config found, skipping');
@@ -44,20 +47,22 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     const { entity: entityName, action } = auditConfig;
-    
+
     // Store original data for UPDATE operations
-    let originalData: any = null;
-    
+    const originalData: any = null;
+
     return next.handle().pipe(
-      tap(async (result) => {
+      tap((result) => {
         try {
           const user = (request as any).user;
           const tenantId = user?.tenantId;
           const userId = user?.id;
-          
+
           if (!tenantId) {
             if (!this.isTestEnv()) {
-              console.warn('AuditInterceptor: No tenant ID found, skipping audit log');
+              console.warn(
+                'AuditInterceptor: No tenant ID found, skipping audit log',
+              );
             }
             return;
           }
@@ -112,7 +117,12 @@ export class AuditInterceptor implements NestInterceptor {
             userAgent,
           };
 
-          await this.auditService.log(auditEntry);
+          // Fire and forget; don't return a Promise from tap callback
+          void this.auditService
+            .log(auditEntry)
+            .catch((error) =>
+              console.error('AuditInterceptor log error:', error),
+            );
         } catch (error) {
           console.error('AuditInterceptor error:', error);
           // Don't throw error to prevent breaking the main operation
@@ -121,13 +131,16 @@ export class AuditInterceptor implements NestInterceptor {
     );
   }
 
-  private getAuditConfig(controller: any, handler: any): { entity: string; action: AuditAction } | null {
+  private getAuditConfig(
+    controller: any,
+    handler: any,
+  ): { entity: string; action: AuditAction } | null {
     // Check for audit metadata on the handler or controller
     const handlerAudit = Reflect.getMetadata('audit', handler);
     const controllerAudit = Reflect.getMetadata('audit', controller);
-    
+
     const config = handlerAudit || controllerAudit;
-    
+
     if (!config) {
       return null;
     }
@@ -136,21 +149,23 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   private extractIpAddress(request: Request): string {
-    return (
-      (request.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+    return ((request.headers['x-forwarded-for'] as string)?.split(',')[0] ||
       request.headers['x-real-ip'] ||
       request.connection?.remoteAddress ||
       request.socket?.remoteAddress ||
-      'unknown'
-    ) as string;
+      'unknown') as string;
   }
 }
 
 // Decorator to mark methods/controllers for auditing
 export function Audit(entity: string, action: AuditAction) {
-  return function (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) {
+  return function (
+    target: any,
+    propertyKey?: string,
+    descriptor?: PropertyDescriptor,
+  ) {
     const auditConfig = { entity, action };
-    
+
     if (propertyKey) {
       // Method decorator
       Reflect.defineMetadata('audit', auditConfig, descriptor?.value);

@@ -1,5 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
-import { FiscalPeriodsService, type CreateFiscalPeriodDto, type LockPeriodDto } from './fiscal-periods.service';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
+import {
+  FiscalPeriodsService,
+  type CreateFiscalPeriodDto,
+  type LockPeriodDto,
+} from './fiscal-periods.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import type { Request } from 'express';
@@ -38,7 +52,11 @@ export class FiscalPeriodsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any, @Req() req: AuthenticatedRequest) {
+  update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: AuthenticatedRequest,
+  ) {
     // Frontend sends startDate/endDate, but service expects periodStart/periodEnd
     const updateDto = {
       name: body.name,
@@ -49,8 +67,17 @@ export class FiscalPeriodsController {
   }
 
   @Patch(':id/lock')
-  lockPeriod(@Param('id') id: string, @Body() lockDto: LockPeriodDto, @Req() req: AuthenticatedRequest) {
-    return this.fiscalPeriodsService.lockPeriod(id, lockDto, req.user.tenantId, req.user.userId);
+  lockPeriod(
+    @Param('id') id: string,
+    @Body() lockDto: LockPeriodDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.fiscalPeriodsService.lockPeriod(
+      id,
+      lockDto,
+      req.user.tenantId,
+      req.user.userId,
+    );
   }
 
   @Patch(':id/unlock')

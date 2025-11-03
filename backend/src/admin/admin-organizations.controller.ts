@@ -1,4 +1,13 @@
-import { Controller, Get, Headers, UnauthorizedException, Param, Patch, Body, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Headers,
+  UnauthorizedException,
+  Param,
+  Patch,
+  Body,
+  Delete,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AdminService } from './admin.service';
@@ -35,13 +44,19 @@ export class AdminOrganizationsController {
   @Get(':orgId/members')
   async listMembers(@Param('orgId') orgId: string, @Headers() headers: any) {
     this.checkAdminAuth(headers);
-    return this.memberRepo.find({ where: { organizationId: orgId }, relations: ['user'] });
+    return this.memberRepo.find({
+      where: { organizationId: orgId },
+      relations: ['user'],
+    });
   }
 
   @Get(':orgId/invites')
   async listInvites(@Param('orgId') orgId: string, @Headers() headers: any) {
     this.checkAdminAuth(headers);
-    return this.inviteRepo.find({ where: { organizationId: orgId }, order: { createdAt: 'DESC' } });
+    return this.inviteRepo.find({
+      where: { organizationId: orgId },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   @Patch(':orgId/members/:memberId/role')
@@ -52,7 +67,9 @@ export class AdminOrganizationsController {
     @Headers() headers: any,
   ) {
     this.checkAdminAuth(headers);
-    const member = await this.memberRepo.findOne({ where: { id: memberId, organizationId: orgId } });
+    const member = await this.memberRepo.findOne({
+      where: { id: memberId, organizationId: orgId },
+    });
     if (!member) {
       throw new Error('Member not found');
     }
@@ -67,7 +84,9 @@ export class AdminOrganizationsController {
     @Headers() headers: any,
   ) {
     this.checkAdminAuth(headers);
-    const member = await this.memberRepo.findOne({ where: { id: memberId, organizationId: orgId } });
+    const member = await this.memberRepo.findOne({
+      where: { id: memberId, organizationId: orgId },
+    });
     if (!member) {
       throw new Error('Member not found');
     }

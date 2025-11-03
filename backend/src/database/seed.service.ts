@@ -16,8 +16,10 @@ export class SeedService {
   async seed() {
     try {
       // Check if database is empty
-      const userCount = await this.dataSource.query('SELECT COUNT(*) as count FROM users');
-      
+      const userCount = await this.dataSource.query(
+        'SELECT COUNT(*) as count FROM users',
+      );
+
       if (userCount[0].count > 0) {
         this.logger.log('✅ Database already has data, skipping seed');
         return;
@@ -26,17 +28,17 @@ export class SeedService {
       this.logger.log('📦 Seeding database with initial data...');
 
       const seedFile = path.join(__dirname, 'seeds', 'seed-data.sql');
-      
+
       if (!fs.existsSync(seedFile)) {
         this.logger.warn('⚠️ Seed file not found, skipping seed');
         return;
       }
 
       const seedData = fs.readFileSync(seedFile, 'utf-8');
-      
+
       // Execute seed data
       await this.dataSource.query(seedData);
-      
+
       this.logger.log('✅ Database seeded successfully!');
     } catch (error) {
       this.logger.error('❌ Error seeding database:', error);

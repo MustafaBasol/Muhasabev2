@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddProductCategoriesAndTaxRateOverride1729545000000 implements MigrationInterface {
+export class AddProductCategoriesAndTaxRateOverride1729545000000
+  implements MigrationInterface
+{
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create product_categories table
     await queryRunner.query(`
@@ -53,7 +55,7 @@ export class AddProductCategoriesAndTaxRateOverride1729545000000 implements Migr
     await queryRunner.query(`
       DROP INDEX IF EXISTS "IDX_product_categories_tenant_name";
     `);
-    
+
     await queryRunner.query(`
       DROP INDEX IF EXISTS "IDX_product_categories_tenantId";
     `);

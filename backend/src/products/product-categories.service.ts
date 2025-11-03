@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProductCategory } from './entities/product-category.entity';
@@ -29,21 +34,29 @@ export class ProductCategoriesService {
     return category;
   }
 
-  async findByName(name: string, tenantId: string): Promise<ProductCategory | null> {
+  async findByName(
+    name: string,
+    tenantId: string,
+  ): Promise<ProductCategory | null> {
     return this.categoriesRepository.findOne({
-      where: { 
+      where: {
         name: name.trim(),
         tenantId,
-        isActive: true 
+        isActive: true,
       },
     });
   }
 
-  async create(createCategoryDto: CreateProductCategoryDto, tenantId: string): Promise<ProductCategory> {
+  async create(
+    createCategoryDto: CreateProductCategoryDto,
+    tenantId: string,
+  ): Promise<ProductCategory> {
     // Check for duplicate name
     const existing = await this.findByName(createCategoryDto.name, tenantId);
     if (existing) {
-      throw new ConflictException(`Category "${createCategoryDto.name}" already exists`);
+      throw new ConflictException(
+        `Category "${createCategoryDto.name}" already exists`,
+      );
     }
 
     const category = this.categoriesRepository.create({
@@ -54,38 +67,49 @@ export class ProductCategoriesService {
     return this.categoriesRepository.save(category);
   }
 
-  async update(id: string, updateCategoryDto: UpdateProductCategoryDto, tenantId: string): Promise<ProductCategory> {
+  async update(
+    id: string,
+    updateCategoryDto: UpdateProductCategoryDto,
+    tenantId: string,
+  ): Promise<ProductCategory> {
     // Check if category exists
     const category = await this.findOne(id, tenantId);
 
     // Korumalı kategorilerin ismini değiştirmeyi engelle
-    if (category.isProtected && updateCategoryDto.name && updateCategoryDto.name !== category.name) {
-      throw new BadRequestException(`Protected category "${category.name}" cannot be renamed`);
+    if (
+      category.isProtected &&
+      updateCategoryDto.name &&
+      updateCategoryDto.name !== category.name
+    ) {
+      throw new BadRequestException(
+        `Protected category "${category.name}" cannot be renamed`,
+      );
     }
 
     // If name is being updated, check for duplicates
     if (updateCategoryDto.name && updateCategoryDto.name !== category.name) {
       const existing = await this.findByName(updateCategoryDto.name, tenantId);
       if (existing) {
-        throw new ConflictException(`Category "${updateCategoryDto.name}" already exists`);
+        throw new ConflictException(
+          `Category "${updateCategoryDto.name}" already exists`,
+        );
       }
     }
 
-    await this.categoriesRepository.update(
-      { id, tenantId },
-      updateCategoryDto,
-    );
+    await this.categoriesRepository.update({ id, tenantId }, updateCategoryDto);
     return this.findOne(id, tenantId);
   }
 
   async remove(id: string, tenantId: string): Promise<void> {
     const category = await this.findOne(id, tenantId);
-    
+
     // Korumalı kategorileri silmeyi engelle
     if (category.isProtected) {
-      throw new BadRequestException(`Protected category "${category.name}" cannot be deleted`);
+      throw new BadRequestException(
+        `Protected category "${category.name}" cannot be deleted`,
+      );
     }
-    
+
     // Soft delete by setting isActive to false
     await this.categoriesRepository.update(
       { id, tenantId },

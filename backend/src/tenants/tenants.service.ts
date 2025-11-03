@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Tenant, SubscriptionPlan, TenantStatus } from './entities/tenant.entity';
+import {
+  Tenant,
+  SubscriptionPlan,
+  TenantStatus,
+} from './entities/tenant.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
 
 export interface CreateTenantDto {
@@ -12,25 +16,25 @@ export interface CreateTenantDto {
   address?: string;
   taxNumber?: string;
   website?: string;
-  
+
   // Türkiye
   taxOffice?: string;
   mersisNumber?: string;
   kepAddress?: string;
-  
+
   // Fransa
   siretNumber?: string;
   sirenNumber?: string;
   apeCode?: string;
   tvaNumber?: string;
   rcsNumber?: string;
-  
+
   // Almanya
   steuernummer?: string;
   umsatzsteuerID?: string;
   handelsregisternummer?: string;
   geschaeftsfuehrer?: string;
-  
+
   // Amerika
   einNumber?: string;
   taxId?: string;
@@ -46,25 +50,25 @@ export interface UpdateTenantDto {
   address?: string;
   taxNumber?: string;
   website?: string;
-  
+
   // Türkiye
   taxOffice?: string;
   mersisNumber?: string;
   kepAddress?: string;
-  
+
   // Fransa
   siretNumber?: string;
   sirenNumber?: string;
   apeCode?: string;
   tvaNumber?: string;
   rcsNumber?: string;
-  
+
   // Almanya
   steuernummer?: string;
   umsatzsteuerID?: string;
   handelsregisternummer?: string;
   geschaeftsfuehrer?: string;
-  
+
   // Amerika
   einNumber?: string;
   taxId?: string;
@@ -108,7 +112,7 @@ export class TenantsService {
   async create(createTenantDto: CreateTenantDto): Promise<Tenant> {
     // Generate slug from name
     const slug = this.generateSlug(createTenantDto.name);
-    
+
     // Set trial expiration to 14 days from now
     const trialExpiresAt = new Date();
     trialExpiresAt.setDate(trialExpiresAt.getDate() + 14);

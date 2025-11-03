@@ -15,7 +15,9 @@ export enum AuditAction {
   DELETE = 'DELETE',
 }
 
-const __isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+const __isTestEnv =
+  process.env.NODE_ENV === 'test' ||
+  typeof process.env.JEST_WORKER_ID !== 'undefined';
 
 @Entity('audit_log')
 export class AuditLog {

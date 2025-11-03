@@ -8,27 +8,31 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Security Middleware
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"], // Adjust based on your needs
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        fontSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'"],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"], // Adjust based on your needs
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          fontSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'"],
+        },
       },
-    },
-    hsts: {
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true
-    }
-  }));
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+      },
+    }),
+  );
 
   // CORS Configuration - Production ready
-  const corsOrigins = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'];
-  
+  const corsOrigins = process.env.CORS_ORIGIN?.split(',') || [
+    'http://localhost:5173',
+  ];
+
   app.enableCors({
     origin: corsOrigins,
     credentials: process.env.CORS_CREDENTIALS === 'true',
@@ -41,20 +45,22 @@ async function bootstrap() {
       'Authorization',
       'X-Real-IP',
       'X-Forwarded-For',
-      'X-Forwarded-Proto'
+      'X-Forwarded-Proto',
     ],
     optionsSuccessStatus: 200,
   });
 
   // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true, // Strip unknown properties
-    transform: true,
-    forbidNonWhitelisted: true, // Throw error on unknown properties
-    transformOptions: {
-      enableImplicitConversion: true,
-    },
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Strip unknown properties
+      transform: true,
+      forbidNonWhitelisted: true, // Throw error on unknown properties
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
 
   // API prefix
   app.setGlobalPrefix('api', {
@@ -78,7 +84,7 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
 
   await app.listen(port, host);
-  
+
   console.log(`🚀 Application is running on: http://${host}:${port}`);
   if (process.env.NODE_ENV !== 'production') {
     console.log(`📚 API Documentation: http://${host}:${port}/api/docs`);

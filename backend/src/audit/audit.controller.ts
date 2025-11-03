@@ -104,8 +104,8 @@ export class AuditController {
       limit: 1000, // Get a large sample to find all entities
     });
 
-    const entities = [...new Set(result.data.map(log => log.entity))];
-    
+    const entities = [...new Set(result.data.map((log) => log.entity))];
+
     return {
       entities: entities.sort(),
     };

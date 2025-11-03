@@ -19,10 +19,20 @@ export class BankAccountsService {
     const tenant = await this.tenantsRepo.findOne({ where: { id: tenantId } });
     if (!tenant) throw new BadRequestException('Tenant not found');
 
-    const currentCount = await this.bankAccountsRepo.count({ where: { tenantId } });
-    if (!TenantPlanLimitService.canAddBankAccount(currentCount, tenant.subscriptionPlan)) {
+    const currentCount = await this.bankAccountsRepo.count({
+      where: { tenantId },
+    });
+    if (
+      !TenantPlanLimitService.canAddBankAccount(
+        currentCount,
+        tenant.subscriptionPlan,
+      )
+    ) {
       throw new BadRequestException(
-        TenantPlanLimitService.errorMessageFor('bankAccount', tenant.subscriptionPlan)
+        TenantPlanLimitService.errorMessageFor(
+          'bankAccount',
+          tenant.subscriptionPlan,
+        ),
       );
     }
 
@@ -37,6 +47,9 @@ export class BankAccountsService {
   }
 
   async findAll(tenantId: string) {
-    return this.bankAccountsRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' } });
+    return this.bankAccountsRepo.find({
+      where: { tenantId },
+      order: { createdAt: 'DESC' },
+    });
   }
 }

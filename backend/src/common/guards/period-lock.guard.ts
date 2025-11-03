@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  BadRequestException,
+} from '@nestjs/common';
 import { FiscalPeriodsService } from '../../fiscal-periods/fiscal-periods.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -45,17 +50,17 @@ export class PeriodLockGuard implements CanActivate {
     // For DELETE requests, fetch the record to get its date
     if (httpRequest.method === 'DELETE' && params?.id) {
       const path = httpRequest.route?.path || httpRequest.url;
-      
+
       if (path.includes('/invoices/')) {
         const invoice = await this.invoiceRepository.findOne({
-          where: { id: params.id, tenantId: user.tenantId }
+          where: { id: params.id, tenantId: user.tenantId },
         });
         if (invoice) {
           dateToCheck = new Date(invoice.issueDate);
         }
       } else if (path.includes('/expenses/')) {
         const expense = await this.expenseRepository.findOne({
-          where: { id: params.id, tenantId: user.tenantId }
+          where: { id: params.id, tenantId: user.tenantId },
         });
         if (expense) {
           dateToCheck = new Date(expense.expenseDate);
@@ -65,19 +70,19 @@ export class PeriodLockGuard implements CanActivate {
       // For other requests, extract date from body
       dateToCheck = this.extractDate(body);
     }
-    
+
     if (!dateToCheck) {
       return true; // No date to check
     }
 
     const lockedPeriod = await this.fiscalPeriodsService.getLockedPeriodForDate(
       dateToCheck,
-      user.tenantId
+      user.tenantId,
     );
 
     if (lockedPeriod) {
       throw new BadRequestException(
-        `Cannot modify records in locked period "${lockedPeriod.name}" (${new Date(lockedPeriod.periodStart).toLocaleDateString()} - ${new Date(lockedPeriod.periodEnd).toLocaleDateString()})`
+        `Cannot modify records in locked period "${lockedPeriod.name}" (${new Date(lockedPeriod.periodStart).toLocaleDateString()} - ${new Date(lockedPeriod.periodEnd).toLocaleDateString()})`,
       );
     }
 
@@ -86,8 +91,13 @@ export class PeriodLockGuard implements CanActivate {
 
   private extractDate(body: any): Date | null {
     // Check common date fields
-    const dateFields = ['date', 'invoiceDate', 'expenseDate', 'transactionDate'];
-    
+    const dateFields = [
+      'date',
+      'invoiceDate',
+      'expenseDate',
+      'transactionDate',
+    ];
+
     for (const field of dateFields) {
       if (body[field]) {
         const date = new Date(body[field]);

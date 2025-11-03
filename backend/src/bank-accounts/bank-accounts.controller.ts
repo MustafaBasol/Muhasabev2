@@ -19,7 +19,9 @@ export class BankAccountsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Mevcut tenant içine kayıtlı banka hesaplarını listele' })
+  @ApiOperation({
+    summary: 'Mevcut tenant içine kayıtlı banka hesaplarını listele',
+  })
   async findAll(@User() user: any) {
     return this.bankAccountsService.findAll(user.tenantId);
   }

@@ -7,10 +7,7 @@ import { Expense } from '../expenses/entities/expense.entity';
 
 @Global()
 @Module({
-  imports: [
-    FiscalPeriodsModule, 
-    TypeOrmModule.forFeature([Invoice, Expense])
-  ],
+  imports: [FiscalPeriodsModule, TypeOrmModule.forFeature([Invoice, Expense])],
   providers: [PeriodLockGuard],
   exports: [PeriodLockGuard, FiscalPeriodsModule, TypeOrmModule],
 })

@@ -1,6 +1,13 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableForeignKey,
+} from 'typeorm';
 
-export class AddFiscalPeriodsAndSoftDelete1730282400000 implements MigrationInterface {
+export class AddFiscalPeriodsAndSoftDelete1730282400000
+  implements MigrationInterface
+{
   name = 'AddFiscalPeriodsAndSoftDelete1730282400000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

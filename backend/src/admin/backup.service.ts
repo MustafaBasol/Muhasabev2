@@ -24,7 +24,8 @@ export interface BackupMetadata {
 @Injectable()
 export class BackupService {
   private readonly backupDir = '/workspaces/Muhasabev2/backend/backups';
-  private readonly metadataFile = '/workspaces/Muhasabev2/backend/backups/metadata.json';
+  private readonly metadataFile =
+    '/workspaces/Muhasabev2/backend/backups/metadata.json';
 
   constructor(
     @InjectRepository(User)
@@ -56,15 +57,18 @@ export class BackupService {
   /**
    * Tüm backup'ları listele
    */
-  async listBackups(type?: 'system' | 'user' | 'tenant'): Promise<BackupMetadata[]> {
+  async listBackups(
+    type?: 'system' | 'user' | 'tenant',
+  ): Promise<BackupMetadata[]> {
     const metadata = await this.readMetadata();
-    
+
     if (type) {
-      return metadata.filter(b => b.type === type);
+      return metadata.filter((b) => b.type === type);
     }
-    
-    return metadata.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+
+    return metadata.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }
 
@@ -74,8 +78,11 @@ export class BackupService {
   async listUserBackups(userId: string): Promise<BackupMetadata[]> {
     const metadata = await this.readMetadata();
     return metadata
-      .filter(b => b.type === 'user' && b.entityId === userId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .filter((b) => b.type === 'user' && b.entityId === userId)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
   }
 
   /**
@@ -113,12 +120,15 @@ export class BackupService {
   /**
    * Kullanıcı bazlı backup oluştur
    */
-  async createUserBackup(userId: string, description?: string): Promise<BackupMetadata> {
-    const user = await this.usersRepository.findOne({ 
+  async createUserBackup(
+    userId: string,
+    description?: string,
+  ): Promise<BackupMetadata> {
+    const user = await this.usersRepository.findOne({
       where: { id: userId },
-      relations: ['tenant']
+      relations: ['tenant'],
     });
-    
+
     if (!user) {
       throw new NotFoundException('Kullanıcı bulunamadı');
     }
@@ -132,23 +142,23 @@ export class BackupService {
       user: user,
       customers: await this.dataSource.query(
         'SELECT * FROM customers WHERE "tenantId" = $1',
-        [user.tenantId]
+        [user.tenantId],
       ),
       suppliers: await this.dataSource.query(
         'SELECT * FROM suppliers WHERE "tenantId" = $1',
-        [user.tenantId]
+        [user.tenantId],
       ),
       products: await this.dataSource.query(
         'SELECT * FROM products WHERE "tenantId" = $1',
-        [user.tenantId]
+        [user.tenantId],
       ),
       invoices: await this.dataSource.query(
         'SELECT * FROM invoices WHERE "tenantId" = $1',
-        [user.tenantId]
+        [user.tenantId],
       ),
       expenses: await this.dataSource.query(
         'SELECT * FROM expenses WHERE "tenantId" = $1',
-        [user.tenantId]
+        [user.tenantId],
       ),
     };
 
@@ -178,9 +188,14 @@ export class BackupService {
   /**
    * Tenant bazlı backup oluştur
    */
-  async createTenantBackup(tenantId: string, description?: string): Promise<BackupMetadata> {
-    const tenant = await this.tenantsRepository.findOne({ where: { id: tenantId } });
-    
+  async createTenantBackup(
+    tenantId: string,
+    description?: string,
+  ): Promise<BackupMetadata> {
+    const tenant = await this.tenantsRepository.findOne({
+      where: { id: tenantId },
+    });
+
     if (!tenant) {
       throw new NotFoundException('Tenant bulunamadı');
     }
@@ -194,31 +209,31 @@ export class BackupService {
       tenant: tenant,
       users: await this.dataSource.query(
         'SELECT * FROM users WHERE "tenantId" = $1',
-        [tenantId]
+        [tenantId],
       ),
       customers: await this.dataSource.query(
         'SELECT * FROM customers WHERE "tenantId" = $1',
-        [tenantId]
+        [tenantId],
       ),
       suppliers: await this.dataSource.query(
         'SELECT * FROM suppliers WHERE "tenantId" = $1',
-        [tenantId]
+        [tenantId],
       ),
       products: await this.dataSource.query(
         'SELECT * FROM products WHERE "tenantId" = $1',
-        [tenantId]
+        [tenantId],
       ),
       product_categories: await this.dataSource.query(
         'SELECT * FROM product_categories WHERE "tenantId" = $1',
-        [tenantId]
+        [tenantId],
       ),
       invoices: await this.dataSource.query(
         'SELECT * FROM invoices WHERE "tenantId" = $1',
-        [tenantId]
+        [tenantId],
       ),
       expenses: await this.dataSource.query(
         'SELECT * FROM expenses WHERE "tenantId" = $1',
-        [tenantId]
+        [tenantId],
       ),
     };
 
@@ -247,9 +262,11 @@ export class BackupService {
   /**
    * Sistem backup'ını geri yükle
    */
-  async restoreSystemBackup(backupId: string): Promise<{ success: boolean; message: string }> {
+  async restoreSystemBackup(
+    backupId: string,
+  ): Promise<{ success: boolean; message: string }> {
     const metadata = await this.readMetadata();
-    const backup = metadata.find(b => b.id === backupId);
+    const backup = metadata.find((b) => b.id === backupId);
 
     if (!backup || backup.type !== 'system') {
       throw new NotFoundException('Backup bulunamadı');
@@ -270,16 +287,19 @@ export class BackupService {
 
     return {
       success: true,
-      message: `Sistem ${backup.createdAt} tarihli backup'tan geri yüklendi`,
+      message: `Sistem ${new Date(backup.createdAt).toISOString()} tarihli backup'tan geri yüklendi`,
     };
   }
 
   /**
    * Kullanıcı backup'ını geri yükle (sadece bu kullanıcının verileri)
    */
-  async restoreUserBackup(userId: string, backupId: string): Promise<{ success: boolean; message: string }> {
+  async restoreUserBackup(
+    userId: string,
+    backupId: string,
+  ): Promise<{ success: boolean; message: string }> {
     const metadata = await this.readMetadata();
-    const backup = metadata.find(b => b.id === backupId);
+    const backup = metadata.find((b) => b.id === backupId);
 
     if (!backup || backup.type !== 'user' || backup.entityId !== userId) {
       throw new NotFoundException('Backup bulunamadı');
@@ -296,11 +316,21 @@ export class BackupService {
       const tenantId = backupData.user.tenantId;
 
       // Mevcut tenant verilerini sil
-      await queryRunner.query('DELETE FROM expenses WHERE "tenantId" = $1', [tenantId]);
-      await queryRunner.query('DELETE FROM invoices WHERE "tenantId" = $1', [tenantId]);
-      await queryRunner.query('DELETE FROM products WHERE "tenantId" = $1', [tenantId]);
-      await queryRunner.query('DELETE FROM suppliers WHERE "tenantId" = $1', [tenantId]);
-      await queryRunner.query('DELETE FROM customers WHERE "tenantId" = $1', [tenantId]);
+      await queryRunner.query('DELETE FROM expenses WHERE "tenantId" = $1', [
+        tenantId,
+      ]);
+      await queryRunner.query('DELETE FROM invoices WHERE "tenantId" = $1', [
+        tenantId,
+      ]);
+      await queryRunner.query('DELETE FROM products WHERE "tenantId" = $1', [
+        tenantId,
+      ]);
+      await queryRunner.query('DELETE FROM suppliers WHERE "tenantId" = $1', [
+        tenantId,
+      ]);
+      await queryRunner.query('DELETE FROM customers WHERE "tenantId" = $1', [
+        tenantId,
+      ]);
 
       // Backup'tan verileri geri yükle
       if (backupData.customers?.length > 0) {
@@ -308,9 +338,19 @@ export class BackupService {
           await queryRunner.query(
             `INSERT INTO customers (id, name, email, phone, address, "taxNumber", company, balance, "tenantId", "createdAt", "updatedAt")
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [customer.id, customer.name, customer.email, customer.phone, customer.address, 
-             customer.taxNumber, customer.company, customer.balance, customer.tenantId, 
-             customer.createdAt, customer.updatedAt]
+            [
+              customer.id,
+              customer.name,
+              customer.email,
+              customer.phone,
+              customer.address,
+              customer.taxNumber,
+              customer.company,
+              customer.balance,
+              customer.tenantId,
+              customer.createdAt,
+              customer.updatedAt,
+            ],
           );
         }
       }
@@ -320,9 +360,19 @@ export class BackupService {
           await queryRunner.query(
             `INSERT INTO suppliers (id, name, email, phone, address, "taxNumber", company, balance, "tenantId", "createdAt", "updatedAt")
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [supplier.id, supplier.name, supplier.email, supplier.phone, supplier.address,
-             supplier.taxNumber, supplier.company, supplier.balance, supplier.tenantId,
-             supplier.createdAt, supplier.updatedAt]
+            [
+              supplier.id,
+              supplier.name,
+              supplier.email,
+              supplier.phone,
+              supplier.address,
+              supplier.taxNumber,
+              supplier.company,
+              supplier.balance,
+              supplier.tenantId,
+              supplier.createdAt,
+              supplier.updatedAt,
+            ],
           );
         }
       }
@@ -332,9 +382,23 @@ export class BackupService {
           await queryRunner.query(
             `INSERT INTO products (id, name, code, description, price, cost, stock, "minStock", unit, category, "taxRate", "isActive", "tenantId", "createdAt", "updatedAt")
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-            [product.id, product.name, product.code, product.description, product.price,
-             product.cost, product.stock, product.minStock, product.unit, product.category,
-             product.taxRate, product.isActive, product.tenantId, product.createdAt, product.updatedAt]
+            [
+              product.id,
+              product.name,
+              product.code,
+              product.description,
+              product.price,
+              product.cost,
+              product.stock,
+              product.minStock,
+              product.unit,
+              product.category,
+              product.taxRate,
+              product.isActive,
+              product.tenantId,
+              product.createdAt,
+              product.updatedAt,
+            ],
           );
         }
       }
@@ -344,10 +408,22 @@ export class BackupService {
           await queryRunner.query(
             `INSERT INTO invoices (id, "invoiceNumber", "tenantId", "customerId", "issueDate", "dueDate", subtotal, "taxAmount", "discountAmount", total, status, notes, "createdAt", "updatedAt")
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-            [invoice.id, invoice.invoiceNumber, invoice.tenantId, invoice.customerId,
-             invoice.issueDate, invoice.dueDate, invoice.subtotal, invoice.taxAmount,
-             invoice.discountAmount, invoice.total, invoice.status, invoice.notes,
-             invoice.createdAt, invoice.updatedAt]
+            [
+              invoice.id,
+              invoice.invoiceNumber,
+              invoice.tenantId,
+              invoice.customerId,
+              invoice.issueDate,
+              invoice.dueDate,
+              invoice.subtotal,
+              invoice.taxAmount,
+              invoice.discountAmount,
+              invoice.total,
+              invoice.status,
+              invoice.notes,
+              invoice.createdAt,
+              invoice.updatedAt,
+            ],
           );
         }
       }
@@ -357,9 +433,20 @@ export class BackupService {
           await queryRunner.query(
             `INSERT INTO expenses (id, "expenseNumber", "tenantId", "supplierId", description, "expenseDate", amount, category, status, notes, "createdAt", "updatedAt")
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-            [expense.id, expense.expenseNumber, expense.tenantId, expense.supplierId,
-             expense.description, expense.expenseDate, expense.amount, expense.category,
-             expense.status, expense.notes, expense.createdAt, expense.updatedAt]
+            [
+              expense.id,
+              expense.expenseNumber,
+              expense.tenantId,
+              expense.supplierId,
+              expense.description,
+              expense.expenseDate,
+              expense.amount,
+              expense.category,
+              expense.status,
+              expense.notes,
+              expense.createdAt,
+              expense.updatedAt,
+            ],
           );
         }
       }
@@ -368,7 +455,7 @@ export class BackupService {
 
       return {
         success: true,
-        message: `Kullanıcı verileri ${backup.createdAt} tarihli backup'tan geri yüklendi`,
+        message: `Kullanıcı verileri ${new Date(backup.createdAt).toISOString()} tarihli backup'tan geri yüklendi`,
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -381,7 +468,10 @@ export class BackupService {
   /**
    * Tenant backup'ını geri yükle
    */
-  async restoreTenantBackup(tenantId: string, backupId: string): Promise<{ success: boolean; message: string }> {
+  async restoreTenantBackup(
+    tenantId: string,
+    backupId: string,
+  ): Promise<{ success: boolean; message: string }> {
     // Kullanıcı restore ile aynı mantık, sadece tenant ID kontrolü farklı
     return this.restoreUserBackup(tenantId, backupId);
   }
@@ -391,7 +481,7 @@ export class BackupService {
    */
   async deleteBackup(backupId: string): Promise<{ success: boolean }> {
     const metadata = await this.readMetadata();
-    const backup = metadata.find(b => b.id === backupId);
+    const backup = metadata.find((b) => b.id === backupId);
 
     if (!backup) {
       throw new NotFoundException('Backup bulunamadı');
@@ -402,7 +492,7 @@ export class BackupService {
     await fs.unlink(filepath);
 
     // Metadata'dan kaldır
-    const updatedMetadata = metadata.filter(b => b.id !== backupId);
+    const updatedMetadata = metadata.filter((b) => b.id !== backupId);
     await this.writeMetadata(updatedMetadata);
 
     return { success: true };
@@ -416,7 +506,9 @@ export class BackupService {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const oldBackups = metadata.filter(b => new Date(b.createdAt) < thirtyDaysAgo);
+    const oldBackups = metadata.filter(
+      (b) => new Date(b.createdAt) < thirtyDaysAgo,
+    );
 
     for (const backup of oldBackups) {
       try {
@@ -427,7 +519,9 @@ export class BackupService {
       }
     }
 
-    const updatedMetadata = metadata.filter(b => new Date(b.createdAt) >= thirtyDaysAgo);
+    const updatedMetadata = metadata.filter(
+      (b) => new Date(b.createdAt) >= thirtyDaysAgo,
+    );
     await this.writeMetadata(updatedMetadata);
 
     return {
@@ -441,11 +535,11 @@ export class BackupService {
    */
   async getStatistics(): Promise<any> {
     const metadata = await this.readMetadata();
-    
+
     const totalSize = metadata.reduce((sum, b) => sum + b.size, 0);
-    const systemBackups = metadata.filter(b => b.type === 'system').length;
-    const userBackups = metadata.filter(b => b.type === 'user').length;
-    const tenantBackups = metadata.filter(b => b.type === 'tenant').length;
+    const systemBackups = metadata.filter((b) => b.type === 'system').length;
+    const userBackups = metadata.filter((b) => b.type === 'user').length;
+    const tenantBackups = metadata.filter((b) => b.type === 'tenant').length;
 
     return {
       total: metadata.length,
@@ -454,12 +548,22 @@ export class BackupService {
       tenantBackups,
       totalSize: totalSize,
       totalSizeMB: (totalSize / 1024 / 1024).toFixed(2),
-      oldestBackup: metadata.length > 0 ? metadata.sort((a, b) => 
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      )[0].createdAt : null,
-      newestBackup: metadata.length > 0 ? metadata.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0].createdAt : null,
+      oldestBackup:
+        metadata.length > 0
+          ? metadata.sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime(),
+            )[0].createdAt
+          : null,
+      newestBackup:
+        metadata.length > 0
+          ? metadata.sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime(),
+            )[0].createdAt
+          : null,
     };
   }
 }

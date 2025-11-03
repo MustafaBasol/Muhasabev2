@@ -14,7 +14,7 @@ export class SubprocessorsController {
         region: 'US, EU',
         dataCategories: 'User data, application logs, backups',
         dpaLink: 'https://aws.amazon.com/compliance/data-privacy-faq/',
-        securityCertifications: ['SOC 2', 'ISO 27001', 'GDPR compliant']
+        securityCertifications: ['SOC 2', 'ISO 27001', 'GDPR compliant'],
       },
       {
         id: 'stripe',
@@ -23,7 +23,7 @@ export class SubprocessorsController {
         region: 'US, EU',
         dataCategories: 'Payment information, transaction data',
         dpaLink: 'https://stripe.com/privacy',
-        securityCertifications: ['PCI DSS', 'SOC 2', 'ISO 27001']
+        securityCertifications: ['PCI DSS', 'SOC 2', 'ISO 27001'],
       },
       {
         id: 'sendgrid',
@@ -32,7 +32,7 @@ export class SubprocessorsController {
         region: 'US',
         dataCategories: 'Email addresses, email content',
         dpaLink: 'https://www.twilio.com/legal/privacy',
-        securityCertifications: ['SOC 2', 'ISO 27001']
+        securityCertifications: ['SOC 2', 'ISO 27001'],
       },
       {
         id: 'google-analytics',
@@ -41,7 +41,11 @@ export class SubprocessorsController {
         region: 'Global',
         dataCategories: 'Usage data, IP addresses (anonymized)',
         dpaLink: 'https://privacy.google.com/businesses/compliance/',
-        securityCertifications: ['ISO 27001', 'SOC 2', 'Privacy Shield (legacy)']
+        securityCertifications: [
+          'ISO 27001',
+          'SOC 2',
+          'Privacy Shield (legacy)',
+        ],
       },
       {
         id: 'cloudflare',
@@ -49,23 +53,30 @@ export class SubprocessorsController {
         purpose: 'CDN, DDoS protection, and web security',
         region: 'Global',
         dataCategories: 'Web traffic data, security logs',
-        dpaLink: 'https://www.cloudflare.com/trust-hub/privacy-and-data-protection/',
-        securityCertifications: ['SOC 2', 'ISO 27001', 'PCI DSS']
-      }
+        dpaLink:
+          'https://www.cloudflare.com/trust-hub/privacy-and-data-protection/',
+        securityCertifications: ['SOC 2', 'ISO 27001', 'PCI DSS'],
+      },
     ],
     changelog: [
       {
         date: '2024-10-30',
         version: '1.0',
-        changes: ['Initial subprocessors list created', 'Added AWS, Stripe, SendGrid, Google Analytics, and Cloudflare']
-      }
-    ]
+        changes: [
+          'Initial subprocessors list created',
+          'Added AWS, Stripe, SendGrid, Google Analytics, and Cloudflare',
+        ],
+      },
+    ],
   };
 
   @Get()
   async getSubprocessors() {
     console.log('📍 SubprocessorsController: Returning hardcoded data');
-    console.log('📍 Subprocessors count:', this.subprocessorsData.subprocessors.length);
+    console.log(
+      '📍 Subprocessors count:',
+      this.subprocessorsData.subprocessors.length,
+    );
     return this.subprocessorsData;
   }
 
@@ -74,7 +85,7 @@ export class SubprocessorsController {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
-      service: 'subprocessors-api'
+      service: 'subprocessors-api',
     };
   }
 }

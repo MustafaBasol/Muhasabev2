@@ -8,16 +8,26 @@ export interface PlanLimits {
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   [Plan.STARTER]: {
     maxMembers: 1,
-    features: ['Basic invoicing', 'Expense tracking', 'Basic reports']
+    features: ['Basic invoicing', 'Expense tracking', 'Basic reports'],
   },
   [Plan.PRO]: {
     maxMembers: 3,
-    features: ['All Starter features', 'Advanced reports', 'Multi-currency', 'API access']
+    features: [
+      'All Starter features',
+      'Advanced reports',
+      'Multi-currency',
+      'API access',
+    ],
   },
   [Plan.BUSINESS]: {
     maxMembers: -1, // Unlimited
-    features: ['All Pro features', 'Custom integrations', 'Priority support', 'Advanced permissions']
-  }
+    features: [
+      'All Pro features',
+      'Custom integrations',
+      'Priority support',
+      'Advanced permissions',
+    ],
+  },
 };
 
 export class PlanLimitService {
@@ -27,12 +37,12 @@ export class PlanLimitService {
 
   static canAddMember(currentMemberCount: number, plan: Plan): boolean {
     const maxMembers = this.getMaxMembers(plan);
-    
+
     // -1 means unlimited
     if (maxMembers === -1) {
       return true;
     }
-    
+
     return currentMemberCount < maxMembers;
   }
 
@@ -46,11 +56,11 @@ export class PlanLimitService {
 
   static getMemberLimitError(plan: Plan): string {
     const maxMembers = this.getMaxMembers(plan);
-    
+
     if (maxMembers === -1) {
       return 'No member limit for Business plan';
     }
-    
+
     return `${plan} plan is limited to ${maxMembers} member${maxMembers !== 1 ? 's' : ''}. Please upgrade your plan to add more members.`;
   }
 }

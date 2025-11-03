@@ -38,7 +38,7 @@ export class AuditService {
   async log(entry: AuditLogEntry): Promise<AuditLog> {
     // Mask PII data in diff
     const maskedDiff = entry.diff ? this.maskPiiData(entry.diff) : undefined;
-    
+
     const auditLog = this.auditRepository.create({
       ...entry,
       diff: maskedDiff,
@@ -90,11 +90,8 @@ export class AuditService {
 
     const total = await queryBuilder.getCount();
     const skip = (page - 1) * limit;
-    
-    const logs = await queryBuilder
-      .skip(skip)
-      .take(limit)
-      .getMany();
+
+    const logs = await queryBuilder.skip(skip).take(limit).getMany();
 
     return {
       data: logs,
@@ -129,7 +126,9 @@ export class AuditService {
   /**
    * Mask PII data in diff object
    */
-  private maskPiiData(diff: Record<string, any>): Record<string, any> | undefined {
+  private maskPiiData(
+    diff: Record<string, any>,
+  ): Record<string, any> | undefined {
     if (!diff) return diff;
 
     const piiFields = [
@@ -155,8 +154,8 @@ export class AuditService {
       const result = { ...obj };
       for (const [key, value] of Object.entries(result)) {
         const lowerKey = key.toLowerCase();
-        
-        if (piiFields.some(field => lowerKey.includes(field))) {
+
+        if (piiFields.some((field) => lowerKey.includes(field))) {
           if (typeof value === 'string' && value.length > 0) {
             // Mask email format
             if (lowerKey.includes('email') && value.includes('@')) {
@@ -171,7 +170,7 @@ export class AuditService {
           result[key] = maskObject(value);
         }
       }
-      
+
       return result;
     };
 

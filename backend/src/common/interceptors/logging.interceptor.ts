@@ -20,7 +20,7 @@ export class LoggingInterceptor implements NestInterceptor {
     const { method, url, headers } = request;
 
     const startTime = Date.now();
-    
+
     this.logger.log(
       `📨 ${method} ${url} - ${headers['user-agent']} - Auth: ${headers.authorization ? '[PROVIDED]' : '[NONE]'}`,
     );

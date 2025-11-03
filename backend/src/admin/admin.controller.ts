@@ -1,7 +1,25 @@
-import { Controller, Get, Post, Body, Param, Query, Headers, UnauthorizedException, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  Headers,
+  UnauthorizedException,
+  Patch,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { SubscriptionPlan, TenantStatus } from '../tenants/entities/tenant.entity';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
+import {
+  SubscriptionPlan,
+  TenantStatus,
+} from '../tenants/entities/tenant.entity';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -13,7 +31,7 @@ export class AdminController {
     if (!adminToken) {
       throw new UnauthorizedException('Admin token required');
     }
-    
+
     // AdminService'den token doğrulama
     if (!this.adminService.isValidAdminToken(adminToken)) {
       throw new UnauthorizedException('Invalid or expired admin token');
@@ -30,7 +48,10 @@ export class AdminController {
   @Get('users')
   @ApiOperation({ summary: 'Get all users (optionally filtered by tenant)' })
   @ApiResponse({ status: 200, description: 'List of users' })
-  async getAllUsers(@Headers() headers: any, @Query('tenantId') tenantId?: string) {
+  async getAllUsers(
+    @Headers() headers: any,
+    @Query('tenantId') tenantId?: string,
+  ) {
     this.checkAdminAuth(headers);
     return this.adminService.getAllUsers(tenantId);
   }
@@ -46,7 +67,12 @@ export class AdminController {
     @Query('startTo') startTo?: string,
   ) {
     this.checkAdminAuth(headers);
-    return this.adminService.getAllTenants({ status, plan, startFrom, startTo });
+    return this.adminService.getAllTenants({
+      status,
+      plan,
+      startFrom,
+      startTo,
+    });
   }
 
   @Patch('users/:userId/status')
@@ -62,11 +88,19 @@ export class AdminController {
   }
 
   @Patch('users/:userId')
-  @ApiOperation({ summary: 'Update user profile (firstName, lastName, email, phone)' })
+  @ApiOperation({
+    summary: 'Update user profile (firstName, lastName, email, phone)',
+  })
   @ApiResponse({ status: 200, description: 'User updated' })
   async updateUser(
     @Param('userId') userId: string,
-    @Body() body: { firstName?: string; lastName?: string; email?: string; phone?: string },
+    @Body()
+    body: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+    },
     @Headers() headers: any,
   ) {
     this.checkAdminAuth(headers);
@@ -75,7 +109,10 @@ export class AdminController {
 
   @Post('users/:userId/password-reset')
   @ApiOperation({ summary: 'Send password reset email to user' })
-  @ApiResponse({ status: 200, description: 'Password reset email sent (simulated)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset email sent (simulated)',
+  })
   async sendPasswordReset(
     @Param('userId') userId: string,
     @Headers() headers: any,
@@ -95,7 +132,10 @@ export class AdminController {
   @Get('tenant/:tenantId/data')
   @ApiOperation({ summary: 'Get all data for a specific tenant' })
   @ApiResponse({ status: 200, description: 'Tenant data' })
-  async getTenantData(@Param('tenantId') tenantId: string, @Headers() headers: any) {
+  async getTenantData(
+    @Param('tenantId') tenantId: string,
+    @Headers() headers: any,
+  ) {
     this.checkAdminAuth(headers);
     return this.adminService.getTenantData(tenantId);
   }
@@ -105,7 +145,13 @@ export class AdminController {
   @ApiResponse({ status: 200, description: 'Subscription updated' })
   async updateTenantSubscription(
     @Param('tenantId') tenantId: string,
-    @Body() body: { plan?: SubscriptionPlan; status?: TenantStatus; nextBillingAt?: string; cancel?: boolean },
+    @Body()
+    body: {
+      plan?: SubscriptionPlan;
+      status?: TenantStatus;
+      nextBillingAt?: string;
+      cancel?: boolean;
+    },
     @Headers() headers: any,
   ) {
     this.checkAdminAuth(headers);
@@ -173,7 +219,10 @@ export class AdminController {
   @Post('retention/execute')
   @ApiOperation({ summary: 'Execute retention job (live purge)' })
   @ApiResponse({ status: 200, description: 'Live purge results' })
-  async executeRetention(@Headers() headers: any, @Body() body: { confirm?: boolean }) {
+  async executeRetention(
+    @Headers() headers: any,
+    @Body() body: { confirm?: boolean },
+  ) {
     this.checkAdminAuth(headers);
     if (!body.confirm) {
       throw new UnauthorizedException('Confirmation required for live purge');

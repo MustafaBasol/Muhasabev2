@@ -15,16 +15,16 @@ export class EmailService {
     try {
       // Simulated email sending for demo purposes
       // In production, integrate with SendGrid, AWS SES, Nodemailer, etc.
-      
+
       this.logger.log(`📧 [SIMULATED EMAIL SENT]`);
       this.logger.log(`To: ${options.to}`);
       this.logger.log(`Subject: ${options.subject}`);
       this.logger.log(`Content: ${options.text || options.html}`);
       this.logger.log(`─────────────────────────────────────`);
-      
+
       // Simulate email sending delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       return true;
     } catch (error) {
       this.logger.error('Failed to send email:', error);
@@ -32,7 +32,10 @@ export class EmailService {
     }
   }
 
-  async sendAccountDeletionConfirmation(userEmail: string, userName: string): Promise<boolean> {
+  async sendAccountDeletionConfirmation(
+    userEmail: string,
+    userName: string,
+  ): Promise<boolean> {
     const subject = 'Account Deletion Request Confirmation';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -103,7 +106,10 @@ MoneyFlow Accounting System | Istanbul, Turkey
     });
   }
 
-  async sendDataExportNotification(userEmail: string, userName: string): Promise<boolean> {
+  async sendDataExportNotification(
+    userEmail: string,
+    userName: string,
+  ): Promise<boolean> {
     const subject = 'Your Data Export is Ready';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

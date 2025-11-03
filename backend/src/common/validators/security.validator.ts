@@ -1,7 +1,12 @@
 // backend/src/common/validators/security.validator.ts
 // Backend güvenlik validatorları
 
-import { registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+} from 'class-validator';
 
 /**
  * SQL Injection koruması
@@ -10,7 +15,7 @@ import { registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorCon
 class NoSqlInjectionConstraint implements ValidatorConstraintInterface {
   validate(value: any) {
     if (typeof value !== 'string') return true;
-    
+
     const sqlPatterns = [
       /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
       /(;|--|\||\/\*|\*\/)/g,
@@ -19,8 +24,8 @@ class NoSqlInjectionConstraint implements ValidatorConstraintInterface {
       /(%3C|<)/gi, // XSS patterns
       /(%3E|>)/gi, // XSS patterns
     ];
-    
-    return !sqlPatterns.some(pattern => pattern.test(value));
+
+    return !sqlPatterns.some((pattern) => pattern.test(value));
   }
 
   defaultMessage() {
@@ -47,7 +52,7 @@ export function NoSqlInjection(validationOptions?: ValidationOptions) {
 class NoXssConstraint implements ValidatorConstraintInterface {
   validate(value: any) {
     if (typeof value !== 'string') return true;
-    
+
     const xssPatterns = [
       /<script[^>]*>.*?<\/script>/gi,
       /<iframe[^>]*>.*?<\/iframe>/gi,
@@ -61,8 +66,8 @@ class NoXssConstraint implements ValidatorConstraintInterface {
       /onerror=/gi,
       /onclick=/gi,
     ];
-    
-    return !xssPatterns.some(pattern => pattern.test(value));
+
+    return !xssPatterns.some((pattern) => pattern.test(value));
   }
 
   defaultMessage() {
@@ -89,31 +94,41 @@ export function NoXss(validationOptions?: ValidationOptions) {
 class StrongPasswordConstraint implements ValidatorConstraintInterface {
   validate(password: any) {
     if (typeof password !== 'string') return false;
-    
+
     // Minimum 8 karakter
     if (password.length < 8) return false;
-    
+
     // En az bir küçük harf
     if (!/[a-z]/.test(password)) return false;
-    
+
     // En az bir büyük harf
     if (!/[A-Z]/.test(password)) return false;
-    
+
     // En az bir rakam
     if (!/[0-9]/.test(password)) return false;
-    
-  // En az bir özel karakter (harf/rakam ve boşluk dışı herhangi bir karakter)
-  if (!/[^A-Za-z0-9\s]/.test(password)) return false;
-    
+
+    // En az bir özel karakter (harf/rakam ve boşluk dışı herhangi bir karakter)
+    if (!/[^A-Za-z0-9\s]/.test(password)) return false;
+
     // Yaygın şifreler kontrolü
     const commonPasswords = [
-      'password', '123456', 'admin', 'qwerty', 'abc123',
-      'password123', 'admin123', '12345678', 'letmein',
-      'welcome', 'monkey', 'dragon', 'password1'
+      'password',
+      '123456',
+      'admin',
+      'qwerty',
+      'abc123',
+      'password123',
+      'admin123',
+      '12345678',
+      'letmein',
+      'welcome',
+      'monkey',
+      'dragon',
+      'password1',
     ];
-    
+
     if (commonPasswords.includes(password.toLowerCase())) return false;
-    
+
     return true;
   }
 
@@ -141,15 +156,15 @@ export function StrongPassword(validationOptions?: ValidationOptions) {
 class SafeFilePathConstraint implements ValidatorConstraintInterface {
   validate(path: any) {
     if (typeof path !== 'string') return true;
-    
+
     const dangerousPatterns = [
-      /\.\./g,        // Path traversal
-      /[<>:"|?*]/g,   // Invalid filename characters
-      /^\/+/g,        // Absolute paths
-      /\\+/g,         // Backslashes
+      /\.\./g, // Path traversal
+      /[<>:"|?*]/g, // Invalid filename characters
+      /^\/+/g, // Absolute paths
+      /\\+/g, // Backslashes
     ];
-    
-    return !dangerousPatterns.some(pattern => pattern.test(path));
+
+    return !dangerousPatterns.some((pattern) => pattern.test(path));
   }
 
   defaultMessage() {

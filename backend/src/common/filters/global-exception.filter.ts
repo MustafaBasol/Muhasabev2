@@ -25,7 +25,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const errorResponse = exception.getResponse();
-      
+
       // HttpException response'u object ise tüm alanları koru
       if (typeof errorResponse === 'object' && errorResponse !== null) {
         errorInfo = {
@@ -34,7 +34,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           path: request.url,
           method: request.method,
           error: exception.name,
-          ...(errorResponse as object), // Tüm custom alanları dahil et (message, relatedExpenses, count vs.)
+          ...errorResponse, // Tüm custom alanları dahil et (message, relatedExpenses, count vs.)
         };
         message = (errorResponse as any).message || 'Error';
       } else {
@@ -74,7 +74,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         params: request.params,
         headers: {
           'user-agent': request.headers['user-agent'],
-          'authorization': request.headers.authorization ? '[HIDDEN]' : undefined,
+          authorization: request.headers.authorization ? '[HIDDEN]' : undefined,
           'content-type': request.headers['content-type'],
         },
       },

@@ -66,7 +66,9 @@ export const TENANT_PLAN_LIMITS: Record<SubscriptionPlan, TenantPlanLimits> = {
 
 export class TenantPlanLimitService {
   static getLimits(plan: SubscriptionPlan): TenantPlanLimits {
-    return TENANT_PLAN_LIMITS[plan] ?? TENANT_PLAN_LIMITS[SubscriptionPlan.FREE];
+    return (
+      TENANT_PLAN_LIMITS[plan] ?? TENANT_PLAN_LIMITS[SubscriptionPlan.FREE]
+    );
   }
 
   static isUnlimited(value: number): boolean {
@@ -88,22 +90,40 @@ export class TenantPlanLimitService {
     return this.isUnlimited(max) || currentCount < max;
   }
 
-  static canAddBankAccount(currentCount: number, plan: SubscriptionPlan): boolean {
+  static canAddBankAccount(
+    currentCount: number,
+    plan: SubscriptionPlan,
+  ): boolean {
     const max = this.getLimits(plan).maxBankAccounts;
     return this.isUnlimited(max) || currentCount < max;
   }
 
-  static canAddInvoiceThisMonth(currentMonthCount: number, plan: SubscriptionPlan): boolean {
+  static canAddInvoiceThisMonth(
+    currentMonthCount: number,
+    plan: SubscriptionPlan,
+  ): boolean {
     const max = this.getLimits(plan).monthly.maxInvoices;
     return this.isUnlimited(max) || currentMonthCount < max;
   }
 
-  static canAddExpenseThisMonth(currentMonthCount: number, plan: SubscriptionPlan): boolean {
+  static canAddExpenseThisMonth(
+    currentMonthCount: number,
+    plan: SubscriptionPlan,
+  ): boolean {
     const max = this.getLimits(plan).monthly.maxExpenses;
     return this.isUnlimited(max) || currentMonthCount < max;
   }
 
-  static errorMessageFor(entity: 'user'|'customer'|'supplier'|'bankAccount'|'invoice'|'expense', plan: SubscriptionPlan): string {
+  static errorMessageFor(
+    entity:
+      | 'user'
+      | 'customer'
+      | 'supplier'
+      | 'bankAccount'
+      | 'invoice'
+      | 'expense',
+    plan: SubscriptionPlan,
+  ): string {
     const limits = this.getLimits(plan);
     switch (entity) {
       case 'user':
