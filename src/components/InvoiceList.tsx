@@ -362,28 +362,29 @@ export default function InvoiceList({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            {/* Küçük ekranlarda sıkışmayı önlemek için tabloya minimum genişlik ver */}
+            <table className="w-full min-w-[1024px] table-fixed">
               <thead className="bg-gray-50">
                 <tr>
-                  <th onClick={() => toggleSort('invoiceNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('invoiceNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                     {t('invoices.invoiceNumber')}<SortIndicator active={sort.by==='invoiceNumber'} />
                   </th>
-                  <th onClick={() => toggleSort('customer')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('customer')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-56">
                     {t('invoices.customer')}<SortIndicator active={sort.by==='customer'} />
                   </th>
-                  <th onClick={() => toggleSort('description')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('description')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-[320px]">
                     {t('common.description')}<SortIndicator active={sort.by==='description'} />
                   </th>
-                  <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('invoices.amount')}<SortIndicator active={sort.by==='amount'} />
                   </th>
-                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('invoices.status')}<SortIndicator active={sort.by==='status'} />
                   </th>
-                  <th onClick={() => toggleSort('issueDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('issueDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('invoices.date')}<SortIndicator active={sort.by==='issueDate'} />
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-44 min-w-[176px] sticky right-0 bg-gray-50 z-10">
                     {t('invoices.actions')}
                   </th>
                 </tr>
@@ -418,13 +419,13 @@ export default function InvoiceList({
                         <div className="text-sm font-medium text-gray-900">
                           {invoice.customer?.name || 'Müşteri Yok'}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 hidden lg:block">
                           {invoice.customer?.email || ''}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-700 max-w-xs">
+                      <div className="text-sm text-gray-700 max-w-[260px]">
                         {(() => {
                           const itemsList = invoice.items || (invoice as any).lineItems || [];
                           console.log('🔍 Fatura ürün bilgisi:', {
@@ -533,11 +534,11 @@ export default function InvoiceList({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[176px]">
+                      <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => onViewInvoice(invoice)}
-                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           title={t('invoices.view')}
                         >
                           <Eye className="w-4 h-4" />
@@ -545,7 +546,7 @@ export default function InvoiceList({
                         <button 
                           onClick={() => onEditInvoice(invoice)}
                           disabled={invoice.isVoided}
-                          className={`p-1 rounded transition-colors ${
+                          className={`inline-flex items-center justify-center w-8 h-8 rounded transition-colors ${
                             invoice.isVoided 
                               ? 'text-gray-300 cursor-not-allowed' 
                               : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
@@ -560,7 +561,7 @@ export default function InvoiceList({
                               onDownloadInvoice(invoice);
                             }
                           }}
-                          className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                          className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                           title={t('invoices.download')}
                         >
                           <Download className="w-4 h-4" />
@@ -568,7 +569,7 @@ export default function InvoiceList({
                         {invoice.isVoided ? (
                           <button 
                             onClick={() => handleRestoreInvoice(invoice.id)}
-                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                             title="Faturayı geri yükle"
                           >
                             <RotateCcw className="w-4 h-4" />
@@ -576,7 +577,7 @@ export default function InvoiceList({
                         ) : (
                           <button 
                             onClick={() => handleVoidInvoice(invoice)}
-                            className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
                             title="Faturayı iptal et"
                           >
                             <Ban className="w-4 h-4" />
@@ -584,7 +585,7 @@ export default function InvoiceList({
                         )}
                         <button 
                           onClick={() => onDeleteInvoice(invoice.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                           title={t('invoices.delete')}
                         >
                           <Trash2 className="w-4 h-4" />

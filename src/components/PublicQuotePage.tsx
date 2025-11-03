@@ -139,7 +139,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
 
   const handleAccept = async () => {
     if (!quote) return;
-    if (!window.confirm(t('quotes.confirmAccept') || 'Teklifi kabul etmek istediğinizden emin misiniz?')) return;
+    if (!window.confirm(t('quotes.confirmAccept') || 'Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) return;
     setProcessing('accept');
     try {
       updateStatus('accepted');

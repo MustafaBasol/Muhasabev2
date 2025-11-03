@@ -1670,7 +1670,7 @@
         "tax": "MwSt.",
         "grandTotal": "Gesamtsumme"
       },
-      "footer": "Diese Rechnung wurde mit MoneyFlow erstellt.",
+  "footer": "Diese Rechnung wurde mit Comptario erstellt.",
       "statusLabels": {
         "paid": "Bezahlt",
         "sent": "Gesendet",

@@ -1667,7 +1667,7 @@
         "tax": "TVA",
         "grandTotal": "Total Général"
       },
-      "footer": "Cette facture a été générée avec MoneyFlow.",
+  "footer": "Cette facture a été générée avec Comptario.",
       "statusLabels": {
         "paid": "Payée",
         "sent": "Envoyée",

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, Link, Mail, RefreshCw } from 'lucide-react';
+import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, Link, Mail, RefreshCw, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
 
@@ -73,6 +73,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('tr-TR');
   const todayISO = new Date().toISOString().slice(0,10);
   const isTerminal = quote.status === 'accepted' || quote.status === 'declined' || quote.status === 'expired';
+  const isLocked = quote.status === 'accepted';
   const isExpiredByDate = quote.validUntil ? (quote.validUntil < todayISO) : false;
   const showExpired = !isTerminal && isExpiredByDate;
 
@@ -91,12 +92,18 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
           </div>
           <div className="flex items-center gap-2">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusMap[quote.status].className}`}>{statusMap[quote.status].label}</span>
+            {isLocked && (
+              <span className="ml-1 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700" title={t('quotes.lockedHint') || 'Kabul edildi. Bu teklif kilitli.'}>
+                <Lock className="w-3 h-3" />
+                {t('quotes.locked', { defaultValue: 'Kilitli' })}
+              </span>
+            )}
             {showExpired && (
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                 {t('quotes.statusLabels.expired')}
               </span>
             )}
-            {onRevise && isTerminal && (
+            {onRevise && isTerminal && quote.status !== 'accepted' && (
               <button
                 onClick={() => { onClose(); setTimeout(() => onRevise(quote), 100); }}
                 className="inline-flex items-center gap-1 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
@@ -120,7 +127,12 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
             {onChangeStatus && (quote.status === 'sent' || quote.status === 'viewed') && (
               <>
                 <button
-                  onClick={() => onChangeStatus(quote, 'accepted')}
+                  onClick={() => {
+                    const msg = t('quotes.confirmAccept') || 'Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.';
+                    if (window.confirm(msg)) {
+                      onChangeStatus(quote, 'accepted');
+                    }
+                  }}
                   className="inline-flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   title={t('quotes.actions.accept')}
                 >
@@ -137,7 +149,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                 </button>
               </>
             )}
-            {onEdit && (
+            {onEdit && !isLocked && (
               <button
                 onClick={() => { onClose(); setTimeout(() => onEdit(quote), 100); }}
                 className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
@@ -152,6 +164,13 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Kilit bilgisi */}
+          {isLocked && (
+            <div className="rounded-md border border-gray-200 bg-gray-50 text-gray-800 px-3 py-2 text-sm">
+              🔒 {t('quotes.lockedBanner', { defaultValue: 'Bu teklif kabul edildi ve kilitlidir. Düzenleme veya silme yapılamaz.' })}
+            </div>
+          )}
+
           {/* Kalemler */}
           {Array.isArray(quote.items) && quote.items.length > 0 && (
             <div>

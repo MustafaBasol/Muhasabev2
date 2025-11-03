@@ -1663,7 +1663,7 @@
         "tax": "Tax",
         "grandTotal": "Grand Total"
       },
-      "footer": "This invoice was generated with MoneyFlow.",
+  "footer": "This invoice was generated with Comptario.",
       "statusLabels": {
         "paid": "Paid",
         "sent": "Sent",

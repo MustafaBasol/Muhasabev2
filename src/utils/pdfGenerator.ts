@@ -323,7 +323,8 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
     const imgH = canvas.height;
     const ratio = pdfW / imgW;
   // İlk sayfa: yazdırılabilir alan için alt marj ayır
-  const bottomMarginFirstMm = 12;
+  // İlk sayfada alt boşluğu azalt (6mm) – footer dibine daha yakın dursun, taşma yapmasın
+  const bottomMarginFirstMm = 6;
   const availableHmmFirst = pdfH - bottomMarginFirstMm;
   const pageCanvasHeightPxFirst = Math.floor(availableHmmFirst / ratio);
     // Sonraki sayfalar: üst marjı rezerve et
@@ -483,7 +484,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}, lang?: strin
   return `
     <div style="
       max-width:170mm; margin:0 auto;
-      padding-top:22mm; padding-bottom:12mm;
+      padding-top:22mm; padding-bottom:6mm;
       display:flex; flex-direction:column;
       min-height:263mm; box-sizing:border-box;
     ">

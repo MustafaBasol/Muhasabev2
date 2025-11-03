@@ -59,6 +59,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [reviseTarget, setReviseTarget] = useState<QuoteItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<QuoteItem | null>(null);
 
   // Inline edit state (status, dates vs.)
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
@@ -76,8 +77,18 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
         if (Array.isArray(parsed) && parsed.length > 0) return parsed as QuoteItem[];
       }
     } catch {}
-    // Fallback mock veriler
-    return [
+    // Fallback mock veriler (yalnızca ilk kurulumda / hiç cache yokken)
+    // Kullanıcı bu örnekleri silerse tekrar görünmemesi için silinen ID'leri dikkate al.
+    let deletedIds: string[] = [];
+    try {
+      const rawDeleted = localStorage.getItem('quotes_deleted_ids');
+      if (rawDeleted) {
+        const arr = JSON.parse(rawDeleted);
+        if (Array.isArray(arr)) deletedIds = arr.map(String);
+      }
+    } catch {}
+
+    const demo: QuoteItem[] = [
       { id: 'q1', quoteNumber: 'Q-2025-0001', customerName: 'Acme GmbH', issueDate: iso(new Date()), validUntil: iso(addDays(new Date(), 30)), currency: 'EUR', total: 1250, status: 'draft', version: 1 },
       { id: 'q2', quoteNumber: 'Q-2025-0002', customerName: 'Mavi Deniz A.Ş.', issueDate: iso(addDays(new Date(), -2)), validUntil: iso(addDays(new Date(), 28)), currency: 'TRY', total: 54000, status: 'sent', version: 1 },
       { id: 'q3', quoteNumber: 'Q-2025-0003', customerName: 'Tech Solutions SARL', issueDate: iso(addDays(new Date(), -10)), validUntil: iso(addDays(new Date(), 20)), currency: 'EUR', total: 980, status: 'viewed', version: 1 },
@@ -85,6 +96,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
       { id: 'q5', quoteNumber: 'Q-2025-0005', customerName: 'ABC Teknoloji', issueDate: iso(addDays(new Date(), -40)), validUntil: iso(addDays(new Date(), -10)), currency: 'TRY', total: 8900, status: 'declined', version: 1 },
       { id: 'q6', quoteNumber: 'Q-2025-0006', customerName: 'GlobalCorp Ltd', issueDate: iso(addDays(new Date(), -60)), validUntil: iso(addDays(new Date(), -30)), currency: 'USD', total: 3200, status: 'expired', version: 1 }
     ];
+    return demo.filter(d => !deletedIds.includes(String(d.id)) && !deletedIds.includes(String(d.quoteNumber)));
   });
 
   const filtered = useMemo(() => {
@@ -173,7 +185,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   // (Eski create modal alanları bu bileşenden kaldırıldı)
 
   const handleDelete = (id: string) => {
-    setQuotes(prev => prev.filter(q => q.id !== id));
+    const target = quotes.find(q => q.id === id) || null;
+    setDeleteTarget(target);
   };
 
   const openView = (item: QuoteItem) => {
@@ -272,6 +285,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
 
   // Inline edit helpers
   const startInlineEdit = (quoteId: string, field: 'status' | 'issueDate', current: string) => {
+    const q = quotes.find(q => q.id === quoteId);
+    if (q?.status === 'accepted') return; // kilitli
     setEditingQuoteId(quoteId);
     setEditingField(field);
     setTempValue(current);
@@ -500,8 +515,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                         ) : (
                           <div
                             onClick={() => startInlineEdit(item.id, 'status', item.status)}
-                            className="cursor-pointer inline-block hover:opacity-80 transition-opacity"
-                            title={t('common.edit')}
+                            className={`${item.status==='accepted' ? 'cursor-default opacity-90' : 'cursor-pointer hover:opacity-80'} inline-block transition-opacity`}
+                            title={item.status==='accepted' ? t('quotes.statusLabels.accepted') : t('common.edit')}
                           >
                             {statusBadge(item.status)}
                           </div>
@@ -526,8 +541,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                         ) : (
                           <div
                             onClick={() => startInlineEdit(item.id, 'issueDate', item.issueDate)}
-                            className="cursor-pointer hover:bg-gray-50 rounded p-1"
-                            title={t('common.edit')}
+                            className={`${item.status==='accepted' ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50'} rounded p-1`}
+                            title={item.status==='accepted' ? t('quotes.statusLabels.accepted') : t('common.edit')}
                           >
                             {formatDate(item.issueDate)}
                           </div>
@@ -563,6 +578,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                           >
                             <FileDown className="w-4 h-4" />
                           </button>
+                          {item.status !== 'accepted' && (
                           <button 
                             onClick={() => openEdit(item)}
                             className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
@@ -570,6 +586,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                           >
                             <Edit className="w-4 h-4" />
                           </button>
+                          )}
+                          {item.status !== 'accepted' && (
                           <button 
                             onClick={() => handleDelete(item.id)}
                             className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -577,6 +595,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -624,6 +643,33 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
       {/* Placeholder alt bölüm kaldırıldı */}
 
       {/* View / Edit Modals */}
+      {deleteTarget && (
+        <ConfirmModal
+          isOpen={true}
+          title={t('common.confirm', { defaultValue: 'Onay' })}
+          message={t('quotes.deleteConfirm', { defaultValue: `${deleteTarget.quoteNumber} numaralı teklifi silmek istediğinize emin misiniz? Bu işlem geri alınamaz.` })}
+          confirmText={t('common.delete', { defaultValue: 'Sil' })}
+          cancelText={t('common.cancel', { defaultValue: 'Vazgeç' })}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            const id = deleteTarget?.id;
+            if (!id) { setDeleteTarget(null); return; }
+            // Listeden kaldır
+            setQuotes(prev => prev.filter(q => q.id !== id));
+            // Demo öğeler tekrar seed edilmesin diye silinenler listesine ekle
+            try {
+              const raw = localStorage.getItem('quotes_deleted_ids');
+              const arr = raw ? JSON.parse(raw) : [];
+              const next = Array.isArray(arr) ? arr : [];
+              next.push(String(deleteTarget.id));
+              next.push(String(deleteTarget.quoteNumber));
+              localStorage.setItem('quotes_deleted_ids', JSON.stringify(Array.from(new Set(next))));
+            } catch {}
+            setDeleteTarget(null);
+          }}
+        />
+      )}
+
       <QuoteViewModal
         isOpen={showViewModal}
         onClose={closeView}

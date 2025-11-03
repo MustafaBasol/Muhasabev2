@@ -1800,7 +1800,7 @@
         "tax": "KDV",
         "grandTotal": "Genel Toplam"
       },
-      "footer": "Bu fatura MoneyFlow ile oluşturulmuştur.",
+  "footer": "Bu fatura Comptario ile oluşturulmuştur.",
       "statusLabels": {
         "paid": "Ödendi",
         "sent": "Gönderildi",

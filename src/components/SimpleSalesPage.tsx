@@ -643,29 +643,30 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto relative">
+              {/* Küçük ekranlarda sıkışmayı önlemek için tabloya minimum genişlik ver */}
+              <table className="w-full min-w-[1024px] table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th onClick={() => toggleSort('saleNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    <th onClick={() => toggleSort('saleNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                       {t('sales.sale')}<SortIndicator active={sortBy==='saleNumber'} />
                     </th>
-                    <th onClick={() => toggleSort('customer')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    <th onClick={() => toggleSort('customer')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-56">
                       {t('sales.customer')}<SortIndicator active={sortBy==='customer'} />
                     </th>
-                    <th onClick={() => toggleSort('product')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    <th onClick={() => toggleSort('product')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-[320px]">
                       {t('sales.productService')}<SortIndicator active={sortBy==='product'} />
                     </th>
-                    <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                       {t('sales.amount')}<SortIndicator active={sortBy==='amount'} />
                     </th>
-                    <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                       {t('sales.status')}<SortIndicator active={sortBy==='status'} />
                     </th>
-                    <th onClick={() => toggleSort('date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                    <th onClick={() => toggleSort('date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                       {t('sales.date')}<SortIndicator active={sortBy==='date'} />
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-44 min-w-[176px] sticky right-0 bg-gray-50 z-10">
                       {t('sales.actions')}
                     </th>
                   </tr>
@@ -697,7 +698,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                             {sale.customerName}
                           </div>
                           {sale.customerEmail && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 hidden lg:block">
                               {sale.customerEmail}
                             </div>
                           )}
@@ -706,26 +707,19 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                       <td className="px-6 py-4 whitespace-nowrap">
                         {sale.items && sale.items.length > 0 ? (
                           <div>
-                            <div className="text-sm text-gray-900">
+                            <div className="text-sm text-gray-900 truncate max-w-[260px]" title={sale.items[0].productName}>
                               {sale.items[0].productName}
                               {sale.items.length > 1 && (
-                                <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
                                   +{sale.items.length - 1} ürün
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {sale.items.map((item, idx) => (
-                                <span key={idx}>
-                                  {item.quantity} x {formatAmount(item.unitPrice)}
-                                  {idx < sale.items!.length - 1 && ', '}
-                                </span>
-                              ))}
-                            </div>
+                            {/* Çok ürünlü satışlarda tüm kalemleri satırda listelemeyelim */}
                           </div>
                         ) : (
                           <div>
-                            <div className="text-sm text-gray-900">{sale.productName}</div>
+                            <div className="text-sm text-gray-900 truncate max-w-[260px]" title={sale.productName}>{sale.productName}</div>
                             {sale.quantity && sale.unitPrice && (
                               <div className="text-xs text-gray-500">
                                 {sale.quantity} x {formatAmount(sale.unitPrice)}
@@ -816,32 +810,32 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[176px]">
+                        <div className="flex items-center justify-end gap-2">
                           <button 
                             onClick={() => handleViewSale(sale)}
-                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                             title={t('sales.viewSale')}
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleEditSale(sale)}
-                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                             title={t('sales.editSale')}
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => onDownloadSale?.(sale)}
-                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                             title={t('sales.download')}
                           >
                             <Download className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleCreateInvoiceFromSale(sale)}
-                            className={`p-1 rounded transition-colors ${
+                            className={`inline-flex items-center justify-center w-8 h-8 rounded transition-colors ${
                               invoices.some(inv => 
                                 (inv.saleId && String(inv.saleId) === String(sale.id)) ||
                                 (sale.invoiceId && String(sale.invoiceId) === String(inv.id))
@@ -862,7 +856,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           </button>
                           <button 
                             onClick={() => handleDeleteSale(sale.id)}
-                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                             title={t('sales.deleteSale')}
                           >
                             <Trash2 className="w-4 h-4" />

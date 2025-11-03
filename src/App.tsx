@@ -162,7 +162,7 @@ const formatPercentage = (value: number) =>
 const AppContent: React.FC = () => {
   const { isAuthenticated, user: authUser, logout } = useAuth();
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
@@ -453,8 +453,13 @@ const AppContent: React.FC = () => {
     }
   }, [bankAccounts]);
 
+  // Logout sırasında storage'ı yanlışlıkla boş listeyle ezmemek için bayrak
+  const suppressSalesPersistenceRef = React.useRef(false);
+
   useEffect(() => {
     // Her değişimde localStorage'ı güncelle (boş liste dahil)
+    // Ancak logout akışında state temizlenirken storage'ı EZME!
+    if (suppressSalesPersistenceRef.current) return;
     try {
       localStorage.setItem('sales', JSON.stringify(sales));
     } catch {}
@@ -515,6 +520,7 @@ const AppContent: React.FC = () => {
           const arrA = a ? JSON.parse(a) : [];
           const arrB = b ? JSON.parse(b) : [];
           const merged = [...(Array.isArray(arrA) ? arrA : []), ...(Array.isArray(arrB) ? arrB : [])];
+          // Önce (saleNumber,id) ile tekilleştir
           const uniq = new Map<string, any>();
           merged.forEach((s: any) => {
             const k = `${s.saleNumber || ''}#${s.id || ''}`;
@@ -640,10 +646,8 @@ const AppContent: React.FC = () => {
           tenantId: currentTenantId
         });
         setSales(deduped);
-        try {
-          localStorage.setItem('sales', JSON.stringify(deduped));
-          localStorage.setItem('sales_cache', JSON.stringify(deduped));
-        } catch {}
+        // Not: Burada storage'ı geriye yazmıyoruz (potansiyel veri kaybını önlemek için)
+        // Dedup sonucu daha kısa olabilir; kullanıcı onayı olmadan overwrite etmeyelim.
       } catch (e) {
         console.error('Error loading sales:', e);
       }
@@ -1109,6 +1113,8 @@ const AppContent: React.FC = () => {
     setCurrentPage('dashboard');
     handleCloseNotifications();
     // State'leri temizle
+    // Storage'ı boş listeyle ezmemek için suppression aktif et
+    suppressSalesPersistenceRef.current = true;
     setSales([]);
     setCustomers([]);
     setSuppliers([]);
@@ -1117,6 +1123,8 @@ const AppContent: React.FC = () => {
     setExpenses([]);
     setBankAccounts([]);
     logout();
+    // Bir sonraki event loop'ta suppression'ı kaldır (UI state temiz ama storage korunur)
+    setTimeout(() => { suppressSalesPersistenceRef.current = false; }, 0);
   };
 
   const handleToggleSidebar = () => setIsSidebarOpen(prev => !prev);
@@ -2168,7 +2176,8 @@ const AppContent: React.FC = () => {
     setSales(prev => {
       // Mevcut satış mı yoksa yeni mi?
       const existingSale = prev.find(sale => 
-        saleData.id && String(sale.id) === String(saleData.id)
+        (saleData.id && String(sale.id) === String(saleData.id)) ||
+        (saleData.sourceType === 'quote' && saleData.sourceQuoteId && String((sale as any).sourceQuoteId || '') === String(saleData.sourceQuoteId))
       );
       
       console.log('🔍 upsertSale çağrıldı:', {
@@ -2229,7 +2238,7 @@ const AppContent: React.FC = () => {
         });
         
         // saleNumber'ı silip yenisini ekle - saleData'daki boş saleNumber ezmesin
-        const { saleNumber: _, ...cleanSaleData } = saleData;
+  const { saleNumber: _, ...cleanSaleData } = saleData;
         
         const tenantIdRaw = authUser?.tenantId ?? localStorage.getItem('tenantId') ?? undefined;
         const normalizedTenantId = tenantIdRaw != null ? String(tenantIdRaw) : undefined;
@@ -2249,9 +2258,29 @@ const AppContent: React.FC = () => {
         });
       }
       
-      const result = existingSale
+      let result = existingSale
         ? prev.map(sale => String(sale.id) === String(existingSale.id) ? finalData : sale)
         : [...prev, finalData];
+
+      // Ek güvenlik: Aynı teklife (sourceQuoteId) bağlı birden fazla satış varsa tekilleştir
+      const bySourceQuote = new Map<string, any>();
+      const dedupedBySource = [] as any[];
+      for (const s of result) {
+        const key = (s as any)?.sourceType === 'quote' && (s as any)?.sourceQuoteId
+          ? `q#${String((s as any).sourceQuoteId)}`
+          : null;
+        if (!key) {
+          dedupedBySource.push(s);
+          continue;
+        }
+        if (!bySourceQuote.has(key)) {
+          bySourceQuote.set(key, s);
+          dedupedBySource.push(s);
+        } else {
+          // Zaten var; ilk geleni koru (idempotent)
+        }
+      }
+      result = dedupedBySource;
       
   // localStorage'a kaydet
   localStorage.setItem('sales', JSON.stringify(result));
@@ -2326,6 +2355,7 @@ const AppContent: React.FC = () => {
 
   // Sales state değiştiğinde cache'i senkron tut (çapraz sekme uyumu)
   React.useEffect(() => {
+    if (suppressSalesPersistenceRef.current) return;
     try {
       localStorage.setItem('sales_cache', JSON.stringify(sales));
       window.dispatchEvent(new Event('sales-cache-updated'));
@@ -2940,7 +2970,7 @@ const AppContent: React.FC = () => {
       };
       
       const module = await import("./utils/pdfGenerator");
-      await module.generateInvoicePDF(mappedInvoice, { company });
+  await module.generateInvoicePDF(mappedInvoice, { company, lang: i18n.language });
     } catch (error) {
       console.error(error);
     }
@@ -2949,7 +2979,7 @@ const AppContent: React.FC = () => {
   const handleDownloadExpense = async (expense: any) => {
     try {
       const module = await import("./utils/pdfGenerator");
-      await module.generateExpensePDF(expense, { company });
+  await module.generateExpensePDF(expense, { company, lang: i18n.language });
     } catch (error) {
       console.error(error);
     }
@@ -2958,7 +2988,7 @@ const AppContent: React.FC = () => {
   const handleDownloadSale = async (sale: any) => {
     try {
       const module = await import("./utils/pdfGenerator");
-      await module.generateSalePDF(sale, { company });
+  await module.generateSalePDF(sale, { company, lang: i18n.language });
     } catch (error) {
       console.error(error);
     }
@@ -3804,7 +3834,24 @@ const AppContent: React.FC = () => {
 
         let changed = false;
         for (const q of list) {
-          if (q && q.status === 'accepted' && !q.convertedToSale) {
+          if (q && q.status === 'accepted') {
+            // Çoklu sekme yarışı için basit bir kilit: pending:<token> → done
+            const flagKey = `quote_converted_${q.id}`;
+            const curr = localStorage.getItem(flagKey);
+            if (curr === 'done' || q.convertedToSale) {
+              continue;
+            }
+            if (curr && curr.startsWith('pending:')) {
+              // Başka bir sekme çalışıyor; bu turda atla
+              continue;
+            }
+            const token = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+            try { localStorage.setItem(flagKey, `pending:${token}`); } catch {}
+            // Kilidi gerçekten aldık mı?
+            const verify = localStorage.getItem(flagKey);
+            if (verify !== `pending:${token}`) {
+              continue;
+            }
             const items = Array.isArray(q.items) ? q.items : [];
             const mappedItems = items.map((it: any) => ({
               productId: it?.productId,
@@ -3822,6 +3869,8 @@ const AppContent: React.FC = () => {
               items: mappedItems,
               date: new Date().toISOString().split('T')[0],
               status: 'completed',
+              sourceType: 'quote',
+              sourceQuoteId: String(q.id),
             };
             try {
               await upsertSale(saleData);
@@ -3829,6 +3878,8 @@ const AppContent: React.FC = () => {
               console.warn('Quote→Sale dönüşümünde hata:', e);
             }
             q.convertedToSale = true;
+            // Kilidi tamamlandı olarak işaretle
+            try { localStorage.setItem(flagKey, 'done'); } catch {}
             changed = true;
           }
         }

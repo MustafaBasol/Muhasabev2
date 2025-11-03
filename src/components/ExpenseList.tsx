@@ -345,28 +345,29 @@ export default function ExpenseList({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            {/* Küçük ekranlarda sıkışmayı önlemek için tabloya minimum genişlik ver */}
+            <table className="w-full min-w-[1024px] table-fixed">
               <thead className="bg-gray-50">
                 <tr>
-                  <th onClick={() => toggleSort('description')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('description')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-[320px]">
                     {t('expenses.description')}<SortIndicator active={sort.by==='description'} />
                   </th>
-                  <th onClick={() => toggleSort('supplier')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('supplier')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-56">
                     {t('expenses.supplier')}<SortIndicator active={sort.by==='supplier'} />
                   </th>
-                  <th onClick={() => toggleSort('category')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('category')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                     {t('expenses.category')}<SortIndicator active={sort.by==='category'} />
                   </th>
-                  <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('expenses.amount')}<SortIndicator active={sort.by==='amount'} />
                   </th>
-                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('expenses.status')}<SortIndicator active={sort.by==='status'} />
                   </th>
-                  <th onClick={() => toggleSort('expenseDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
+                  <th onClick={() => toggleSort('expenseDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('expenses.date')}<SortIndicator active={sort.by==='expenseDate'} />
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-44 min-w-[176px] sticky right-0 bg-gray-50 z-10">
                     {t('expenses.actions')}
                   </th>
                 </tr>
@@ -389,7 +390,7 @@ export default function ExpenseList({
                               {expense.expenseNumber}
                             </button>
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 truncate max-w-[260px]" title={expense.description}>
                             {expense.description}
                           </div>
                         </div>
@@ -474,11 +475,11 @@ export default function ExpenseList({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[176px]">
+                      <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => onViewExpense(expense)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                           title={t('expenses.view')}
                         >
                           <Eye className="w-4 h-4" />
@@ -486,7 +487,7 @@ export default function ExpenseList({
                         <button 
                           onClick={() => onEditExpense(expense)}
                           disabled={expense.isVoided}
-                          className={`p-1 rounded transition-colors ${
+                          className={`inline-flex items-center justify-center w-8 h-8 rounded transition-colors ${
                             expense.isVoided 
                               ? 'text-gray-300 cursor-not-allowed' 
                               : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
@@ -501,7 +502,7 @@ export default function ExpenseList({
                               onDownloadExpense(expense);
                             }
                           }}
-                          className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                          className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                           title={t('expenses.download')}
                         >
                           <Download className="w-4 h-4" />
@@ -509,7 +510,7 @@ export default function ExpenseList({
                         {expense.isVoided ? (
                           <button 
                             onClick={() => handleRestoreExpense(expense.id)}
-                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                             title="Gideri geri yükle"
                           >
                             <RotateCcw className="w-4 h-4" />
@@ -517,7 +518,7 @@ export default function ExpenseList({
                         ) : (
                           <button 
                             onClick={() => handleVoidExpense(expense)}
-                            className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
                             title="Gideri iptal et"
                           >
                             <Ban className="w-4 h-4" />
@@ -525,7 +526,7 @@ export default function ExpenseList({
                         )}
                         <button 
                           onClick={() => onDeleteExpense(expense.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                           title={t('expenses.delete')}
                         >
                           <Trash2 className="w-4 h-4" />
