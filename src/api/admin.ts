@@ -150,7 +150,7 @@ export const adminApi = {
 
   updateUserDetails: async (
     userId: string,
-    payload: { firstName?: string; lastName?: string; email?: string; phone?: string }
+    payload: { firstName?: string; lastName?: string; email?: string; phone?: string; role?: string }
   ) => {
     const response = await apiClient.patch(`/admin/users/${userId}`, payload, {
       headers: getAdminHeaders()
@@ -160,6 +160,15 @@ export const adminApi = {
 
   sendPasswordReset: async (userId: string) => {
     const response = await apiClient.post(`/admin/users/${userId}/password-reset`, {}, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+  updateTenantDetails: async (
+    tenantId: string,
+    payload: { name?: string; companyName?: string }
+  ) => {
+    const response = await apiClient.patch(`/admin/tenant/${tenantId}`, payload, {
       headers: getAdminHeaders()
     });
     return response.data;
@@ -194,6 +203,37 @@ export const adminApi = {
   ) => {
     const response = await apiClient.patch(`/admin/plan-limits/${plan}`, payload, {
       headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+
+  // Tenant-specific limits
+  getTenantLimits: async (tenantId: string) => {
+    const response = await apiClient.get(`/admin/tenant/${tenantId}/limits`, {
+      headers: getAdminHeaders(),
+    });
+    return response.data;
+  },
+  updateTenantLimits: async (
+    tenantId: string,
+    payload: {
+      maxUsers?: number;
+      maxCustomers?: number;
+      maxSuppliers?: number;
+      maxBankAccounts?: number;
+      monthly?: { maxInvoices?: number; maxExpenses?: number };
+    }
+  ) => {
+    const response = await apiClient.patch(`/admin/tenant/${tenantId}/limits`, payload, {
+      headers: getAdminHeaders(),
+    });
+    return response.data;
+  },
+
+  // Tenant consolidated overview
+  getTenantOverview: async (tenantId: string) => {
+    const response = await apiClient.get(`/admin/tenant/${tenantId}/overview`, {
+      headers: getAdminHeaders(),
     });
     return response.data;
   },

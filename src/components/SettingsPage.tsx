@@ -25,6 +25,7 @@ import type { CompanyProfile } from '../utils/pdfGenerator';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usersApi } from '../api/users';
+import { tenantsApi } from '../api/tenants';
 import { AuditLogComponent } from './AuditLogComponent';
 
 type BankAccount = {
@@ -1160,7 +1161,28 @@ export default function SettingsPage({
   const notificationLabels = text.notifications.labels;
   
   // Auth context - profil güncellemesi için
-  const { refreshUser } = useAuth();
+  const { refreshUser, user: authUser } = useAuth();
+  const isTenantOwner = (authUser?.role === 'tenant_admin');
+
+  // Resmi şirket adı (backend tenant.name) için yerel state
+  const [officialCompanyName, setOfficialCompanyName] = useState<string>('');
+  const [officialLoaded, setOfficialLoaded] = useState<boolean>(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await tenantsApi.getMyTenant();
+        if (!cancelled) {
+          // Resmi şirket adı öncelikle companyName, yoksa name
+          setOfficialCompanyName(me?.companyName || me?.name || '');
+          setOfficialLoaded(true);
+        }
+      } catch (e) {
+        if (!cancelled) setOfficialLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   
   // Currency context
   const { currency, setCurrency } = useCurrency();
@@ -1406,7 +1428,25 @@ export default function SettingsPage({
       console.log('✅✅✅ PROFİL DEĞİŞİKLİĞİ KALICI OLARAK KAYDEDİLDİ! ✅✅✅');
       console.log('💾 Database\'de kayıtlı:', updatedUser);
 
-      // Şirket bilgilerini kaydet
+      // Resmi şirket adı değiştiyse ve kullanıcı tenant sahibi ise, backend'e yaz
+      try {
+        if (isTenantOwner && officialLoaded) {
+          // Değişiklik kontrolü basitçe yapılır; gerçek senaryoda trim/normalize edilebilir
+          // Backend tarafı sadece TENANT_ADMIN'e izin veriyor
+          // companyData.name markalama alanı, officialCompanyName ise resmi alan
+          const myTenant = await tenantsApi.getMyTenant();
+          const currentOfficial = (myTenant?.companyName || myTenant?.name || '');
+          if ((officialCompanyName || '') !== (currentOfficial || '')) {
+            await tenantsApi.updateMyTenant({ companyName: officialCompanyName });
+            // Backend kaydı değişti; App genelinde tenant adını yeniden çekmek istersen burada olay yayınlanabilir
+          }
+        }
+      } catch (e) {
+        console.error('Resmi şirket adı güncellenemedi:', e);
+        // Kullanıcıya sessiz geçebiliriz; önemli olan engellenmemesi. Dilersen uyarı göster.
+      }
+
+      // Şirket bilgilerini (marka/yerel alanlar) kaydet
       if (onCompanyUpdate) {
         const cleaned: CompanyProfile = {
           name: companyData.name,
@@ -1575,14 +1615,32 @@ export default function SettingsPage({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Resmi Şirket Adı (Backend) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.fields.name}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Resmi Şirket Adı</label>
+              <input
+                type="text"
+                value={officialCompanyName}
+                onChange={e => setOfficialCompanyName(e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isTenantOwner ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
+                disabled={!isTenantOwner}
+                title={!isTenantOwner ? 'Şirket adını yalnızca şirket sahibi (tenant_admin) güncelleyebilir' : undefined}
+              />
+              {!isTenantOwner && (
+                <p className="mt-1 text-xs text-gray-500">Bu alan yalnızca şirket sahibi tarafından değiştirilebilir.</p>
+              )}
+            </div>
+
+            {/* Fatura/Marka Adı (Yerel) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Fatura/Marka Adı</label>
               <input
                 type="text"
                 value={companyData.name}
                 onChange={e => handleCompanyChange('name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <p className="mt-1 text-xs text-gray-500">Bu alan faturada/ekranda marka adı olarak kullanılabilir.</p>
             </div>
             {hasCountry && (
               <>

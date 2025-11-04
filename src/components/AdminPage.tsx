@@ -3,8 +3,9 @@ import { adminApi } from '../api/admin';
 import { Edit, Trash2, ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
 import BackupManagementPage from './admin/BackupManagementPage';
 import DataRetentionPage from './admin/DataRetentionPage';
-import OrganizationManagementPage from './admin/OrganizationManagementPage';
 import PlanLimitsPage from './admin/PlanLimitsPage';
+// OrganizationManagementPage ve TenantLimitsPage kaldırıldı
+import TenantConsolePage from './admin/TenantConsolePage';
 import { useAuth } from '../contexts/AuthContext';
 import StatusPage from './status/StatusPage';
 
@@ -59,7 +60,7 @@ const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'memberships' | 'data' | 'backups' | 'retention' | 'status' | 'planLimits'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups' | 'retention' | 'status' | 'planLimits' | 'tenantConsole'>('users');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
   // Users sekmesi için şirket filtresi (sunucu tarafı)
   const [userTenantFilter, setUserTenantFilter] = useState<string>('all');
@@ -574,16 +575,7 @@ const AdminPage: React.FC = () => {
           >
             📊 Veri Tabanı
           </button>
-          <button
-            onClick={() => setActiveTab('memberships')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'memberships'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            🧑‍🤝‍🧑 Üyelikler
-          </button>
+          {/* Üyelikler sekmesi kaldırıldı */}
           <button
             onClick={() => setActiveTab('backups')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -613,6 +605,17 @@ const AdminPage: React.FC = () => {
             }`}
           >
             📏 Plan Limitleri
+          </button>
+          {/* Tenant Limitleri sekmesi kaldırıldı */}
+          <button
+            onClick={() => setActiveTab('tenantConsole')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'tenantConsole'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🧭 Tenant Yönetim
           </button>
           <button
             onClick={() => setActiveTab('status')}
@@ -1028,9 +1031,7 @@ const AdminPage: React.FC = () => {
 
         {/* Subscriptions sekmesi kaldırıldı; abonelik yönetimi Şirketler sekmesine taşındı. */}
 
-        {activeTab === 'memberships' && (
-          <OrganizationManagementPage />
-        )}
+        {/* Üyelikler sekmesi kaldırıldı */}
 
         {activeTab === 'backups' && (
           <BackupManagementPage />
@@ -1043,6 +1044,14 @@ const AdminPage: React.FC = () => {
         {activeTab === 'planLimits' && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <PlanLimitsPage />
+          </div>
+        )}
+
+        {/* Tenant Limitleri sekmesi kaldırıldı */}
+
+        {activeTab === 'tenantConsole' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <TenantConsolePage />
           </div>
         )}
 

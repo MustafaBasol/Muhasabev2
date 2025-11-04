@@ -26,8 +26,8 @@ echo "Backend PID: $BACKEND_PID"
 sleep 5
 
 # Backend'in çalışıp çalışmadığını kontrol et
-if curl -s http://localhost:3002/health > /dev/null; then
-    echo -e "${GREEN}✅ Backend başarıyla başlatıldı (Port: 3002)${NC}"
+if curl -s http://localhost:3000/health > /dev/null; then
+    echo -e "${GREEN}✅ Backend başarıyla başlatıldı (Port: 3000)${NC}"
 else
     echo -e "${RED}❌ Backend başlatılamadı! Log: /tmp/backend.log${NC}"
 fi
@@ -56,7 +56,8 @@ echo "   Frontend: tail -f /tmp/frontend.log"
 echo ""
 echo -e "${YELLOW}🌐 Erişim URL'leri:${NC}"
 echo "   Frontend: http://localhost:5174"
-echo "   Backend:  http://localhost:3002"
+echo "   Backend:  http://localhost:3000"
+echo "   Swagger:  http://localhost:3000/api/docs"
 echo ""
 echo -e "${YELLOW}🛑 Servisleri durdurmak için:${NC}"
 echo "   pkill -f 'nest start' && pkill -f 'vite'"

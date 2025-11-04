@@ -5,8 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
-import { User } from '../users/entities/user.entity';
+import { Repository, DataSource, Between } from 'typeorm';
+import { User, UserRole } from '../users/entities/user.entity';
 import {
   Tenant,
   SubscriptionPlan,
@@ -24,6 +24,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { SecurityService } from '../common/security.service';
 import { EmailService } from '../services/email.service';
+import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 
 @Injectable()
 export class AdminService {
@@ -176,14 +177,25 @@ export class AdminService {
       lastName?: string;
       email?: string;
       phone?: string;
+      role?: string;
     },
   ) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    if (payload.firstName !== undefined) user.firstName = payload.firstName;
-    if (payload.lastName !== undefined) user.lastName = payload.lastName;
-    if (payload.email !== undefined) user.email = payload.email;
+    const patch: Partial<User> = {};
+    if (payload.firstName !== undefined) patch.firstName = payload.firstName;
+    if (payload.lastName !== undefined) patch.lastName = payload.lastName;
+    if (payload.email !== undefined) patch.email = payload.email;
+    if (payload.role !== undefined) {
+      // Normalize and validate against enum
+      const allowed = new Set<string>(Object.values(UserRole));
+      const nextRole = String(payload.role) as UserRole;
+      if (!allowed.has(nextRole)) {
+        throw new BadRequestException('Invalid role');
+      }
+      patch.role = nextRole;
+    }
 
     // Phone alanını tabloya ekleyip güncellemeye çalış (kolon yoksa sessiz geç)
     if (payload.phone !== undefined) {
@@ -201,7 +213,23 @@ export class AdminService {
       }
     }
 
-    await this.userRepository.save(user);
+    if (Object.keys(patch).length > 0) {
+      await this.userRepository.update(userId, patch);
+    }
+    return { success: true };
+  }
+
+  async updateTenantBasic(
+    tenantId: string,
+    payload: { name?: string; companyName?: string },
+  ) {
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    if (payload.name !== undefined) tenant.name = payload.name;
+    if (payload.companyName !== undefined) tenant.companyName = payload.companyName;
+
+    await this.tenantRepository.save(tenant);
     return { success: true };
   }
 
@@ -358,6 +386,53 @@ export class AdminService {
         expenses: expenses.length,
         users: tenant.users?.length || 0,
       },
+    };
+  }
+
+  // Consolidated overview for a tenant: users, limits, usage, org members & invites
+  async getTenantOverview(tenantId: string) {
+    const base = await this.getTenantLimits(tenantId); // includes tenant, limits, usage
+
+    // Users
+    const users = await this.userRepository.find({
+      where: { tenantId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isActive: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+      order: { createdAt: 'DESC' as any },
+    });
+
+    // Organization members and invites (if organizations feature is used)
+    let organizations: any[] = [];
+    let invites: any[] = [];
+    try {
+      const orgs = await this.dataSource.query(
+        'SELECT o.* FROM organizations o ORDER BY o."createdAt" DESC LIMIT 20',
+      );
+      organizations = orgs || [];
+      const inv = await this.dataSource.query(
+        'SELECT i.* FROM invites i ORDER BY i."createdAt" DESC LIMIT 100',
+      );
+      invites = inv || [];
+    } catch (_) {
+      // organizations table may not exist in some setups; ignore softly
+    }
+
+    return {
+      success: true,
+      tenant: base.tenant,
+      limits: base.limits,
+      usage: base.usage,
+      users,
+      organizations,
+      invites,
     };
   }
 
@@ -781,5 +856,154 @@ export class AdminService {
         });
       });
     });
+  }
+
+  // === Tenant bazlı plan limitleri: oku/güncelle ===
+  async getTenantLimits(tenantId: string) {
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    // Usage stats
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [usersCount, customersCount, suppliersCount, bankAccountsCount, invoicesThisMonth, expensesThisMonth] = await Promise.all([
+      this.userRepository.count({ where: { tenantId } }),
+      this.customerRepository.count({ where: { tenantId } }),
+      this.supplierRepository.count({ where: { tenantId } }),
+      // bank accounts table/entity name is bank_accounts
+      this.dataSource
+        .query('SELECT COUNT(*)::int AS count FROM "bank_accounts" WHERE "tenantId" = $1', [tenantId])
+        .then((r: any[]) => (r?.[0]?.count as number) ?? 0)
+        .catch(() => 0),
+      this.invoiceRepository.count({
+        where: { tenantId, isVoided: false, createdAt: Between(startOfMonth, now) },
+      }).catch(() => 0),
+      this.expenseRepository.count({
+        where: { tenantId, isVoided: false, createdAt: Between(startOfMonth, now) },
+      }).catch(() => 0),
+    ]);
+
+    // Limits
+    const defaultLimits = TenantPlanLimitService.getLimits(tenant.subscriptionPlan);
+    const overrides = (tenant.settings as any)?.planOverrides || null;
+    const effective = TenantPlanLimitService.mergeWithOverrides(defaultLimits, overrides);
+
+    return {
+      success: true,
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        companyName: tenant.companyName,
+        subscriptionPlan: tenant.subscriptionPlan,
+        status: tenant.status,
+      },
+      limits: {
+        default: defaultLimits,
+        overrides: overrides,
+        effective,
+      },
+      usage: {
+        users: usersCount,
+        customers: customersCount,
+        suppliers: suppliersCount,
+        bankAccounts: bankAccountsCount,
+        monthly: {
+          invoices: invoicesThisMonth,
+          expenses: expensesThisMonth,
+        },
+      },
+    };
+  }
+
+  async updateTenantLimits(
+    tenantId: string,
+    patch: {
+      maxUsers?: number;
+      maxCustomers?: number;
+      maxSuppliers?: number;
+      maxBankAccounts?: number;
+      monthly?: { maxInvoices?: number; maxExpenses?: number };
+      __clearAll?: boolean;
+      __clear?: string[]; // dotted paths supported, e.g., 'monthly.maxInvoices'
+    },
+  ) {
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const settings = (tenant.settings || {}) as Record<string, any>;
+    const currentOverrides = (settings.planOverrides || {}) as Record<string, any>;
+    let nextOverrides: Record<string, any> = { ...currentOverrides };
+
+    // helper
+    const deleteByPath = (obj: any, dotted: string) => {
+      if (!obj || !dotted) return;
+      const parts = dotted.split('.');
+      if (parts.length === 1) {
+        delete obj[parts[0]];
+        return;
+      }
+      const last = parts.pop()!;
+      let ref = obj as any;
+      for (const p of parts) {
+        if (ref[p] == null || typeof ref[p] !== 'object') return;
+        ref = ref[p];
+      }
+      delete ref[last];
+    };
+
+    // clear all
+    if ((patch as any).__clearAll) {
+      nextOverrides = {};
+    }
+
+    // clear specific
+    const clearList = (patch as any).__clear as string[] | undefined;
+    if (Array.isArray(clearList)) {
+      for (const key of clearList) deleteByPath(nextOverrides, key);
+      if (nextOverrides.monthly && Object.keys(nextOverrides.monthly).length === 0) {
+        delete nextOverrides.monthly;
+      }
+    }
+
+    // apply values; null means clear
+    const applyNumber = (key: string, value: any) => {
+      if (value === undefined) return;
+      if (value === null) {
+        delete nextOverrides[key];
+        return;
+      }
+      nextOverrides[key] = value;
+    };
+    applyNumber('maxUsers', (patch as any).maxUsers);
+    applyNumber('maxCustomers', (patch as any).maxCustomers);
+    applyNumber('maxSuppliers', (patch as any).maxSuppliers);
+    applyNumber('maxBankAccounts', (patch as any).maxBankAccounts);
+
+    if (patch.monthly !== undefined) {
+      if (patch.monthly === null) {
+        delete nextOverrides.monthly;
+      } else {
+        nextOverrides.monthly = { ...(nextOverrides.monthly || {}) };
+        const m = patch.monthly as any;
+        if (m.maxInvoices === null) {
+          if (nextOverrides.monthly) delete nextOverrides.monthly.maxInvoices;
+        } else if (m.maxInvoices !== undefined) {
+          nextOverrides.monthly.maxInvoices = m.maxInvoices;
+        }
+        if (m.maxExpenses === null) {
+          if (nextOverrides.monthly) delete nextOverrides.monthly.maxExpenses;
+        } else if (m.maxExpenses !== undefined) {
+          nextOverrides.monthly.maxExpenses = m.maxExpenses;
+        }
+        if (nextOverrides.monthly && Object.keys(nextOverrides.monthly).length === 0) {
+          delete nextOverrides.monthly;
+        }
+      }
+    }
+    settings.planOverrides = nextOverrides;
+    tenant.settings = settings;
+    await this.tenantRepository.save(tenant);
+
+    return this.getTenantLimits(tenantId);
   }
 }

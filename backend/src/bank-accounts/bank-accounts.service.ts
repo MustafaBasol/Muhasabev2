@@ -22,17 +22,10 @@ export class BankAccountsService {
     const currentCount = await this.bankAccountsRepo.count({
       where: { tenantId },
     });
-    if (
-      !TenantPlanLimitService.canAddBankAccount(
-        currentCount,
-        tenant.subscriptionPlan,
-      )
-    ) {
+    if (!TenantPlanLimitService.canAddBankAccountForTenant(currentCount, tenant)) {
+      const effective = TenantPlanLimitService.getLimitsForTenant(tenant);
       throw new BadRequestException(
-        TenantPlanLimitService.errorMessageFor(
-          'bankAccount',
-          tenant.subscriptionPlan,
-        ),
+        TenantPlanLimitService.errorMessageForWithLimits('bankAccount', effective),
       );
     }
 

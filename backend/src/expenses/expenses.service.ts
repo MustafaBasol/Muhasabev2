@@ -40,16 +40,14 @@ export class ExpensesService {
       },
     });
     if (
-      !TenantPlanLimitService.canAddExpenseThisMonth(
+      !TenantPlanLimitService.canAddExpenseThisMonthForTenant(
         currentMonthCount,
-        tenant.subscriptionPlan,
+        tenant,
       )
     ) {
+      const effective = TenantPlanLimitService.getLimitsForTenant(tenant);
       throw new BadRequestException(
-        TenantPlanLimitService.errorMessageFor(
-          'expense',
-          tenant.subscriptionPlan,
-        ),
+        TenantPlanLimitService.errorMessageForWithLimits('expense', effective),
       );
     }
 

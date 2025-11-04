@@ -39,16 +39,14 @@ export class InvoicesService {
       },
     });
     if (
-      !TenantPlanLimitService.canAddInvoiceThisMonth(
+      !TenantPlanLimitService.canAddInvoiceThisMonthForTenant(
         currentMonthCount,
-        tenant.subscriptionPlan,
+        tenant,
       )
     ) {
+      const effective = TenantPlanLimitService.getLimitsForTenant(tenant);
       throw new BadRequestException(
-        TenantPlanLimitService.errorMessageFor(
-          'invoice',
-          tenant.subscriptionPlan,
-        ),
+        TenantPlanLimitService.errorMessageForWithLimits('invoice', effective),
       );
     }
 

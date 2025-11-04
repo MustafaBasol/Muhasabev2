@@ -12,11 +12,11 @@ NC='\033[0m' # No Color
 
 # Mevcut process'leri temizle
 echo -e "${YELLOW}🧹 Mevcut process'ler temizleniyor...${NC}"
-pkill -f "nest|vite" 2>/dev/null || true
+pkill -f "nest start|vite" 2>/dev/null || true
 sleep 2
 
 # Docker kontrol
-echo -e "${BLUE}� Docker servisleri kontrol ediliyor...${NC}"
+echo -e "${BLUE}🐳 Docker servisleri kontrol ediliyor...${NC}"
 if ! docker ps | grep -q "postgres\|redis"; then
     echo -e "${YELLOW}⚠️  Docker servisleri başlatılıyor...${NC}"
     cd /workspaces/Muhasabev2/backend
@@ -34,7 +34,8 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-npm run start:dev &
+# Backend loglarını dosyaya yaz
+npm run start:dev > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 
 # Backend'in başlamasını bekle
@@ -51,7 +52,7 @@ else
 fi
 
 # Frontend başlat
-echo -e "${BLUE}🎨 Frontend başlatılıyor (Port 5173)...${NC}"
+echo -e "${BLUE}🎨 Frontend başlatılıyor (Port 5174)...${NC}"
 cd /workspaces/Muhasabev2
 
 # Dependencies check
@@ -60,29 +61,18 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-npm run dev &
-FRONTEND_PID=$!
-BACKEND_PID=$!
-echo "Backend PID: $BACKEND_PID"
-
-# Backend'in başlamasını bekle
-echo "⏳ Waiting for backend to start..."
-sleep 8
-
-# Frontend'i başlat
-echo "🎨 Starting frontend..."
-cd /workspaces/Muhasabev2
 npm run dev > /tmp/frontend.log 2>&1 &
 FRONTEND_PID=$!
+echo "Backend PID: $BACKEND_PID"
 echo "Frontend PID: $FRONTEND_PID"
 
 echo ""
 echo "✅ All services started!"
 echo ""
 echo "📊 Services:"
-echo "  - Backend:  http://localhost:3002"
-echo "  - Frontend: http://localhost:5173"
-echo "  - Swagger:  http://localhost:3002/api"
+echo "  - Backend:  http://localhost:3000"
+echo "  - Frontend: http://localhost:5174"
+echo "  - Swagger:  http://localhost:3000/api/docs"
 echo "  - pgAdmin:  http://localhost:5050"
 echo ""
 echo "📝 Logs:"

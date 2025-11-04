@@ -1,4 +1,4 @@
-import { SubscriptionPlan } from '../tenants/entities/tenant.entity';
+import { SubscriptionPlan, Tenant } from '../tenants/entities/tenant.entity';
 
 // Merkezi plan limitleri: Tenant bazlı kısıtlar
 export interface TenantPlanLimits {
@@ -18,6 +18,9 @@ export type UpdateTenantPlanLimits = Partial<
 > & {
   monthly?: Partial<TenantPlanLimits['monthly']>;
 };
+
+// Tenant bazlı override için kısmi tip
+export type TenantPlanOverrides = UpdateTenantPlanLimits;
 
 // Not: Var olan SubscriptionPlan enum: FREE | BASIC | PROFESSIONAL | ENTERPRISE
 // İstenen iş kuralları:
@@ -102,6 +105,34 @@ export class TenantPlanLimitService {
     return merged;
   }
 
+  // === Tenant bazlı override desteği ===
+  static mergeWithOverrides(
+    base: TenantPlanLimits,
+    overrides?: TenantPlanOverrides | null,
+  ): TenantPlanLimits {
+    if (!overrides) return base;
+    return {
+      maxUsers: overrides.maxUsers ?? base.maxUsers,
+      maxCustomers: overrides.maxCustomers ?? base.maxCustomers,
+      maxSuppliers: overrides.maxSuppliers ?? base.maxSuppliers,
+      maxBankAccounts: overrides.maxBankAccounts ?? base.maxBankAccounts,
+      monthly: {
+        maxInvoices: overrides.monthly?.maxInvoices ?? base.monthly.maxInvoices,
+        maxExpenses: overrides.monthly?.maxExpenses ?? base.monthly.maxExpenses,
+      },
+    };
+  }
+
+  static getLimitsForTenant(
+    tenant: Pick<Tenant, 'subscriptionPlan' | 'settings'>,
+  ): TenantPlanLimits {
+    const base = this.getLimits(tenant.subscriptionPlan);
+    const overrides = (tenant.settings as any)?.planOverrides as
+      | TenantPlanOverrides
+      | undefined;
+    return this.mergeWithOverrides(base, overrides);
+  }
+
   static isUnlimited(value: number): boolean {
     return value === -1;
   }
@@ -111,13 +142,37 @@ export class TenantPlanLimitService {
     return this.isUnlimited(max) || currentCount < max;
   }
 
+  static canAddUserForTenant(
+    currentCount: number,
+    tenant: Pick<Tenant, 'subscriptionPlan' | 'settings'>,
+  ): boolean {
+    const max = this.getLimitsForTenant(tenant).maxUsers;
+    return this.isUnlimited(max) || currentCount < max;
+  }
+
   static canAddCustomer(currentCount: number, plan: SubscriptionPlan): boolean {
     const max = this.getLimits(plan).maxCustomers;
     return this.isUnlimited(max) || currentCount < max;
   }
 
+  static canAddCustomerForTenant(
+    currentCount: number,
+    tenant: Pick<Tenant, 'subscriptionPlan' | 'settings'>,
+  ): boolean {
+    const max = this.getLimitsForTenant(tenant).maxCustomers;
+    return this.isUnlimited(max) || currentCount < max;
+  }
+
   static canAddSupplier(currentCount: number, plan: SubscriptionPlan): boolean {
     const max = this.getLimits(plan).maxSuppliers;
+    return this.isUnlimited(max) || currentCount < max;
+  }
+
+  static canAddSupplierForTenant(
+    currentCount: number,
+    tenant: Pick<Tenant, 'subscriptionPlan' | 'settings'>,
+  ): boolean {
+    const max = this.getLimitsForTenant(tenant).maxSuppliers;
     return this.isUnlimited(max) || currentCount < max;
   }
 
@@ -129,6 +184,14 @@ export class TenantPlanLimitService {
     return this.isUnlimited(max) || currentCount < max;
   }
 
+  static canAddBankAccountForTenant(
+    currentCount: number,
+    tenant: Pick<Tenant, 'subscriptionPlan' | 'settings'>,
+  ): boolean {
+    const max = this.getLimitsForTenant(tenant).maxBankAccounts;
+    return this.isUnlimited(max) || currentCount < max;
+  }
+
   static canAddInvoiceThisMonth(
     currentMonthCount: number,
     plan: SubscriptionPlan,
@@ -137,11 +200,27 @@ export class TenantPlanLimitService {
     return this.isUnlimited(max) || currentMonthCount < max;
   }
 
+  static canAddInvoiceThisMonthForTenant(
+    currentMonthCount: number,
+    tenant: Pick<Tenant, 'subscriptionPlan' | 'settings'>,
+  ): boolean {
+    const max = this.getLimitsForTenant(tenant).monthly.maxInvoices;
+    return this.isUnlimited(max) || currentMonthCount < max;
+  }
+
   static canAddExpenseThisMonth(
     currentMonthCount: number,
     plan: SubscriptionPlan,
   ): boolean {
     const max = this.getLimits(plan).monthly.maxExpenses;
+    return this.isUnlimited(max) || currentMonthCount < max;
+  }
+
+  static canAddExpenseThisMonthForTenant(
+    currentMonthCount: number,
+    tenant: Pick<Tenant, 'subscriptionPlan' | 'settings'>,
+  ): boolean {
+    const max = this.getLimitsForTenant(tenant).monthly.maxExpenses;
     return this.isUnlimited(max) || currentMonthCount < max;
   }
 
@@ -181,6 +260,44 @@ export class TenantPlanLimitService {
         return this.isUnlimited(limits.monthly.maxExpenses)
           ? 'Bu planda aylık gider kaydı limiti yok.'
           : `Plan limitine ulaşıldı: Bu ay en fazla ${limits.monthly.maxExpenses} gider kaydı oluşturabilirsiniz. Planınızı yükseltin.`;
+    }
+  }
+
+  static errorMessageForWithLimits(
+    entity:
+      | 'user'
+      | 'customer'
+      | 'supplier'
+      | 'bankAccount'
+      | 'invoice'
+      | 'expense',
+    limits: TenantPlanLimits,
+  ): string {
+    switch (entity) {
+      case 'user':
+        return this.isUnlimited(limits.maxUsers)
+          ? 'Kullanıcı sayısı sınırsız.'
+          : `Plan limitine ulaşıldı: En fazla ${limits.maxUsers} kullanıcı eklenebilir.`;
+      case 'customer':
+        return this.isUnlimited(limits.maxCustomers)
+          ? 'Müşteri sayısı sınırsız.'
+          : `Plan limitine ulaşıldı: En fazla ${limits.maxCustomers} müşteri eklenebilir.`;
+      case 'supplier':
+        return this.isUnlimited(limits.maxSuppliers)
+          ? 'Tedarikçi sayısı sınırsız.'
+          : `Plan limitine ulaşıldı: En fazla ${limits.maxSuppliers} tedarikçi eklenebilir.`;
+      case 'bankAccount':
+        return this.isUnlimited(limits.maxBankAccounts)
+          ? 'Banka hesabı sayısı sınırsız.'
+          : `Plan limitine ulaşıldı: En fazla ${limits.maxBankAccounts} banka hesabı eklenebilir.`;
+      case 'invoice':
+        return this.isUnlimited(limits.monthly.maxInvoices)
+          ? 'Aylık fatura limiti yok.'
+          : `Plan limitine ulaşıldı: Bu ay en fazla ${limits.monthly.maxInvoices} fatura oluşturabilirsiniz.`;
+      case 'expense':
+        return this.isUnlimited(limits.monthly.maxExpenses)
+          ? 'Aylık gider kaydı limiti yok.'
+          : `Plan limitine ulaşıldı: Bu ay en fazla ${limits.monthly.maxExpenses} gider kaydı oluşturabilirsiniz.`;
     }
   }
 }

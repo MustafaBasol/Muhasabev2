@@ -8,6 +8,8 @@ import {
   Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ForbiddenException } from '@nestjs/common';
+import { UserRole } from '../users/entities/user.entity';
 import { TenantsService } from './tenants.service';
 import type { UpdateTenantDto } from './tenants.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -32,6 +34,17 @@ export class TenantsController {
     @Body() updateTenantDto: UpdateTenantDto,
     @User() user: any,
   ) {
+    // Yalnızca TENANT sahibi (tenant_admin) şirket adını/kimliğini değiştirebilir
+    const isOwner = user?.role === UserRole.TENANT_ADMIN;
+
+    const wantsToChangeCompanyIdentity =
+      Object.prototype.hasOwnProperty.call(updateTenantDto || {}, 'name') ||
+      Object.prototype.hasOwnProperty.call(updateTenantDto || {}, 'companyName');
+
+    if (wantsToChangeCompanyIdentity && !isOwner) {
+      throw new ForbiddenException('Şirket adını yalnızca şirket sahibi güncelleyebilir');
+    }
+
     return this.tenantsService.update(user.tenantId, updateTenantDto);
   }
 }

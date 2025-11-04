@@ -71,17 +71,10 @@ export class CustomersService {
     const currentCount = await this.customersRepository.count({
       where: { tenantId },
     });
-    if (
-      !TenantPlanLimitService.canAddCustomer(
-        currentCount,
-        tenant.subscriptionPlan,
-      )
-    ) {
+    if (!TenantPlanLimitService.canAddCustomerForTenant(currentCount, tenant)) {
+      const effective = TenantPlanLimitService.getLimitsForTenant(tenant);
       throw new BadRequestException(
-        TenantPlanLimitService.errorMessageFor(
-          'customer',
-          tenant.subscriptionPlan,
-        ),
+        TenantPlanLimitService.errorMessageForWithLimits('customer', effective),
       );
     }
 

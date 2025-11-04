@@ -56,17 +56,10 @@ export class SuppliersService {
     const currentCount = await this.suppliersRepository.count({
       where: { tenantId },
     });
-    if (
-      !TenantPlanLimitService.canAddSupplier(
-        currentCount,
-        tenant.subscriptionPlan,
-      )
-    ) {
+    if (!TenantPlanLimitService.canAddSupplierForTenant(currentCount, tenant)) {
+      const effective = TenantPlanLimitService.getLimitsForTenant(tenant);
       throw new BadRequestException(
-        TenantPlanLimitService.errorMessageFor(
-          'supplier',
-          tenant.subscriptionPlan,
-        ),
+        TenantPlanLimitService.errorMessageForWithLimits('supplier', effective),
       );
     }
 

@@ -20,6 +20,7 @@ import {
   SubscriptionPlan,
   TenantStatus,
 } from '../tenants/entities/tenant.entity';
+import { UserRole } from '../users/entities/user.entity';
 import { PlanLimitsService } from './plan-limits.service';
 
 @ApiTags('admin')
@@ -104,6 +105,7 @@ export class AdminController {
       lastName?: string;
       email?: string;
       phone?: string;
+      role?: UserRole;
     },
     @Headers() headers: any,
   ) {
@@ -266,5 +268,62 @@ export class AdminController {
     }
     const updated = this.planLimitsService.updatePlanLimits(plan, body);
     return { success: true, plan, limits: updated };
+  }
+
+  // === Tenant Bazlı Limit Overrides ===
+  @Get('tenant/:tenantId/limits')
+  @ApiOperation({ summary: 'Belirli bir tenant için limitleri (default+override+effective) ve kullanım istatistiklerini getir' })
+  @ApiResponse({ status: 200, description: 'Tenant limits and usage' })
+  async getTenantLimits(
+    @Param('tenantId') tenantId: string,
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.adminService.getTenantLimits(tenantId);
+  }
+
+  @Patch('tenant/:tenantId/limits')
+  @ApiOperation({ summary: 'Belirli bir tenant için limit override değerlerini güncelle' })
+  @ApiResponse({ status: 200, description: 'Updated tenant limits' })
+  async updateTenantLimits(
+    @Param('tenantId') tenantId: string,
+    @Body()
+    body: {
+      maxUsers?: number;
+      maxCustomers?: number;
+      maxSuppliers?: number;
+      maxBankAccounts?: number;
+      monthly?: { maxInvoices?: number; maxExpenses?: number };
+      __clearAll?: boolean;
+      __clear?: string[];
+    },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.adminService.updateTenantLimits(tenantId, body);
+  }
+
+  // === Tenant Konsol (tek bakışta) ===
+  @Get('tenant/:tenantId/overview')
+  @ApiOperation({ summary: 'Tek ekranda tenant özeti: kullanıcılar, limitler, kullanım, organizasyonlar, davetler' })
+  @ApiResponse({ status: 200, description: 'Tenant overview' })
+  async getTenantOverview(
+    @Param('tenantId') tenantId: string,
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.adminService.getTenantOverview(tenantId);
+  }
+
+  @Patch('tenant/:tenantId')
+  @ApiOperation({ summary: 'Update tenant basic fields (name/companyName)' })
+  @ApiResponse({ status: 200, description: 'Tenant updated' })
+  async updateTenantBasic(
+    @Param('tenantId') tenantId: string,
+    @Body() body: { name?: string; companyName?: string },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.adminService.updateTenantBasic(tenantId, body);
   }
 }

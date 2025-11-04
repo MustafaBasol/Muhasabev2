@@ -93,11 +93,10 @@ export class UsersService {
     const currentCount = await this.userRepository.count({
       where: { tenantId: createUserDto.tenantId },
     });
-    if (
-      !TenantPlanLimitService.canAddUser(currentCount, tenant.subscriptionPlan)
-    ) {
+    if (!TenantPlanLimitService.canAddUserForTenant(currentCount, tenant)) {
+      const effective = TenantPlanLimitService.getLimitsForTenant(tenant);
       throw new BadRequestException(
-        TenantPlanLimitService.errorMessageFor('user', tenant.subscriptionPlan),
+        TenantPlanLimitService.errorMessageForWithLimits('user', effective),
       );
     }
 
