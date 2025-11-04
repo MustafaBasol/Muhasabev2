@@ -5,14 +5,30 @@ import SaleViewModal from './SaleViewModal';
 import { useCurrency } from '../contexts/CurrencyContext';
 
 // --- Helpers ---
-// Safely parse localized currency strings (e.g., '1.234,56') into numbers
+// Sayısal stringleri güvenli biçimde sayıya çevir ("2000.00", "2.000,00", "2,000.00")
 export const toNumber = (v: any): number => {
-  if (typeof v === 'number') return v;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
   const s = String(v).trim();
-  const normalized = s.replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
-  const n = parseFloat(normalized);
-  return isNaN(n) ? 0 : n;
+  if (!s) return 0;
+
+  // Eğer hem nokta hem virgül varsa genelde binlik '.' ondalık ',' kabul edilir → 1.234,56
+  if (s.includes('.') && s.includes(',')) {
+    const withoutThousands = s.replace(/\./g, '');
+    const withDotDecimal = withoutThousands.replace(/,/g, '.');
+    const n = parseFloat(withDotDecimal);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // Sadece virgül içeriyorsa virgül ondalık ayracı kabul et → 123,45
+  if (s.includes(',') && !s.includes('.')) {
+    const n = parseFloat(s.replace(/,/g, '.'));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // Aksi halde doğrudan parse et ("2000.00" veya "2000")
+  const n = parseFloat(s.replace(/\s/g, ''));
+  return Number.isFinite(n) ? n : 0;
 };
 
 interface LedgerEntry {
@@ -22,8 +38,12 @@ interface LedgerEntry {
   reference?: string;
   customer?: string;
   category?: string;
+  // Raporlama için gerçek etkiler (ödenmiş/pay edilmiş tutarlar)
   debit: number;
   credit: number;
+  // Görsel gösterim için her zaman dolu tutarlar (ödenmemiş olsa bile)
+  displayDebit?: number;
+  displayCredit?: number;
   balance: number;
   type: 'invoice' | 'expense' | 'sale';
   originalData: any;
@@ -67,6 +87,25 @@ export default function GeneralLedger({
     const entries: LedgerEntry[] = [];
     const allTransactions: Array<{ date: string; type: 'invoice' | 'expense' | 'sale'; data: any; }> = [];
 
+    // Helpers to robustly get amounts
+    const getInvoiceTotal = (inv: any): number => {
+      if (inv == null) return 0;
+      if (inv.total != null) return toNumber(inv.total);
+      if (inv.amount != null) return toNumber(inv.amount);
+      if (Array.isArray(inv.items)) {
+        return inv.items.reduce((sum: number, it: any) => sum + toNumber(it.quantity) * toNumber(it.unitPrice), 0);
+      }
+      return 0;
+    };
+    const getExpenseAmount = (exp: any): number => {
+      if (exp == null) return 0;
+      return toNumber(exp.amount);
+    };
+    const getSaleAmount = (sale: any): number => {
+      if (sale?.amount != null) return toNumber(sale.amount);
+      return toNumber(sale?.quantity) * toNumber(sale?.unitPrice);
+    };
+
     // Add invoices
     invoices.forEach(invoice => {
       allTransactions.push({
@@ -94,8 +133,8 @@ export default function GeneralLedger({
       });
     });
 
-    // Sort by date
-    allTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // Sort by date: newest first (desc)
+  allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     // Running balance
     let runningBalance = 0;
@@ -103,10 +142,10 @@ export default function GeneralLedger({
     allTransactions.forEach(transaction => {
       if (transaction.type === 'invoice') {
         const invoice = transaction.data;
-
+        const invTotal = getInvoiceTotal(invoice);
         // Affects balance only if invoice is paid
         if (invoice.status === 'paid') {
-          runningBalance += toNumber(invoice.total);
+          runningBalance += invTotal;
         }
 
         const category = invoice.type === 'product' ? 'Ürün Satış Geliri' : 'Hizmet Geliri';
@@ -119,16 +158,17 @@ export default function GeneralLedger({
           customer: invoice.customerName || invoice.customer?.name || '',
           category,
           debit: 0,
-          credit: invoice.status === 'paid' ? toNumber(invoice.total) : 0,
+          credit: invoice.status === 'paid' ? invTotal : 0,
+          displayCredit: invTotal,
           balance: runningBalance,
           type: 'invoice',
           originalData: invoice
         });
       } else if (transaction.type === 'expense') {
         const expense = transaction.data;
-
+        const expAmount = getExpenseAmount(expense);
         if (expense.status === 'paid') {
-          runningBalance -= toNumber(expense.amount);
+          runningBalance -= expAmount;
         }
 
         entries.push({
@@ -138,17 +178,18 @@ export default function GeneralLedger({
           reference: expense.expenseNumber,
           customer: expense.supplier?.name || expense.supplier || '',
           category: expense.category,
-          debit: expense.status === 'paid' ? toNumber(expense.amount) : 0,
+          debit: expense.status === 'paid' ? expAmount : 0,
           credit: 0,
+          displayDebit: expAmount,
           balance: runningBalance,
           type: 'expense',
           originalData: expense
         });
       } else if (transaction.type === 'sale') {
         const sale = transaction.data;
-
+        const saleAmount = getSaleAmount(sale);
         if (sale.status === 'completed') {
-          runningBalance += toNumber(sale.amount);
+          runningBalance += saleAmount;
         }
 
         entries.push({
@@ -159,7 +200,8 @@ export default function GeneralLedger({
           customer: sale.customerName,
           category: 'Direkt Satış Geliri',
           debit: 0,
-          credit: sale.status === 'completed' ? toNumber(sale.amount) : 0,
+          credit: sale.status === 'completed' ? saleAmount : 0,
+          displayCredit: saleAmount,
           balance: runningBalance,
           type: 'sale',
           originalData: sale
@@ -270,13 +312,13 @@ export default function GeneralLedger({
               <div className="col-span-2 text-sm text-gray-700">{entry.date}</div>
               <div className="col-span-3 text-sm text-gray-700">{entry.category || '-'}</div>
               <div className="col-span-2 text-right">
-                <span className={`text-sm font-medium ${entry.debit > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                  {formatAmount(entry.debit)}
+                <span className={`text-sm font-medium ${(entry.displayDebit ?? entry.debit) > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                  {formatAmount(entry.displayDebit ?? entry.debit)}
                 </span>
               </div>
               <div className="col-span-2 text-right">
-                <span className={`text-sm font-medium ${entry.credit > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                  {formatAmount(entry.credit)}
+                <span className={`text-sm font-medium ${(entry.displayCredit ?? entry.credit) > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                  {formatAmount(entry.displayCredit ?? entry.credit)}
                 </span>
               </div>
             </div>

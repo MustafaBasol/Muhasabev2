@@ -47,7 +47,7 @@ export default function ChartOfAccountsPage({
   const expenseCategories = [
     { label: 'Diğer', value: 'other' },
     { label: 'Ekipman', value: 'equipment' },
-    { label: 'Faturalar (Elektrik, Su, İnternet)', value: 'utilities' },
+    { label: 'Faturalar', value: 'utilities' },
     { label: 'Kira', value: 'rent' },
     { label: 'Maaşlar', value: 'salaries' },
     { label: 'Malzemeler', value: 'supplies' },
@@ -65,7 +65,7 @@ export default function ChartOfAccountsPage({
     'Fatura Giderleri': 'utilities',
     'Diğer': 'other',
     'Ekipman': 'equipment',
-    'Faturalar (Elektrik, Su, İnternet)': 'utilities',
+    'Faturalar': 'utilities',
     'Kira': 'rent',
     'Maaşlar': 'salaries',
     'Malzemeler': 'supplies',

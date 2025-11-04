@@ -14,12 +14,23 @@ import { compareBy, defaultStatusOrderSales, normalizeText, parseDateSafe, toNum
 
 
 const toNumber = (v: any): number => {
-  if (typeof v === 'number') return v;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
   const s = String(v).trim();
-  const normalized = s.replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
-  const n = parseFloat(normalized);
-  return isNaN(n) ? 0 : n;
+  if (!s) return 0;
+
+  if (s.includes('.') && s.includes(',')) {
+    const withoutThousands = s.replace(/\./g, '');
+    const withDotDecimal = withoutThousands.replace(/,/g, '.');
+    const n = parseFloat(withDotDecimal);
+    return Number.isFinite(n) ? n : 0;
+  }
+  if (s.includes(',') && !s.includes('.')) {
+    const n = parseFloat(s.replace(/,/g, '.'));
+    return Number.isFinite(n) ? n : 0;
+  }
+  const n = parseFloat(s.replace(/\s/g, ''));
+  return Number.isFinite(n) ? n : 0;
 };
 
 interface Customer {
@@ -672,7 +683,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                     <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                       {t('sales.amount')}<SortIndicator active={sortBy==='amount'} />
                     </th>
-                    <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
+                    <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                       {t('sales.status')}<SortIndicator active={sortBy==='status'} />
                     </th>
                     <th onClick={() => toggleSort('date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
@@ -755,13 +766,13 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                               onClick={() => handleSaveInlineEdit(sale)}
                               className="p-1 text-green-600 hover:bg-green-50 rounded"
                             >
-                              <Check className="w-3 h-3" />
+                              <Check className="w-4 h-4" />
                             </button>
                             <button
                               onClick={handleCancelInlineEdit}
                               className="p-1 text-red-600 hover:bg-red-50 rounded"
                             >
-                              <X className="w-3 h-3" />
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
@@ -776,11 +787,11 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {editingField?.saleId === sale.id && editingField?.field === 'status' ? (
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 flex-nowrap z-10">
                             <select
                               value={tempValue}
                               onChange={(e) => setTempValue(e.target.value)}
-                              className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-green-500"
+                              className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-green-500 w-[120px] max-w-[120px]"
                             >
                               <option value="completed">{t('status.completed')}</option>
                               <option value="pending">{t('status.pending')}</option>
@@ -788,15 +799,17 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                             </select>
                             <button
                               onClick={() => handleSaveInlineEdit(sale)}
-                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-green-50 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-green-500"
+                              aria-label={t('common.save')}
                             >
-                              <Check className="w-3 h-3" />
+                              <Check className="w-4 h-4 shrink-0 text-green-600" />
                             </button>
                             <button
                               onClick={handleCancelInlineEdit}
-                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-red-500"
+                              aria-label={t('common.cancel')}
                             >
-                              <X className="w-3 h-3" />
+                              <X className="w-4 h-4 shrink-0 text-red-600" />
                             </button>
                           </div>
                         ) : (

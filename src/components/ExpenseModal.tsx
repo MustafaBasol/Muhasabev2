@@ -41,7 +41,7 @@ interface ExpenseModalProps {
 const categories = [
   { label: 'Diğer', value: 'other' },
   { label: 'Ekipman', value: 'equipment' },
-  { label: 'Faturalar (Elektrik, Su, İnternet)', value: 'utilities' },
+  { label: 'Faturalar', value: 'utilities' },
   { label: 'Kira', value: 'rent' },
   { label: 'Maaşlar', value: 'salaries' },
   { label: 'Malzemeler', value: 'supplies' },
@@ -302,7 +302,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('expenses.amount') || 'Tutar'} (₺) *
+                {t('expenses.amount') || 'Tutar'} *
               </label>
               <input
                 type="number"

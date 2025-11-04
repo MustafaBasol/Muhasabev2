@@ -60,6 +60,7 @@ import ExpenseViewModal from "./components/ExpenseViewModal";
 import SaleViewModal from "./components/SaleViewModal";
 import BankViewModal from "./components/BankViewModal";
 import InfoModal from "./components/InfoModal";
+import QuoteViewModal, { type Quote as QuoteModel } from "./components/QuoteViewModal";
 
 // history modals
 import CustomerHistoryModal from "./components/CustomerHistoryModal";
@@ -113,13 +114,13 @@ import PublicQuotePage from "./components/PublicQuotePage";
 import * as ExcelJS from 'exceljs';
 
 const defaultCompany: CompanyProfile = {
-  name: "MoneyFlow Muhasebe",
+  name: "comptario Muhasebe",
   address: "Istanbul, Türkiye",
   taxNumber: "1234567890",
   taxOffice: "",
   phone: "+90 212 123 45 67",
-  email: "info@moneyflow.com",
-  website: "www.moneyflow.com",
+  email: "info@comptario.com",
+  website: "www.comptario.com",
   logoDataUrl: "",
   iban: "",
   bankAccountId: undefined,
@@ -273,6 +274,7 @@ const AppContent: React.FC = () => {
   const [showInvoiceViewModal, setShowInvoiceViewModal] = useState(false);
   const [showExpenseViewModal, setShowExpenseViewModal] = useState(false);
   const [showSaleViewModal, setShowSaleViewModal] = useState(false);
+  const [showQuoteViewModal, setShowQuoteViewModal] = useState(false);
   const [showBankViewModal, setShowBankViewModal] = useState(false);
   const [showCustomerHistoryModal, setShowCustomerHistoryModal] = useState(false);
   const [showSupplierHistoryModal, setShowSupplierHistoryModal] = useState(false);
@@ -296,6 +298,7 @@ const AppContent: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [selectedSale, setSelectedSale] = useState<any>(null);
+  const [selectedQuote, setSelectedQuote] = useState<QuoteModel | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedBank, setSelectedBank] = useState<any>(null);
   const [supplierForExpense, setSupplierForExpense] = useState<any>(null);
@@ -424,13 +427,27 @@ const AppContent: React.FC = () => {
         }));
         setProducts(mappedProducts);
         
-        // Map backend expense fields to frontend format
-        const mappedExpenses = safeExpensesData.map((e: any) => ({
-          ...e,
-          supplier: e.supplier || null, // Supplier object'ini olduğu gibi koru
-          expenseDate: typeof e.expenseDate === 'string' ? e.expenseDate : new Date(e.expenseDate).toISOString().split('T')[0],
-          dueDate: e.dueDate || e.expenseDate,
-        }));
+        // Map backend expense fields to frontend format (supplier normalizasyonu dahil)
+        const mappedExpenses = safeExpensesData.map((e: any) => {
+          let supplier: any = null;
+          if (e && typeof e.supplier === 'object' && e.supplier !== null) {
+            supplier = e.supplier;
+          } else if (typeof e?.supplier === 'string' && e.supplier.trim()) {
+            supplier = { name: String(e.supplier).trim() };
+          } else if (typeof e?.supplierName === 'string' && e.supplierName.trim()) {
+            supplier = { name: String(e.supplierName).trim() };
+          }
+          const nameNorm = String(supplier?.name || '').trim().toLowerCase();
+          if (['nosupplier','no supplier','tedarikçi yok','kein lieferant','aucun fournisseur'].includes(nameNorm)) {
+            supplier = null;
+          }
+          return {
+            ...e,
+            supplier,
+            expenseDate: typeof e.expenseDate === 'string' ? e.expenseDate : new Date(e.expenseDate).toISOString().split('T')[0],
+            dueDate: e.dueDate || e.expenseDate,
+          };
+        });
         
         setInvoices(safeInvoicesData);
         setExpenses(mappedExpenses);
@@ -854,14 +871,26 @@ const AppContent: React.FC = () => {
         const expensesData = JSON.parse(savedExpenses);
         console.log('✅ Giderler cache\'den yüklendi:', expensesData.length);
         // Ensure proper format for expenseDate
-        const mappedExpenses = expensesData.map((e: any) => ({
-          ...e,
-          expenseDate: typeof e.expenseDate === 'string' ? e.expenseDate : 
-                      (e.expenseDate ? new Date(e.expenseDate).toISOString().split('T')[0] : 
-                       new Date().toISOString().split('T')[0]),
-          dueDate: e.dueDate || e.expenseDate,
-          supplier: e.supplier?.name || e.supplier || '',
-        }));
+        const mappedExpenses = expensesData.map((e: any) => {
+          const expenseDate = typeof e.expenseDate === 'string' ? e.expenseDate : 
+            (e.expenseDate ? new Date(e.expenseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+          const dueDate = e.dueDate || e.expenseDate;
+          // Supplier nesnesini koru; string geldiyse { name } şekline dönüştür
+          let supplier: any = null;
+          if (e && typeof e.supplier === 'object' && e.supplier !== null) {
+            supplier = e.supplier;
+          } else if (typeof e?.supplier === 'string' && e.supplier.trim()) {
+            supplier = { name: String(e.supplier).trim() };
+          } else if (typeof e?.supplierName === 'string' && e.supplierName.trim()) {
+            supplier = { name: String(e.supplierName).trim() };
+          }
+          // 'noSupplier' gibi placeholder ise supplier'ı null yap
+          const nameNorm = String(supplier?.name || '').trim().toLowerCase();
+          if (['nosupplier','no supplier','tedarikçi yok','kein lieferant','aucun fournisseur'].includes(nameNorm)) {
+            supplier = null;
+          }
+          return { ...e, expenseDate, dueDate, supplier };
+        });
         setExpenses(mappedExpenses);
       } catch (e) {
         console.error('Error loading expenses cache:', e);
@@ -1733,7 +1762,20 @@ const AppContent: React.FC = () => {
       const toNumber = (v: unknown) => {
         if (v == null || v === '') return undefined;
         if (typeof v === 'number') return v;
-        const n = parseFloat(String(v).replace(/,/g, '.'));
+        const s = String(v).trim();
+        // SQL/EN format: 2000.00
+        if (/^\d+\.?\d*$/.test(s)) {
+          const n = parseFloat(s);
+          return Number.isFinite(n) ? n : undefined;
+        }
+        // TR format: 2.000,00 -> 2000.00
+        if (s.includes(',')) {
+          const cleaned = s.replace(/\./g, '').replace(/,/g, '.');
+          const n = parseFloat(cleaned);
+          return Number.isFinite(n) ? n : undefined;
+        }
+        const cleaned = s.replace(/\s/g, '');
+        const n = parseFloat(cleaned);
         return Number.isFinite(n) ? n : undefined;
       };
 
@@ -4027,6 +4069,12 @@ const AppContent: React.FC = () => {
         onDownload={handleDownloadSale}
       />
 
+      <QuoteViewModal
+        isOpen={showQuoteViewModal}
+        onClose={() => setShowQuoteViewModal(false)}
+        quote={selectedQuote as any}
+      />
+
       <ProductViewModal
         isOpen={showProductViewModal}
         onClose={closeProductViewModal}
@@ -4055,8 +4103,25 @@ const AppContent: React.FC = () => {
         invoices={invoices.filter(invoice => invoice.customerName === selectedCustomer?.name)}
         sales={sales.filter(sale => sale.customerName === selectedCustomer?.name)}
         onViewInvoice={invoice => {
-          setSelectedInvoice(invoice);
-          setShowInvoiceViewModal(true);
+          closeCustomerHistoryModal();
+          setTimeout(() => {
+            setSelectedInvoice(invoice);
+            setShowInvoiceViewModal(true);
+          }, 50);
+        }}
+        onViewSale={sale => {
+          closeCustomerHistoryModal();
+          setTimeout(() => {
+            setSelectedSale(sale);
+            setShowSaleViewModal(true);
+          }, 50);
+        }}
+        onViewQuote={quote => {
+          closeCustomerHistoryModal();
+          setTimeout(() => {
+            setSelectedQuote(quote as any);
+            setShowQuoteViewModal(true);
+          }, 50);
         }}
         onCreateInvoice={handleCreateInvoiceFromCustomer}
       />

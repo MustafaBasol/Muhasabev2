@@ -107,6 +107,8 @@ type OpenOpts = { targetWindow?: Window | null; filename?: string; company?: Com
 type Currency = 'TRY' | 'USD' | 'EUR' | 'GBP';
 
 // ——— Yardımcılar ——————————————————————————————————
+// PDF belgelerinde şirket logosu için standart yükseklik (px)
+const LOGO_HEIGHT_PX = 120;
 
 const formatDate = (dateString: string, locale?: string) => {
   try { return new Date(dateString).toLocaleDateString(locale || 'tr-TR'); } catch { return ''; }
@@ -323,8 +325,8 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
     const imgH = canvas.height;
     const ratio = pdfW / imgW;
   // İlk sayfa: yazdırılabilir alan için alt marj ayır
-  // İlk sayfada alt boşluğu azalt (6mm) – footer dibine daha yakın dursun, taşma yapmasın
-  const bottomMarginFirstMm = 6;
+  // İlk sayfada alt boşluk: footer taşmasını önlemek için daha cömert tut
+  const bottomMarginFirstMm = 12;
   const availableHmmFirst = pdfH - bottomMarginFirstMm;
   const pageCanvasHeightPxFirst = Math.floor(availableHmmFirst / ratio);
     // Sonraki sayfalar: üst marjı rezerve et
@@ -495,11 +497,11 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}, lang?: strin
       ">
         <div style="display:flex; align-items:flex-end;">
           ${hasLogo ? `<img src="${c.logoDataUrl}" alt="logo"
-            style="height:144px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
+            style="height:${LOGO_HEIGHT_PX}px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
         </div>
         <div style="text-align:right; line-height:1;">
           <div style="color:#3B82F6; font-size:28px; font-weight:800;">${tf('pdf.invoice.title')}</div>
-          <div style="color:#6B7280; font-size:12px; margin-top:4px;">${tf('pdf.invoice.appSubtitle')}</div>
+          <div style="color:#6B7280; font-size:12px; margin-top:4px;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'comptario')}</div>
         </div>
       </div>
 
@@ -559,7 +561,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}, lang?: strin
 
       <!-- Footer: sayfanın dibinde -->
       <div style="text-align:center; margin-top:auto; padding-top:16px; border-top:1px solid #E5E7EB; color:#6B7280; font-size:11px;">
-        <p>${tf('pdf.invoice.footer')}</p>
+        <p>${String(tf('pdf.invoice.footer')).replace(/MoneyFlow/gi, 'comptario').replace(/Comptario/g, 'comptario')}</p>
       </div>
     </div>
   `;
@@ -578,8 +580,8 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
   return `
   <div style="max-width: 170mm; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #DC2626; padding-bottom: 20px;">
-      <h1 style="color: #DC2626; font-size: 28px; margin: 0;">MoneyFlow</h1>
-      <p style="color: #6B7280; margin: 5px 0 0 0;">${tf('pdf.invoice.appSubtitle')}</p>
+      <h1 style="color: #DC2626; font-size: 28px; margin: 0;">Comptraio</h1>
+      <p style="color: #6B7280; margin: 5px 0 0 0;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'Comptraio')}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
       <div>
@@ -591,9 +593,9 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
       </div>
       <div style="text-align: right;">
         <h3 style="color: #1F2937; margin: 0 0 10px 0;">${tf('pdf.expense.supplierInfo')}</h3>
-        <p style="margin: 5px 0;"><strong>${expense.supplier}</strong></p>
+        <p style="margin: 5px 0;"><strong>${expense.supplier || i18n.t('common:noSupplier', { lng: activeLang })}</strong></p>
         <p style="margin: 5px 0; background-color: #FEF3C7; padding: 5px 10px; border-radius: 5px; display: inline-block;">
-          <strong>${tf('pdf.expense.category')}:</strong> ${expense.category}
+          <strong>${tf('pdf.expense.category')}:</strong> ${tf('expenseCategories.' + expense.category) || expense.category}
         </p>
       </div>
     </div>
@@ -609,9 +611,8 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
           <span style="color: #DC2626; font-size: 32px; font-weight: bold;">${fmt(expense.amount)}</span>
       </div>
     </div>
-    <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
-  <p>${tf('pdf.expense.footer')}</p>
-  <p style="margin-top: 10px;">${formatDate(new Date().toISOString(), dloc)}</p>
+    <div style="text-align: center; margin-top: 48px; padding-top: 20px; padding-bottom: 8px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
+      <p>${String(tf('pdf.expense.footer')).replace(/MoneyFlow/gi, 'Comptraio').replace(/comptario/gi, 'Comptraio')}</p>
     </div>
   </div>
 `;
@@ -628,8 +629,8 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
   return `
   <div style="max-width: 170mm; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #10B981; padding-bottom: 20px;">
-      <h1 style="color: #10B981; font-size: 28px; margin: 0;">MoneyFlow</h1>
-      <p style="color: #6B7280; margin: 5px 0 0 0;">${tf('pdf.invoice.appSubtitle')}</p>
+  <h1 style="color: #10B981; font-size: 28px; margin: 0;">comptario</h1>
+  <p style="color: #6B7280; margin: 5px 0 0 0;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'comptario')}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
       <div>
@@ -670,8 +671,7 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
       </div>
     </div>
     <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
-  <p>${tf('pdf.sale.footer')}</p>
-  <p style="margin-top: 10px;">${formatDate(new Date().toISOString(), dloc)}</p>
+      <p>${String(tf('pdf.sale.footer')).replace(/MoneyFlow/gi, 'comptario').replace(/Comptario/g, 'comptario')}</p>
     </div>
   </div>
 `;
@@ -828,7 +828,7 @@ const buildQuoteHtml = (
     <div style="max-width:170mm;margin:0 auto;padding-top:22mm;padding-bottom:12mm;display:flex;flex-direction:column;min-height:263mm;box-sizing:border-box;">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:2px solid #6366F1;padding-bottom:12px;">
         <div style="display:flex;align-items:flex-end;">
-          ${hasLogo ? `<img src="${c.logoDataUrl}" alt="logo" style="height:120px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
+          ${hasLogo ? `<img src="${c.logoDataUrl}" alt="logo" style="height:${LOGO_HEIGHT_PX}px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
         </div>
         <div style="text-align:right;line-height:1;">
           <div style="color:#6366F1;font-size:28px;font-weight:800;">${L.title}</div>
@@ -889,7 +889,7 @@ const buildQuoteHtml = (
         </div>
       </div>
       
-      ${prepared?.name ? `<div style=\"text-align:right;margin-top:24px;font-size:12px;color:#111827;\" data-avoid-split=\"true\"><strong>${prepared.label}:</strong> ${prepared.name}</div>` : ''}
+  ${prepared?.name ? `<div style="text-align:right;margin-top:24px;font-size:12px;color:#111827;" data-avoid-split="true"><strong>${prepared.label}:</strong> ${prepared.name}</div>` : ''}
       
     </div>
   `;

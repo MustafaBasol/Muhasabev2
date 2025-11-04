@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "MoneyFlow",
+    "name": "comptario",
     "subtitle": "Muhasebe Sistemi"
   },
   "landing": {
@@ -1066,7 +1066,8 @@
     "changeSearchCriteria": "Arama kriterlerinizi değiştirmeyi deneyin",
     "allSalesInvoiced": "Tüm satışlar faturalandı",
     "pieces": "adet",
-    "saleInfo": "Satış Bilgileri"
+    "saleInfo": "Satış Bilgileri",
+    "salesWaitingForInvoice": "Fatura bekleyen satış: {{count}}"
   },
   "payment": {
     "method": "Ödeme Yöntemi",
@@ -1138,7 +1139,7 @@
   },
   "expenseCategories": {
     "equipment": "Ekipman",
-    "utilities": "Faturalar (Elektrik, Su, İnternet)",
+  "utilities": "Faturalar",
     "rent": "Kira",
     "salaries": "Maaşlar",
     "personnel": "Personel",
@@ -1792,7 +1793,7 @@
   "pdf": {
     "invoice": {
       "title": "FATURA",
-      "appSubtitle": "MoneyFlow Muhasebe Sistemi",
+  "appSubtitle": "comptario Muhasebe Sistemi",
       "customerInfo": "Müşteri Bilgileri",
       "invoiceNumber": "Fatura No",
       "issueDate": "Düzenleme Tarihi",
@@ -1809,7 +1810,7 @@
         "tax": "KDV",
         "grandTotal": "Genel Toplam"
       },
-  "footer": "Bu fatura Comptario ile oluşturulmuştur.",
+  "footer": "Bu fatura comptario ile oluşturulmuştur.",
       "statusLabels": {
         "paid": "Ödendi",
         "sent": "Gönderildi",
@@ -1827,7 +1828,7 @@
       "category": "Kategori",
       "details": "Gider Detayları",
       "totalAmount": "Toplam Gider Tutarı",
-      "footer": "Bu gider belgesi MoneyFlow ile oluşturulmuştur.",
+  "footer": "Bu gider belgesi comptario ile oluşturulmuştur.",
       "statusLabels": {
         "draft": "Taslak",
         "approved": "Onaylandı",
@@ -1845,7 +1846,7 @@
       "quantity": "Miktar",
       "unitPrice": "Birim Fiyat",
       "totalAmount": "Toplam Satış Tutarı",
-      "footer": "Bu satış belgesi MoneyFlow ile oluşturulmuştur.",
+  "footer": "Bu satış belgesi comptario ile oluşturulmuştur.",
       "statusLabels": {
         "completed": "Tamamlandı",
         "pending": "Bekliyor",

@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "MoneyFlow",
+    "name": "comptario",
     "subtitle": "Accounting System"
   },
   "landing": {
@@ -955,7 +955,8 @@
     "changeSearchCriteria": "Try changing your search criteria",
     "allSalesInvoiced": "All sales have been invoiced",
     "pieces": "pcs",
-    "saleInfo": "Sale Information"
+    "saleInfo": "Sale Information",
+    "salesWaitingForInvoice": "Sales waiting for invoice: {{count}}"
   },
   "payment": {
     "method": "Payment Method",
@@ -1027,7 +1028,7 @@
   },
   "expenseCategories": {
     "equipment": "Equipment",
-    "utilities": "Utilities (Electricity, Water, Internet)",
+  "utilities": "Utilities",
     "rent": "Rent",
     "salaries": "Salaries",
     "personnel": "Personnel",
@@ -1655,7 +1656,7 @@
   "pdf": {
     "invoice": {
       "title": "INVOICE",
-      "appSubtitle": "MoneyFlow Accounting System",
+  "appSubtitle": "comptario Accounting System",
       "customerInfo": "Customer Information",
       "invoiceNumber": "Invoice No",
       "issueDate": "Issue Date",
@@ -1672,7 +1673,7 @@
         "tax": "Tax",
         "grandTotal": "Grand Total"
       },
-  "footer": "This invoice was generated with Comptario.",
+  "footer": "This invoice was generated with comptario.",
       "statusLabels": {
         "paid": "Paid",
         "sent": "Sent",
@@ -1690,7 +1691,7 @@
       "category": "Category",
       "details": "Expense Details",
       "totalAmount": "Total Expense Amount",
-      "footer": "This expense receipt was generated with MoneyFlow.",
+  "footer": "This expense receipt was generated with comptario.",
       "statusLabels": {
         "draft": "Draft",
         "approved": "Approved",
@@ -1708,7 +1709,7 @@
       "quantity": "Quantity",
       "unitPrice": "Unit Price",
       "totalAmount": "Total Sale Amount",
-      "footer": "This sales receipt was generated with MoneyFlow.",
+  "footer": "This sales receipt was generated with comptario.",
       "statusLabels": {
         "completed": "Completed",
         "pending": "Pending",

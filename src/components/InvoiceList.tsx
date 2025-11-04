@@ -405,7 +405,7 @@ export default function InvoiceList({
                   <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('invoices.amount')}<SortIndicator active={sort.by==='amount'} />
                   </th>
-                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
+                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                     {t('invoices.status')}<SortIndicator active={sort.by==='status'} />
                   </th>
                   <th onClick={() => toggleSort('issueDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
@@ -497,11 +497,11 @@ export default function InvoiceList({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {editingInvoice === invoice.id && editingField === 'status' ? (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-nowrap z-10">
                           <select
                             value={tempValue}
                             onChange={(e) => setTempValue(e.target.value)}
-                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-[120px] max-w-[120px]"
                           >
                             <option value="draft">{t('status.draft')}</option>
                             <option value="sent">{t('status.sent')}</option>
@@ -510,15 +510,17 @@ export default function InvoiceList({
                           </select>
                           <button
                             onClick={() => handleSaveInlineEdit(invoice)}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded"
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-green-50 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-green-500"
+                            aria-label={t('common.save')}
                           >
-                            <Check className="w-3 h-3" />
+                            <Check className="w-4 h-4 shrink-0 text-green-600" />
                           </button>
                           <button
                             onClick={handleCancelInlineEdit}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-red-500"
+                            aria-label={t('common.cancel')}
                           >
-                            <X className="w-3 h-3" />
+                            <X className="w-4 h-4 shrink-0 text-red-600" />
                           </button>
                         </div>
                       ) : (
@@ -543,13 +545,13 @@ export default function InvoiceList({
                             onClick={() => handleSaveInlineEdit(invoice)}
                             className="p-1 text-green-600 hover:bg-green-50 rounded"
                           >
-                            <Check className="w-3 h-3" />
+                            <Check className="w-4 h-4" />
                           </button>
                           <button
                             onClick={handleCancelInlineEdit}
                             className="p-1 text-red-600 hover:bg-red-50 rounded"
                           >
-                            <X className="w-3 h-3" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       ) : (

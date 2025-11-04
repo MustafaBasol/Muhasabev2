@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "MoneyFlow",
+    "name": "comptario",
     "subtitle": "Système de Comptabilité"
   },
   "landing": {
@@ -949,7 +949,8 @@
     "changeSearchCriteria": "Essayez de modifier vos critères de recherche",
     "allSalesInvoiced": "Toutes les ventes ont été facturées",
     "pieces": "pcs",
-    "saleInfo": "Informations de Vente"
+    "saleInfo": "Informations de Vente",
+    "salesWaitingForInvoice": "Ventes en attente de facturation : {{count}}"
   },
   "payment": {
     "method": "Méthode de Paiement",
@@ -1020,7 +1021,7 @@
   },
   "expenseCategories": {
     "equipment": "Équipement",
-    "utilities": "Services Publics (Électricité, Eau, Internet)",
+  "utilities": "Services publics",
     "rent": "Loyer",
     "salaries": "Salaires",
     "personnel": "Personnel",
@@ -1654,7 +1655,7 @@
   "pdf": {
     "invoice": {
       "title": "FACTURE",
-      "appSubtitle": "Système Comptable MoneyFlow",
+  "appSubtitle": "Système Comptable comptario",
       "customerInfo": "Informations Client",
       "invoiceNumber": "N° de Facture",
       "issueDate": "Date d’Émission",
@@ -1671,7 +1672,7 @@
         "tax": "TVA",
         "grandTotal": "Total Général"
       },
-  "footer": "Cette facture a été générée avec Comptario.",
+  "footer": "Cette facture a été générée avec comptario.",
       "statusLabels": {
         "paid": "Payée",
         "sent": "Envoyée",
@@ -1689,7 +1690,7 @@
       "category": "Catégorie",
       "details": "Détails de la Dépense",
       "totalAmount": "Montant Total des Dépenses",
-      "footer": "Ce justificatif a été généré avec MoneyFlow.",
+  "footer": "Ce justificatif a été généré avec comptario.",
       "statusLabels": {
         "draft": "Brouillon",
         "approved": "Approuvée",
@@ -1707,7 +1708,7 @@
       "quantity": "Quantité",
       "unitPrice": "Prix Unitaire",
       "totalAmount": "Montant Total de la Vente",
-      "footer": "Ce justificatif de vente a été généré avec MoneyFlow.",
+  "footer": "Ce justificatif de vente a été généré avec comptario.",
       "statusLabels": {
         "completed": "Terminé",
         "pending": "En attente",

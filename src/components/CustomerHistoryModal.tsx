@@ -11,6 +11,8 @@ interface CustomerHistoryModalProps {
   sales?: any[];
   onViewInvoice?: (invoice: any) => void;
   onCreateInvoice?: (customer: any) => void;
+  onViewSale?: (sale: any) => void;
+  onViewQuote?: (quote: any) => void;
 }
 
 export default function CustomerHistoryModal({ 
@@ -20,7 +22,9 @@ export default function CustomerHistoryModal({
   invoices,
   sales = [],
   onViewInvoice,
-  onCreateInvoice
+  onCreateInvoice,
+  onViewSale,
+  onViewQuote
 }: CustomerHistoryModalProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
@@ -116,7 +120,14 @@ export default function CustomerHistoryModal({
                       </div>
                       <div>
                         <div className="font-medium text-purple-600">
-                          {q.quoteNumber} {q.version && q.version > 1 ? <span className="ml-1 text-xs text-gray-500">v{q.version}</span> : null}
+                          <button
+                            onClick={() => onViewQuote?.(q)}
+                            className="text-purple-600 hover:text-purple-800 transition-colors cursor-pointer"
+                            title={t('quotes.view') || 'Teklifi görüntüle'}
+                          >
+                            {q.quoteNumber}
+                          </button>
+                          {q.version && q.version > 1 ? <span className="ml-1 text-xs text-gray-500">v{q.version}</span> : null}
                         </div>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-3 h-3 mr-1" />
@@ -146,7 +157,13 @@ export default function CustomerHistoryModal({
                       </div>
                       <div>
                         <div className="font-medium text-green-600">
-                          {sale.saleNumber || `SAL-${sale.id}`}
+                          <button
+                            onClick={() => onViewSale?.(sale)}
+                            className="text-green-600 hover:text-green-800 transition-colors cursor-pointer"
+                            title={t('sales.view') || 'Satışı görüntüle'}
+                          >
+                            {sale.saleNumber || `SAL-${sale.id}`}
+                          </button>
                         </div>
                         <p className="text-sm text-gray-600">{sale.productName}</p>
                         <div className="flex items-center text-sm text-gray-500">

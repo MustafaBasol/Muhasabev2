@@ -2,14 +2,25 @@ import { X, Edit, Calendar, User, Package, CreditCard, Download, Trash2 } from '
 import type { Sale } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 
-// Safely parse localized currency-like values to number
+// Sayısal stringleri güvenli biçimde sayıya çevir ("2000.00", "2.000,00", "2,000.00")
 const toNumber = (v: any): number => {
-  if (typeof v === 'number') return v;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
   const s = String(v).trim();
-  const normalized = s.replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
-  const n = parseFloat(normalized);
-  return isNaN(n) ? 0 : n;
+  if (!s) return 0;
+
+  if (s.includes('.') && s.includes(',')) {
+    const withoutThousands = s.replace(/\./g, '');
+    const withDotDecimal = withoutThousands.replace(/,/g, '.');
+    const n = parseFloat(withDotDecimal);
+    return Number.isFinite(n) ? n : 0;
+  }
+  if (s.includes(',') && !s.includes('.')) {
+    const n = parseFloat(s.replace(/,/g, '.'));
+    return Number.isFinite(n) ? n : 0;
+  }
+  const n = parseFloat(s.replace(/\s/g, ''));
+  return Number.isFinite(n) ? n : 0;
 };
 
 interface SaleViewModalProps {

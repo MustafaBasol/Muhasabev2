@@ -49,24 +49,9 @@ export default function ExpenseViewModal({
   
   if (!isOpen || !expense) return null;
 
-  // Kategori çeviri haritası
-  const categoryLabels: { [key: string]: string } = {
-    'equipment': 'Ekipman',
-    'utilities': 'Faturalar (Elektrik, Su, İnternet)',
-    'rent': 'Kira',
-    'salaries': 'Maaşlar',
-    'personnel': 'Personel',
-    'supplies': 'Malzemeler',
-    'marketing': 'Pazarlama',
-    'travel': 'Seyahat',
-    'insurance': 'Sigorta',
-    'taxes': 'Vergiler',
-    'other': 'Diğer'
-  };
-
-  // Kategori çeviri fonksiyonu
+  // Kategori çeviri fonksiyonu (i18n üzerinden)
   const getCategoryLabel = (category: string): string => {
-    return categoryLabels[category] || category;
+    return t(`expenseCategories.${category}`) || category;
   };
 
   const formatDate = (dateString: string) => {
@@ -76,6 +61,25 @@ export default function ExpenseViewModal({
   const formatAmount = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return formatCurrency(numAmount || 0);
+  };
+
+  // Tedarikçi adı güvenli gösterim
+  const getSupplierDisplay = (name?: string) => {
+    const n = (name || '').trim();
+    // Dil bazlı varsayılan
+    const lang = (t as any)?.i18n?.language ? String((t as any).i18n.language).slice(0,2).toLowerCase() : 'tr';
+    const localizedFallback = lang === 'tr' ? 'Tedarikçi Yok' : lang === 'de' ? 'Kein Lieferant' : lang === 'fr' ? 'Aucun Fournisseur' : 'No Supplier';
+    if (!n) return t('common:noSupplier', { defaultValue: localizedFallback });
+    const normalized = n.toLowerCase();
+    const placeholders = [
+      'nosupplier',
+      'no supplier',
+      'tedarikçi yok',
+      'kein lieferant',
+      'aucun fournisseur'
+    ];
+    if (placeholders.includes(normalized)) return t('common:noSupplier', { defaultValue: localizedFallback });
+    return n;
   };
 
   const getStatusBadge = (status: string) => {
@@ -156,7 +160,11 @@ export default function ExpenseViewModal({
                 <div className="flex items-center text-sm">
                   <Building2 className="w-4 h-4 text-gray-400 mr-2" />
                   <span className="text-gray-600">{t('expense.supplier')}:</span>
-                  <span className="ml-2 font-medium">{expense.supplier?.name || 'Tedarikçi Yok'}</span>
+                  <span className="ml-2 font-medium">{getSupplierDisplay(
+                    typeof (expense as any).supplier === 'string' 
+                      ? String((expense as any).supplier) 
+                      : (expense as any).supplier?.name
+                  )}</span>
                 </div>
                 {expense.supplier?.email && (
                   <div className="flex items-center text-sm">

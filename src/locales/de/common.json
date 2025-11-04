@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "MoneyFlow",
+    "name": "comptario",
     "subtitle": "Buchhaltungssystem"
   },
   "landing": {
@@ -952,7 +952,8 @@
     "changeSearchCriteria": "Versuchen Sie, Ihre Suchkriterien zu ändern",
     "allSalesInvoiced": "Alle Verkäufe wurden abgerechnet",
     "pieces": "Stk",
-    "saleInfo": "Verkaufsinformationen"
+    "saleInfo": "Verkaufsinformationen",
+    "salesWaitingForInvoice": "Auf Rechnung wartende Verkäufe: {{count}}"
   },
   "payment": {
     "method": "Zahlungsmethode",
@@ -1023,7 +1024,7 @@
   },
   "expenseCategories": {
     "equipment": "Ausrüstung",
-    "utilities": "Versorgungsunternehmen (Strom, Wasser, Internet)",
+  "utilities": "Versorgungsunternehmen",
     "rent": "Miete",
     "salaries": "Gehälter",
     "personnel": "Personal",
@@ -1657,7 +1658,7 @@
   "pdf": {
     "invoice": {
       "title": "RECHNUNG",
-      "appSubtitle": "MoneyFlow Buchhaltungssystem",
+  "appSubtitle": "comptario Buchhaltungssystem",
       "customerInfo": "Kundendaten",
       "invoiceNumber": "Rechnungs-Nr.",
       "issueDate": "Ausstellungsdatum",
@@ -1674,7 +1675,7 @@
         "tax": "MwSt.",
         "grandTotal": "Gesamtsumme"
       },
-  "footer": "Diese Rechnung wurde mit Comptario erstellt.",
+  "footer": "Diese Rechnung wurde mit comptario erstellt.",
       "statusLabels": {
         "paid": "Bezahlt",
         "sent": "Gesendet",
@@ -1692,7 +1693,7 @@
       "category": "Kategorie",
       "details": "Ausgabendetails",
       "totalAmount": "Gesamtausgabenbetrag",
-      "footer": "Dieser Ausgabenbeleg wurde mit MoneyFlow erstellt.",
+  "footer": "Dieser Ausgabenbeleg wurde mit comptario erstellt.",
       "statusLabels": {
         "draft": "Entwurf",
         "approved": "Genehmigt",
@@ -1710,7 +1711,7 @@
       "quantity": "Menge",
       "unitPrice": "Einzelpreis",
       "totalAmount": "Gesamtverkaufsbetrag",
-      "footer": "Dieser Verkaufsbeleg wurde mit MoneyFlow erstellt.",
+  "footer": "Dieser Verkaufsbeleg wurde mit comptario erstellt.",
       "statusLabels": {
         "completed": "Abgeschlossen",
         "pending": "Ausstehend",

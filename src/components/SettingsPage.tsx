@@ -1206,13 +1206,13 @@ export default function SettingsPage({
 
   // Company (App’ten gelen company ile senkron)
   const [companyData, setCompanyData] = useState<LocalCompanyState>(() => ({
-    name: company?.name ?? 'MoneyFlow Muhasebe',
+    name: company?.name ?? 'comptario Muhasebe',
     address: company?.address ?? 'İstanbul, Türkiye',
     taxNumber: company?.taxNumber ?? '1234567890',
     taxOffice: company?.taxOffice ?? '',
     phone: company?.phone ?? '+90 212 123 45 67',
-    email: company?.email ?? 'info@moneyflow.com',
-    website: company?.website ?? 'www.moneyflow.com',
+    email: company?.email ?? 'info@comptario.com',
+    website: company?.website ?? 'www.comptario.com',
     logoDataUrl: company?.logoDataUrl ?? '',
     bankAccountId: company?.bankAccountId ?? undefined,
   // Ülke seçimi yapılmadıysa TR (Türkiye) ile başlayalım; alanlar varsayılan olarak görünsün

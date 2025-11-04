@@ -92,7 +92,10 @@ export default function ExpenseList({
 
   // Kategori çeviri fonksiyonu
   const getCategoryLabel = (category: string): string => {
-    return t(`expenseCategories.${category}`) || category;
+    const raw = t(`expenseCategories.${category}`) || category;
+    // Uzun metin taşmasını önlemek için parantez ve içeriğini kaldır
+    // Örn: "Services Publics (Électricité, Eau, Gaz, Internet)" -> "Services Publics"
+    return String(raw).replace(/\s*\([^)]*\)\s*/g, '').trim();
   };
 
   const filteredExpenses = useMemo(() => {
@@ -235,6 +238,24 @@ export default function ExpenseList({
     if (onRestoreExpense) {
       onRestoreExpense(expenseId);
     }
+  };
+
+  // Tedarikçi adı güvenli gösterim: veri içinde 'noSupplier' vb. placeholder gelirse çeviriye düş
+  const getSupplierDisplay = (name?: string) => {
+    const n = (name || '').trim();
+    const lang = (i18n.language || 'tr').slice(0,2).toLowerCase();
+    const localizedFallback = lang === 'tr' ? 'Tedarikçi Yok' : lang === 'de' ? 'Kein Lieferant' : lang === 'fr' ? 'Aucun Fournisseur' : 'No Supplier';
+    if (!n) return t('common:noSupplier', { defaultValue: localizedFallback });
+    const normalized = n.toLowerCase();
+    const placeholders = [
+      'nosupplier',
+      'no supplier',
+      'tedarikçi yok',
+      'kein lieferant',
+      'aucun fournisseur'
+    ];
+    if (placeholders.includes(normalized)) return t('common:noSupplier', { defaultValue: localizedFallback });
+    return n;
   };
 
   return (
@@ -388,7 +409,7 @@ export default function ExpenseList({
                   <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('expenses.amount')}<SortIndicator active={sort.by==='amount'} />
                   </th>
-                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
+                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                     {t('expenses.status')}<SortIndicator active={sort.by==='status'} />
                   </th>
                   <th onClick={() => toggleSort('expenseDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
@@ -425,7 +446,11 @@ export default function ExpenseList({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {expense.supplier?.name || 'Tedarikçi Yok'}
+                        {getSupplierDisplay(
+                          typeof (expense as any).supplier === 'string' 
+                            ? String((expense as any).supplier) 
+                            : (expense as any).supplier?.name
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -440,11 +465,11 @@ export default function ExpenseList({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {editingExpense === expense.id && editingField === 'status' ? (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-nowrap z-10">
                           <select
                             value={tempValue}
                             onChange={(e) => setTempValue(e.target.value)}
-                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-500"
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-500 w-[120px] max-w-[120px]"
                           >
                             <option value="pending">{t('status.pending')}</option>
                             <option value="approved">{t('status.approved')}</option>
@@ -453,15 +478,17 @@ export default function ExpenseList({
                           </select>
                           <button
                             onClick={() => handleSaveInlineEdit(expense)}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded"
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-green-50 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-green-500"
+                            aria-label={t('common.save')}
                           >
-                            <Check className="w-3 h-3" />
+                            <Check className="w-4 h-4 shrink-0 text-green-600" />
                           </button>
                           <button
                             onClick={handleCancelInlineEdit}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-red-500"
+                            aria-label={t('common.cancel')}
                           >
-                            <X className="w-3 h-3" />
+                            <X className="w-4 h-4 shrink-0 text-red-600" />
                           </button>
                         </div>
                       ) : (
@@ -486,13 +513,13 @@ export default function ExpenseList({
                             onClick={() => handleSaveInlineEdit(expense)}
                             className="p-1 text-green-600 hover:bg-green-50 rounded"
                           >
-                            <Check className="w-3 h-3" />
+                            <Check className="w-4 h-4" />
                           </button>
                           <button
                             onClick={handleCancelInlineEdit}
                             className="p-1 text-red-600 hover:bg-red-50 rounded"
                           >
-                            <X className="w-3 h-3" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       ) : (

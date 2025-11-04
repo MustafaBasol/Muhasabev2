@@ -90,7 +90,14 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
   };
   const itemsTotal = useMemo(() => items.reduce((sum, it) => sum + (Number(it.total) || 0), 0), [items]);
 
-  // Hooks must not be called conditionally; guard after hooks
+  // Onay modalı için state (hook'ları her zaman koşulsuz çağır)
+  const [confirmData, setConfirmData] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
+
+  // Hooklardan SONRA değil, ÖNCE guard et
   if (!isOpen) return null;
 
   const handleCustomerSelect = (c: Customer) => {
@@ -137,12 +144,6 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
       }
     });
   };
-
-  const [confirmData, setConfirmData] = useState<{
-    title: string;
-    message: string;
-    onConfirm: () => void | Promise<void>;
-  } | null>(null);
 
   return (
     <>
@@ -252,8 +253,8 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '44%' }}>{t('invoices.description')}</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '12%' }}>{t('invoices.quantity')}</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('invoices.unitPriceExclVAT')}</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('invoices.totalExclVAT')}</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('invoices.unitPriceExclVAT', { defaultValue: 'Birim Fiyat (KDV Hariç)' })}</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('common.totalExclVAT', { defaultValue: 'Toplam (KDV Hariç)' })}</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700" style={{ width: '8%' }}>{t('invoices.actions')}</th>
                   </tr>
                 </thead>

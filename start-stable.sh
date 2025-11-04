@@ -2,13 +2,13 @@
 
 
 
-# MoneyFlow Uygulamasını Çalıştırma Script'i# MoneyFlow - Stable Startup Script
+# comptario Uygulamasını Çalıştırma Script'i# comptario - Stable Startup Script
 
 # Bu script her şeyi düzgün bir şekilde başlatır# Bu script backend ve frontend'i stabil şekilde başlatır
 
 
 
-echo "🧹 Mevcut süreçleri temizliyor..."echo "🚀 MoneyFlow Stable Startup başlatılıyor..."
+echo "🧹 Mevcut süreçleri temizliyor..."echo "🚀 comptario Stable Startup başlatılıyor..."
 
 pkill -f "vite\|nest\|node.*3003\|node.*5175" 2>/dev/null || true
 
