@@ -174,4 +174,27 @@ export const adminApi = {
     });
     return response.data;
   },
+
+  // Plan Limits
+  getPlanLimits: async () => {
+    const response = await apiClient.get('/admin/plan-limits', {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+  updatePlanLimits: async (
+    plan: 'free' | 'basic' | 'professional' | 'enterprise',
+    payload: {
+      maxUsers?: number;
+      maxCustomers?: number;
+      maxSuppliers?: number;
+      maxBankAccounts?: number;
+      monthly?: { maxInvoices?: number; maxExpenses?: number };
+    }
+  ) => {
+    const response = await apiClient.patch(`/admin/plan-limits/${plan}`, payload, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
 };

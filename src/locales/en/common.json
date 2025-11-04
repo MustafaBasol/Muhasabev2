@@ -401,6 +401,8 @@
   "acceptedThanks": "Thanks, the quote has been accepted.",
   "confirmDecline": "Are you sure you want to decline this quote?",
   "declinedInfo": "The quote has been declined.",
+    "duplicateConfirm": "Proceed with duplication?",
+    "reviseConfirm": "Do you want to revise this quote? The current version will be archived and a new version will be created.",
     "actions": {
       "send": "Send",
       "accept": "Accept",
@@ -408,7 +410,8 @@
       "downloadPdf": "Download PDF",
       "copyLink": "Copy public link",
       "resendEmail": "Resend email",
-      "revise": "Revise"
+      "revise": "Revise",
+      "duplicate": "Duplicate"
     },
     "editModal": {
       "title": "Edit Quote",
@@ -739,6 +742,7 @@
     "subtotalExclVAT": "Subtotal (Excl. VAT)",
     "vat": "VAT",
     "grandTotalInclVAT": "Grand Total (Incl. VAT)",
+  "grandTotalExclVAT": "Grand Total (Excl. VAT)",
     "createInvoiceFromSale": "Create Invoice from Sale",
     "completeInvoiceInfo": "Complete invoice information"
   },
@@ -810,6 +814,11 @@
     "company": "Company Name",
     "namePlaceholder": "John Smith",
     "companyPlaceholder": "ABC Technology Ltd.",
+    "duplicate": {
+      "title": "Duplicate Email Found",
+      "message": "A customer is already registered with this email ({{email}}): {{name}}. Please select or edit the existing record from the list.",
+      "openExisting": "Open existing customer"
+    },
     "import": {
       "noDataFound": "No data found in the file.",
       "noCustomersFound": "No customers found to import in the file.",

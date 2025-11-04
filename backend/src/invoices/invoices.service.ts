@@ -8,6 +8,7 @@ import { Between, Repository } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
+import { Sale, SaleStatus } from '../sales/entities/sale.entity';
 
 @Injectable()
 export class InvoicesService {
@@ -16,6 +17,8 @@ export class InvoicesService {
     private invoicesRepository: Repository<Invoice>,
     @InjectRepository(Tenant)
     private tenantRepository: Repository<Tenant>,
+    @InjectRepository(Sale)
+    private salesRepository: Repository<Sale>,
   ) {}
 
   async create(tenantId: string, createInvoiceDto: any): Promise<Invoice> {
@@ -146,6 +149,24 @@ export class InvoicesService {
 
     if (!result) {
       throw new NotFoundException('Failed to create invoice');
+    }
+
+    // Eğer saleId verildiyse satışla ilişkilendir ve satış durumunu güncelle
+    try {
+      const saleId = createInvoiceDto.saleId as string | undefined;
+      if (saleId) {
+        const sale = await this.salesRepository.findOne({
+          where: { id: saleId, tenantId },
+        });
+        if (sale) {
+          sale.invoiceId = savedId;
+          sale.status = SaleStatus.INVOICED;
+          await this.salesRepository.save(sale);
+        }
+      }
+    } catch (e) {
+      // Sessizce logla; fatura oluşturma başarıyla tamamlandı
+      console.warn('Invoice linked sale update failed:', e);
     }
 
     return result;

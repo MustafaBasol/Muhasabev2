@@ -14,6 +14,7 @@ import { SuppliersModule } from './suppliers/suppliers.module';
 import { ProductsModule } from './products/products.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { SalesModule } from './sales/sales.module';
 import { BankAccountsModule } from './bank-accounts/bank-accounts.module';
 import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
@@ -97,6 +98,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     ProductsModule,
     InvoicesModule,
     ExpensesModule,
+    SalesModule,
     BankAccountsModule,
     AdminModule,
     AuditModule,

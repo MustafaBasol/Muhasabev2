@@ -19,6 +19,8 @@ import { OrganizationMember } from '../organizations/entities/organization-membe
 import { Invite } from '../organizations/entities/invite.entity';
 import { AdminOrganizationsController } from './admin-organizations.controller';
 import { EmailService } from '../services/email.service';
+import { PlanLimitsService } from './plan-limits.service';
+import { PlanLimitsLoader } from './plan-limits.loader';
 
 @Module({
   imports: [
@@ -42,7 +44,14 @@ import { EmailService } from '../services/email.service';
     BackupController,
     AdminOrganizationsController,
   ],
-  providers: [AdminService, BackupService, SecurityService, EmailService],
-  exports: [AdminService, BackupService],
+  providers: [
+    AdminService,
+    BackupService,
+    SecurityService,
+    EmailService,
+    PlanLimitsService,
+    PlanLimitsLoader,
+  ],
+  exports: [AdminService, BackupService, PlanLimitsService],
 })
 export class AdminModule {}

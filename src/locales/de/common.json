@@ -394,11 +394,13 @@
     "validUntil": "Gültig bis",
     "expiresIn": "(läuft in {{days}} Tagen ab)",
     "expiredOn": "(abgelaufen am {{date}})",
-    "version": "v{{n}}",
-    "confirmAccept": "Sind Sie sicher, dass Sie dieses Angebot annehmen möchten?",
-    "acceptedThanks": "Danke, das Angebot wurde angenommen.",
-    "confirmDecline": "Sind Sie sicher, dass Sie dieses Angebot ablehnen möchten?",
-    "declinedInfo": "Das Angebot wurde abgelehnt.",
+  "version": "v{{n}}",
+  "confirmAccept": "Sind Sie sicher, dass Sie dieses Angebot annehmen möchten?",
+  "acceptedThanks": "Danke, das Angebot wurde angenommen.",
+  "confirmDecline": "Sind Sie sicher, dass Sie dieses Angebot ablehnen möchten?",
+  "declinedInfo": "Das Angebot wurde abgelehnt.",
+  "duplicateConfirm": "Mit der Duplizierung fortfahren?",
+  "reviseConfirm": "Möchten Sie dieses Angebot überarbeiten? Die aktuelle Version wird archiviert und eine neue Version wird erstellt.",
     "viewModal": {
       "details": "Angebotsdetails"
     },
@@ -409,7 +411,8 @@
       "downloadPdf": "PDF Herunterladen",
       "copyLink": "Öffentlichen Link kopieren",
       "resendEmail": "E-Mail erneut senden",
-      "revise": "Überarbeiten"
+      "revise": "Überarbeiten",
+      "duplicate": "Duplizieren"
     },
     "editModal": {
       "title": "Angebot bearbeiten",
@@ -741,6 +744,7 @@
     "subtotalExclVAT": "Zwischensumme (ohne MwSt.)",
     "vat": "MwSt.",
     "grandTotalInclVAT": "Gesamtsumme (inkl. MwSt.)",
+  "grandTotalExclVAT": "Gesamtsumme (ohne MwSt.)",
     "createInvoiceFromSale": "Rechnung aus Verkauf Erstellen",
     "completeInvoiceInfo": "Rechnungsinformationen vervollständigen"
   },

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, Link, Mail, RefreshCw, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
+import ConfirmModal from './ConfirmModal';
 
 export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'expired';
 
@@ -48,6 +49,7 @@ interface QuoteViewModalProps {
 const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote, onEdit, onChangeStatus, onRevise }) => {
   const { t } = useTranslation();
   const { formatCurrency } = useCurrency();
+  const [confirmAccept, setConfirmAccept] = React.useState(false);
 
   const statusMap = useMemo(() => ({
     draft: { label: t('status.draft'), className: 'bg-gray-100 text-gray-800' },
@@ -78,6 +80,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
   const showExpired = !isTerminal && isExpiredByDate;
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -127,12 +130,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
             {onChangeStatus && (quote.status === 'sent' || quote.status === 'viewed') && (
               <>
                 <button
-                  onClick={() => {
-                    const msg = t('quotes.confirmAccept') || 'Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.';
-                    if (window.confirm(msg)) {
-                      onChangeStatus(quote, 'accepted');
-                    }
-                  }}
+                  onClick={() => setConfirmAccept(true)}
                   className="inline-flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   title={t('quotes.actions.accept')}
                 >
@@ -330,6 +328,19 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
         </div>
       </div>
     </div>
+    {/* Kabul onayı */}
+    {confirmAccept && (
+      <ConfirmModal
+        isOpen={true}
+        title={t('common.confirm', { defaultValue: 'Onay' })}
+        message={t('quotes.confirmAccept', { defaultValue: 'Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.' })}
+        confirmText={t('common.yes', { defaultValue: 'Evet' })}
+        cancelText={t('common.no', { defaultValue: 'Hayır' })}
+        onCancel={() => setConfirmAccept(false)}
+        onConfirm={() => { setConfirmAccept(false); onChangeStatus && quote && onChangeStatus(quote, 'accepted'); }}
+      />
+    )}
+    </>
   );
 };
 

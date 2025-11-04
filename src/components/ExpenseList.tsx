@@ -4,6 +4,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderExpenses, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Expense {
   id: string;
@@ -52,6 +53,7 @@ export default function ExpenseList({
 }: ExpenseListProps) {
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
+  const { tenant } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -67,6 +69,23 @@ export default function ExpenseList({
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
+  
+  // Plan kullanım bilgisi: Free/Starter için bu ayki gider sayısı (isVoided hariç)
+  const planNormalized = String(tenant?.subscriptionPlan || '').toLowerCase();
+  const isFreePlan = planNormalized.includes('free') || planNormalized.includes('starter');
+  const expensesThisMonth = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return expenses.filter((exp: any) => {
+      if (exp?.isVoided) return false;
+      const created = exp?.createdAt ? new Date(exp.createdAt) : (exp?.expenseDate ? new Date(exp.expenseDate) : null);
+      if (!created || Number.isNaN(created.getTime())) return false;
+      return created >= start && created <= end;
+    }).length;
+  }, [expenses]);
+  const MONTHLY_MAX = 5;
+  const atLimit = isFreePlan && expensesThisMonth >= MONTHLY_MAX;
 
   // Kategori listesi
   const categories = ['equipment', 'utilities', 'rent', 'salaries', 'personnel', 'supplies', 'marketing', 'travel', 'insurance', 'taxes', 'other'];
@@ -231,7 +250,9 @@ export default function ExpenseList({
           </div>
           <button
             onClick={onAddExpense}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            disabled={atLimit}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${atLimit ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}
+            title={atLimit ? 'Starter/Free planda bu ayki gider limiti doldu (5/5)' : undefined}
           >
             <Plus className="w-4 h-4" />
             <span>{t('expenses.newExpense')}</span>
@@ -315,6 +336,12 @@ export default function ExpenseList({
             />
 {showVoided ? t('fiscalPeriods.filters.hideVoided') : t('fiscalPeriods.filters.showVoided')}
           </label>
+          {/* Plan kullanım özeti */}
+          {isFreePlan && (
+            <div className="px-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 whitespace-nowrap">
+              Bu ay: <strong className={`${atLimit ? 'text-red-600' : 'text-gray-900'}`}>{expensesThisMonth}/{MONTHLY_MAX}</strong>
+            </div>
+          )}
         </div>
       </div>
 

@@ -202,19 +202,24 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     .filter(sale => {
       const q = normalizeText(debouncedSearch);
       const firstItemName = (sale.items && sale.items.length > 0) ? (sale.items[0].productName || '') : '';
+      const statusKey = (sale.status || '').toString().toLowerCase();
+      const statusVariant = ['completed','paid','invoiced','approved'].includes(statusKey)
+        ? 'completed'
+        : (['cancelled','canceled','void','refunded','deleted'].includes(statusKey) ? 'cancelled'
+          : (['pending','created','new','draft','open','processing'].includes(statusKey) ? 'pending' : 'pending'));
       const haystack = [
         sale.saleNumber,
         sale.customerName,
         sale.customerEmail,
         sale.productName,
         firstItemName,
-        sale.status,
+        statusVariant,
         sale.date,
         String(sale.amount ?? sale.total ?? toNumberSafe(sale.quantity) * toNumberSafe(sale.unitPrice))
       ].map(normalizeText).join(' ');
 
       const matchesSearch = q.length === 0 || haystack.includes(q);
-      const matchesStatus = statusFilter === 'all' || sale.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || statusVariant === statusFilter;
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
@@ -253,13 +258,20 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   );
 
   const getStatusBadge = (status: string) => {
+    // Backend farklı statüler döndürebilir; hepsini 3 varyanta indirgeriz.
+    const key = (status || '').toString().toLowerCase();
+    let variant: 'completed' | 'pending' | 'cancelled' = 'pending';
+    if (['completed', 'paid', 'invoiced', 'approved'].includes(key)) variant = 'completed';
+    else if (['cancelled', 'canceled', 'void', 'refunded', 'deleted'].includes(key)) variant = 'cancelled';
+    else if (['pending', 'created', 'new', 'draft', 'open', 'processing'].includes(key)) variant = 'pending';
+
     const statusConfig = {
       completed: { label: t('status.completed'), class: 'bg-green-100 text-green-800' },
       pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
       cancelled: { label: t('status.cancelled'), class: 'bg-red-100 text-red-800' }
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig];
+    } as const;
+
+    const config = statusConfig[variant] || { label: key || t('status.pending'), class: 'bg-gray-100 text-gray-800' };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.class}`}>
         {config.label}

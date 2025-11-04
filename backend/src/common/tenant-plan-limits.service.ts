@@ -12,6 +12,13 @@ export interface TenantPlanLimits {
   };
 }
 
+// Güncelleme için derin kısmi tip
+export type UpdateTenantPlanLimits = Partial<
+  Omit<TenantPlanLimits, 'monthly'>
+> & {
+  monthly?: Partial<TenantPlanLimits['monthly']>;
+};
+
 // Not: Var olan SubscriptionPlan enum: FREE | BASIC | PROFESSIONAL | ENTERPRISE
 // İstenen iş kuralları:
 // - Free: 1 kullanıcı, 1 müşteri, 1 tedarikçi, 1 banka hesabı, ayda 5 gelir (fatura) + 5 gider
@@ -69,6 +76,30 @@ export class TenantPlanLimitService {
     return (
       TENANT_PLAN_LIMITS[plan] ?? TENANT_PLAN_LIMITS[SubscriptionPlan.FREE]
     );
+  }
+
+  static getAllLimits(): Record<SubscriptionPlan, TenantPlanLimits> {
+    return TENANT_PLAN_LIMITS;
+  }
+
+  static setLimits(
+    plan: SubscriptionPlan,
+    limits: UpdateTenantPlanLimits,
+  ): TenantPlanLimits {
+    const current = this.getLimits(plan);
+    const merged: TenantPlanLimits = {
+      maxUsers: limits.maxUsers ?? current.maxUsers,
+      maxCustomers: limits.maxCustomers ?? current.maxCustomers,
+      maxSuppliers: limits.maxSuppliers ?? current.maxSuppliers,
+      maxBankAccounts: limits.maxBankAccounts ?? current.maxBankAccounts,
+      monthly: {
+        maxInvoices: limits.monthly?.maxInvoices ?? current.monthly.maxInvoices,
+        maxExpenses: limits.monthly?.maxExpenses ?? current.monthly.maxExpenses,
+      },
+    };
+    // In-memory güncelleme (kalıcı değildir; uygulama yeniden başlarsa dosyadan/DB'den yüklenmelidir)
+    TENANT_PLAN_LIMITS[plan] = merged;
+    return merged;
   }
 
   static isUnlimited(value: number): boolean {

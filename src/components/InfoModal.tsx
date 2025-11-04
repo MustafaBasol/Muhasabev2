@@ -9,6 +9,9 @@ interface InfoModalProps {
   title: string;
   message: string;
   confirmLabel?: string;
+  onConfirm?: () => void;
+  cancelLabel?: string;
+  onCancel?: () => void;
   tone?: InfoTone;
   autoCloseMs?: number;
 }
@@ -41,6 +44,9 @@ export default function InfoModal({
   title,
   message,
   confirmLabel = 'OK',
+  onConfirm,
+  cancelLabel,
+  onCancel,
   tone = 'info',
   autoCloseMs,
 }: InfoModalProps) {
@@ -93,13 +99,31 @@ export default function InfoModal({
             {message}
           </p>
 
-          {/* Action Button */}
-          <button
-            onClick={onClose}
-            className={`w-full px-4 py-2 rounded-lg transition-colors ${styles.button}`}
-          >
-            {confirmLabel}
-          </button>
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            {cancelLabel ? (
+              <button
+                onClick={onCancel || onClose}
+                className={`w-1/2 px-4 py-2 rounded-lg transition-colors border border-gray-300 text-gray-700 bg-white hover:bg-gray-50`}
+              >
+                {cancelLabel}
+              </button>
+            ) : null}
+
+            <button
+              onClick={() => {
+                try {
+                  if (onConfirm) onConfirm();
+                  else onClose();
+                } catch {
+                  // no-op
+                }
+              }}
+              className={`${cancelLabel ? 'w-1/2' : 'w-full'} px-4 py-2 rounded-lg transition-colors ${styles.button}`}
+            >
+              {confirmLabel}
+            </button>
+          </div>
         </div>
       </div>
     </div>

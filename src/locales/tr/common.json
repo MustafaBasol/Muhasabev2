@@ -493,6 +493,8 @@
   "acceptedThanks": "Teşekkürler, teklif kabul edildi.",
   "confirmDecline": "Teklifi reddetmek istediğinizden emin misiniz?",
   "declinedInfo": "Teklif reddedildi.",
+    "duplicateConfirm": "Yinele işlemine devam edilsin mi?",
+    "reviseConfirm": "Bu teklifi revize etmek istiyor musunuz? Mevcut sürüm geçmişe taşınacak ve yeni bir sürüm oluşturulacak.",
     "actions": {
       "send": "Gönder",
       "accept": "Kabul Et",
@@ -500,7 +502,8 @@
       "downloadPdf": "PDF İndir",
       "copyLink": "Genel bağlantıyı kopyala",
       "resendEmail": "E-postayı yeniden gönder",
-      "revise": "Revize Et"
+      "revise": "Revize Et",
+      "duplicate": "Yinele"
     },
     "editModal": {
       "title": "Teklifi Düzenle",
@@ -833,6 +836,7 @@
     "subtotalExclVAT": "Ara Toplam (KDV Hariç)",
     "vat": "KDV",
     "grandTotalInclVAT": "Genel Toplam (KDV Dahil)",
+  "grandTotalExclVAT": "Genel Toplam (KDV Hariç)",
     "createInvoiceFromSale": "Satışa Fatura Kes",
     "completeInvoiceInfo": "Fatura bilgilerini tamamlayın"
   },
@@ -921,6 +925,11 @@
     "company": "Şirket Adı",
     "namePlaceholder": "Ahmet Yılmaz",
     "companyPlaceholder": "ABC Teknoloji Ltd.",
+    "duplicate": {
+      "title": "Aynı E-posta ile Kayıt Var",
+      "message": "Bu e-posta ({{email}}) ile zaten bir müşteri kayıtlı: {{name}}. Lütfen listeden mevcut kaydı seçin veya düzenleyin.",
+      "openExisting": "Mevcut müşteriyi aç"
+    },
     "import": {
       "noDataFound": "Dosyada veri bulunamadı.",
       "noCustomersFound": "Dosyada aktarılacak müşteri bulunamadı.",

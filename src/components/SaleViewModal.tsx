@@ -43,13 +43,19 @@ export default function SaleViewModal({
 };
 
   const getStatusBadge = (status: string) => {
+    const key = (status || '').toString().toLowerCase();
+    let variant: 'completed' | 'pending' | 'cancelled' = 'pending';
+    if (['completed', 'paid', 'invoiced', 'approved'].includes(key)) variant = 'completed';
+    else if (['cancelled', 'canceled', 'void', 'refunded', 'deleted'].includes(key)) variant = 'cancelled';
+    else if (['pending', 'created', 'new', 'draft', 'open', 'processing'].includes(key)) variant = 'pending';
+
     const statusConfig = {
       completed: { label: 'Tamamlandı', class: 'bg-green-100 text-green-800' },
       pending: { label: 'Bekliyor', class: 'bg-yellow-100 text-yellow-800' },
       cancelled: { label: 'İptal', class: 'bg-red-100 text-red-800' }
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig];
+    } as const;
+
+    const config = statusConfig[variant] || { label: key || 'Bekliyor', class: 'bg-gray-100 text-gray-800' };
     return (
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.class}`}>
         {config.label}

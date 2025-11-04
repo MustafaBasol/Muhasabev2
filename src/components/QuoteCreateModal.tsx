@@ -253,7 +253,7 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '44%' }}>{t('invoices.description')}</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '12%' }}>{t('invoices.quantity')}</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('invoices.unitPriceExclVAT')}</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('invoices.totalInclVAT')}</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('invoices.totalExclVAT')}</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700" style={{ width: '8%' }}>{t('invoices.actions')}</th>
                   </tr>
                 </thead>
@@ -348,7 +348,7 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
 
           <div className="bg-gray-50 rounded-lg p-3 flex justify-end">
             <div className="w-64 flex justify-between text-lg font-semibold">
-              <span>{t('invoices.grandTotalInclVAT')}:</span>
+              <span>{t('invoices.grandTotalExclVAT', { defaultValue: 'Genel Toplam (KDV Hariç)' })}:</span>
               <span>{formatCurrency(itemsTotal, form.currency)}</span>
             </div>
           </div>

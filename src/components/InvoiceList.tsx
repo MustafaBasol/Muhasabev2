@@ -4,6 +4,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderInvoices, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
+import { useAuth } from '../contexts/AuthContext';
 
 // Archive threshold: invoices older than this many days will only appear in archive
 const ARCHIVE_THRESHOLD_DAYS = 365; // 1 year
@@ -53,6 +54,7 @@ export default function InvoiceList({
 }: InvoiceListProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
+  const { tenant } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -67,6 +69,23 @@ export default function InvoiceList({
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
+
+  // Plan kullanımı: Free/Starter için bu ayki fatura sayısı (isVoided hariç)
+  const planNormalized = String(tenant?.subscriptionPlan || '').toLowerCase();
+  const isFreePlan = planNormalized.includes('free') || planNormalized.includes('starter');
+  const invoicesThisMonth = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return invoices.filter((inv: any) => {
+      if (inv?.isVoided) return false;
+      const created = inv?.createdAt ? new Date(inv.createdAt) : (inv?.issueDate ? new Date(inv.issueDate) : null);
+      if (!created || Number.isNaN(created.getTime())) return false;
+      return created >= start && created <= end;
+    }).length;
+  }, [invoices]);
+  const MONTHLY_MAX = 5;
+  const atLimit = isFreePlan && invoicesThisMonth >= MONTHLY_MAX;
 
   // Filter out archived invoices (older than threshold)
   const currentInvoices = invoices.filter(invoice => {
@@ -262,7 +281,9 @@ export default function InvoiceList({
           </div>
           <button
             onClick={onAddInvoice}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={atLimit}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${atLimit ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+            title={atLimit ? 'Starter/Free planda bu ayki fatura limiti doldu (5/5)' : undefined}
           >
             <Plus className="w-4 h-4" />
             <span>{t('invoices.newInvoice')}</span>
@@ -332,6 +353,12 @@ export default function InvoiceList({
             />
             {showVoided ? t('invoices.hideVoided') : t('invoices.showVoided')}
           </label>
+          {/* Plan kullanım özeti */}
+          {isFreePlan && (
+            <div className="px-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 whitespace-nowrap">
+              Bu ay: <strong className={`${atLimit ? 'text-red-600' : 'text-gray-900'}`}>{invoicesThisMonth}/{MONTHLY_MAX}</strong>
+            </div>
+          )}
         </div>
       </div>
 

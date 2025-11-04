@@ -20,11 +20,15 @@ import {
   SubscriptionPlan,
   TenantStatus,
 } from '../tenants/entities/tenant.entity';
+import { PlanLimitsService } from './plan-limits.service';
 
 @ApiTags('admin')
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly planLimitsService: PlanLimitsService,
+  ) {}
 
   private checkAdminAuth(headers: any) {
     const adminToken = headers['admin-token'];
@@ -228,5 +232,39 @@ export class AdminController {
       throw new UnauthorizedException('Confirmation required for live purge');
     }
     return this.adminService.executeRetention();
+  }
+
+  // === Plan Limitleri Yönetimi ===
+  @Get('plan-limits')
+  @ApiOperation({ summary: 'Mevcut plan limitlerini getir (runtime)' })
+  @ApiResponse({ status: 200, description: 'Plan limits' })
+  async getPlanLimits(@Headers() headers: any) {
+    this.checkAdminAuth(headers);
+    const current = this.planLimitsService.getCurrentLimits();
+    return { success: true, limits: current };
+  }
+
+  @Patch('plan-limits/:plan')
+  @ApiOperation({ summary: 'Belirli bir plan için limitleri güncelle' })
+  @ApiResponse({ status: 200, description: 'Updated plan limits' })
+  async updatePlanLimits(
+    @Param('plan') planParam: string,
+    @Body()
+    body: {
+      maxUsers?: number;
+      maxCustomers?: number;
+      maxSuppliers?: number;
+      maxBankAccounts?: number;
+      monthly?: { maxInvoices?: number; maxExpenses?: number };
+    },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    const plan = (planParam || '').toLowerCase() as SubscriptionPlan;
+    if (!Object.values(SubscriptionPlan).includes(plan)) {
+      throw new UnauthorizedException('Invalid plan');
+    }
+    const updated = this.planLimitsService.updatePlanLimits(plan, body);
+    return { success: true, plan, limits: updated };
   }
 }

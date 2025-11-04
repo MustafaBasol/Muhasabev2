@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Eye, Edit, Trash2, FileText, Calendar, Check, X, FileDown } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, FileText, Calendar, Check, X, FileDown, Copy } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import QuoteViewModal, { type Quote as QuoteModel, type QuoteStatus } from './QuoteViewModal';
 import QuoteEditModal from './QuoteEditModal';
@@ -59,6 +59,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [reviseTarget, setReviseTarget] = useState<QuoteItem | null>(null);
+  const [duplicateTarget, setDuplicateTarget] = useState<QuoteItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<QuoteItem | null>(null);
 
   // Inline edit state (status, dates vs.)
@@ -317,12 +318,48 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
 
   return (
     <div className="space-y-6">
+      {/* Yinele onayı */}
+      {duplicateTarget && (
+        <ConfirmModal
+          isOpen={true}
+          title={t('common.confirm', { defaultValue: 'Onay' })}
+          message={t('quotes.duplicateConfirm')}
+          confirmText={t('common.yes', { defaultValue: 'Evet' })}
+          cancelText={t('common.no', { defaultValue: 'Hayır' })}
+          onCancel={() => setDuplicateTarget(null)}
+          onConfirm={() => {
+            const src = duplicateTarget;
+            if (!src) return;
+            // Yeni ID ve numara üret
+            const id = `q${Date.now()}`;
+            const year = new Date().getFullYear();
+            const current = quotes;
+            const nextIndex = current.length + 1;
+            const quoteNumber = `Q-${year}-${String(nextIndex).padStart(4, '0')}`;
+            const copy: QuoteItem = {
+              id,
+              quoteNumber,
+              customerName: src.customerName,
+              customerId: (src as any).customerId,
+              issueDate: new Date().toISOString().slice(0,10),
+              validUntil: src.validUntil,
+              currency: src.currency,
+              total: src.total,
+              status: 'draft',
+              version: 1,
+              items: (src.items || []).map(it => ({ ...it })),
+            };
+            setQuotes(prev => [copy, ...prev]);
+            setDuplicateTarget(null);
+          }}
+        />
+      )}
       {/* Revize onayı */}
       {reviseTarget && (
         <ConfirmModal
           isOpen={true}
           title={t('common.confirm', { defaultValue: 'Onay' })}
-          message={t('quotes.reviseConfirm', { defaultValue: `Bu teklifi revize etmek istiyor musunuz? Mevcut sürüm geçmişe taşınacak ve yeni bir v${(reviseTarget.version || 1) + 1} oluşturulacak.` })}
+          message={t('quotes.reviseConfirm')}
           confirmText={t('common.yes', { defaultValue: 'Evet' })}
           cancelText={t('common.no', { defaultValue: 'Hayır' })}
           onCancel={() => setReviseTarget(null)}
@@ -577,6 +614,14 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                             title={t('quotes.actions.downloadPdf')}
                           >
                             <FileDown className="w-4 h-4" />
+                          </button>
+                          {/* Yinele (kopyala) */}
+                          <button
+                            onClick={() => setDuplicateTarget(item)}
+                            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            title={t('quotes.actions.duplicate')}
+                          >
+                            <Copy className="w-4 h-4" />
                           </button>
                           {item.status !== 'accepted' && (
                           <button 

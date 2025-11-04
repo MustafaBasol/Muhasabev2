@@ -4,6 +4,7 @@ import { Edit, Trash2, ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
 import BackupManagementPage from './admin/BackupManagementPage';
 import DataRetentionPage from './admin/DataRetentionPage';
 import OrganizationManagementPage from './admin/OrganizationManagementPage';
+import PlanLimitsPage from './admin/PlanLimitsPage';
 import { useAuth } from '../contexts/AuthContext';
 import StatusPage from './status/StatusPage';
 
@@ -58,7 +59,7 @@ const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'memberships' | 'data' | 'backups' | 'retention' | 'status'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'memberships' | 'data' | 'backups' | 'retention' | 'status' | 'planLimits'>('users');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
   // Users sekmesi için şirket filtresi (sunucu tarafı)
   const [userTenantFilter, setUserTenantFilter] = useState<string>('all');
@@ -604,6 +605,16 @@ const AdminPage: React.FC = () => {
             🗑️ Veri Temizleme
           </button>
           <button
+            onClick={() => setActiveTab('planLimits')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'planLimits'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            📏 Plan Limitleri
+          </button>
+          <button
             onClick={() => setActiveTab('status')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'status'
@@ -1027,6 +1038,12 @@ const AdminPage: React.FC = () => {
 
         {activeTab === 'retention' && (
           <DataRetentionPage />
+        )}
+
+        {activeTab === 'planLimits' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <PlanLimitsPage />
+          </div>
         )}
 
         {activeTab === 'status' && (

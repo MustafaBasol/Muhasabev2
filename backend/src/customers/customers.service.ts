@@ -47,6 +47,20 @@ export class CustomersService {
     createCustomerDto: CreateCustomerDto,
     tenantId: string,
   ): Promise<Customer> {
+    // Duplicate by email (case-insensitive, trimmed) per tenant
+    const email = (createCustomerDto.email || '').trim();
+    if (email) {
+      const existing = await this.customersRepository
+        .createQueryBuilder('c')
+        .where('c.tenantId = :tenantId', { tenantId })
+        .andWhere('LOWER(TRIM(c.email)) = LOWER(TRIM(:email))', { email })
+        .getOne();
+      if (existing) {
+        throw new BadRequestException(
+          `Bu e-posta (${email}) ile zaten bir müşteri kayıtlı`,
+        );
+      }
+    }
     // Plan limiti: müşteri ekleme kontrolü
     const tenant = await this.tenantRepository.findOne({
       where: { id: tenantId },
@@ -76,7 +90,23 @@ export class CustomersService {
       tenantId,
     });
 
-    return this.customersRepository.save(customer);
+    try {
+      return await this.customersRepository.save(customer);
+    } catch (e: any) {
+      // Gracefully handle DB unique index violation (e.g., on normalized email)
+      const message = String(e?.message || '').toLowerCase();
+      const code = e?.code || e?.errno;
+      if (
+        code === '23505' ||
+        message.includes('unique') ||
+        message.includes('duplicate')
+      ) {
+        throw new BadRequestException(
+          'Bu e-posta ile zaten bir müşteri kayıtlı',
+        );
+      }
+      throw e;
+    }
   }
 
   async update(
@@ -84,6 +114,24 @@ export class CustomersService {
     updateCustomerDto: UpdateCustomerDto,
     tenantId: string,
   ): Promise<Customer> {
+    // If email is being updated, enforce duplicate rule per tenant (case-insensitive, trimmed)
+    const nextEmail = (updateCustomerDto?.email || '').trim();
+    if (nextEmail) {
+      const existing = await this.customersRepository
+        .createQueryBuilder('c')
+        .where('c.tenantId = :tenantId', { tenantId })
+        .andWhere('LOWER(TRIM(c.email)) = LOWER(TRIM(:email))', {
+          email: nextEmail,
+        })
+        .andWhere('c.id <> :id', { id })
+        .getOne();
+      if (existing) {
+        throw new BadRequestException(
+          `Bu e-posta (${nextEmail}) ile zaten bir müşteri kayıtlı`,
+        );
+      }
+    }
+
     await this.customersRepository.update({ id, tenantId }, updateCustomerDto);
     return this.findOne(id, tenantId);
   }

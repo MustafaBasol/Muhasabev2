@@ -21,6 +21,7 @@ import { getErrorMessage } from "./utils/errorHandler";
 import * as customersApi from "./api/customers";
 import * as productsApi from "./api/products";
 import * as invoicesApi from "./api/invoices";
+import * as salesApi from "./api/sales";
 import * as expensesApi from "./api/expenses";
 import * as suppliersApi from "./api/suppliers";
 
@@ -160,7 +161,7 @@ const formatPercentage = (value: number) =>
 
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, user: authUser, logout } = useAuth();
+  const { isAuthenticated, user: authUser, logout, tenant } = useAuth();
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
   
@@ -208,7 +209,7 @@ const AppContent: React.FC = () => {
           } catch {}
         }
         if (!cancelled && loaded) {
-          setCompany(prev => ({ ...defaultCompany, ...loaded! }));
+          setCompany({ ...defaultCompany, ...loaded! });
           // Eğer şifreli kayıt yoksa ama düz kayıt varsa, bir defaya mahsus migrate et
           if (!fromSecure) {
             try { await secureStorage.setJSON('companyProfile', loaded); } catch {}
@@ -310,7 +311,7 @@ const AppContent: React.FC = () => {
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [_isLoadingData, setIsLoadingData] = useState(true);
-  const [infoModal, setInfoModal] = useState<{ title: string; message: string } | null>(null);
+  const [infoModal, setInfoModal] = useState<{ title: string; message: string; tone?: 'success' | 'error' | 'info'; confirmLabel?: string; onConfirm?: () => void; cancelLabel?: string; onCancel?: () => void } | null>(null);
   const [publicQuoteId, setPublicQuoteId] = useState<string | null>(null);
 
   // Load data from backend on mount
@@ -357,6 +358,14 @@ const AppContent: React.FC = () => {
         
         console.log('💸 Expenses yükleniyor...');
         const expensesData = await expensesApi.getExpenses();
+
+        console.log('🛒 Sales yükleniyor...');
+        let salesData: any[] = [];
+        try {
+          salesData = await salesApi.getSales();
+        } catch (e) {
+          console.warn('Sales yüklenemedi, offline cache kullanılacak:', e);
+        }
         
         console.log('🏷️ Categories yükleniyor...');
         const categoriesData = await import('./api/product-categories').then(({ productCategoriesApi }) => productCategoriesApi.getAll());
@@ -367,7 +376,8 @@ const AppContent: React.FC = () => {
           products: productsData,
           invoices: invoicesData,
           expenses: expensesData,
-          categories: categoriesData
+          categories: categoriesData,
+          sales: salesData
         });
 
         // Verilerin array olduğundan emin olalım
@@ -424,6 +434,55 @@ const AppContent: React.FC = () => {
         
         setInvoices(safeInvoicesData);
         setExpenses(mappedExpenses);
+        if (Array.isArray(salesData)) {
+          // Satışları haritalarken müşteri adını ve temel ürün alanlarını doldur
+          // Öncelik: backend s.customer?.name -> s.customerName -> customers listesinden s.customerId eşleşmesi
+          const mappedSales = salesData.map((s: any) => {
+            const customerNameFromRel = s?.customer?.name;
+            const customerNameFromSelf = s?.customerName;
+            const customerFromList = s?.customerId
+              ? (safeCustomersData.find((c: any) => String(c.id) === String(s.customerId)))
+              : undefined;
+            const customerName = customerNameFromRel || customerNameFromSelf || customerFromList?.name || '';
+            const customerEmail = s?.customerEmail || customerFromList?.email || '';
+
+            const firstItem = Array.isArray(s?.items) && s.items.length > 0 ? s.items[0] : undefined;
+            const productId = s?.productId || firstItem?.productId;
+            const productName = s?.productName || firstItem?.productName || firstItem?.description || '';
+            const quantity = Number(s?.quantity ?? firstItem?.quantity ?? 1);
+            let unitPrice = Number(s?.unitPrice ?? firstItem?.unitPrice ?? 0);
+            // Ürün birimini ürün listemizden bulmaya çalış
+            const productObj = productId ? mappedProducts.find((p: any) => String(p.id) === String(productId)) : undefined;
+            const productUnit = s?.productUnit || productObj?.unit || '';
+            // unitPrice yoksa subtotal/quantity ile tahmin et
+            if ((!Number.isFinite(unitPrice) || unitPrice === 0) && Number.isFinite(Number(s?.subtotal)) && quantity > 0) {
+              unitPrice = Number(s.subtotal) / quantity;
+            }
+
+            const normalizedStatus = (() => {
+              const raw = String(s?.status || '').toLowerCase();
+              if (raw === 'created' || raw === 'invoiced') return 'completed';
+              if (raw === 'refunded') return 'cancelled';
+              if (raw === 'cancelled' || raw === 'completed' || raw === 'pending') return raw;
+              return 'completed';
+            })();
+
+            return {
+              ...s,
+              customerName,
+              customerEmail,
+              productId,
+              productName,
+              productUnit,
+              quantity,
+              unitPrice,
+              date: s.saleDate ? String(s.saleDate).slice(0, 10) : s.date,
+              amount: Number(s.total ?? s.amount ?? 0),
+              status: normalizedStatus,
+            };
+          });
+          setSales(mappedSales);
+        }
         // Debug: log a sample of expenses to inspect status/amount values
         console.log('🔎 Loaded expenses sample (first 10):', mappedExpenses.slice(0, 10).map(e => ({ id: e.id, amount: e.amount, status: e.status, expenseDate: e.expenseDate })));
         
@@ -433,6 +492,9 @@ const AppContent: React.FC = () => {
         localStorage.setItem('products_cache', JSON.stringify(mappedProducts));
         localStorage.setItem('invoices_cache', JSON.stringify(safeInvoicesData));
         localStorage.setItem('expenses_cache', JSON.stringify(safeExpensesData));
+        if (Array.isArray(salesData)) {
+          try { localStorage.setItem('sales_cache', JSON.stringify(salesData)); } catch {}
+        }
         
         console.log('💾 Tüm veriler localStorage\'a kaydedildi');
       } catch (error) {
@@ -462,6 +524,11 @@ const AppContent: React.FC = () => {
     if (suppressSalesPersistenceRef.current) return;
     try {
       localStorage.setItem('sales', JSON.stringify(sales));
+      // Veri kaybına karşı yedek tut: sadece doluysa güncelle
+      if (Array.isArray(sales) && sales.length > 0) {
+        localStorage.setItem('sales_backup', JSON.stringify(sales));
+        localStorage.setItem('sales_last_seen_ts', String(Date.now()));
+      }
     } catch {}
   }, [sales]);
   
@@ -511,7 +578,7 @@ const AppContent: React.FC = () => {
   }, [authUser]);
 
   // Cross-tab senkron: başka sekmede sales değişirse state'i güncelle
-  React.useEffect(() => {
+    React.useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'sales' || e.key === 'sales_cache') {
         try {
@@ -526,8 +593,19 @@ const AppContent: React.FC = () => {
             const k = `${s.saleNumber || ''}#${s.id || ''}`;
             if (!uniq.has(k)) uniq.set(k, s);
           });
-          const next = Array.from(uniq.values());
-          setSales(next);
+              let next = Array.from(uniq.values());
+              // Koruma: dışarıdan boş yazma geldiğinde yedekten geri dön
+              if (next.length === 0) {
+                try {
+                  const backupRaw = localStorage.getItem('sales_backup');
+                  const backup = backupRaw ? JSON.parse(backupRaw) : [];
+                  if (Array.isArray(backup) && backup.length > 0) {
+                    console.warn('⚠️ sales/storage event boş liste getirdi, yedekten geri yükleniyor:', backup.length);
+                    next = backup;
+                  }
+                } catch {}
+              }
+              setSales(next);
         } catch {}
       }
     };
@@ -536,7 +614,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   // Cache yükleme: Auth yoksa da satışları kaybetmemek için en azından sales'i yükle
-  useEffect(() => {
+    useEffect(() => {
     // Authentication kontrolü - token yoksa veya authenticated değilse ÇIKIŞ
     const token = localStorage.getItem('auth_token');
     if (!token || !isAuthenticated) {
@@ -564,8 +642,9 @@ const AppContent: React.FC = () => {
     const savedCustomers = localStorage.getItem('customers_cache');
     const savedSuppliers = localStorage.getItem('suppliers_cache');
     const savedProducts = localStorage.getItem('products_cache');
-    const savedInvoices = localStorage.getItem('invoices_cache');
-    const savedExpenses = localStorage.getItem('expenses_cache');
+  const savedInvoices = localStorage.getItem('invoices_cache');
+  const savedExpenses = localStorage.getItem('expenses_cache');
+  const savedSalesBackup = localStorage.getItem('sales_backup');
     
     if (savedBanks) {
       try {
@@ -638,6 +717,47 @@ const AppContent: React.FC = () => {
           return { ...s, id: sid };
         });
 
+        // Cache'ten yüklenen satışları da müşteri adı ile zenginleştir
+        let customersFromCache: any[] = [];
+        try {
+          customersFromCache = savedCustomers ? JSON.parse(savedCustomers) : [];
+          if (!Array.isArray(customersFromCache)) customersFromCache = [];
+        } catch {
+          customersFromCache = [];
+        }
+        const hydrated = deduped.map((s: any) => {
+          const customerNameFromRel = s?.customer?.name;
+          const customerNameFromSelf = s?.customerName;
+          const customerNameFromList = s?.customerId
+            ? (customersFromCache.find((c: any) => String(c.id) === String(s.customerId))?.name)
+            : undefined;
+          const customerEmailFromList = s?.customerId
+            ? (customersFromCache.find((c: any) => String(c.id) === String(s.customerId))?.email)
+            : undefined;
+          const customerName = customerNameFromRel || customerNameFromSelf || customerNameFromList || '';
+          const customerEmail = s?.customerEmail || customerEmailFromList || '';
+
+          // Ürün alanlarını items üzerinden doldur
+          const firstItem = Array.isArray(s?.items) && s.items.length > 0 ? s.items[0] : undefined;
+          const productId = s?.productId || firstItem?.productId;
+          const productName = s?.productName || firstItem?.productName || firstItem?.description || '';
+          const quantity = Number(s?.quantity ?? firstItem?.quantity ?? 1);
+          let unitPrice = Number(s?.unitPrice ?? firstItem?.unitPrice ?? 0);
+          if ((!Number.isFinite(unitPrice) || unitPrice === 0) && Number.isFinite(Number(s?.subtotal)) && quantity > 0) {
+            unitPrice = Number(s.subtotal) / quantity;
+          }
+
+          const normalizedStatus = (() => {
+            const raw = String(s?.status || '').toLowerCase();
+            if (raw === 'created' || raw === 'invoiced') return 'completed';
+            if (raw === 'refunded') return 'cancelled';
+            if (raw === 'cancelled' || raw === 'completed' || raw === 'pending') return raw;
+            return 'completed';
+          })();
+
+          return { ...s, customerName, customerEmail, productId, productName, quantity, unitPrice, status: normalizedStatus };
+        });
+
         console.log('✅ Satışlar cache\'den yüklendi:', {
           total: (salesData || []).length,
           migrated: (migrated || []).length,
@@ -645,12 +765,38 @@ const AppContent: React.FC = () => {
           unique: deduped.length,
           tenantId: currentTenantId
         });
-        setSales(deduped);
+        if (deduped.length === 0 && savedSalesBackup) {
+          try {
+            const backup = JSON.parse(savedSalesBackup);
+            if (Array.isArray(backup) && backup.length > 0) {
+              console.warn('⚠️ Satış cache boş; yedekten geri yükleniyor:', backup.length);
+              setSales(backup);
+              try { localStorage.setItem('sales', JSON.stringify(backup)); } catch {}
+            } else {
+              setSales(hydrated);
+            }
+          } catch {
+            setSales(hydrated);
+          }
+        } else {
+          setSales(hydrated);
+        }
         // Not: Burada storage'ı geriye yazmıyoruz (potansiyel veri kaybını önlemek için)
         // Dedup sonucu daha kısa olabilir; kullanıcı onayı olmadan overwrite etmeyelim.
       } catch (e) {
         console.error('Error loading sales:', e);
       }
+    }
+    // Eğer hiçbir satış cache anahtarı bulunamadıysa, yedekten geri yükle
+    if (!savedSales && !savedSalesCache && savedSalesBackup) {
+      try {
+        const backup = JSON.parse(savedSalesBackup);
+        if (Array.isArray(backup) && backup.length > 0) {
+          console.warn('ℹ️ Satış cache anahtarları yok; yedekten geri yükleniyor:', backup.length);
+          setSales(backup);
+          try { localStorage.setItem('sales', JSON.stringify(backup)); } catch {}
+        }
+      } catch {}
     }
     
     if (savedCustomers) {
@@ -1017,6 +1163,43 @@ const AppContent: React.FC = () => {
     try { window.dispatchEvent(new Event('company-profile-updated')); } catch {}
   };
 
+  // Plan bilgisi yardımcıları
+  const getNormalizedPlan = React.useCallback(() => {
+    const raw = String(tenant?.subscriptionPlan || '').toLowerCase();
+    if (raw.includes('free')) return 'free';
+    if (raw.includes('starter')) return 'free';
+    if (raw.includes('basic')) return 'basic';
+    if (raw.includes('pro')) return 'pro';
+    if (raw.includes('professional')) return 'pro';
+    return raw || 'free';
+  }, [tenant?.subscriptionPlan]);
+
+  const isFreePlan = React.useMemo(() => getNormalizedPlan() === 'free', [getNormalizedPlan]);
+
+  const countInvoicesThisMonth = React.useCallback(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return invoices.filter((inv: any) => {
+      if (inv?.isVoided) return false;
+      const created = inv?.createdAt ? new Date(inv.createdAt) : (inv?.issueDate ? new Date(inv.issueDate) : null);
+      if (!created || Number.isNaN(created.getTime())) return false;
+      return created >= start && created <= end;
+    }).length;
+  }, [invoices]);
+
+  const countExpensesThisMonth = React.useCallback(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return expenses.filter((exp: any) => {
+      if (exp?.isVoided) return false;
+      const created = exp?.createdAt ? new Date(exp.createdAt) : (exp?.expenseDate ? new Date(exp.expenseDate) : null);
+      if (!created || Number.isNaN(created.getTime())) return false;
+      return created >= start && created <= end;
+    }).length;
+  }, [expenses]);
+
   const handleToggleNotifications = () => {
     setIsNotificationsOpen(prev => {
       const next = !prev;
@@ -1188,6 +1371,27 @@ const AppContent: React.FC = () => {
         setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c));
         showToast('Müşteri güncellendi', 'success');
       } else {
+        // Duplicate email preflight (case-insensitive, trimmed)
+        const normalizedEmail = (cleanData.email || '').trim().toLowerCase();
+        if (normalizedEmail) {
+          const existing = customers.find(c => (String(c?.email || '').trim().toLowerCase()) === normalizedEmail);
+          if (existing) {
+            setInfoModal({
+              title: t('customers.duplicate.title') || 'Müşteri zaten kayıtlı',
+              message: t('customers.duplicate.message', { email: cleanData.email, name: existing.name }) || `Bu e-posta (${cleanData.email}) ile bir müşteri zaten kayıtlı (${existing.name}). Lütfen listeden mevcut kaydı seçin.`,
+              tone: 'error',
+              confirmLabel: t('customers.duplicate.openExisting') || 'Mevcut müşteriyi aç',
+              onConfirm: () => {
+                // Müşteriler sayfasına gidip ilgili kaydı aç
+                setSelectedCustomer(existing as any);
+                setShowCustomerViewModal(true);
+                navigateTo('customers');
+                setInfoModal(null);
+              },
+            });
+            return;
+          }
+        }
         // Create new
         const created = await customersApi.createCustomer(cleanData);
         setCustomers(prev => [...prev, created]);
@@ -1204,8 +1408,32 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
       console.error('Customer upsert error:', error);
       console.error('Error details:', error.response?.data);
-      const errorMsg = error.response?.data?.message || error.message || 'Müşteri kaydedilemedi';
-      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+      const status = error?.response?.status;
+      const serverMsg: string | string[] | undefined = error?.response?.data?.message;
+      const msg = Array.isArray(serverMsg) ? serverMsg.join(', ') : (serverMsg || error.message || 'Müşteri kaydedilemedi');
+
+      // Backend duplicate guard: show actionable modal instead of toast
+      const attemptedEmail = String(customerData?.email || '').trim().toLowerCase();
+      if (status === 400 && typeof msg === 'string' && (msg.toLowerCase().includes('zaten bir müşteri') || msg.toLowerCase().includes('duplicate'))) {
+        const existing = customers.find(c => (String(c?.email || '').trim().toLowerCase()) === attemptedEmail);
+        if (existing) {
+          setInfoModal({
+            title: t('customers.duplicate.title') || 'Müşteri zaten kayıtlı',
+            message: t('customers.duplicate.message', { email: customerData.email, name: existing.name }) || msg,
+            tone: 'error',
+            confirmLabel: t('customers.duplicate.openExisting') || 'Mevcut müşteriyi aç',
+            onConfirm: () => {
+              setSelectedCustomer(existing as any);
+              setShowCustomerViewModal(true);
+              navigateTo('customers');
+              setInfoModal(null);
+            },
+          });
+          return;
+        }
+      }
+
+      showToast(msg, 'error');
     }
   };
 
@@ -1751,6 +1979,29 @@ const AppContent: React.FC = () => {
         cleanData.status = invoiceData.status;
       }
       
+      // İstemci tarafı plan limiti kontrolü (sadece yeni oluşturma için)
+      if (!invoiceData.id && isFreePlan) {
+        const used = countInvoicesThisMonth();
+        const MAX = 5;
+        if (used >= MAX) {
+          setInfoModal({
+            title: 'Plan Limiti Aşıldı',
+            message: 'Starter/Free planda bir ayda en fazla 5 fatura oluşturabilirsiniz. Daha fazla fatura için planınızı yükseltin.'
+          });
+          // İsteğe bağlı: Ayarlar sayfasını açmak isterseniz yorumdan çıkartın
+          // openSettingsOn('organization');
+          return;
+        } else if (used === MAX - 1) {
+          addNotification(
+            'Plan limiti uyarısı',
+            'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).',
+            'info',
+            'invoices',
+            { relatedId: 'plan-limit-invoices' }
+          );
+        }
+      }
+
       if (invoiceData.id) {
         const updated = await invoicesApi.updateInvoice(String(invoiceData.id), cleanData);
         const newInvoices = invoices.map(i => i.id === updated.id ? updated : i);
@@ -2035,6 +2286,28 @@ const AppContent: React.FC = () => {
 
   const upsertExpense = async (expenseData: any) => {
     try {
+      // İstemci tarafı plan limiti kontrolü (sadece yeni oluşturma için)
+      if (!expenseData.id && isFreePlan) {
+        const used = countExpensesThisMonth();
+        const MAX = 5;
+        if (used >= MAX) {
+          setInfoModal({
+            title: 'Plan Limiti Aşıldı',
+            message: 'Starter/Free planda bir ayda en fazla 5 gider kaydı oluşturabilirsiniz. Daha fazlası için planınızı yükseltin.'
+          });
+          // openSettingsOn('organization');
+          return;
+        } else if (used === MAX - 1) {
+          addNotification(
+            'Plan limiti uyarısı',
+            'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).',
+            'info',
+            'expenses',
+            { relatedId: 'plan-limit-expenses' }
+          );
+        }
+      }
+
       const cleanData = {
         description: expenseData.description || '',
         amount: Number(expenseData.amount || 0),
@@ -2170,124 +2443,121 @@ const AppContent: React.FC = () => {
       }
     }
     
-    // State güncelleme - Senkron
-    let isNewSale = false;
-    
-    setSales(prev => {
-      // Mevcut satış mı yoksa yeni mi?
-      const existingSale = prev.find(sale => 
-        (saleData.id && String(sale.id) === String(saleData.id)) ||
-        (saleData.sourceType === 'quote' && saleData.sourceQuoteId && String((sale as any).sourceQuoteId || '') === String(saleData.sourceQuoteId))
-      );
-      
-      console.log('🔍 upsertSale çağrıldı:', {
-        saleDataId: saleData.id,
-        existingSale: existingSale ? existingSale.id : 'YOK - YENİ SATIŞ',
-        currentSalesCount: prev.length
-      });
-      
-      isNewSale = !existingSale;
-      
-      let finalData: any;
-      
-      if (existingSale) {
-        // MEVCUT SATIŞ - Numarayı ve ID'yi koru
-        finalData = {
-          ...existingSale,
-          ...saleData,
-          id: existingSale.id,
-          saleNumber: existingSale.saleNumber, // Orijinal numarayı koru
-          date: saleData?.date || saleData?.saleDate || existingSale.date,
-        };
-        console.log('✏️ Mevcut satış güncelleniyor:', finalData.saleNumber);
-      } else {
-        // YENİ SATIŞ - Yeni ID ve numara oluştur
-  const newId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        
-        // Bu ay için sıradaki numarayı bul (en yüksek sıra numarasını bul)
-        const currentMonthPrefix = `SAL-${year}-${month}-`;
-        const monthSales = prev.filter(s => 
-          s.saleNumber && s.saleNumber.startsWith(currentMonthPrefix)
-        );
-        
-        let nextNumber = 1;
-        if (monthSales.length > 0) {
-          const sequences = monthSales
-            .map(s => {
-              const parts = s.saleNumber?.split('-');
-              return parts ? parseInt(parts[parts.length - 1] || '0', 10) : 0;
-            })
-            .filter(n => !isNaN(n));
-          
-          if (sequences.length > 0) {
-            nextNumber = Math.max(...sequences) + 1;
-          }
-        }
-        
-        const newSaleNumber = `SAL-${year}-${month}-${String(nextNumber).padStart(3, '0')}`;
-        
-        console.log('➕ Yeni satış oluşturuluyor:', {
-          monthPrefix: currentMonthPrefix,
-          currentMonthSales: monthSales.length,
-          nextNumber,
-          newSaleNumber,
-          saleData
-        });
-        
-        // saleNumber'ı silip yenisini ekle - saleData'daki boş saleNumber ezmesin
-  const { saleNumber: _, ...cleanSaleData } = saleData;
-        
-        const tenantIdRaw = authUser?.tenantId ?? localStorage.getItem('tenantId') ?? undefined;
-        const normalizedTenantId = tenantIdRaw != null ? String(tenantIdRaw) : undefined;
-        finalData = {
-          ...cleanSaleData,
-          id: newId,
-          saleNumber: newSaleNumber, // En son ekle ki ezilmesin
-          date: saleData?.date || saleData?.saleDate || new Date().toISOString().split("T")[0],
-          tenantId: normalizedTenantId, // Tenant ID ekle (normalize + fallback)
-        };
-        
-        console.log('✅ Yeni satış oluşturuldu:', {
-          id: finalData.id,
-          saleNumber: finalData.saleNumber,
-          customerName: finalData.customerName,
-          tenantId: finalData.tenantId
-        });
-      }
-      
-      let result = existingSale
-        ? prev.map(sale => String(sale.id) === String(existingSale.id) ? finalData : sale)
-        : [...prev, finalData];
+    // Backend'e kaydet ve state'i güncelle
+    let isNewSale = !saleData?.id;
 
-      // Ek güvenlik: Aynı teklife (sourceQuoteId) bağlı birden fazla satış varsa tekilleştir
-      const bySourceQuote = new Map<string, any>();
-      const dedupedBySource = [] as any[];
-      for (const s of result) {
-        const key = (s as any)?.sourceType === 'quote' && (s as any)?.sourceQuoteId
-          ? `q#${String((s as any).sourceQuoteId)}`
-          : null;
-        if (!key) {
-          dedupedBySource.push(s);
-          continue;
-        }
-        if (!bySourceQuote.has(key)) {
-          bySourceQuote.set(key, s);
-          dedupedBySource.push(s);
-        } else {
-          // Zaten var; ilk geleni koru (idempotent)
-        }
+    try {
+      // Müşteri ID'sini bul (isim/email eşlemesi)
+      let customerId: string | undefined = undefined;
+      if (saleData.customerId) {
+        customerId = String(saleData.customerId);
+      } else if (saleData.customerName) {
+        const nameLc = String(saleData.customerName).trim().toLowerCase();
+        const emailLc = String(saleData.customerEmail || '').trim().toLowerCase();
+        const found = customers.find(c => (c.name || '').toLowerCase() === nameLc || (c.email || '').toLowerCase() === emailLc);
+        if (found) customerId = String(found.id);
       }
-      result = dedupedBySource;
-      
-  // localStorage'a kaydet
-  localStorage.setItem('sales', JSON.stringify(result));
-  try { localStorage.setItem('sales_cache', JSON.stringify(result)); } catch {}
-      
-      return result;
-    });
+
+      // Ürün satırı oluştur (tek ürün akışı)
+      const quantity = Number(saleData.quantity || 1);
+      const unitPrice = Number(saleData.unitPrice || saleData.amount || 0);
+      const productId = saleData.productId ? String(saleData.productId) : undefined;
+      const productName = saleData.productName || products.find(p => String(p.id) === String(productId))?.name || 'Ürün/Hizmet';
+      const productTax = (() => {
+        const p = products.find(x => String(x.id) === String(productId));
+        return p?.taxRate != null ? Number(p.taxRate) : 18;
+      })();
+
+      const dto: salesApi.CreateSaleDto = {
+        customerId,
+        saleDate: saleData?.date || saleData?.saleDate || new Date().toISOString().split('T')[0],
+        items: [
+          {
+            productId,
+            productName,
+            quantity: Number.isFinite(quantity) ? quantity : 1,
+            unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0,
+            taxRate: productTax,
+          },
+        ],
+        discountAmount: 0,
+        notes: saleData?.notes || undefined,
+        sourceQuoteId: saleData?.sourceQuoteId,
+      };
+
+      if (isNewSale) {
+        const saved = await salesApi.createSale(dto);
+        // Backend sale -> frontend sale mapping
+        const mapped = {
+          id: saved.id,
+          saleNumber: saved.saleNumber || saleData.saleNumber || `SAL-${new Date().toISOString().slice(0,7)}-???`,
+          customerName: saleData.customerName || saved.customer?.name || '',
+          customerEmail: saleData.customerEmail || saved.customer?.email || '',
+          items: Array.isArray(saved.items) ? saved.items : dto.items,
+          productName: productName,
+          quantity,
+          unitPrice,
+          amount: Number(saved.total ?? (quantity * unitPrice)) || 0,
+          total: Number(saved.total ?? (quantity * unitPrice)) || 0,
+          date: saved.saleDate ? String(saved.saleDate).slice(0, 10) : dto.saleDate,
+          status: 'completed',
+          paymentMethod: saleData.paymentMethod || 'cash',
+          notes: dto.notes,
+          invoiceId: saved.invoiceId,
+        } as any;
+
+        setSales(prev => {
+          const next = [...prev, mapped];
+          localStorage.setItem('sales', JSON.stringify(next));
+          try { localStorage.setItem('sales_cache', JSON.stringify(next)); } catch {}
+          return next;
+        });
+        showToast('Satış kaydedildi', 'success');
+      } else {
+        const id = String(saleData.id);
+        const patch: salesApi.UpdateSaleDto = {
+          customerId,
+          saleDate: dto.saleDate,
+          items: dto.items,
+          discountAmount: dto.discountAmount,
+          notes: dto.notes,
+        };
+        const updated = await salesApi.updateSale(id, patch);
+        setSales(prev => {
+          const next = prev.map(s => String(s.id) === id ? {
+            ...s,
+            saleNumber: updated.saleNumber || s.saleNumber,
+            date: updated.saleDate ? String(updated.saleDate).slice(0,10) : s.date,
+            amount: Number(updated.total ?? s.amount) || 0,
+            total: Number(updated.total ?? s.total) || 0,
+            items: Array.isArray(updated.items) ? updated.items : s.items,
+            notes: updated.notes ?? s.notes,
+          } : s);
+          localStorage.setItem('sales', JSON.stringify(next));
+          try { localStorage.setItem('sales_cache', JSON.stringify(next)); } catch {}
+          return next;
+        });
+        showToast('Satış güncellendi', 'success');
+      }
+    } catch (err: any) {
+      console.error('❌ Sales upsert error:', err);
+      // Offline fallback: yerel kaydetmeye devam et
+      setSales(prev => {
+        const newItem = {
+          ...saleData,
+          id: saleData.id || `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+          saleNumber: saleData.saleNumber || `SAL-${new Date().toISOString().slice(0,7)}-OFF`,
+          date: saleData?.date || new Date().toISOString().split('T')[0],
+          amount: saleData.amount || (Number(saleData.quantity||1) * Number(saleData.unitPrice||0)),
+        };
+        const existsIdx = prev.findIndex(p => String(p.id) === String(newItem.id));
+        const next = existsIdx >= 0 ? prev.map((p, i) => i === existsIdx ? newItem : p) : [...prev, newItem];
+        localStorage.setItem('sales', JSON.stringify(next));
+        try { localStorage.setItem('sales_cache', JSON.stringify(next)); } catch {}
+        return next;
+      });
+      showToast(getErrorMessage(err) || 'Satış yerel olarak kaydedildi (offline)', 'info');
+    }
     
     // 📦 YENİ SATIŞ İÇİN STOK DÜŞÜR (çoklu ürün uyumlu)
     if (isNewSale) {
@@ -2333,13 +2603,18 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleDeleteSale = (saleId: string) => {
+  const handleDeleteSale = async (saleId: string) => {
     if (!confirm('Bu satışı silmek istediğinizden emin misiniz?')) {
       return;
     }
     
     console.log('🗑️ Satış siliniyor:', saleId);
-    
+    try {
+      await salesApi.deleteSale(String(saleId));
+    } catch (err) {
+      console.warn('Backend silme başarısız, yerel silmeye devam:', err);
+    }
+
     setSales(prev => {
       const filtered = prev.filter(sale => String(sale.id) !== String(saleId));
       localStorage.setItem('sales', JSON.stringify(filtered));
@@ -3817,6 +4092,9 @@ const AppContent: React.FC = () => {
           isOpen={true}
           title={infoModal.title}
           message={infoModal.message}
+          tone={infoModal.tone}
+          confirmLabel={infoModal.confirmLabel || t('common.ok')}
+          onConfirm={infoModal.onConfirm}
           onClose={() => setInfoModal(null)}
         />
       )}
@@ -3861,21 +4139,59 @@ const AppContent: React.FC = () => {
               total: Number(it?.total || (Number(it?.unitPrice || 0) * Number(it?.quantity || 1)))
             }));
             const totalAmount = mappedItems.reduce((s: number, li: any) => s + Number(li.total || 0), 0);
-            const saleData: any = {
-              customerName: q.customerName,
-              productName: mappedItems.length > 0 ? `${mappedItems[0].productName}${mappedItems.length > 1 ? ` +${mappedItems.length - 1}` : ''}` : 'Tekliften Satış',
-              amount: totalAmount,
-              total: totalAmount,
-              items: mappedItems,
-              date: new Date().toISOString().split('T')[0],
-              status: 'completed',
-              sourceType: 'quote',
-              sourceQuoteId: String(q.id),
-            };
+            // Backend'e idempotent istek: sourceQuoteId ile
             try {
-              await upsertSale(saleData);
+              const saved = await salesApi.createSale({
+                customerId: (q as any).customerId,
+                saleDate: new Date().toISOString().split('T')[0],
+                items: mappedItems.map((it: any) => ({
+                  productId: it.productId,
+                  productName: it.productName,
+                  quantity: Number(it.quantity) || 1,
+                  unitPrice: Number(it.unitPrice) || 0,
+                  taxRate: Number(it.taxRate ?? 18),
+                })),
+                discountAmount: 0,
+                notes: 'Teklif kabul edildi (otomatik oluşturuldu)'.trim(),
+                sourceQuoteId: String(q.id),
+              });
+              // Başarılıysa state'i anında güncelle (yenilemeden görünür)
+              const mapped = {
+                id: saved.id,
+                saleNumber: saved.saleNumber || undefined,
+                customerName: q.customerName,
+                customerEmail: undefined,
+                items: Array.isArray(saved.items) ? saved.items : mappedItems,
+                productName: mappedItems.length > 0 ? `${mappedItems[0].productName}${mappedItems.length > 1 ? ` +${mappedItems.length - 1}` : ''}` : 'Tekliften Satış',
+                quantity: mappedItems[0]?.quantity || undefined,
+                unitPrice: mappedItems[0]?.unitPrice || undefined,
+                amount: Number(saved.total ?? totalAmount) || totalAmount,
+                total: Number(saved.total ?? totalAmount) || totalAmount,
+                date: saved.saleDate ? String(saved.saleDate).slice(0, 10) : new Date().toISOString().slice(0,10),
+                status: 'completed' as const,
+                sourceQuoteId: String(q.id),
+              } as any;
+              setSales(prev => {
+                const exists = prev.some(s => String((s as any).sourceQuoteId || '') === String(q.id) || String(s.id) === String(saved.id));
+                const next = exists ? prev : [...prev, mapped];
+                try { localStorage.setItem('sales', JSON.stringify(next)); localStorage.setItem('sales_cache', JSON.stringify(next)); } catch {}
+                return next;
+              });
             } catch (e) {
-              console.warn('Quote→Sale dönüşümünde hata:', e);
+              console.warn('Quote→Sale dönüşümünde backend hatası, local fallback kullanılacak:', e);
+              // Fallback: Local state ile oluştur (idempotent upsert)
+              const saleData = {
+                customerName: q.customerName,
+                productName: mappedItems.length > 0 ? `${mappedItems[0].productName}${mappedItems.length > 1 ? ` +${mappedItems.length - 1}` : ''}` : 'Tekliften Satış',
+                amount: totalAmount,
+                total: totalAmount,
+                items: mappedItems,
+                date: new Date().toISOString().split('T')[0],
+                status: 'completed',
+                sourceType: 'quote',
+                sourceQuoteId: String(q.id),
+              };
+              try { await upsertSale(saleData); } catch {}
             }
             q.convertedToSale = true;
             // Kilidi tamamlandı olarak işaretle
