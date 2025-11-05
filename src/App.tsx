@@ -114,13 +114,13 @@ import PublicQuotePage from "./components/PublicQuotePage";
 import * as ExcelJS from 'exceljs';
 
 const defaultCompany: CompanyProfile = {
-  name: "comptario Muhasebe",
-  address: "Istanbul, Türkiye",
-  taxNumber: "1234567890",
+  name: "",
+  address: "",
+  taxNumber: "",
   taxOffice: "",
-  phone: "+90 212 123 45 67",
-  email: "info@comptario.com",
-  website: "www.comptario.com",
+  phone: "",
+  email: "",
+  website: "",
   logoDataUrl: "",
   iban: "",
   bankAccountId: undefined,
@@ -201,11 +201,14 @@ const AppContent: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const fromSecure = await secureStorage.getJSON<CompanyProfile>('companyProfile');
+        const tid = (localStorage.getItem('tenantId') || '') as string;
+        const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+        const fromSecure = await secureStorage.getJSON<CompanyProfile>(secureKey);
         let loaded: CompanyProfile | null = fromSecure;
         if (!loaded) {
           try {
-            const raw = localStorage.getItem('companyProfile') || localStorage.getItem('companyProfile_plain') || localStorage.getItem('company');
+            const localKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+            const raw = localStorage.getItem(localKey) || localStorage.getItem(`${localKey}_plain`) || localStorage.getItem('company');
             loaded = raw ? (JSON.parse(raw) as CompanyProfile) : null;
           } catch {}
         }
@@ -213,7 +216,7 @@ const AppContent: React.FC = () => {
           setCompany({ ...defaultCompany, ...loaded! });
           // Eğer şifreli kayıt yoksa ama düz kayıt varsa, bir defaya mahsus migrate et
           if (!fromSecure) {
-            try { await secureStorage.setJSON('companyProfile', loaded); } catch {}
+            try { await secureStorage.setJSON(secureKey, loaded); } catch {}
           }
         }
       } catch (e) {
@@ -224,9 +227,12 @@ const AppContent: React.FC = () => {
       // Diğer sekmelerden güncelleme geldiğinde tekrar yükle
       (async () => {
         try {
-          const fromSecure = await secureStorage.getJSON<CompanyProfile>('companyProfile');
+          const tid = (localStorage.getItem('tenantId') || '') as string;
+          const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+          const fromSecure = await secureStorage.getJSON<CompanyProfile>(secureKey);
           if (fromSecure) { setCompany({ ...defaultCompany, ...fromSecure }); return; }
-          const raw = localStorage.getItem('companyProfile') || localStorage.getItem('companyProfile_plain') || localStorage.getItem('company');
+          const localKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+          const raw = localStorage.getItem(localKey) || localStorage.getItem(`${localKey}_plain`) || localStorage.getItem('company');
           if (raw) {
             const parsed = JSON.parse(raw) as CompanyProfile;
             setCompany({ ...defaultCompany, ...parsed });
@@ -239,8 +245,10 @@ const AppContent: React.FC = () => {
     return () => { cancelled = true; window.removeEventListener('company-profile-updated', handler as EventListener); };
   }, []);
   const [notifications, setNotifications] = useState<HeaderNotification[]>(() => {
-    // localStorage'dan yükle, yoksa initialNotifications kullan
-    const stored = localStorage.getItem('notifications');
+    // localStorage'dan (tenant'a özel) yükle, yoksa initialNotifications kullan
+    const tid = localStorage.getItem('tenantId') || '';
+    const key = tid ? `notifications_${tid}` : 'notifications';
+    const stored = localStorage.getItem(key);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -510,7 +518,9 @@ const AppContent: React.FC = () => {
         localStorage.setItem('invoices_cache', JSON.stringify(safeInvoicesData));
         localStorage.setItem('expenses_cache', JSON.stringify(safeExpensesData));
         if (Array.isArray(salesData)) {
-          try { localStorage.setItem('sales_cache', JSON.stringify(salesData)); } catch {}
+          const tid = localStorage.getItem('tenantId') || '';
+          const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+          try { localStorage.setItem(cacheKey, JSON.stringify(salesData)); } catch {}
         }
         
         console.log('💾 Tüm veriler localStorage\'a kaydedildi');
@@ -540,14 +550,76 @@ const AppContent: React.FC = () => {
     // Ancak logout akışında state temizlenirken storage'ı EZME!
     if (suppressSalesPersistenceRef.current) return;
     try {
-      localStorage.setItem('sales', JSON.stringify(sales));
-      // Veri kaybına karşı yedek tut: sadece doluysa güncelle
-      if (Array.isArray(sales) && sales.length > 0) {
-        localStorage.setItem('sales_backup', JSON.stringify(sales));
-        localStorage.setItem('sales_last_seen_ts', String(Date.now()));
+      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+      const key = tid ? `sales_${tid}` : 'sales';
+      const keyBackup = tid ? `sales_backup_${tid}` : 'sales_backup';
+      const keyTs = tid ? `sales_last_seen_ts_${tid}` : 'sales_last_seen_ts';
+      localStorage.setItem(key, JSON.stringify(sales));
+      // Yedeği HER ZAMAN mevcut state ile senkron tut (boş liste dahil)
+      localStorage.setItem(keyBackup, JSON.stringify(Array.isArray(sales) ? sales : []));
+      localStorage.setItem(keyTs, String(Date.now()));
+    } catch {}
+  }, [sales, tenant?.id, authUser?.tenantId]);
+
+  // Satışlar için geriye dönük göç: mevcut tenant anahtarında veri yoksa diğer anahtarlardaki satışları içeri al
+  useEffect(() => {
+    try {
+      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+      const currentKey = tid ? `sales_${tid}` : 'sales';
+      const currentCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+      const hasCurrent = (() => {
+        const a = localStorage.getItem(currentKey);
+        const b = localStorage.getItem(currentCacheKey);
+        const arrA = a ? JSON.parse(a) : [];
+        const arrB = b ? JSON.parse(b) : [];
+        return (Array.isArray(arrA) && arrA.length > 0) || (Array.isArray(arrB) && arrB.length > 0);
+      })();
+      if (hasCurrent) return; // mevcut tenant için veri var
+
+      const collected: any[] = [];
+      // Eski genel anahtarlar
+      try {
+        const legacyA = localStorage.getItem('sales');
+        if (legacyA) {
+          const arr = JSON.parse(legacyA);
+          if (Array.isArray(arr)) collected.push(...arr);
+        }
+      } catch {}
+      try {
+        const legacyB = localStorage.getItem('sales_cache');
+        if (legacyB) {
+          const arr = JSON.parse(legacyB);
+          if (Array.isArray(arr)) collected.push(...arr);
+        }
+      } catch {}
+      // Diğer tenant anahtarları
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i) || '';
+        if (!(k.startsWith('sales_') || k.startsWith('sales_cache_'))) continue;
+        if (k === currentKey || k === currentCacheKey) continue;
+        try {
+          const raw = localStorage.getItem(k);
+          if (!raw) continue;
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) collected.push(...arr);
+        } catch {}
+      }
+      if (collected.length === 0) return;
+      // Tekilleştir (saleNumber,id)
+      const uniq = new Map<string, any>();
+      collected.forEach((s: any) => {
+        const key = `${s?.saleNumber || ''}#${s?.id || ''}`;
+        if (!uniq.has(key)) uniq.set(key, s);
+      });
+      const migrated = Array.from(uniq.values());
+      // Mevcut tenant anahtarlarına yaz ve state'e yükle (eğer state boşsa)
+      try { localStorage.setItem(currentCacheKey, JSON.stringify(migrated)); } catch {}
+      if (!Array.isArray(sales) || sales.length === 0) {
+        setSales(migrated);
       }
     } catch {}
-  }, [sales]);
+  // Bu efekt sadece tenant veya auth kullanıcısı değiştiğinde çalışsın
+  }, [tenant?.id, authUser?.tenantId]);
   
   useEffect(() => {
     if (invoices.length > 0) {
@@ -557,7 +629,9 @@ const AppContent: React.FC = () => {
 
   // � Bildirimleri localStorage'a kaydet
   useEffect(() => {
-    localStorage.setItem('notifications', JSON.stringify(notifications));
+    const tid = localStorage.getItem('tenantId') || '';
+    const key = tid ? `notifications_${tid}` : 'notifications';
+    try { localStorage.setItem(key, JSON.stringify(notifications)); } catch {}
   }, [notifications]);
 
   // �🔄 AuthContext'deki user değiştiğinde App.tsx'deki user state'ini güncelle
@@ -597,10 +671,14 @@ const AppContent: React.FC = () => {
   // Cross-tab senkron: başka sekmede sales değişirse state'i güncelle
     React.useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'sales' || e.key === 'sales_cache') {
+      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+      const key = tid ? `sales_${tid}` : 'sales';
+      const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+      // backupKey kullanılmıyor: bilinçli silmelerin geri gelmesini engelle
+      if (e.key === key || e.key === cacheKey) {
         try {
-          const a = localStorage.getItem('sales');
-          const b = localStorage.getItem('sales_cache');
+          const a = localStorage.getItem(key);
+          const b = localStorage.getItem(cacheKey);
           const arrA = a ? JSON.parse(a) : [];
           const arrB = b ? JSON.parse(b) : [];
           const merged = [...(Array.isArray(arrA) ? arrA : []), ...(Array.isArray(arrB) ? arrB : [])];
@@ -610,18 +688,8 @@ const AppContent: React.FC = () => {
             const k = `${s.saleNumber || ''}#${s.id || ''}`;
             if (!uniq.has(k)) uniq.set(k, s);
           });
-              let next = Array.from(uniq.values());
-              // Koruma: dışarıdan boş yazma geldiğinde yedekten geri dön
-              if (next.length === 0) {
-                try {
-                  const backupRaw = localStorage.getItem('sales_backup');
-                  const backup = backupRaw ? JSON.parse(backupRaw) : [];
-                  if (Array.isArray(backup) && backup.length > 0) {
-                    console.warn('⚠️ sales/storage event boş liste getirdi, yedekten geri yükleniyor:', backup.length);
-                    next = backup;
-                  }
-                } catch {}
-              }
+              const next = Array.from(uniq.values());
+              // Artık boş liste gelirse yedekten RESTORE ETME — kullanıcı silmiş olabilir
               setSales(next);
         } catch {}
       }
@@ -652,16 +720,19 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    console.log('📂 localStorage cache yükleniyor (authenticated user)...');
-    const savedBanks = localStorage.getItem('bankAccounts');
-    const savedSales = localStorage.getItem('sales');
-    const savedSalesCache = localStorage.getItem('sales_cache');
+  console.log('📂 localStorage cache yükleniyor (authenticated user)...');
+  const savedBanks = localStorage.getItem('bankAccounts');
+  const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+  const salesKey = tid ? `sales_${tid}` : 'sales';
+  const salesCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+  // Authenticated kullanıcıda backup'tan otomatik geri yükleme yapmayacağız
+  const savedSales = localStorage.getItem(salesKey);
+  const savedSalesCache = localStorage.getItem(salesCacheKey);
     const savedCustomers = localStorage.getItem('customers_cache');
     const savedSuppliers = localStorage.getItem('suppliers_cache');
     const savedProducts = localStorage.getItem('products_cache');
   const savedInvoices = localStorage.getItem('invoices_cache');
   const savedExpenses = localStorage.getItem('expenses_cache');
-  const savedSalesBackup = localStorage.getItem('sales_backup');
     
     if (savedBanks) {
       try {
@@ -680,38 +751,8 @@ const AppContent: React.FC = () => {
         const salesData = Array.isArray(salesDataA) || Array.isArray(salesDataB)
           ? [...(Array.isArray(salesDataA)? salesDataA: []), ...(Array.isArray(salesDataB)? salesDataB: [])]
           : [];
-        const currentTenantIdRaw = authUser?.tenantId ?? localStorage.getItem('tenantId') ?? undefined;
-        const currentTenantId = currentTenantIdRaw != null ? String(currentTenantIdRaw) : undefined;
-
-        // TenantId'siz kayıtları mevcut tenant'a migrate et (string normalize)
-        let migrated = salesData as any[];
-        if (currentTenantId) {
-          migrated = salesData.map((s: any) => (
-            s && (s.tenantId == null || String(s.tenantId).length === 0)
-              ? { ...s, tenantId: currentTenantId }
-              : { ...s, tenantId: s?.tenantId != null ? String(s.tenantId) : s?.tenantId }
-          ));
-          // Migre edilmiş veriyi geri yaz (idempotent)
-          try { localStorage.setItem('sales', JSON.stringify(migrated)); } catch (e) { console.warn('Sales migration save failed:', e); }
-        } else {
-          // normalize tenantId to string when possible
-          migrated = salesData.map((s: any) => (
-            s && s.tenantId != null ? { ...s, tenantId: String(s.tenantId) } : s
-          ));
-        }
-
-        // TenantId'ye göre filtrele (string karşılaştır)
-        let filteredSales = currentTenantId
-          ? migrated.filter((s: any) => String(s?.tenantId ?? '') === String(currentTenantId))
-          : migrated; // tenant yoksa hepsini göster
-        // Koruma: filtre sonucu boşsa, tüm kayıtları göster (yanlış tenantId durumunda veri kaybolmasın)
-        if (currentTenantId && filteredSales.length === 0 && Array.isArray(migrated) && migrated.length > 0) {
-          console.warn('Tenant filtresi tüm satışları eledi; geçici olarak tüm satışlar gösteriliyor. tenantId=', currentTenantId);
-          filteredSales = migrated.map((s:any) => ({
-            ...s,
-            tenantId: s?.tenantId ?? currentTenantId
-          }));
-        }
+        // Not: Artık yalnızca tenant'a özel anahtarlardan okuyoruz; ek filtre veya migrasyona gerek yok
+        let filteredSales = salesData;
 
         // Aynı (saleNumber,id) kombinasyonlarına göre birleştir (union)
         const byKey = new Map<string, any>();
@@ -777,44 +818,18 @@ const AppContent: React.FC = () => {
 
         console.log('✅ Satışlar cache\'den yüklendi:', {
           total: (salesData || []).length,
-          migrated: (migrated || []).length,
           filtered: (filteredSales || []).length,
-          unique: deduped.length,
-          tenantId: currentTenantId
+          unique: deduped.length
         });
-        if (deduped.length === 0 && savedSalesBackup) {
-          try {
-            const backup = JSON.parse(savedSalesBackup);
-            if (Array.isArray(backup) && backup.length > 0) {
-              console.warn('⚠️ Satış cache boş; yedekten geri yükleniyor:', backup.length);
-              setSales(backup);
-              try { localStorage.setItem('sales', JSON.stringify(backup)); } catch {}
-            } else {
-              setSales(hydrated);
-            }
-          } catch {
-            setSales(hydrated);
-          }
-        } else {
-          setSales(hydrated);
-        }
+        // Artık backup'tan otomatik geri yükleme yok — doğrudan hydrated veriyi kullan
+        setSales(hydrated);
         // Not: Burada storage'ı geriye yazmıyoruz (potansiyel veri kaybını önlemek için)
         // Dedup sonucu daha kısa olabilir; kullanıcı onayı olmadan overwrite etmeyelim.
       } catch (e) {
         console.error('Error loading sales:', e);
       }
     }
-    // Eğer hiçbir satış cache anahtarı bulunamadıysa, yedekten geri yükle
-    if (!savedSales && !savedSalesCache && savedSalesBackup) {
-      try {
-        const backup = JSON.parse(savedSalesBackup);
-        if (Array.isArray(backup) && backup.length > 0) {
-          console.warn('ℹ️ Satış cache anahtarları yok; yedekten geri yükleniyor:', backup.length);
-          setSales(backup);
-          try { localStorage.setItem('sales', JSON.stringify(backup)); } catch {}
-        }
-      } catch {}
-    }
+    // Not: authenticated kullanıcıda backup'tan otomatik geri dönüş devre dışı
     
     if (savedCustomers) {
       try {
@@ -1179,14 +1194,20 @@ const AppContent: React.FC = () => {
   const handleCompanyUpdate = (updated: CompanyProfile) => {
     setCompany(updated);
     // Kalıcı saklama: secureStorage her zaman; düz localStorage yalnızca şifreleme kapalıysa
-    try { void secureStorage.setJSON('companyProfile', updated); } catch {}
+    try {
+      const tid = (localStorage.getItem('tenantId') || '') as string;
+      const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+      void secureStorage.setJSON(secureKey, updated);
+    } catch {}
     try {
       const encryptionEnabled = (import.meta as any)?.env?.VITE_ENABLE_ENCRYPTION === 'true';
+      const tid = (localStorage.getItem('tenantId') || '') as string;
+      const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
       if (!encryptionEnabled) {
-        localStorage.setItem('companyProfile', JSON.stringify(updated));
+        localStorage.setItem(baseKey, JSON.stringify(updated));
       } else {
         // İsteğe bağlı: sade kopyayı ayrı anahtar altında tut (okumada fallback var)
-        localStorage.setItem('companyProfile_plain', JSON.stringify(updated));
+        localStorage.setItem(`${baseKey}_plain`, JSON.stringify(updated));
       }
     } catch {}
     try { window.dispatchEvent(new Event('company-profile-updated')); } catch {}
@@ -2659,8 +2680,11 @@ const AppContent: React.FC = () => {
 
     setSales(prev => {
       const filtered = prev.filter(sale => String(sale.id) !== String(saleId));
-      localStorage.setItem('sales', JSON.stringify(filtered));
-      try { localStorage.setItem('sales_cache', JSON.stringify(filtered)); } catch {}
+      const tid = localStorage.getItem('tenantId') || '';
+      const key = tid ? `sales_${tid}` : 'sales';
+      const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+      localStorage.setItem(key, JSON.stringify(filtered));
+      try { localStorage.setItem(cacheKey, JSON.stringify(filtered)); } catch {}
       console.log('✅ Satış silindi, kalan satış sayısı:', filtered.length);
       return filtered;
     });
@@ -3368,8 +3392,32 @@ const AppContent: React.FC = () => {
     const outstandingCurrent = outstandingInvoices.filter(invoice => isInMonth(invoice?.dueDate || invoice?.issueDate, currentMonth, currentYear)).length;
     const outstandingPrevious = outstandingInvoices.filter(invoice => isInMonth(invoice?.dueDate || invoice?.issueDate, previousMonth, previousYear)).length;
 
-    const customersCurrent = customers.filter(customer => isInMonth(customer?.createdAt, currentMonth, currentYear)).length;
-    const customersPrevious = customers.filter(customer => isInMonth(customer?.createdAt, previousMonth, previousYear)).length;
+    // Aktif müşteri tanımı: İlgili ayda en az bir işlem (fatura veya satış) yapan benzersiz müşteri
+    const normalizeName = (name: any) => (typeof name === 'string' ? name.trim().toLowerCase() : '');
+
+    const countActiveCustomersForPeriod = (month: number, year: number) => {
+      const set = new Set<string>();
+
+      // Faturalar (ayın içinde kesilen tüm faturalar)
+      invoices.forEach(inv => {
+        if (isInMonth(inv?.issueDate, month, year) && inv?.customerName) {
+          set.add(normalizeName(inv.customerName));
+        }
+      });
+
+      // Satışlar (ayın içinde yapılan tüm satışlar)
+      sales.forEach(sale => {
+        const saleDate = sale?.date || (sale as any)?.saleDate; // backward-compat
+        if (isInMonth(saleDate, month, year) && sale?.customerName) {
+          set.add(normalizeName(sale.customerName));
+        }
+      });
+
+      return set.size;
+    };
+
+    const customersCurrent = countActiveCustomersForPeriod(currentMonth, currentYear);
+    const customersPrevious = countActiveCustomersForPeriod(previousMonth, previousYear);
 
     const totalCash = bankAccounts.reduce((total, account) => account?.currency && account.currency !== "TRY" ? total : total + Number(account?.balance ?? 0), 0);
 
@@ -3863,7 +3911,9 @@ const AppContent: React.FC = () => {
           products={products}
           onCreate={(payload: QuoteCreatePayload) => {
             try {
-              const raw = localStorage.getItem('quotes_cache');
+              const tid = (authUser?.tenantId != null ? String(authUser.tenantId) : (localStorage.getItem('tenantId') || '')) as string;
+              const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+              const raw = localStorage.getItem(key);
               const list = raw ? (JSON.parse(raw) as any[]) : [];
               const nextIndex = (Array.isArray(list) ? list.length : 0) + 1;
               const id = `q${Date.now()}`;
@@ -3882,7 +3932,7 @@ const AppContent: React.FC = () => {
                 items: payload.items,
               };
               const updated = [next, ...(Array.isArray(list) ? list : [])];
-              localStorage.setItem('quotes_cache', JSON.stringify(updated));
+              localStorage.setItem(key, JSON.stringify(updated));
               setShowQuoteCreateModal(false);
               showToast('Teklif oluşturuldu', 'success');
             } catch (e) {
@@ -4170,7 +4220,9 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     const processAcceptedQuotes = async () => {
       try {
-        const raw = localStorage.getItem('quotes_cache');
+        const tid = (authUser?.tenantId != null ? String(authUser.tenantId) : (localStorage.getItem('tenantId') || '')) as string;
+        const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+        const raw = localStorage.getItem(key);
         if (!raw) return;
         const list: any[] = JSON.parse(raw);
         if (!Array.isArray(list) || list.length === 0) return;
@@ -4239,7 +4291,13 @@ const AppContent: React.FC = () => {
               setSales(prev => {
                 const exists = prev.some(s => String((s as any).sourceQuoteId || '') === String(q.id) || String(s.id) === String(saved.id));
                 const next = exists ? prev : [...prev, mapped];
-                try { localStorage.setItem('sales', JSON.stringify(next)); localStorage.setItem('sales_cache', JSON.stringify(next)); } catch {}
+                try {
+                  const tid = localStorage.getItem('tenantId') || '';
+                  const key = tid ? `sales_${tid}` : 'sales';
+                  const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+                  localStorage.setItem(key, JSON.stringify(next));
+                  localStorage.setItem(cacheKey, JSON.stringify(next));
+                } catch {}
                 return next;
               });
             } catch (e) {
@@ -4265,7 +4323,7 @@ const AppContent: React.FC = () => {
           }
         }
         if (changed) {
-          localStorage.setItem('quotes_cache', JSON.stringify(list));
+          localStorage.setItem(key, JSON.stringify(list));
         }
       } catch (e) {
         console.warn('Accepted quotes processing failed:', e);
@@ -4273,7 +4331,9 @@ const AppContent: React.FC = () => {
     };
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'quotes_cache') {
+      const tid = (authUser?.tenantId != null ? String(authUser.tenantId) : (localStorage.getItem('tenantId') || '')) as string;
+      const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+      if (e.key === key) {
         processAcceptedQuotes();
       }
       // Satışlar mevcut sistem tarafından zaten güncelleniyor; burada state'i ezmeyelim

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Quote, QuoteStatus } from './QuoteViewModal';
 import type { Product } from '../types';
 import ConfirmModal from './ConfirmModal';
+import RichTextEditor from './RichTextEditor';
 
 interface QuoteEditModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
   const [form, setForm] = useState<Quote | null>(null);
   const [lines, setLines] = useState<NonNullable<Quote['items']>>([]);
   const [activeProductDropdown, setActiveProductDropdown] = useState<string | null>(null);
+  const [scopeHtml, setScopeHtml] = useState<string>('');
   // IMPORTANT: Hooks must be declared before any conditional return
   const [confirmData, setConfirmData] = useState<{
     title: string;
@@ -32,9 +34,11 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
         ? quote.items.map(it => ({ ...it }))
         : [{ id: 'l1', description: '', quantity: 1, unitPrice: 0, total: 0 }];
       setLines(initial as any);
+      setScopeHtml((quote as any).scopeOfWorkHtml || '');
     } else {
       setForm(null);
       setLines([]);
+      setScopeHtml('');
     }
   }, [quote]);
 
@@ -96,6 +100,7 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
       ...form,
       items: lines as any,
       total: linesTotal,
+      ...(scopeHtml ? { scopeOfWorkHtml: scopeHtml } : { scopeOfWorkHtml: '' as any }),
     };
     setConfirmData({
       title: t('common.confirm', { defaultValue: 'Onay' }),
@@ -309,6 +314,18 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* İşin Kapsamı */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</label>
+            <RichTextEditor
+              value={scopeHtml}
+              onChange={setScopeHtml}
+              placeholder={t('quotes.scopeOfWork.placeholder', { defaultValue: 'Proje kapsamı, teslimatlar, varsayımlar ve hariçler...' })}
+              height={220}
+            />
+            <p className="text-xs text-gray-500 mt-1">{t('quotes.scopeOfWork.note', { defaultValue: 'Bu içerik teklif PDF’inde mevcut bölümden sonra yeni bir sayfa olarak eklenecek ve genel linkte görünecek.' })}</p>
           </div>
         </div>
 

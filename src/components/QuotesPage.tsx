@@ -7,6 +7,7 @@ import QuoteEditModal from './QuoteEditModal';
 import QuoteCreateModal, { type QuoteCreatePayload } from './QuoteCreateModal';
 import ConfirmModal from './ConfirmModal';
 import type { Customer, Product } from '../types';
+import * as quotesApi from '../api/quotes';
 
 interface QuotesPageProps {
   onAddQuote?: () => void;
@@ -16,6 +17,7 @@ interface QuotesPageProps {
 
 interface QuoteItem {
   id: string;
+  publicId?: string;
   quoteNumber: string;
   customerName: string;
   customerId?: string;
@@ -25,6 +27,8 @@ interface QuoteItem {
   total: number;
   status: QuoteStatus;
   version?: number;
+  // İşin kapsamı (zengin metin HTML)
+  scopeOfWorkHtml?: string;
   items?: Array<{
     id: string;
     description: string;
@@ -67,38 +71,42 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const [editingField, setEditingField] = useState<'status' | 'issueDate' | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
 
-  // Mock veriler (MVP)
+  // Backend verileri
   const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000);
   const iso = (d: Date) => d.toISOString().slice(0,10);
-  const [quotes, setQuotes] = useState<QuoteItem[]>(() => {
-    try {
-      const raw = localStorage.getItem('quotes_cache');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed as QuoteItem[];
-      }
-    } catch {}
-    // Fallback mock veriler (yalnızca ilk kurulumda / hiç cache yokken)
-    // Kullanıcı bu örnekleri silerse tekrar görünmemesi için silinen ID'leri dikkate al.
-    let deletedIds: string[] = [];
-    try {
-      const rawDeleted = localStorage.getItem('quotes_deleted_ids');
-      if (rawDeleted) {
-        const arr = JSON.parse(rawDeleted);
-        if (Array.isArray(arr)) deletedIds = arr.map(String);
-      }
-    } catch {}
+  const [quotes, setQuotes] = useState<QuoteItem[]>([]);
 
-    const demo: QuoteItem[] = [
-      { id: 'q1', quoteNumber: 'Q-2025-0001', customerName: 'Acme GmbH', issueDate: iso(new Date()), validUntil: iso(addDays(new Date(), 30)), currency: 'EUR', total: 1250, status: 'draft', version: 1 },
-      { id: 'q2', quoteNumber: 'Q-2025-0002', customerName: 'Mavi Deniz A.Ş.', issueDate: iso(addDays(new Date(), -2)), validUntil: iso(addDays(new Date(), 28)), currency: 'TRY', total: 54000, status: 'sent', version: 1 },
-      { id: 'q3', quoteNumber: 'Q-2025-0003', customerName: 'Tech Solutions SARL', issueDate: iso(addDays(new Date(), -10)), validUntil: iso(addDays(new Date(), 20)), currency: 'EUR', total: 980, status: 'viewed', version: 1 },
-      { id: 'q4', quoteNumber: 'Q-2025-0004', customerName: 'Schmidt KG', issueDate: iso(addDays(new Date(), -15)), validUntil: iso(addDays(new Date(), 15)), currency: 'EUR', total: 2320, status: 'accepted', version: 1 },
-      { id: 'q5', quoteNumber: 'Q-2025-0005', customerName: 'ABC Teknoloji', issueDate: iso(addDays(new Date(), -40)), validUntil: iso(addDays(new Date(), -10)), currency: 'TRY', total: 8900, status: 'declined', version: 1 },
-      { id: 'q6', quoteNumber: 'Q-2025-0006', customerName: 'GlobalCorp Ltd', issueDate: iso(addDays(new Date(), -60)), validUntil: iso(addDays(new Date(), -30)), currency: 'USD', total: 3200, status: 'expired', version: 1 }
-    ];
-    return demo.filter(d => !deletedIds.includes(String(d.id)) && !deletedIds.includes(String(d.quoteNumber)));
-  });
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await quotesApi.getQuotes();
+        if (cancelled) return;
+        const mapped = (Array.isArray(data) ? data : []).map((q: any) => ({
+          id: String(q.id),
+          publicId: q.publicId,
+          quoteNumber: q.quoteNumber,
+          customerName: q.customer?.name || q.customerName || '',
+          customerId: q.customerId,
+          issueDate: String(q.issueDate).slice(0,10),
+          validUntil: q.validUntil ? String(q.validUntil).slice(0,10) : undefined,
+          currency: q.currency,
+          total: Number(q.total) || 0,
+          status: q.status,
+          version: q.version || 1,
+          scopeOfWorkHtml: q.scopeOfWorkHtml || '',
+          items: Array.isArray(q.items) ? q.items.map((it: any) => ({ id: it.id || `${Math.random()}`, description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })) : [],
+          revisions: Array.isArray(q.revisions) ? q.revisions : [],
+          convertedToSale: false,
+        } as QuoteItem));
+        setQuotes(mapped);
+      } catch (e) {
+        console.error('Quotes yüklenemedi:', e);
+        setQuotes([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
@@ -203,15 +211,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const closeView = () => setShowViewModal(false);
   const closeEdit = () => setShowEditModal(false);
 
-  const handleSaveEdit = (updated: QuoteModel) => {
-    setQuotes(prev => prev.map(q => q.id === updated.id ? { ...q, ...updated } : q));
-    setSelectedQuote(prev => prev && prev.id === updated.id ? ({ ...prev, ...updated }) : prev);
-  };
-
-  const handleChangeStatus = (q: QuoteModel, status: QuoteStatus) => {
-    setQuotes(prev => prev.map(item => item.id === q.id ? { ...item, status } : item));
-    setSelectedQuote(prev => (prev && prev.id === q.id) ? { ...prev, status } : prev);
-  };
+  // No-op: eski local-only handler'lar kaldırıldı; artık API üzerinden güncelleniyor
 
   const handleRevise = (q: QuoteModel) => {
     // Önce onay iste
@@ -221,68 +221,18 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   React.useEffect(() => {
     const todayISO = new Date().toISOString().slice(0,10);
     const terminal: QuoteStatus[] = ['accepted', 'declined', 'expired'];
-    let changed = false;
-    const updated = quotes.map(q => {
-      if (!terminal.includes(q.status) && q.validUntil && q.validUntil < todayISO) {
-        changed = true;
-        return { ...q, status: 'expired' as QuoteStatus };
-      }
-      return q;
-    });
-    if (changed) setQuotes(updated);
-  }, [quotes]);
+    const updated = quotes.map(q => (!terminal.includes(q.status) && q.validUntil && q.validUntil < todayISO)
+      ? { ...q, status: 'expired' as QuoteStatus }
+      : q);
+    // UI tarafında yalnızca görünüm için güncelleme (persist backend'e ayrık yapılır)
+    setQuotes(updated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // quotes persistence
-  React.useEffect(() => {
-    try {
-      localStorage.setItem('quotes_cache', JSON.stringify(quotes));
-      // Aynı sekmede kabul/ret gibi değişiklikleri App'e bildir
-      try { window.dispatchEvent(new Event('quotes-cache-updated')); } catch {}
-    } catch {}
-  }, [quotes]);
+  // Local persistence kaldırıldı – backend tek kaynak
 
   // Senkronizasyon: Başka bir sekmede/public sayfasında durum değişirse listeyi güncelle
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const reloadFromStorage = () => {
-      try {
-        const raw = localStorage.getItem('quotes_cache');
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setQuotes((prev) => {
-            // Aynı referansı gereksiz yere set etmemek için basit bir fark kontrolü
-            const prevStr = JSON.stringify(prev);
-            const nextStr = JSON.stringify(parsed);
-            return prevStr === nextStr ? prev : parsed;
-          });
-        }
-      } catch {}
-    };
-
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === 'quotes_cache') {
-        reloadFromStorage();
-      }
-    };
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        reloadFromStorage();
-      }
-    };
-
-    window.addEventListener('storage', onStorage);
-    document.addEventListener('visibilitychange', onVisibility);
-    // İlk mount'ta da bir kez çek (özellikle geri gelindiğinde taze veri için)
-    reloadFromStorage();
-
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, []);
+  // Storage senkronu kaldırıldı – backend tek kaynak
 
   // Inline edit helpers
   const startInlineEdit = (quoteId: string, field: 'status' | 'issueDate', current: string) => {
@@ -299,21 +249,26 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
     setTempValue('');
   };
 
-  const saveInlineEdit = (quote: QuoteItem) => {
+  const saveInlineEdit = async (quote: QuoteItem) => {
     if (!editingField) return;
-    if (editingField === 'status') {
-      const nextStatus = tempValue as QuoteStatus;
-      setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: nextStatus } : q));
-      setSelectedQuote(prev => (prev && prev.id === quote.id) ? { ...prev, status: nextStatus } as any : prev);
+    try {
+      if (editingField === 'status') {
+        const nextStatus = tempValue as QuoteStatus;
+        const updated = await quotesApi.updateQuote(String(quote.id), { status: nextStatus });
+        setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: updated.status } : q));
+        setSelectedQuote(prev => (prev && prev.id === quote.id) ? { ...(prev as any), status: updated.status } : prev);
+      }
+      if (editingField === 'issueDate') {
+        const nextDate = tempValue;
+        const updated = await quotesApi.updateQuote(String(quote.id), { issueDate: nextDate } as any);
+        setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, issueDate: String(updated.issueDate).slice(0,10) } : q));
+        setSelectedQuote(prev => (prev && prev.id === quote.id) ? { ...(prev as any), issueDate: String(updated.issueDate).slice(0,10) } : prev);
+      }
+    } finally {
+      setEditingQuoteId(null);
+      setEditingField(null);
+      setTempValue('');
     }
-    if (editingField === 'issueDate') {
-      const nextDate = tempValue;
-      setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, issueDate: nextDate } : q));
-      setSelectedQuote(prev => (prev && prev.id === quote.id) ? { ...prev, issueDate: nextDate } as any : prev);
-    }
-    setEditingQuoteId(null);
-    setEditingField(null);
-    setTempValue('');
   };
 
   return (
@@ -327,29 +282,41 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           confirmText={t('common.yes', { defaultValue: 'Evet' })}
           cancelText={t('common.no', { defaultValue: 'Hayır' })}
           onCancel={() => setDuplicateTarget(null)}
-          onConfirm={() => {
+          onConfirm={async () => {
             const src = duplicateTarget;
             if (!src) return;
-            // Yeni ID ve numara üret
-            const id = `q${Date.now()}`;
-            const year = new Date().getFullYear();
-            const current = quotes;
-            const nextIndex = current.length + 1;
-            const quoteNumber = `Q-${year}-${String(nextIndex).padStart(4, '0')}`;
-            const copy: QuoteItem = {
-              id,
-              quoteNumber,
-              customerName: src.customerName,
-              customerId: (src as any).customerId,
-              issueDate: new Date().toISOString().slice(0,10),
-              validUntil: src.validUntil,
-              currency: src.currency,
-              total: src.total,
-              status: 'draft',
-              version: 1,
-              items: (src.items || []).map(it => ({ ...it })),
-            };
-            setQuotes(prev => [copy, ...prev]);
+            // Backend yeni bir teklif üretsin
+            try {
+              const created = await quotesApi.createQuote({
+                customerId: (src as any).customerId,
+                customerName: src.customerName,
+                issueDate: new Date().toISOString().slice(0,10),
+                validUntil: src.validUntil,
+                currency: src.currency as any,
+                total: src.total,
+                status: 'draft',
+                items: (src.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })),
+                scopeOfWorkHtml: (src as any).scopeOfWorkHtml || '',
+              });
+              const mapped: QuoteItem = {
+                id: created.id,
+                publicId: created.publicId,
+                quoteNumber: created.quoteNumber,
+                customerName: created.customer?.name || created.customerName || src.customerName,
+                customerId: created.customerId,
+                issueDate: String(created.issueDate).slice(0,10),
+                validUntil: created.validUntil ? String(created.validUntil).slice(0,10) : undefined,
+                currency: created.currency,
+                total: Number(created.total) || 0,
+                status: created.status,
+                version: created.version || 1,
+                scopeOfWorkHtml: created.scopeOfWorkHtml || '',
+                items: Array.isArray(created.items) ? created.items : [],
+              };
+              setQuotes(prev => [mapped, ...prev]);
+            } catch (e) {
+              console.error('Duplicate quote failed:', e);
+            }
             setDuplicateTarget(null);
           }}
         />
@@ -363,40 +330,48 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           confirmText={t('common.yes', { defaultValue: 'Evet' })}
           cancelText={t('common.no', { defaultValue: 'Hayır' })}
           onCancel={() => setReviseTarget(null)}
-          onConfirm={() => {
+          onConfirm={async () => {
             const target = reviseTarget;
             if (!target) return;
             const today = new Date();
             const nextIssue = iso(today);
             const nextValid = iso(addDays(today, 30));
             // Geçmişe snapshot al
-            setQuotes(prev => prev.map(item => {
-              if (item.id !== target.id) return item;
-              const snapshot = {
-                version: item.version || 1,
-                issueDate: item.issueDate,
-                validUntil: item.validUntil,
-                status: item.status,
-                total: item.total,
-                items: item.items ? item.items.map(it => ({ ...it })) : undefined,
-                snapshotAt: new Date().toISOString(),
-              } as NonNullable<QuoteItem['revisions']>[number];
-              return {
-                ...item,
-                status: 'draft' as QuoteStatus,
+            const snapshot = {
+              version: target.version || 1,
+              issueDate: target.issueDate,
+              validUntil: target.validUntil,
+              status: target.status,
+              total: target.total,
+              items: target.items ? target.items.map(it => ({ ...it })) : undefined,
+              snapshotAt: new Date().toISOString(),
+            } as NonNullable<QuoteItem['revisions']>[number];
+            try {
+              const updated = await quotesApi.updateQuote(String(target.id), {
+                status: 'draft',
                 issueDate: nextIssue,
                 validUntil: nextValid,
-                version: (item.version || 1) + 1,
-                revisions: [...(item.revisions || []), snapshot],
-              };
-            }));
-            setSelectedQuote(prev => prev && prev.id === target.id ? ({
-              ...prev,
-              status: 'draft',
-              issueDate: nextIssue,
-              validUntil: nextValid,
-              version: (prev.version || 1) + 1,
-            } as any) : prev);
+                version: (target.version || 1) + 1,
+                revisions: [...(target.revisions || []), snapshot],
+              } as any);
+              setQuotes(prev => prev.map(item => item.id === target.id ? {
+                ...item,
+                status: updated.status,
+                issueDate: String(updated.issueDate).slice(0,10),
+                validUntil: updated.validUntil ? String(updated.validUntil).slice(0,10) : undefined,
+                version: updated.version || item.version,
+                revisions: Array.isArray(updated.revisions) ? updated.revisions : item.revisions,
+              } : item));
+              setSelectedQuote(prev => prev && prev.id === target.id ? ({
+                ...(prev as any),
+                status: 'draft',
+                issueDate: nextIssue,
+                validUntil: nextValid,
+                version: (target.version || 1) + 1,
+              }) : prev);
+            } catch (e) {
+              console.error('Revise failed:', e);
+            }
             setReviseTarget(null);
           }}
         />
@@ -608,6 +583,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                                 currency: item.currency as any,
                                 total: item.total,
                                 items: (item.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
+                                scopeOfWorkHtml: (item as any).scopeOfWorkHtml || ''
                               }, { filename: item.quoteNumber });
                             }}
                             className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
@@ -660,27 +636,41 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           customers={customers}
           products={products}
           defaultCurrency={defaultCurrency as any}
-          onCreate={(payload: QuoteCreatePayload) => {
-            const current = Array.isArray(quotes) ? quotes : [];
-            // Basit sıra üretici: mevcut local listeden
-            const nextIndex = current.length + 1;
-            const id = `q${Date.now()}`;
-            const quoteNumber = `Q-${new Date().getFullYear()}-${String(nextIndex).padStart(4, '0')}`;
-            const next: QuoteItem = {
-              id,
-              quoteNumber,
-              customerName: payload.customer.name,
-              customerId: String(payload.customer.id ?? ''),
-              issueDate: payload.issueDate,
-              validUntil: payload.validUntil,
-              currency: payload.currency,
-              total: payload.total,
-              status: 'draft',
-              version: 1,
-              items: payload.items,
-            };
-            setQuotes(prev => [next, ...prev]);
-            closeCreate();
+          onCreate={async (payload: QuoteCreatePayload) => {
+            try {
+              const cidRaw = String(payload.customer.id ?? '').trim();
+              const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cidRaw);
+              const created = await quotesApi.createQuote({
+                customerId: isUuid ? cidRaw : undefined,
+                customerName: payload.customer.name,
+                issueDate: payload.issueDate,
+                validUntil: payload.validUntil,
+                currency: payload.currency as any,
+                total: payload.total,
+                items: payload.items.map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })),
+                scopeOfWorkHtml: payload.scopeOfWorkHtml || '',
+              });
+              const next: QuoteItem = {
+                id: created.id,
+                publicId: created.publicId,
+                quoteNumber: created.quoteNumber,
+                customerName: created.customer?.name || created.customerName || payload.customer.name,
+                customerId: created.customerId,
+                issueDate: String(created.issueDate).slice(0,10),
+                validUntil: created.validUntil ? String(created.validUntil).slice(0,10) : undefined,
+                currency: created.currency,
+                total: Number(created.total) || 0,
+                status: created.status,
+                version: created.version || 1,
+                scopeOfWorkHtml: created.scopeOfWorkHtml || '',
+                items: Array.isArray(created.items) ? created.items : payload.items,
+              };
+              setQuotes(prev => [next, ...prev]);
+            } catch (e) {
+              console.error('Quote create failed:', e);
+            } finally {
+              closeCreate();
+            }
           }}
         />
       )}
@@ -696,20 +686,15 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           confirmText={t('common.delete', { defaultValue: 'Sil' })}
           cancelText={t('common.cancel', { defaultValue: 'Vazgeç' })}
           onCancel={() => setDeleteTarget(null)}
-          onConfirm={() => {
+          onConfirm={async () => {
             const id = deleteTarget?.id;
             if (!id) { setDeleteTarget(null); return; }
-            // Listeden kaldır
-            setQuotes(prev => prev.filter(q => q.id !== id));
-            // Demo öğeler tekrar seed edilmesin diye silinenler listesine ekle
             try {
-              const raw = localStorage.getItem('quotes_deleted_ids');
-              const arr = raw ? JSON.parse(raw) : [];
-              const next = Array.isArray(arr) ? arr : [];
-              next.push(String(deleteTarget.id));
-              next.push(String(deleteTarget.quoteNumber));
-              localStorage.setItem('quotes_deleted_ids', JSON.stringify(Array.from(new Set(next))));
-            } catch {}
+              await quotesApi.deleteQuote(String(id));
+              setQuotes(prev => prev.filter(q => q.id !== id));
+            } catch (e) {
+              console.error('Delete quote failed:', e);
+            }
             setDeleteTarget(null);
           }}
         />
@@ -723,14 +708,65 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           closeView();
           setTimeout(() => openEdit(q as QuoteItem), 100);
         }}
-        onChangeStatus={handleChangeStatus}
+        onChangeStatus={async (q, status) => {
+          try {
+            const updated = await quotesApi.updateQuote(String(q.id), { status });
+            setQuotes(prev => prev.map(item => item.id === q.id ? { ...item, status: updated.status } : item));
+            setSelectedQuote(prev => (prev && prev.id === q.id) ? { ...(prev as any), status: updated.status } : prev);
+          } catch (e) {
+            console.error('Quote status update failed:', e);
+          }
+        }}
         onRevise={(q) => handleRevise(q)}
       />
       <QuoteEditModal
         isOpen={showEditModal}
         onClose={closeEdit}
         quote={selectedQuote as QuoteModel}
-        onSave={handleSaveEdit}
+        onSave={async (updated) => {
+          try {
+            const saved = await quotesApi.updateQuote(String(updated.id), {
+              customerId: (updated as any).customerId,
+              customerName: updated.customerName,
+              issueDate: updated.issueDate,
+              validUntil: updated.validUntil,
+              currency: updated.currency as any,
+              total: updated.total,
+              items: (updated.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })),
+              scopeOfWorkHtml: (updated as any).scopeOfWorkHtml || '',
+              status: updated.status,
+            } as any);
+            setQuotes(prev => prev.map(q => q.id === saved.id ? {
+              ...q,
+              publicId: saved.publicId || q.publicId,
+              customerName: saved.customer?.name || saved.customerName || updated.customerName,
+              customerId: saved.customerId,
+              issueDate: String(saved.issueDate).slice(0,10),
+              validUntil: saved.validUntil ? String(saved.validUntil).slice(0,10) : undefined,
+              currency: saved.currency,
+              total: Number(saved.total) || 0,
+              status: saved.status,
+              version: saved.version || q.version,
+              scopeOfWorkHtml: saved.scopeOfWorkHtml || '',
+              items: Array.isArray(saved.items) ? saved.items : q.items,
+            } : q));
+            setSelectedQuote(prev => prev && prev.id === saved.id ? ({
+              ...(prev as any),
+              customerName: saved.customer?.name || saved.customerName || updated.customerName,
+              customerId: saved.customerId,
+              issueDate: String(saved.issueDate).slice(0,10),
+              validUntil: saved.validUntil ? String(saved.validUntil).slice(0,10) : undefined,
+              currency: saved.currency,
+              total: Number(saved.total) || 0,
+              status: saved.status,
+              version: saved.version || (prev as any).version,
+              scopeOfWorkHtml: saved.scopeOfWorkHtml || '',
+              items: Array.isArray(saved.items) ? saved.items : (prev as any).items,
+            }) : prev);
+          } catch (e) {
+            console.error('Quote update failed:', e);
+          }
+        }}
         products={products}
       />
     </div>

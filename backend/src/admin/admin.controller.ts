@@ -272,7 +272,10 @@ export class AdminController {
 
   // === Tenant Bazlı Limit Overrides ===
   @Get('tenant/:tenantId/limits')
-  @ApiOperation({ summary: 'Belirli bir tenant için limitleri (default+override+effective) ve kullanım istatistiklerini getir' })
+  @ApiOperation({
+    summary:
+      'Belirli bir tenant için limitleri (default+override+effective) ve kullanım istatistiklerini getir',
+  })
   @ApiResponse({ status: 200, description: 'Tenant limits and usage' })
   async getTenantLimits(
     @Param('tenantId') tenantId: string,
@@ -283,7 +286,9 @@ export class AdminController {
   }
 
   @Patch('tenant/:tenantId/limits')
-  @ApiOperation({ summary: 'Belirli bir tenant için limit override değerlerini güncelle' })
+  @ApiOperation({
+    summary: 'Belirli bir tenant için limit override değerlerini güncelle',
+  })
   @ApiResponse({ status: 200, description: 'Updated tenant limits' })
   async updateTenantLimits(
     @Param('tenantId') tenantId: string,
@@ -305,7 +310,10 @@ export class AdminController {
 
   // === Tenant Konsol (tek bakışta) ===
   @Get('tenant/:tenantId/overview')
-  @ApiOperation({ summary: 'Tek ekranda tenant özeti: kullanıcılar, limitler, kullanım, organizasyonlar, davetler' })
+  @ApiOperation({
+    summary:
+      'Tek ekranda tenant özeti: kullanıcılar, limitler, kullanım, organizasyonlar, davetler',
+  })
   @ApiResponse({ status: 200, description: 'Tenant overview' })
   async getTenantOverview(
     @Param('tenantId') tenantId: string,

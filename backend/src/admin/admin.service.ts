@@ -223,11 +223,14 @@ export class AdminService {
     tenantId: string,
     payload: { name?: string; companyName?: string },
   ) {
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
     if (payload.name !== undefined) tenant.name = payload.name;
-    if (payload.companyName !== undefined) tenant.companyName = payload.companyName;
+    if (payload.companyName !== undefined)
+      tenant.companyName = payload.companyName;
 
     await this.tenantRepository.save(tenant);
     return { success: true };
@@ -860,33 +863,62 @@ export class AdminService {
 
   // === Tenant bazlı plan limitleri: oku/güncelle ===
   async getTenantLimits(tenantId: string) {
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
     // Usage stats
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const [usersCount, customersCount, suppliersCount, bankAccountsCount, invoicesThisMonth, expensesThisMonth] = await Promise.all([
+    const [
+      usersCount,
+      customersCount,
+      suppliersCount,
+      bankAccountsCount,
+      invoicesThisMonth,
+      expensesThisMonth,
+    ] = await Promise.all([
       this.userRepository.count({ where: { tenantId } }),
       this.customerRepository.count({ where: { tenantId } }),
       this.supplierRepository.count({ where: { tenantId } }),
       // bank accounts table/entity name is bank_accounts
       this.dataSource
-        .query('SELECT COUNT(*)::int AS count FROM "bank_accounts" WHERE "tenantId" = $1', [tenantId])
+        .query(
+          'SELECT COUNT(*)::int AS count FROM "bank_accounts" WHERE "tenantId" = $1',
+          [tenantId],
+        )
         .then((r: any[]) => (r?.[0]?.count as number) ?? 0)
         .catch(() => 0),
-      this.invoiceRepository.count({
-        where: { tenantId, isVoided: false, createdAt: Between(startOfMonth, now) },
-      }).catch(() => 0),
-      this.expenseRepository.count({
-        where: { tenantId, isVoided: false, createdAt: Between(startOfMonth, now) },
-      }).catch(() => 0),
+      this.invoiceRepository
+        .count({
+          where: {
+            tenantId,
+            isVoided: false,
+            createdAt: Between(startOfMonth, now),
+          },
+        })
+        .catch(() => 0),
+      this.expenseRepository
+        .count({
+          where: {
+            tenantId,
+            isVoided: false,
+            createdAt: Between(startOfMonth, now),
+          },
+        })
+        .catch(() => 0),
     ]);
 
     // Limits
-    const defaultLimits = TenantPlanLimitService.getLimits(tenant.subscriptionPlan);
+    const defaultLimits = TenantPlanLimitService.getLimits(
+      tenant.subscriptionPlan,
+    );
     const overrides = (tenant.settings as any)?.planOverrides || null;
-    const effective = TenantPlanLimitService.mergeWithOverrides(defaultLimits, overrides);
+    const effective = TenantPlanLimitService.mergeWithOverrides(
+      defaultLimits,
+      overrides,
+    );
 
     return {
       success: true,
@@ -927,11 +959,16 @@ export class AdminService {
       __clear?: string[]; // dotted paths supported, e.g., 'monthly.maxInvoices'
     },
   ) {
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
-    const settings = (tenant.settings || {}) as Record<string, any>;
-    const currentOverrides = (settings.planOverrides || {}) as Record<string, any>;
+    const settings = tenant.settings || {};
+    const currentOverrides = (settings.planOverrides || {}) as Record<
+      string,
+      any
+    >;
     let nextOverrides: Record<string, any> = { ...currentOverrides };
 
     // helper
@@ -943,7 +980,7 @@ export class AdminService {
         return;
       }
       const last = parts.pop()!;
-      let ref = obj as any;
+      let ref = obj;
       for (const p of parts) {
         if (ref[p] == null || typeof ref[p] !== 'object') return;
         ref = ref[p];
@@ -960,7 +997,10 @@ export class AdminService {
     const clearList = (patch as any).__clear as string[] | undefined;
     if (Array.isArray(clearList)) {
       for (const key of clearList) deleteByPath(nextOverrides, key);
-      if (nextOverrides.monthly && Object.keys(nextOverrides.monthly).length === 0) {
+      if (
+        nextOverrides.monthly &&
+        Object.keys(nextOverrides.monthly).length === 0
+      ) {
         delete nextOverrides.monthly;
       }
     }
@@ -995,7 +1035,10 @@ export class AdminService {
         } else if (m.maxExpenses !== undefined) {
           nextOverrides.monthly.maxExpenses = m.maxExpenses;
         }
-        if (nextOverrides.monthly && Object.keys(nextOverrides.monthly).length === 0) {
+        if (
+          nextOverrides.monthly &&
+          Object.keys(nextOverrides.monthly).length === 0
+        ) {
           delete nextOverrides.monthly;
         }
       }

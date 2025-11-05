@@ -39,10 +39,15 @@ export class TenantsController {
 
     const wantsToChangeCompanyIdentity =
       Object.prototype.hasOwnProperty.call(updateTenantDto || {}, 'name') ||
-      Object.prototype.hasOwnProperty.call(updateTenantDto || {}, 'companyName');
+      Object.prototype.hasOwnProperty.call(
+        updateTenantDto || {},
+        'companyName',
+      );
 
     if (wantsToChangeCompanyIdentity && !isOwner) {
-      throw new ForbiddenException('Şirket adını yalnızca şirket sahibi güncelleyebilir');
+      throw new ForbiddenException(
+        'Şirket adını yalnızca şirket sahibi güncelleyebilir',
+      );
     }
 
     return this.tenantsService.update(user.tenantId, updateTenantDto);

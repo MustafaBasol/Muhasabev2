@@ -20,6 +20,7 @@ import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { FiscalPeriodsModule } from './fiscal-periods/fiscal-periods.module';
 import { CommonModule } from './common/common.module';
+import { QuotesModule } from './quotes/quotes.module';
 import { SubprocessorsModule } from './subprocessors/subprocessors.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -98,6 +99,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     ProductsModule,
     InvoicesModule,
     ExpensesModule,
+    QuotesModule,
     SalesModule,
     BankAccountsModule,
     AdminModule,

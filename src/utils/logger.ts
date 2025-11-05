@@ -1,18 +1,32 @@
-/* eslint-disable no-console */
-// Basit tarayıcı logger'ı: prod'da debug/info susturulur, warn/error her zaman görünür.
+/*
+  Minimal logger utility to control console noise.
+  - By default (DEV without debug flag), debug/info logs are muted.
+  - Enable verbose logs by running in browser console:
+      localStorage.setItem('debug', '1'); location.reload();
+    Disable with:
+      localStorage.removeItem('debug'); location.reload();
+*/
 
-type LogFn = (...args: unknown[]) => void;
-
-const isProd = typeof import.meta !== 'undefined'
-  && (import.meta as unknown as { env?: { MODE?: string } }).env?.MODE === 'production';
-
-const noop: LogFn = () => {};
+export const isDebug = import.meta.env.DEV && localStorage.getItem('debug') === '1';
 
 export const logger = {
-  debug: isProd ? noop : ((...args: unknown[]) => console.log(...args)),
-  info: isProd ? noop : ((...args: unknown[]) => console.log(...args)),
+  debug: (...args: unknown[]) => {
+    if (isDebug) console.log(...args);
+  },
+  info: (...args: unknown[]) => {
+    if (isDebug) console.info(...args);
+  },
   warn: (...args: unknown[]) => console.warn(...args),
   error: (...args: unknown[]) => console.error(...args),
-} as const;
-
+  installConsoleMute: () => {
+    // Mute console.log/debug globally unless debug flag is set
+    if (!isDebug) {
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      console.log = () => {};
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      console.debug = () => {};
+      // Keep warn/error visible
+    }
+  },
+};
 export type Logger = typeof logger;

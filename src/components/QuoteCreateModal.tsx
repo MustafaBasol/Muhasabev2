@@ -4,6 +4,7 @@ import { Search, Plus, Trash2, Check } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import type { Customer, Product } from '../types';
 import ConfirmModal from './ConfirmModal';
+import RichTextEditor from './RichTextEditor';
 
 type CurrencyCode = 'TRY' | 'USD' | 'EUR' | 'GBP';
 
@@ -24,6 +25,7 @@ export interface QuoteCreatePayload {
   currency: CurrencyCode;
   items: QuoteCreateLine[];
   total: number;
+  scopeOfWorkHtml?: string;
 }
 
 interface QuoteCreateModalProps {
@@ -51,6 +53,7 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [activeProductDropdown, setActiveProductDropdown] = useState<string | null>(null);
+  const [scopeHtml, setScopeHtml] = useState<string>('');
 
   const filteredCustomers = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
@@ -139,6 +142,7 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
           currency: form.currency,
           items,
           total: itemsTotal,
+          scopeOfWorkHtml: scopeHtml,
         });
         setConfirmData(null);
       }
@@ -352,6 +356,18 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
               <span>{t('invoices.grandTotalExclVAT', { defaultValue: 'Genel Toplam (KDV Hariç)' })}:</span>
               <span>{formatCurrency(itemsTotal, form.currency)}</span>
             </div>
+          </div>
+
+          {/* İşin Kapsamı */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</label>
+            <RichTextEditor
+              value={scopeHtml}
+              onChange={setScopeHtml}
+              placeholder={t('quotes.scopeOfWork.placeholder', { defaultValue: 'Proje kapsamı, teslimatlar, varsayımlar ve hariçler...' })}
+              height={240}
+            />
+            <p className="text-xs text-gray-500 mt-1">{t('quotes.scopeOfWork.note', { defaultValue: 'Bu içerik teklif PDF’inde mevcut bölümden sonra yeni bir sayfa olarak eklenecek ve genel linkte görünecek.' })}</p>
           </div>
 
         </div>

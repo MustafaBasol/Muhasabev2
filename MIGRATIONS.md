@@ -11,6 +11,12 @@ This repo includes TypeORM migrations for new email-based features:
 - Organization invite emails now link to a hash-based route so they work on static hosting: `/#join?token=...`
 - Resending an invite extends expiry and sends the email again.
 
+### Quotes module (Nov 2025)
+
+- A new migration was added: `1762200000000-CreateQuotesTable.ts`
+- This creates the `quotes` table with indexes on `tenantId`, unique `publicId`, and unique `quoteNumber`.
+- If you see 404s for `/api/quotes` after deploying a new backend build, ensure the backend image is rebuilt and this migration is applied to your database.
+
 ## How to run migrations
 
 Backend uses TypeORM CLI via npm scripts. Ensure DATABASE_URL or equivalent DB envs are set. Then run:
@@ -38,6 +44,23 @@ export FRONTEND_URL="https://app.example.com"
 
 cd backend
 npm run build
+npm run migration:run
+```
+
+### Running migrations in local Docker Compose dev
+
+When using the provided `docker-compose.yml` at repo root, the backend runtime container does not include devDependencies (ts-node), so run the CLI from the host instead and point it to the Postgres port exposed by Docker (default 5543 in this repo):
+
+```bash
+cd backend
+npm ci # installs CLI/dev deps locally
+
+# Use the same DB envs as backend/.env.docker but with host/port for the exposed Postgres service
+DATABASE_HOST=localhost \
+DATABASE_PORT=5543 \
+DATABASE_USER=moneyflow \
+DATABASE_PASSWORD=moneyflow123 \
+DATABASE_NAME=moneyflow_dev \
 npm run migration:run
 ```
 

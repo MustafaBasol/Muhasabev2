@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, Link, Mail, RefreshCw, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -8,6 +8,7 @@ export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' 
 
 export interface Quote {
   id: string;
+  publicId?: string;
   quoteNumber: string;
   customerName: string;
   customerId?: string;
@@ -17,6 +18,7 @@ export interface Quote {
   total: number;
   status: QuoteStatus;
   version?: number;
+  scopeOfWorkHtml?: string;
   items?: Array<{
     id: string;
     description: string;
@@ -69,6 +71,17 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
     const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     return diff;
   }, [quote?.validUntil]);
+
+  // Görüntülendi olarak işaretleme: taslak veya gönderildi ise modal açıldığında 'viewed'
+  useEffect(() => {
+    if (!isOpen || !quote) return;
+    if (!onChangeStatus) return;
+    if (quote.status === 'draft' || quote.status === 'sent') {
+      onChangeStatus(quote, 'viewed');
+    }
+    // yalnızca isOpen/quote değişiminde çalışır; üst state güncellenince koşul zaten sağlanmayacak
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, quote?.id]);
 
   if (!isOpen || !quote) return null;
 
@@ -282,7 +295,8 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                   status: quote.status,
                   currency: quote.currency as any,
                   total: quote.total,
-                  items: (quote.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total }))
+                  items: (quote.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
+                  scopeOfWorkHtml: (quote as any).scopeOfWorkHtml || ''
                 }, { filename: quote.quoteNumber });
               }}
               className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
@@ -294,7 +308,8 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
 
             <button
               onClick={async () => {
-                const url = `${window.location.origin}/public/quote/${quote.id}`;
+                const pid = (quote as any).publicId || quote.id;
+                const url = `${window.location.origin}/public/quote/${pid}`;
                 try {
                   await navigator.clipboard.writeText(url);
                   try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: t('common.copied', 'Kopyalandı'), tone: 'success' } })); } catch {}

@@ -1,10 +1,14 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { logger } from '../utils/logger';
 
 // Use proxy in Codespaces (more reliable)
 const API_BASE_URL = '/api';
 
-console.log('🔗 API Base URL (PROXY):', API_BASE_URL);
-console.log('🏭 Backend will be proxied through Vite dev server');
+if (import.meta.env.DEV) {
+  // Yalnızca geliştirmede bilgi amaçlı logla (varsayılan olarak sessiz)
+  logger.info('🔗 API Base URL (PROXY):', API_BASE_URL);
+  logger.info('🏭 Backend will be proxied through Vite dev server');
+}
 
 // Create axios instance with retry configuration
 let lastCsrfToken: string | null = null;
@@ -21,7 +25,9 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor - Add auth token
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    console.log('📤 API Request:', config.method?.toUpperCase(), config.url);
+    if (import.meta.env.DEV) {
+      logger.debug('📤 API Request:', config.method?.toUpperCase(), config.url);
+    }
     
     const token = localStorage.getItem('auth_token');
     if (token && config.headers) {
@@ -38,7 +44,7 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error: AxiosError) => {
-    console.error('❌ Request Error:', error);
+    logger.error('❌ Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -46,7 +52,9 @@ apiClient.interceptors.request.use(
 // Response interceptor - Handle errors and retry logic
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('✅ API Response:', response.status, response.config.url);
+    if (import.meta.env.DEV) {
+      logger.debug('✅ API Response:', response.status, response.config.url);
+    }
     // CSRF: Sunucudan gelen token'ı yakala
     const headerToken = (response.headers as any)?.['x-csrf-token'];
     if (headerToken) {
@@ -55,7 +63,7 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    console.error('❌ API Error:', {
+    logger.error('❌ API Error:', {
       message: error.message,
       code: error.code,
       url: error.config?.url,
@@ -64,7 +72,7 @@ apiClient.interceptors.response.use(
 
     // Handle network errors - NO RETRY for now to stop spam
     if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
-      console.error('� Network error - Backend unavailable:', error.config?.url);
+      logger.error('Network error - Backend unavailable:', error.config?.url);
       
       // Return a clear error without retry
       return Promise.reject({
@@ -91,7 +99,9 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && localStorage.getItem('auth_token')) {
       // Login/register endpoint'lerinde redirect yapma
       if (!error.config?.url?.includes('/auth/')) {
-        console.log('🔐 Authentication error, clearing token...');
+        if (import.meta.env.DEV) {
+          logger.info('🔐 Authentication error, clearing token...');
+        }
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user');
         localStorage.removeItem('tenant');

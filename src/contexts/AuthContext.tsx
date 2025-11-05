@@ -216,7 +216,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTenant(null);
       clearCorruptedData();
     }
-  };  const refreshUser = async () => {
+  };
+  const refreshUser = async () => {
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
@@ -225,17 +226,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       logger.info("🔄 Backend'den güncel user bilgisi alınıyor...");
-      const updatedUser = await authService.getProfile();
-      
-      logger.info("✅ User bilgisi backend'den güncellendi:", updatedUser);
-      logger.debug('📝 Detay - firstName:', updatedUser.firstName, 'lastName:', updatedUser.lastName);
-      
+      const res = await authService.getProfile();
+      // API: { user: {...}, tenant: {...} }
+      logger.info("✅ User bilgisi backend'den güncellendi:", res);
+      logger.debug('📝 Detay - firstName:', res?.user?.firstName, 'lastName:', res?.user?.lastName);
+
       // State'i güncelle
-      setUser(updatedUser);
-      
+      if (res?.user) setUser(res.user);
+      if (res?.tenant) setTenant(res.tenant);
+
       // localStorage'ı güncelle
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      logger.debug('💾 localStorage user güncellendi');
+      if (res?.user) localStorage.setItem('user', JSON.stringify(res.user));
+      if (res?.tenant) localStorage.setItem('tenant', JSON.stringify(res.tenant));
+      logger.debug('💾 localStorage user/tenant güncellendi');
     } catch (error) {
       console.error('❌ HATA: User refresh başarısız oldu!', error);
       if (error instanceof Error) {

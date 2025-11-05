@@ -181,11 +181,16 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     }
   };
 
-  const handleDeleteSale = (saleId: string) => {
+  const handleDeleteSale = (saleId: string | number) => {
     if (confirm(t('sales.deleteConfirm'))) {
-      const updatedSales = sales.filter(sale => sale.id !== saleId);
+      const updatedSales = sales.filter(sale => String(sale.id) !== String(saleId));
       if (onSalesUpdate) {
         onSalesUpdate(updatedSales);
+      }
+      // Eğer detay modalından silindiyse modalı kapat
+      if (showSaleViewModal) {
+        setShowSaleViewModal(false);
+        setViewingSale(null);
       }
     }
   };
@@ -923,6 +928,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
           setShowSaleViewModal(false);
           handleEditSale(sale);
         }}
+        onDelete={(id) => handleDeleteSale(id)}
         onDownload={onDownloadSale}
       />
 

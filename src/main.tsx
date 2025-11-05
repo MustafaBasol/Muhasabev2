@@ -7,6 +7,8 @@ import './i18n/config'; // i18n konfigürasyonunu yükle
 import './debug-env.js'; // Environment debug
 import { logger } from './utils/logger';
 
+// Konsol gürültüsünü azalt: debug/info varsayılan olarak susturulur
+logger.installConsoleMute();
 logger.info('🚀 MoneyFlow uygulaması başlatılıyor...');
 
 // Root element'i kontrol et
@@ -32,10 +34,10 @@ try {
   logger.info('✅ MoneyFlow uygulaması başarıyla yüklendi!');
 } catch (err: unknown) {
   if (err instanceof Error) {
-    console.error('❌ Uygulama yüklenemedi:', err);
-    console.error('Stack trace:', err.stack);
+    logger.error('❌ Uygulama yüklenemedi:', err);
+    logger.error('Stack trace:', err.stack);
   } else {
-    console.error('❌ Uygulama yüklenemedi:', err);
+    logger.error('❌ Uygulama yüklenemedi:', err);
   }
 
   reactRoot.render(

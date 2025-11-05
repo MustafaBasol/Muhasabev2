@@ -48,7 +48,9 @@ export default function CustomerHistoryModal({
   // Quotes: localStorage'dan oku ve müşteriye ait olanları listele
   let customerQuotes: Array<any> = [];
   try {
-    const raw = localStorage.getItem('quotes_cache');
+    const tid = localStorage.getItem('tenantId') || '';
+    const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+    const raw = localStorage.getItem(key);
     const list = raw ? JSON.parse(raw) : [];
     if (Array.isArray(list)) {
       customerQuotes = list.filter((q: any) => q?.customerName === customer.name);

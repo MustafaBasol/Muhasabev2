@@ -260,6 +260,25 @@ const htmlToPdfBlob = async (html: string): Promise<Blob> => {
   const pageCanvasHeightPxEst = (pdfHmm * imgWEst) / pdfWmm;
   const pageCssHeightPx = pageCanvasHeightPxEst / scale; // DOM piksel cinsinden
 
+    // data-force-new-page: Bir sonraki sayfadan başlamasını zorla
+    const forceBreakers = Array.from(tempDiv.querySelectorAll('[data-force-new-page="true"]')) as HTMLElement[];
+    forceBreakers.forEach(el => {
+      try {
+        let top = 0; let node: HTMLElement | null = el;
+        while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
+        const posInPage = top % pageCssHeightPx;
+        // Mevcut sayfada kalan boşluk kadar spacer ekle ki yeni sayfadan başlasın
+        const spacerH = Math.ceil(pageCssHeightPx - posInPage);
+        if (spacerH > 0 && spacerH < pageCssHeightPx) {
+          const spacer = document.createElement('div');
+          spacer.style.height = `${spacerH}px`;
+          spacer.style.width = '100%';
+          spacer.style.display = 'block';
+          el.parentElement?.insertBefore(spacer, el);
+        }
+      } catch {}
+    });
+
     // data-avoid-split işaretli tüm blokları sonraki sayfaya taşımak için boşluk ekle
     const blockers = Array.from(tempDiv.querySelectorAll('[data-avoid-split="true"]')) as HTMLElement[];
     blockers.forEach(el => {
@@ -715,6 +734,8 @@ export interface QuoteForPdf {
   currency?: Currency;
   total?: number;
   items?: QuoteForPdfItem[];
+  // Yeni: İşin kapsamı zengin metin içeriği (HTML)
+  scopeOfWorkHtml?: string;
 }
 
 const buildQuoteHtml = (
@@ -824,7 +845,16 @@ const buildQuoteHtml = (
     return 30;
   })();
 
-  return `
+  const scopeTitle = (() => {
+    switch (activeLang) {
+      case 'tr': return 'İşin Kapsamı';
+      case 'fr': return 'Périmètre des travaux';
+      case 'de': return 'Leistungsumfang';
+      default: return 'Scope of Work';
+    }
+  })();
+
+  const mainHtml = `
     <div style="max-width:170mm;margin:0 auto;padding-top:22mm;padding-bottom:12mm;display:flex;flex-direction:column;min-height:263mm;box-sizing:border-box;">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:2px solid #6366F1;padding-bottom:12px;">
         <div style="display:flex;align-items:flex-end;">
@@ -893,6 +923,25 @@ const buildQuoteHtml = (
       
     </div>
   `;
+  // İşin kapsamı sayfası (varsa) — yeni bir sayfadan başlat
+  const scopeHtml = (() => {
+    const raw = quote.scopeOfWorkHtml || '';
+    if (!raw) return '';
+    const safe = DOMPurify.sanitize(raw);
+    return `
+      <div data-force-new-page="true" style="max-width:170mm;margin:0 auto;min-height:263mm;box-sizing:border-box;padding:6mm 0 12mm;">
+        <div style="border-bottom:2px solid #E5E7EB; padding-bottom:8px; margin-bottom:12px;">
+          <div style="font-size:22px;font-weight:800;color:#111827;">${scopeTitle}</div>
+          <div style="color:#6B7280;font-size:12px;margin-top:2px;">${L.appSubtitle}</div>
+        </div>
+        <div style="font-size:12.5px;color:#111827;line-height:1.6;">
+          ${safe}
+        </div>
+      </div>
+    `;
+  })();
+
+  return `${mainHtml}${scopeHtml}`;
 };
 
 export const generateQuotePDF = async (quote: QuoteForPdf, opts: OpenOpts & { preparedByName?: string } = {}) => {

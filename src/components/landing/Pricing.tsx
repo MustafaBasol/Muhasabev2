@@ -15,11 +15,15 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
       price: t('landing.pricing.price.free'),
       description: t('landing.pricing.plans.starter.desc'),
       features: [
+        t('landing.pricing.features.users1'),
         t('landing.pricing.features.invoices5'),
         t('landing.pricing.features.expenses5'),
-        t('landing.pricing.features.basicExpense'),
+        t('landing.pricing.features.bank1'),
+        t('landing.pricing.features.customerSupplier1'),
         t('landing.pricing.features.vat'),
         t('landing.pricing.features.pdf'),
+        t('landing.pricing.features.quotesBasic'),
+        t('landing.pricing.features.multiCurrency'),
         t('landing.pricing.features.emailSupport')
       ],
       cta: t('landing.pricing.cta'),
@@ -30,12 +34,15 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
       price: t('landing.pricing.price.pro'),
       description: t('landing.pricing.plans.pro.desc'),
       features: [
-        t('landing.pricing.features.unlimited'),
-        t('landing.pricing.features.advancedExpense'),
+        t('landing.pricing.features.users3'),
+        t('landing.pricing.features.unlimitedInvoicesExpenses'),
+        t('landing.pricing.features.customerSupplierUnlimited'),
+        t('landing.pricing.features.bankUnlimited'),
         t('landing.pricing.features.multiCurrency'),
-        t('landing.pricing.features.customerMgmt'),
-        t('landing.pricing.features.prioritySupport'),
-        t('landing.pricing.features.api')
+        t('landing.pricing.features.quotesAdvanced'),
+        t('landing.pricing.features.products'),
+        t('landing.pricing.features.reports'),
+        t('landing.pricing.features.prioritySupport')
       ],
       cta: t('landing.pricing.cta'),
       popular: true
@@ -45,12 +52,12 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
       price: t('landing.pricing.price.biz'),
       description: t('landing.pricing.plans.business.desc'),
       features: [
+        t('landing.pricing.features.usersUnlimited'),
         t('landing.pricing.features.everythingPro'),
         t('landing.pricing.features.teamCollaboration'),
-        t('landing.pricing.features.advancedReporting'),
-        t('landing.pricing.features.whiteLabel'),
-        t('landing.pricing.features.dedicatedSupport'),
-        t('landing.pricing.features.customIntegrations')
+        t('landing.pricing.features.bankUnlimited'),
+        t('landing.pricing.features.reports'),
+        t('landing.pricing.features.dedicatedSupport')
       ],
       cta: t('landing.pricing.ctaContact') || 'Contact us',
       popular: false

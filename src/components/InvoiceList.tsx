@@ -455,14 +455,6 @@ export default function InvoiceList({
                       <div className="text-sm text-gray-700 max-w-[260px]">
                         {(() => {
                           const itemsList = invoice.items || (invoice as any).lineItems || [];
-                          console.log('🔍 Fatura ürün bilgisi:', {
-                            invoiceId: invoice.id,
-                            invoiceNumber: invoice.invoiceNumber,
-                            hasItems: !!invoice.items,
-                            hasLineItems: !!(invoice as any).lineItems,
-                            itemsLength: itemsList.length,
-                            itemsList: itemsList
-                          });
                           
                           if (itemsList.length > 0) {
                             return (

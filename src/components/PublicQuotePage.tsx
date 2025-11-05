@@ -3,6 +3,8 @@ import { FileDown, Link as LinkIcon, Check, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { secureStorage } from '../utils/storage';
+import DOMPurify from 'dompurify';
+import { getPublicQuote, markViewedPublic, acceptPublic, declinePublic } from '../api/quotes';
 
 interface QuoteItem { id: string; description: string; quantity: number; unitPrice: number; total: number; }
 interface QuotePublic {
@@ -15,6 +17,7 @@ interface QuotePublic {
   total: number;
   status: 'draft'|'sent'|'viewed'|'accepted'|'declined'|'expired';
   items?: QuoteItem[];
+  scopeOfWorkHtml?: string;
 }
 
 interface PublicQuotePageProps { quoteId: string; }
@@ -27,17 +30,36 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
   const [info, setInfo] = useState<string | null>(null);
   const [company, setCompany] = useState<any | null>(null);
   const [preparedBy, setPreparedBy] = useState<string | null>(null);
+  const [markedViewed, setMarkedViewed] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('quotes_cache');
-      const list = raw ? (JSON.parse(raw) as QuotePublic[]) : [];
-      const found = list.find(q => String(q.id) === String(quoteId));
-      setQuote(found || null);
-    } catch {
-      setQuote(null);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getPublicQuote(String(quoteId));
+        if (!cancelled) setQuote(data);
+      } catch (e) {
+        if (!cancelled) setQuote(null);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [quoteId]);
+
+  // Bu sayfa görüntülendiğinde, durum 'draft' veya 'sent' ise otomatik olarak 'viewed' yap
+  useEffect(() => {
+    if (!quote) return;
+    if (markedViewed) return;
+    if (quote.status === 'sent' || quote.status === 'draft') {
+      (async () => {
+        try {
+          const updated = await markViewedPublic(String(quoteId));
+          setQuote(updated);
+        } finally {
+          setMarkedViewed(true);
+        }
+      })();
+    }
+  }, [quote, markedViewed, quoteId]);
 
   // Şirket profili ve "hazırlayan" bilgisini yükle
   useEffect(() => {
@@ -123,26 +145,15 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
     }
   }, [quote, activeLang]);
 
-  const updateStatus = (status: QuotePublic['status']) => {
-    if (!quote) return;
-    try {
-      const raw = localStorage.getItem('quotes_cache');
-      const list = raw ? (JSON.parse(raw) as QuotePublic[]) : [];
-      const next = list.map(q => String(q.id) === String(quote.id) ? { ...q, status } : q);
-      localStorage.setItem('quotes_cache', JSON.stringify(next));
-      setQuote(prev => prev ? { ...prev, status } : prev);
-      try { window.dispatchEvent(new Event('quotes-cache-updated')); } catch {}
-    } catch (e) {
-      console.warn('Failed to update quote status in cache:', e);
-    }
-  };
+  // Status updates handled via backend below
 
   const handleAccept = async () => {
     if (!quote) return;
     if (!window.confirm(t('quotes.confirmAccept') || 'Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) return;
     setProcessing('accept');
     try {
-      updateStatus('accepted');
+      const updated = await acceptPublic(String(quoteId));
+      setQuote(updated);
       setInfo(t('quotes.acceptedThanks') || 'Teşekkürler, teklif kabul edildi.');
     } finally {
       setProcessing(false);
@@ -154,7 +165,8 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
     if (!window.confirm(t('quotes.confirmDecline') || 'Teklifi reddetmek istediğinizden emin misiniz?')) return;
     setProcessing('decline');
     try {
-      updateStatus('declined');
+      const updated = await declinePublic(String(quoteId));
+      setQuote(updated);
       setInfo(t('quotes.declinedInfo') || 'Teklif reddedildi.');
     } finally {
       setProcessing(false);
@@ -200,7 +212,8 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
                   status: quote.status,
                   currency: quote.currency,
                   total: quote.total,
-                  items: (quote.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total }))
+                  items: (quote.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
+                  scopeOfWorkHtml: (quote as any).scopeOfWorkHtml || ''
                 }, { filename: quote.quoteNumber });
               }}
               className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
@@ -314,6 +327,17 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
         <div className="flex items-center justify-end mt-4">
           <div className="text-lg font-semibold">{formatCurrency(quote.total, quote.currency)}</div>
         </div>
+
+        {/* İşin Kapsamı (genel sayfada görünür) */}
+        {Boolean((quote as any).scopeOfWorkHtml) && (
+          <div className="mt-8">
+            <div className="text-base font-semibold text-gray-900 mb-2">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</div>
+            <div
+              className="prose prose-sm max-w-none text-gray-800"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((quote as any).scopeOfWorkHtml || '') }}
+            />
+          </div>
+        )}
 
         {/* Notlar ve hazırlayan */}
         <div className="mt-6">

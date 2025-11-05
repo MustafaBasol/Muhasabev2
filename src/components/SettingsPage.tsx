@@ -1162,7 +1162,9 @@ export default function SettingsPage({
   
   // Auth context - profil güncellemesi için
   const { refreshUser, user: authUser } = useAuth();
-  const isTenantOwner = (authUser?.role === 'tenant_admin');
+  // Tenant sahibi/ADMİN kontrolü: farklı sistemlerde rol isimleri değişebiliyor
+  const roleNorm = (authUser?.role || '').toUpperCase();
+  const isTenantOwner = roleNorm === 'TENANT_ADMIN' || roleNorm === 'OWNER' || roleNorm === 'ADMIN';
 
   // Resmi şirket adı (backend tenant.name) için yerel state
   const [officialCompanyName, setOfficialCompanyName] = useState<string>('');
@@ -1173,8 +1175,8 @@ export default function SettingsPage({
       try {
         const me = await tenantsApi.getMyTenant();
         if (!cancelled) {
-          // Resmi şirket adı öncelikle companyName, yoksa name
-          setOfficialCompanyName(me?.companyName || me?.name || '');
+          // Resmi şirket adı: kullanıcı ismine otomatik düşmeyelim; companyName yoksa boş kalsın
+          setOfficialCompanyName(me?.companyName ?? '');
           setOfficialLoaded(true);
         }
       } catch (e) {
@@ -1206,17 +1208,17 @@ export default function SettingsPage({
 
   // Company (App’ten gelen company ile senkron)
   const [companyData, setCompanyData] = useState<LocalCompanyState>(() => ({
-    name: company?.name ?? 'comptario Muhasebe',
-    address: company?.address ?? 'İstanbul, Türkiye',
-    taxNumber: company?.taxNumber ?? '1234567890',
+    name: company?.name ?? '',
+    address: company?.address ?? '',
+    taxNumber: company?.taxNumber ?? '',
     taxOffice: company?.taxOffice ?? '',
-    phone: company?.phone ?? '+90 212 123 45 67',
-    email: company?.email ?? 'info@comptario.com',
-    website: company?.website ?? 'www.comptario.com',
+    phone: company?.phone ?? '',
+    email: company?.email ?? '',
+    website: company?.website ?? '',
     logoDataUrl: company?.logoDataUrl ?? '',
     bankAccountId: company?.bankAccountId ?? undefined,
-  // Ülke seçimi yapılmadıysa TR (Türkiye) ile başlayalım; alanlar varsayılan olarak görünsün
-  country: company?.country ?? 'TR',
+    // Ülke seçimi yapılmadıysa TR (Türkiye) ile başlayalım; alanlar varsayılan olarak görünsün
+    country: company?.country ?? 'TR',
     logoFile: null,
     
     // Türkiye yasal alanları
@@ -1621,10 +1623,13 @@ export default function SettingsPage({
               <input
                 type="text"
                 value={officialCompanyName}
-                onChange={e => setOfficialCompanyName(e.target.value)}
+                onChange={e => {
+                  setOfficialCompanyName(e.target.value);
+                  setUnsavedChanges(true);
+                }}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isTenantOwner ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
                 disabled={!isTenantOwner}
-                title={!isTenantOwner ? 'Şirket adını yalnızca şirket sahibi (tenant_admin) güncelleyebilir' : undefined}
+                title={!isTenantOwner ? 'Şirket adını yalnızca şirket sahibi veya yönetici güncelleyebilir' : undefined}
               />
               {!isTenantOwner && (
                 <p className="mt-1 text-xs text-gray-500">Bu alan yalnızca şirket sahibi tarafından değiştirilebilir.</p>
@@ -2134,6 +2139,7 @@ export default function SettingsPage({
 );
 
   const renderPrivacyTab = () => {
+
     const handleExportData = async () => {
       try {
         setIsExporting(true);
@@ -2227,6 +2233,8 @@ export default function SettingsPage({
 
     return (
       <div className="space-y-6">
+        {/* Local Data Recovery panel kaldırıldı - backend persist zorunlu */}
+
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.privacy.title}</h3>
           <p className="text-gray-600 mb-6">{text.privacy.gdpr.description}</p>
