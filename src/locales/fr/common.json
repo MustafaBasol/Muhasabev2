@@ -241,6 +241,7 @@
     "cancel": "Annuler",
     "delete": "Supprimer",
     "edit": "Modifier",
+    "view": "Voir",
     "update": "Mettre à jour",
     "add": "Ajouter",
     "search": "Rechercher",
@@ -525,7 +526,17 @@
     "createInvoice": "Créer une Facture",
     "sale": "Vente",
     "completed": "Terminé",
-    "waiting": "En Attente"
+    "waiting": "En Attente",
+  "historyPageTitle": "Historique Client",
+  "historySubtitle": "Tout l'historique pour {{name}}",
+    "historyColumns": {
+      "name": "Enregistrement / N°",
+      "date": "Date",
+      "status": "Statut",
+      "createdBy": "Créé par",
+      "type": "Type",
+      "description": "Description"
+    }
   },
   "supplier": {
     "expenseHistory": "Historique des Dépenses",

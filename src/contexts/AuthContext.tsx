@@ -58,49 +58,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const initUser = async () => {
-      if (token && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
-        try {
-          // Önce localStorage'dan hızlı başlat
-          let parsedUser;
+      try {
+        if (token && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
           try {
-            parsedUser = JSON.parse(storedUser);
-          } catch (parseError) {
-            console.error('❌ User parse hatası:', parseError);
-            clearCorruptedData();
-            return;
-          }
-          setUser(parsedUser);
-          logger.info("✅ User localStorage'dan yüklendi:", parsedUser.email);
-          
-          // Sonra backend'den güncel bilgiyi al
-          try {
-            logger.info("🔄 Backend'den güncel user bilgisi çekiliyor...");
-            const updatedUser = await authService.getProfile();
-            setUser(updatedUser);
-            await secureStorage.setJSON('user', updatedUser);
-            logger.info("✅ User bilgisi backend'den güncellendi:", updatedUser);
+            // Önce localStorage'dan hızlı başlat
+            let parsedUser;
+            try {
+              parsedUser = JSON.parse(storedUser);
+            } catch (parseError) {
+              console.error('❌ User parse hatası:', parseError);
+              // Bozuk veriyi ve ilişkili cache'i temizle, sonra güvenli şekilde devam et
+              clearCorruptedData();
+              setUser(null);
+              setTenant(null);
+              return; // finally bloğunda isLoading kapatılacak
+            }
+            setUser(parsedUser);
+            logger.info("✅ User localStorage'dan yüklendi:", parsedUser.email);
+
+            // Sonra backend'den güncel bilgiyi al
+            try {
+              logger.info("🔄 Backend'den güncel user bilgisi çekiliyor...");
+              const updatedUser = await authService.getProfile();
+              setUser(updatedUser);
+              await secureStorage.setJSON('user', updatedUser);
+              logger.info("✅ User bilgisi backend'den güncellendi:", updatedUser);
+            } catch (error) {
+              console.error('⚠️ Backend\'den user yüklenemedi, localStorage kullanılıyor:', error);
+            }
           } catch (error) {
-            console.error('⚠️ Backend\'den user yüklenemedi, localStorage kullanılıyor:', error);
+            console.error('❌ User parse hatası:', error);
+            localStorage.removeItem('user');
           }
-          
-        } catch (error) {
-          console.error('❌ User parse hatası:', error);
-          localStorage.removeItem('user');
-        }
-        
-        if (storedTenant && storedTenant !== 'undefined' && storedTenant !== 'null') {
-          try {
-            const parsedTenant = JSON.parse(storedTenant);
-            setTenant(parsedTenant);
-            logger.info("✅ Tenant localStorage'dan yüklendi:", parsedTenant.name);
-          } catch (error) {
-            console.error('❌ Tenant parse hatası:', error);
-            logger.warn('🧹 Bozuk tenant data temizleniyor...');
-            localStorage.removeItem('tenant');
+
+          if (storedTenant && storedTenant !== 'undefined' && storedTenant !== 'null') {
+            try {
+              const parsedTenant = JSON.parse(storedTenant);
+              setTenant(parsedTenant);
+              logger.info("✅ Tenant localStorage'dan yüklendi:", parsedTenant.name);
+            } catch (error) {
+              console.error('❌ Tenant parse hatası:', error);
+              logger.warn('🧹 Bozuk tenant data temizleniyor...');
+              localStorage.removeItem('tenant');
+            }
           }
         }
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initUser();

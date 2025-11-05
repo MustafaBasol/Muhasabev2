@@ -35,6 +35,7 @@ interface HeaderProps {
   onNewInvoice: () => void;
   onNewSale: () => void;
   activePage?: string;
+  customTitle?: string;
   onToggleSidebar?: () => void;
   notifications?: HeaderNotification[];
   unreadCount?: number;
@@ -51,6 +52,7 @@ const Header: React.FC<HeaderProps> = ({
   onNewInvoice,
   onNewSale,
   activePage = 'dashboard',
+  customTitle,
   onToggleSidebar,
   notifications = [],
   unreadCount = 0,
@@ -87,7 +89,7 @@ const Header: React.FC<HeaderProps> = ({
       .join(' ');
   };
 
-  const formattedTitle = getPageTitle(activePage);
+  const formattedTitle = customTitle && customTitle.trim().length > 0 ? customTitle : getPageTitle(activePage);
 
   const notificationsButtonRef = useRef<HTMLButtonElement | null>(null);
   const notificationsPanelRef = useRef<HTMLDivElement | null>(null);

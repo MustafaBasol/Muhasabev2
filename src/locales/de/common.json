@@ -241,6 +241,7 @@
     "cancel": "Abbrechen",
     "delete": "Löschen",
     "edit": "Bearbeiten",
+    "view": "Ansehen",
     "update": "Aktualisieren",
     "add": "Hinzufügen",
     "search": "Suchen",
@@ -528,7 +529,17 @@
     "createInvoice": "Rechnung Erstellen",
     "sale": "Verkauf",
     "completed": "Abgeschlossen",
-    "waiting": "Wartend"
+    "waiting": "Wartend",
+  "historyPageTitle": "Kundenverlauf",
+  "historySubtitle": "Gesamter Verlauf für {{name}}",
+    "historyColumns": {
+      "name": "Eintrag / Nr.",
+      "date": "Datum",
+      "status": "Status",
+      "createdBy": "Erstellt von",
+      "type": "Typ",
+      "description": "Beschreibung"
+    }
   },
   "supplier": {
     "expenseHistory": "Ausgabenverlauf",

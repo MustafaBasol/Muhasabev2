@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, ArrowRight, Star } from 'lucide-react';
+import { Check, ArrowRight, Star, Info } from 'lucide-react';
 
 interface PricingProps {
   loginUrl: string;
@@ -13,18 +13,16 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
     {
       name: t('landing.pricing.starter'),
       price: t('landing.pricing.price.free'),
+      priceMonthly: t('landing.pricing.price.free'),
+      annualLine: t('landing.pricing.annualLine.free', ''),
       description: t('landing.pricing.plans.starter.desc'),
       features: [
         t('landing.pricing.features.users1'),
         t('landing.pricing.features.invoices5'),
         t('landing.pricing.features.expenses5'),
-        t('landing.pricing.features.bank1'),
-        t('landing.pricing.features.customerSupplier1'),
         t('landing.pricing.features.vat'),
         t('landing.pricing.features.pdf'),
-        t('landing.pricing.features.quotesBasic'),
-        t('landing.pricing.features.multiCurrency'),
-        t('landing.pricing.features.emailSupport')
+        t('landing.pricing.features.quotesBasic')
       ],
       cta: t('landing.pricing.cta'),
       popular: false
@@ -32,17 +30,16 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
     {
       name: t('landing.pricing.pro'),
       price: t('landing.pricing.price.pro'),
+      priceMonthly: t('landing.pricing.price.pro'),
+      annualLine: t('landing.pricing.annualLine.pro'),
       description: t('landing.pricing.plans.pro.desc'),
       features: [
         t('landing.pricing.features.users3'),
         t('landing.pricing.features.unlimitedInvoicesExpenses'),
         t('landing.pricing.features.customerSupplierUnlimited'),
-        t('landing.pricing.features.bankUnlimited'),
-        t('landing.pricing.features.multiCurrency'),
         t('landing.pricing.features.quotesAdvanced'),
         t('landing.pricing.features.products'),
-        t('landing.pricing.features.reports'),
-        t('landing.pricing.features.prioritySupport')
+        t('landing.pricing.features.reports')
       ],
       cta: t('landing.pricing.cta'),
       popular: true
@@ -50,14 +47,16 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
     {
       name: t('landing.pricing.business'),
       price: t('landing.pricing.price.biz'),
+      priceMonthly: t('landing.pricing.price.biz'),
+      annualLine: t('landing.pricing.annualLine.biz', ''),
       description: t('landing.pricing.plans.business.desc'),
       features: [
         t('landing.pricing.features.usersUnlimited'),
         t('landing.pricing.features.everythingPro'),
         t('landing.pricing.features.teamCollaboration'),
+        t('landing.pricing.features.dedicatedSupport'),
         t('landing.pricing.features.bankUnlimited'),
-        t('landing.pricing.features.reports'),
-        t('landing.pricing.features.dedicatedSupport')
+        t('landing.pricing.features.reports')
       ],
       cta: t('landing.pricing.ctaContact') || 'Contact us',
       popular: false
@@ -122,12 +121,22 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   {plan.name}
                 </h3>
-                <div className="text-4xl font-bold text-gray-900 mb-2">
-                  {plan.price}
+                <div className="text-4xl font-bold text-gray-900 mb-1">
+                  {plan.priceMonthly}
                 </div>
+                {plan.annualLine && (
+                  <div className="text-sm text-gray-600 mb-2">
+                    {plan.annualLine}
+                  </div>
+                )}
                 <p className="text-gray-600">
                   {plan.description}
                 </p>
+                {index === 1 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {t('landing.pricing.pro.extraUser')}
+                  </p>
+                )}
               </div>
 
               {/* Features */}
@@ -170,6 +179,27 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
               )}
             </div>
           ))}
+        </div>
+
+        {/* Notes and social proof */}
+        <div className="max-w-3xl mx-auto mt-12">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center text-gray-700">
+              <Info className="h-5 w-5 text-gray-500 mr-2" />
+              <span>{t('landing.pricing.notes.vatAndCurrency')}</span>
+            </div>
+            <div className="flex items-center text-gray-700">
+              <Check className="h-5 w-5 text-emerald-500 mr-2" />
+              <span>{t('landing.pricing.notes.cancelAnytime')}</span>
+            </div>
+            <div className="flex items-center text-gray-700">
+              <Check className="h-5 w-5 text-emerald-500 mr-2" />
+              <span>{t('landing.pricing.features.noCredit')}</span>
+            </div>
+          </div>
+          <p className="text-center text-sm text-gray-500 mt-4">
+            {t('landing.pricing.trust')}
+          </p>
         </div>
 
         {/* FAQ link */}

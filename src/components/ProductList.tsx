@@ -451,7 +451,7 @@ export default function ProductList({
   };
 
   const categoryOptions = [
-    { value: 'all', label: t('products.allCategories') },
+    { value: 'all', label: t('products.filterCategory') },
     ...availableCategories.map(category => ({ value: category, label: category })),
   ];
 
@@ -477,7 +477,7 @@ export default function ProductList({
       id: 'category',
       label: t('products.category'),
       value: categoryFilter,
-      display: categoryFilter === 'all' ? t('products.allCategories') : categoryFilter,
+      display: categoryFilter === 'all' ? t('products.filterCategory') : categoryFilter,
       options: categoryOptions,
       onChange: setCategoryFilter,
       defaultValue: 'all',

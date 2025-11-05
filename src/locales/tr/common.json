@@ -33,6 +33,9 @@
     "pricing.price.free": "0€/ay",
   "pricing.price.pro": "29€/ay",
   "pricing.price.biz": "Bize ulaşın",
+  "pricing.annualLine.free": "",
+  "pricing.annualLine.pro": "Yıllık peşin: 290€/yıl (2 ay ücretsiz)",
+  "pricing.annualLine.biz": "",
   "pricing.cta": "Şimdi Başlayın",
   "pricing.ctaContact": "Bize ulaşın",
     "faq.title": "Sık sorulan sorular",
@@ -153,6 +156,10 @@
     "pricing.features.teamCollaboration": "Takım işbirliği (çok kullanıcı)",
     "pricing.features.dedicatedSupport": "Özel destek",
     "pricing.features.noCredit": "Kredi kartı gerekmez",
+    "pricing.notes.vatAndCurrency": "Fiyatlara KDV dahil değildir. EUR ve TRY faturalama desteklenir.",
+    "pricing.notes.cancelAnytime": "İstediğiniz zaman iptal edin.",
+    "pricing.pro.extraUser": "+ her ek kullanıcı 5€/ay",
+    "pricing.trust": "Freelancer, ajans ve KOBİ'ler tarafından güvenilir.",
     "pricing.questions": "Fiyatlandırma hakkında sorularınız mı var?",
     "pricing.checkFaq": "SSS'imize bakın",
     "pricing.or": "veya",
@@ -325,6 +332,7 @@
     "cancel": "İptal",
     "delete": "Sil",
     "edit": "Düzenle",
+    "view": "Görüntüle",
     "update": "Güncelle",
     "add": "Ekle",
     "search": "Ara",
@@ -567,7 +575,14 @@
     "cancelled": "İptal Edildi",
     "completed": "Tamamlandı",
     "active": "Aktif",
-    "inactive": "Pasif"
+    "inactive": "Pasif",
+    "viewed": "Görüntülendi",
+    "accepted": "Kabul Edildi",
+    "declined": "Reddedildi",
+    "expired": "Süresi Doldu",
+    "invoiced": "Faturalandı",
+    "created": "Oluşturuldu",
+    "refunded": "İade Edildi"
   },
   "invoice": {
     "details": "Fatura Detayları",
@@ -610,7 +625,17 @@
     "createInvoice": "Fatura Oluştur",
     "sale": "Satış",
     "completed": "Tamamlandı",
-    "waiting": "Bekliyor"
+    "waiting": "Bekliyor",
+  "historyPageTitle": "Müşteri Geçmişi",
+  "historySubtitle": "{{name}} için tüm geçmiş işlemler",
+    "historyColumns": {
+      "name": "İşlem Adı/No",
+      "date": "Tarih",
+      "status": "Durum",
+      "createdBy": "Oluşturan",
+      "type": "Tür",
+      "description": "Açıklama"
+    }
   },
   "supplier": {
     "expenseHistory": "Gider Geçmişi",

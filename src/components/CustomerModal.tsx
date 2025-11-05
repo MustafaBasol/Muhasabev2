@@ -37,12 +37,12 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
     if (isOpen && customer) {
       // Editing existing customer - load data
       setCustomerData({
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-        address: customer.address,
-        taxNumber: customer.taxNumber,
-        company: customer.company
+        name: customer.name || '',
+        email: customer.email || '',
+        phone: customer.phone || '',
+        address: customer.address || '',
+        taxNumber: customer.taxNumber || '',
+        company: customer.company || ''
       });
     } else if (isOpen && !customer) {
       // New customer - reset form

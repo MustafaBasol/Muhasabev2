@@ -61,6 +61,7 @@ import SaleViewModal from "./components/SaleViewModal";
 import BankViewModal from "./components/BankViewModal";
 import InfoModal from "./components/InfoModal";
 import QuoteViewModal, { type Quote as QuoteModel } from "./components/QuoteViewModal";
+import QuoteEditModal from "./components/QuoteEditModal";
 
 // history modals
 import CustomerHistoryModal from "./components/CustomerHistoryModal";
@@ -110,6 +111,7 @@ import LegalHeader from "./components/LegalHeader";
 // organization components
 import JoinOrganizationPage from "./components/JoinOrganizationPage";
 import PublicQuotePage from "./components/PublicQuotePage";
+import * as quotesApi from "./api/quotes";
 
 import * as ExcelJS from 'exceljs';
 
@@ -283,6 +285,7 @@ const AppContent: React.FC = () => {
   const [showExpenseViewModal, setShowExpenseViewModal] = useState(false);
   const [showSaleViewModal, setShowSaleViewModal] = useState(false);
   const [showQuoteViewModal, setShowQuoteViewModal] = useState(false);
+  const [showQuoteEditModal, setShowQuoteEditModal] = useState(false);
   const [showBankViewModal, setShowBankViewModal] = useState(false);
   const [showCustomerHistoryModal, setShowCustomerHistoryModal] = useState(false);
   const [showSupplierHistoryModal, setShowSupplierHistoryModal] = useState(false);
@@ -292,6 +295,8 @@ const AppContent: React.FC = () => {
   const [showInvoiceTypeModal, setShowInvoiceTypeModal] = useState(false);
   const [showExistingSaleModal, setShowExistingSaleModal] = useState(false);
   const [showInvoiceFromSaleModal, setShowInvoiceFromSaleModal] = useState(false);
+  // Müşteri detayından fatura akışına geçerken ön-seçili müşteri
+  const [preselectedCustomerForInvoice, setPreselectedCustomerForInvoice] = useState<any | null>(null);
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
   const [deleteWarningData, setDeleteWarningData] = useState<{
     title: string;
@@ -1129,6 +1134,9 @@ const AppContent: React.FC = () => {
       } else if (hash === 'api') {
         console.log('API sayfasına yönlendiriliyor...');
         setCurrentPage('api');
+      } else if (hash.startsWith('customer-history:')) {
+        console.log('Müşteri geçmişi sayfasına yönlendiriliyor...');
+        setCurrentPage(hash);
       }
     };
 
@@ -3018,8 +3026,19 @@ const AppContent: React.FC = () => {
   // Yeni fatura akışı handler'ları
   const handleNewSaleForInvoice = () => {
     setShowInvoiceTypeModal(false);
-    // Direkt eski invoice modal'ını aç
-    setSelectedInvoice(null);
+    // Direkt eski invoice modal'ını aç; müşteri seçiliyse ön doldur
+    if (preselectedCustomerForInvoice) {
+      setSelectedInvoice({
+        id: normalizeId(preselectedCustomerForInvoice.id),
+        customerName: preselectedCustomerForInvoice.name,
+        customerEmail: preselectedCustomerForInvoice.email,
+        customerAddress: preselectedCustomerForInvoice.address,
+        status: 'draft',
+        issueDate: new Date().toISOString().split('T')[0],
+      });
+    } else {
+      setSelectedInvoice(null);
+    }
     setShowInvoiceModal(true);
   };
 
@@ -3031,7 +3050,19 @@ const AppContent: React.FC = () => {
   const handleReturnInvoice = () => {
     setShowInvoiceTypeModal(false);
     // InvoiceModal'ı type='return' olarak aç
-    setSelectedInvoice({ _isReturnInvoice: true });
+    if (preselectedCustomerForInvoice) {
+      setSelectedInvoice({
+        _isReturnInvoice: true,
+        id: normalizeId(preselectedCustomerForInvoice.id),
+        customerName: preselectedCustomerForInvoice.name,
+        customerEmail: preselectedCustomerForInvoice.email,
+        customerAddress: preselectedCustomerForInvoice.address,
+        status: 'draft',
+        issueDate: new Date().toISOString().split('T')[0],
+      } as any);
+    } else {
+      setSelectedInvoice({ _isReturnInvoice: true } as any);
+    }
     setShowInvoiceModal(true);
   };
 
@@ -3228,6 +3259,8 @@ const AppContent: React.FC = () => {
   const closeInvoiceModal = () => {
     setShowInvoiceModal(false);
     setSelectedInvoice(null);
+    // Fatura akışı bittiğinde ön-seçili müşteriyi sıfırla
+    setPreselectedCustomerForInvoice(null);
   };
 
   const closeExpenseModal = () => {
@@ -3274,15 +3307,11 @@ const AppContent: React.FC = () => {
   const closeSupplierHistoryModal = () => setShowSupplierHistoryModal(false);
 
   const handleCreateInvoiceFromCustomer = (customer: any) => {
-    setSelectedInvoice({
-      id: normalizeId(customer?.id),
-      customerName: customer?.name,
-      customerEmail: customer?.email,
-      customerAddress: customer?.address,
-      status: "draft",
-      issueDate: new Date().toISOString().split("T")[0],
-    });
-    setShowInvoiceModal(true);
+    // Üçlü menü akışını aç ve müşteri bağlamını taşı
+    setPreselectedCustomerForInvoice(customer || null);
+    setShowCustomerViewModal(false);
+    setShowCustomerHistoryModal(false);
+    setShowInvoiceTypeModal(true);
   };
 
   const handleRecordPaymentForCustomer = (customer: any) => {
@@ -3607,6 +3636,15 @@ const AppContent: React.FC = () => {
   );
 
   const renderPage = () => {
+    // Dinamik rota: customer-history:<id>
+    if (currentPage.startsWith('customer-history:')) {
+      const CustomerHistoryPage = React.lazy(() => import('./components/CustomerHistoryPage'));
+      return (
+        <React.Suspense fallback={<div className="p-6">Yükleniyor...</div>}>
+          <CustomerHistoryPage />
+        </React.Suspense>
+      );
+    }
     switch (currentPage) {
       case "dashboard":
         return renderDashboard();
@@ -3982,7 +4020,12 @@ const AppContent: React.FC = () => {
           isOpen={showExistingSaleModal}
           onClose={() => setShowExistingSaleModal(false)}
           onSelectSale={handleSelectSaleForInvoice}
-          sales={sales}
+          sales={preselectedCustomerForInvoice
+            ? sales.filter(s =>
+                (s.customerName && preselectedCustomerForInvoice?.name && String(s.customerName) === String(preselectedCustomerForInvoice.name)) ||
+                (s.customerEmail && preselectedCustomerForInvoice?.email && String(s.customerEmail) === String(preselectedCustomerForInvoice.email))
+              )
+            : sales}
           existingInvoices={invoices}
         />
       )}
@@ -4073,12 +4116,20 @@ const AppContent: React.FC = () => {
         isOpen={showCustomerViewModal}
         onClose={closeCustomerViewModal}
         customer={selectedCustomer}
-        onEdit={customer => openCustomerModal(customer)}
+        onEdit={customer => {
+          setShowCustomerViewModal(false);
+          setTimeout(() => openCustomerModal(customer), 50);
+        }}
         onCreateInvoice={handleCreateInvoiceFromCustomer}
         onRecordPayment={handleRecordPaymentForCustomer}
         onViewHistory={customer => {
-          setSelectedCustomer(customer);
-          setShowCustomerHistoryModal(true);
+          try {
+            const url = `${window.location.origin}/#customer-history:${encodeURIComponent(String(customer?.id || ''))}`;
+            window.open(url, '_blank');
+          } catch {
+            // Fallback: mevcut sekmede aç
+            setCurrentPage(`customer-history:${String(customer?.id || '')}`);
+          }
         }}
       />
 
@@ -4123,7 +4174,72 @@ const AppContent: React.FC = () => {
         isOpen={showQuoteViewModal}
         onClose={() => setShowQuoteViewModal(false)}
         quote={selectedQuote as any}
+        onEdit={(q) => {
+          setShowQuoteViewModal(false);
+          setTimeout(() => {
+            setSelectedQuote(q as any);
+            setShowQuoteEditModal(true);
+          }, 50);
+        }}
       />
+
+      {showQuoteEditModal && (
+        <QuoteEditModal
+          isOpen={showQuoteEditModal}
+          onClose={() => setShowQuoteEditModal(false)}
+          quote={selectedQuote as any}
+          products={products}
+          onSave={async (updated) => {
+            try {
+              const saved = await quotesApi.updateQuote(String(updated.id), {
+                customerId: (updated as any).customerId,
+                customerName: updated.customerName,
+                issueDate: updated.issueDate,
+                validUntil: updated.validUntil,
+                currency: updated.currency as any,
+                total: updated.total,
+                items: (updated.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })),
+                scopeOfWorkHtml: (updated as any).scopeOfWorkHtml || '',
+                status: updated.status,
+              } as any);
+
+              // Local quotes cache'i güncelle (CustomerHistoryModal bu cache'i okuyor)
+              try {
+                const tid = (localStorage.getItem('tenantId') || '') as string;
+                const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+                const raw = localStorage.getItem(key);
+                const list: any[] = raw ? JSON.parse(raw) : [];
+                const next = Array.isArray(list) ? list.map((q: any) => (
+                  String(q.id) === String(saved.id)
+                    ? {
+                        ...q,
+                        quoteNumber: saved.quoteNumber ?? q.quoteNumber,
+                        customerName: saved.customer?.name || saved.customerName || updated.customerName,
+                        customerId: saved.customerId ?? (q as any).customerId,
+                        issueDate: String(saved.issueDate || updated.issueDate).slice(0,10),
+                        validUntil: saved.validUntil ? String(saved.validUntil).slice(0,10) : (updated.validUntil || null),
+                        currency: saved.currency ?? updated.currency,
+                        total: Number(saved.total ?? updated.total) || 0,
+                        status: saved.status ?? updated.status,
+                        version: saved.version ?? q.version,
+                        scopeOfWorkHtml: saved.scopeOfWorkHtml ?? (q as any).scopeOfWorkHtml,
+                        items: Array.isArray(saved.items) ? saved.items : (q.items || updated.items || []),
+                      }
+                    : q
+                )) : [];
+                localStorage.setItem(key, JSON.stringify(next));
+                try { window.dispatchEvent(new Event('quotes-cache-updated')); } catch {}
+              } catch (e) {
+                console.warn('Quotes cache update failed:', e);
+              }
+            } catch (e) {
+              console.error('Quote update failed:', e);
+            } finally {
+              setShowQuoteEditModal(false);
+            }
+          }}
+        />
+      )}
 
       <ProductViewModal
         isOpen={showProductViewModal}
@@ -4150,7 +4266,17 @@ const AppContent: React.FC = () => {
         isOpen={showCustomerHistoryModal}
         onClose={closeCustomerHistoryModal}
         customer={selectedCustomer}
-        invoices={invoices.filter(invoice => invoice.customerName === selectedCustomer?.name)}
+        invoices={invoices.filter(inv => {
+          const sel = selectedCustomer;
+          if (!sel) return false;
+          const invCustomerId = String(inv?.customerId || inv?.customer?.id || '');
+          const selId = String(sel?.id || '');
+          if (invCustomerId && selId) return invCustomerId === selId;
+          // Fallback: isim eşleşmesi
+          const invName = String(inv?.customer?.name || inv?.customerName || '').trim();
+          const selName = String(sel?.name || '').trim();
+          return invName && selName && invName === selName;
+        })}
         sales={sales.filter(sale => sale.customerName === selectedCustomer?.name)}
         onViewInvoice={invoice => {
           closeCustomerHistoryModal();
@@ -4447,6 +4573,29 @@ const AppContent: React.FC = () => {
     return <LoginPage />;
   }
 
+  // Compute custom header title (no hooks; keep unconditional)
+  const customHeaderTitle = (() => {
+    if (typeof currentPage === 'string' && currentPage.startsWith('customer-history:')) {
+      const cid = currentPage.split(':')[1];
+      if (cid) {
+        const found = customers.find((c: any) => String(c.id) === String(cid));
+        if (found?.name) return String(found.name);
+        try {
+          const raw = localStorage.getItem('customers_cache');
+          if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+              const fromCache = arr.find((c: any) => String(c.id) === String(cid));
+              if (fromCache?.name) return String(fromCache.name);
+            }
+          }
+        } catch {}
+      }
+      return undefined;
+    }
+    return undefined;
+  })();
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="flex min-h-screen">
@@ -4466,6 +4615,7 @@ const AppContent: React.FC = () => {
             onNewInvoice={() => openInvoiceModal()}
             onNewSale={() => openSaleModal()}
             activePage={currentPage}
+            customTitle={customHeaderTitle}
             onToggleSidebar={handleToggleSidebar}
             notifications={notifications}
             unreadCount={unreadNotificationCount}
