@@ -51,6 +51,10 @@ export default function BankList({
   const formatAmount = (amount: number, currency: string = 'TRY') => {
     return formatCurrencyUtil(amount, currency as Currency);
   };
+  const formatAmountNoSymbol = (amount: number) => {
+    const safe = typeof amount === 'number' ? amount : 0;
+    return safe.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   const getAccountTypeBadge = (type: string) => {
     const typeConfig = {
@@ -80,14 +84,15 @@ export default function BankList({
   }, 0);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+      <div className="min-w-[720px]">
       {/* Header */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{t('banks.title')}</h2>
             <p className="text-sm text-gray-500">
-              {bankAccounts.length} {t('banks.accountsRegistered')} • {t('banks.totalBalance')}: {formatAmount(totalBalance)}
+              {bankAccounts.length} {t('banks.accountsRegistered')} • {t('banks.totalBalance')}: {formatAmountNoSymbol(totalBalance)}
             </p>
           </div>
           <button
@@ -152,11 +157,11 @@ export default function BankList({
           filteredBanks.map((bank) => (
             <div key={bank.id} className="p-4 hover:bg-gray-50 transition-colors">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 min-w-0">
                   <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                     <CreditCard className="w-6 h-6 text-green-600" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <button
                       onClick={() => onViewBank(bank)}
                       className="font-semibold text-green-600 hover:text-green-800 transition-colors cursor-pointer text-left"
@@ -164,13 +169,13 @@ export default function BankList({
                     >
                       {bank.bankName}
                     </button>
-                    <p className="text-sm text-gray-600 flex items-center">
+                    <p className="text-sm text-gray-600 flex items-center truncate">
                       <Building2 className="w-3 h-3 mr-1" />
-                      {bank.accountName}
+                      <span className="truncate">{bank.accountName}</span>
                     </p>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <span className="text-sm text-gray-500">
-                        {bank.accountNumber}
+                    <div className="flex items-center space-x-4 mt-1 min-w-0">
+                      <span className="text-sm text-gray-500 truncate">
+                        <span className="truncate">{bank.accountNumber}</span>
                       </span>
                       {getAccountTypeBadge(bank.accountType)}
                       <span className={`text-xs px-2 py-1 rounded-full ${
@@ -181,13 +186,41 @@ export default function BankList({
                         {bank.isActive ? 'Aktif' : 'Pasif'}
                       </span>
                     </div>
+
+                    {/* Mobile actions */}
+                    <div className="flex items-center gap-2 mt-2 sm:hidden">
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onViewBank(bank); }}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        aria-label="View"
+                        title={t('common.view') as string}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEditBank(bank); }}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        aria-label="Edit"
+                        title={t('common.edit') as string}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteBank(bank.id); }}
+                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        aria-label="Delete"
+                        title={t('common.delete') as string}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <div className="font-semibold text-gray-900 flex items-center">
-                      <DollarSign className="w-4 h-4 mr-1 text-green-600" />
+                      <DollarSign className="w-4 h-4 mr-1 text-green-600 sm:inline hidden" />
                       {formatAmount(bank.balance, bank.currency)}
                     </div>
                     <div className="text-xs text-gray-500">
@@ -195,7 +228,7 @@ export default function BankList({
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
+                  <div className="hidden sm:flex items-center space-x-2">
                     <button
                       onClick={() => onViewBank(bank)}
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -225,5 +258,7 @@ export default function BankList({
         )}
       </div>
     </div>
+    </div>
+    
   );
 }

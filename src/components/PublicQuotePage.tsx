@@ -93,6 +93,22 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
   const isExpiredByDate = quote?.validUntil ? (quote.validUntil < todayISO) : false;
   const showExpired = quote && !['accepted','declined','expired'].includes(quote.status) && isExpiredByDate;
 
+  // Görüntülenecek toplam: backend total yoksa kalemlerden hesapla
+  const displayTotal = useMemo(() => {
+    if (!quote) return 0;
+    const backendTotal = Number(quote.total) || 0;
+    if (backendTotal > 0) return backendTotal;
+    const sumFromItems = (quote.items || []).reduce((sum, it) => {
+      const itemTotal = Number(it.total);
+      if (!isNaN(itemTotal) && itemTotal !== 0) return sum + itemTotal;
+      // total yoksa quantity * unitPrice dene
+      const qty = Number(it.quantity) || 0;
+      const price = Number(it.unitPrice) || 0;
+      return sum + (qty * price);
+    }, 0);
+    return Number(sumFromItems) || 0;
+  }, [quote]);
+
   type SettingsLanguage = 'tr' | 'en' | 'fr' | 'de';
   const activeLang = useMemo<SettingsLanguage>(() => {
     const l = (i18n.language || 'tr').toLowerCase().substring(0,2);
@@ -211,7 +227,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
                   validUntil: quote.validUntil,
                   status: quote.status,
                   currency: quote.currency,
-                  total: quote.total,
+                  total: displayTotal,
                   items: (quote.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
                   scopeOfWorkHtml: (quote as any).scopeOfWorkHtml || ''
                 }, { filename: quote.quoteNumber });
@@ -324,9 +340,11 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
           </div>
         )}
 
-        <div className="flex items-center justify-end mt-4">
-          <div className="text-lg font-semibold">{formatCurrency(quote.total, quote.currency)}</div>
-        </div>
+        {displayTotal > 0 && (
+          <div className="flex items-center justify-end mt-4">
+            <div className="text-lg font-semibold">{formatCurrency(displayTotal, quote.currency)}</div>
+          </div>
+        )}
 
         {/* İşin Kapsamı (genel sayfada görünür) */}
         {Boolean((quote as any).scopeOfWorkHtml) && (

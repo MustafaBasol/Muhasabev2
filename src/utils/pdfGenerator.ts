@@ -1,174 +1,56 @@
 // src/utils/pdfGenerator.ts
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import DOMPurify from 'dompurify';
 import i18n from '../i18n/config';
-import { logger } from './logger';
-import { secureStorage } from './storage';
+import { logger } from '../utils/logger';
+import { secureStorage } from '../utils/storage';
+import type { Invoice, Expense, Sale, InvoiceItem } from '../types';
 
-// ——— Tipler ——————————————————————————————————————
-interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  customerName: string;
-  customerEmail: string;
-  customerAddress: string;
-  total: number;
-  subtotal: number;
-  taxAmount: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
-  issueDate: string;
-  dueDate: string;
-  items: InvoiceItem[];
-  notes?: string;
-  type?: 'product' | 'service';
-}
+// Para birimi tipini uygulamanın CurrencyContext'inden alalım (TRY | USD | EUR | GBP)
+import type { Currency } from '../contexts/CurrencyContext';
 
-interface InvoiceItem {
-  description?: string;
-  quantity?: number;
-  unitPrice?: number;
-  total?: number;
-}
-
-interface Expense {
-  id: string;
-  expenseNumber: string;
-  description: string;
-  supplier: string;
-  amount: number;
-  category: string;
-  status: 'draft' | 'approved' | 'paid';
-  expenseDate: string;
-  dueDate: string;
-  receiptUrl?: string;
-}
-
-interface Sale {
-  id: string;
-  saleNumber?: string;
-  customerName: string;
-  customerEmail?: string;
-  productName: string;
-  quantity?: number;
-  unitPrice?: number;
-  amount: number;
-  status: 'completed' | 'pending' | 'cancelled';
-  date: string;
-  paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
-  notes?: string;
-}
-
-export type CompanyProfile = {
-  name?: string;
-  address?: string;
-  taxNumber?: string;
-  taxOffice?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  logoDataUrl?: string; // data:image/png;base64,...
-  iban?: string;
-  bankAccountId?: string;
-  // Ülke seçimi (dilden bağımsız PDF ve ayarlar için)
-  country?: 'TR' | 'US' | 'DE' | 'FR' | 'OTHER';
-  
-  // === Türkiye Yasal Alanları ===
+// Genişletilmiş CompanyProfile (ülke-bazlı opsiyonel alanlar ile)
+import type { CompanyProfile as BaseCompanyProfile } from '../types';
+export type SettingsLanguage = 'tr' | 'en' | 'fr' | 'de';
+export type CountryCode = 'TR' | 'FR' | 'DE' | 'US' | 'OTHER';
+export interface CompanyProfile extends BaseCompanyProfile {
+  country?: CountryCode;
+  // TR
   mersisNumber?: string;
   kepAddress?: string;
-  
-  // === Fransa Yasal Alanları ===
+  // FR
   siretNumber?: string;
   sirenNumber?: string;
   apeCode?: string;
   tvaNumber?: string;
   rcsNumber?: string;
-  
-  // === Almanya Yasal Alanları ===
+  // DE
   steuernummer?: string;
   umsatzsteuerID?: string;
   handelsregisternummer?: string;
   geschaeftsfuehrer?: string;
-  
-  // === Amerika Yasal Alanları ===
+  // US/genel
   einNumber?: string;
   taxId?: string;
   businessLicenseNumber?: string;
   stateOfIncorporation?: string;
+  // OTHER/genel
+  registrationNumber?: string;
+  vatNumberGeneric?: string;
+  taxIdGeneric?: string;
+  stateOrRegion?: string;
+}
 
-  // === Diğer Ülkeler (genel alanlar) ===
-  registrationNumber?: string; // Ticaret sicil / kayıt no
-  vatNumberGeneric?: string;   // KDV/VAT no
-  taxIdGeneric?: string;       // Vergi kimliği
-  stateOrRegion?: string;      // Eyalet/Bölge/İl
-};
-
-type OpenOpts = { targetWindow?: Window | null; filename?: string; company?: CompanyProfile; lang?: string; currency?: Currency };
-type Currency = 'TRY' | 'USD' | 'EUR' | 'GBP';
-
-// ——— Yardımcılar ——————————————————————————————————
-// PDF belgelerinde şirket logosu için standart yükseklik (px)
-const LOGO_HEIGHT_PX = 120;
-
-const formatDate = (dateString: string, locale?: string) => {
-  try { return new Date(dateString).toLocaleDateString(locale || 'tr-TR'); } catch { return ''; }
-};
-
-// Not: Eski formatAmount kullanılmıyor; geriye dönük kalabilir, ancak uyarıyı önlemek için kaldırıyoruz.
-
-// Para birimi belirleme ve biçimlendirme yardımcıları (Context ile uyumlu mantık)
-const toNum = (v: unknown): number => {
-  if (v == null) return 0;
-  if (typeof v === 'number' && isFinite(v)) return v;
-  const s = String(v).replace(/[^0-9+\-.,]/g, '');
-  // virgül/nokta varyasyonlarına karşı basit normalize
-  const normalized = s.includes(',') && !s.includes('.') ? s.replace(',', '.') : s;
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : 0;
-};
-const getSelectedCurrency = (): Currency => {
-  try {
-    const saved = localStorage.getItem('currency') as Currency | null;
-    if (saved === 'TRY' || saved === 'USD' || saved === 'EUR') return saved;
-  } catch { /* localStorage erişimi başarısız olabilir (ör. SSR veya gizlilik modları) */ }
-  return 'TRY';
-};
-
-const getCurrencySymbol = (cur: Currency): string => {
-  switch (cur) {
-    case 'TRY': return '₺';
-    case 'USD': return '$';
-    case 'EUR': return '€';
-    case 'GBP': return '£';
-    default: return '₺';
-  }
-};
-
-const makeCurrencyFormatter = (cur: Currency) => (amount: unknown): string => {
-  const safe = toNum(amount);
-  const symbol = getCurrencySymbol(cur);
-  switch (cur) {
-    case 'TRY':
-      return `${symbol}${safe.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    case 'USD':
-    case 'EUR':
-    case 'GBP':
-      return `${symbol}${safe.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    default:
-      return `${symbol}${safe.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-};
-
-const formatIban = (v?: string) => (v || '').replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
-
-// Dil -> Ülke eşlemesi (SettingsPage ile aynı mantık)
-type SettingsLanguage = 'tr' | 'en' | 'fr' | 'de';
-type CountryCode = 'TR' | 'FR' | 'DE' | 'US' | 'OTHER';
+// ——— GENEL YARDIMCILAR ———————————————————————
+const LOGO_HEIGHT_PX = 48;
 
 const normalizeLang = (lang?: string): SettingsLanguage => {
-  const raw = (lang || i18n?.language || 'en').toLowerCase();
-  const two = raw.substring(0, 2) as SettingsLanguage;
-  return (['tr', 'en', 'fr', 'de'] as const).includes(two) ? two : 'en';
+  const l = (lang || i18n.language || 'tr').toLowerCase();
+  if (l.startsWith('tr')) return 'tr';
+  if (l.startsWith('fr')) return 'fr';
+  if (l.startsWith('de')) return 'de';
+  return 'en';
 };
 
 const countryFromLang = (lang: SettingsLanguage): CountryCode => {
@@ -180,6 +62,219 @@ const countryFromLang = (lang: SettingsLanguage): CountryCode => {
   }
 };
 
+const toNum = (v: unknown): number => {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const formatIban = (iban?: string): string => {
+  if (!iban) return '';
+  return String(iban).replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
+};
+
+const getSelectedCurrency = (): Currency => {
+  const saved = localStorage.getItem('currency') as Currency | null;
+  return saved || 'TRY';
+};
+
+const makeCurrencyFormatter = (currency: Currency) => (amount: number | string | undefined | null) => {
+  const n = toNum(amount ?? 0);
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(n);
+  } catch {
+    // Bazı tarayıcılarda/ortamlarda "GBP" vs. sorun çıkarsa fallback
+    const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₺';
+    return `${symbol}${n.toFixed(2)}`;
+  }
+};
+
+const formatDate = (date: string | number | Date, locale?: string): string => {
+  try { return new Date(date).toLocaleDateString(locale || undefined); } catch { return String(date); }
+};
+
+// PDF açılış seçenekleri
+export interface OpenOpts {
+  filename?: string;
+  lang?: SettingsLanguage | string;
+  currency?: Currency;
+  company?: Partial<CompanyProfile>;
+  targetWindow?: Window | null;
+}
+
+// HTML → PDF (çok segmentli) → Blob
+// Her segment ayrı render edilir; segmentler arasında sayfa sınırı korunur.
+const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
+  // jsPDF ölçüleri (mm)
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pdfW = pdf.internal.pageSize.getWidth();     // 210mm
+  const pdfH = pdf.internal.pageSize.getHeight();    // 297mm
+
+  // Marjinler (mm)
+  const topMarginOtherMm = 6;  // 2.+ sayfalar üst boşluk (ilk ürün sayfasını bozmaz)
+  const bottomMarginFirstMm = 12; // ilk sayfa alt boşluk (footer güvenliği)
+  const bottomMarginMm = 0;   // 2.+ sayfalar alt boşluk (içerik rezervleri ile dengelenir)
+
+  let pagesAdded = 0; // belge seviyesinde eklenen sayfalar
+
+  // Segment renderer
+  const renderOne = async (html: string) => {
+    // Ekran dışında stabil konteyner
+    const tempDiv = document.createElement('div');
+    Object.assign(tempDiv.style, {
+      position: 'absolute', left: '-10000px', top: '0', width: '794px', background: '#ffffff', fontFamily: 'Arial, sans-serif',
+    } as CSSStyleDeclaration);
+    tempDiv.innerHTML = DOMPurify.sanitize(html);
+    document.body.appendChild(tempDiv);
+
+    try {
+      const scale = 2;
+      const containerWidthPx = tempDiv.scrollWidth || 794;
+      const imgWEst = containerWidthPx * scale;
+  const pdfWmm = 210; const pdfHmm = 297;
+  const pageCanvasHeightPxEst = (pdfHmm * imgWEst) / pdfWmm;
+  const pageCssHeightPxRaw = pageCanvasHeightPxEst / scale;
+  // Spacer hizalamaları için "sonraki sayfa" yüksekliğini tahmini hesapla (üst-alt marj sonrası)
+  const ratioEst = (pdfW / imgWEst);
+  const availableHmmNextEst = pdfH - topMarginOtherMm - bottomMarginMm;
+  const pageCanvasHeightPxNextEst = Math.floor(availableHmmNextEst / ratioEst);
+  const pageCssHeightPx = (pageCanvasHeightPxNextEst / scale) || pageCssHeightPxRaw;
+
+      // Zorunlu yeni sayfa işareti
+      const forceBreakers = Array.from(tempDiv.querySelectorAll('[data-force-new-page="true"]')) as HTMLElement[];
+      forceBreakers.forEach(el => {
+        try {
+          let top = 0; let node: HTMLElement | null = el;
+          while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
+          const posInPage = top % pageCssHeightPx;
+          const spacerH = Math.ceil(pageCssHeightPx - posInPage);
+          if (spacerH > 0 && spacerH < pageCssHeightPx) {
+            const spacer = document.createElement('div');
+            spacer.style.height = `${spacerH}px`;
+            spacer.style.width = '100%';
+            spacer.style.display = 'block';
+            el.parentElement?.insertBefore(spacer, el);
+          }
+        } catch {}
+      });
+
+      // Bölünme korumaları
+      const blockers = Array.from(tempDiv.querySelectorAll('[data-avoid-split="true"]')) as HTMLElement[];
+      blockers.forEach(el => {
+        try {
+          let top = 0; let node: HTMLElement | null = el;
+          while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
+          const blockH = el.offsetHeight || 0;
+          const marginBottomReserve = 48;
+          const posInPage = top % pageCssHeightPx;
+          if (posInPage + blockH > (pageCssHeightPx - marginBottomReserve)) {
+            const spacer = document.createElement('div');
+            spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
+            spacer.style.width = '100%';
+            spacer.style.display = 'block';
+            el.parentElement?.insertBefore(spacer, el);
+          }
+        } catch {}
+      });
+
+      // Tablo satırlarını (tr) sayfa arasında bölme: ana bölümdeki ürünler tablosu dahil
+      const tableRows = Array.from(tempDiv.querySelectorAll('table tbody tr')) as HTMLElement[];
+      tableRows.forEach(rowEl => {
+        try {
+          let top = 0; let node: HTMLElement | null = rowEl as HTMLElement;
+          while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
+          const rowH = rowEl.offsetHeight || 0;
+          const reserve = 48;
+          const posInPage = top % pageCssHeightPx;
+          if (posInPage + rowH > (pageCssHeightPx - reserve)) {
+            const spacer = document.createElement('div');
+            spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
+            spacer.style.width = '100%';
+            spacer.style.display = 'block';
+            rowEl.parentElement?.insertBefore(spacer, rowEl);
+          }
+        } catch {}
+      });
+
+      // Sadece kapsam alanında ek koruma
+      const scopeBlocks = Array.from(tempDiv.querySelectorAll('[data-scope="true"] p, [data-scope="true"] li, [data-scope="true"] h1, [data-scope="true"] h2, [data-scope="true"] h3, [data-scope="true"] h4, [data-scope="true"] h5, [data-scope="true"] h6, [data-scope="true"] ul, [data-scope="true"] ol, [data-scope="true"] table')) as HTMLElement[];
+      scopeBlocks.forEach(el => {
+        try {
+          let top = 0; let node: HTMLElement | null = el;
+          while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
+          const blockH = el.offsetHeight || 0;
+          const reserveScope = 96; // daha cömert alt boşluk
+          const posInPage = top % pageCssHeightPx;
+          if (posInPage + blockH > (pageCssHeightPx - reserveScope)) {
+            const spacer = document.createElement('div');
+            spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
+            spacer.style.width = '100%';
+            spacer.style.display = 'block';
+            el.parentElement?.insertBefore(spacer, el);
+          }
+        } catch {}
+      });
+
+      // Canvas al
+      const canvas = await html2canvas(tempDiv, {
+        scale, backgroundColor: '#ffffff', useCORS: true, allowTaint: true,
+        windowWidth: tempDiv.scrollWidth || 794,
+        windowHeight: tempDiv.scrollHeight || tempDiv.clientHeight || 1123,
+      });
+
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+      const ratio = pdfW / imgW;
+
+      const availableHmmFirst = pdfH - bottomMarginFirstMm;
+      const pageCanvasHeightPxFirst = Math.floor(availableHmmFirst / ratio);
+      const availableHmmNext = pdfH - topMarginOtherMm - bottomMarginMm;
+      const pageCanvasHeightPxNext = Math.floor(availableHmmNext / ratio);
+        // Not: spacer hizalamaları için gerekirse kullanılabilir
+        // const pageCssHeightPx = (pageCanvasHeightPxNext / scale) || pageCssHeightPxRaw;
+
+      // Büyük canvas’ı sayfa sayfa dilimle
+      let rendered = 0;
+      const pageCanvas = document.createElement('canvas');
+      const ctx = pageCanvas.getContext('2d')!;
+      pageCanvas.width = imgW;
+
+      let localPageIndex = 0;
+      while (rendered < imgH) {
+        const perPagePx = localPageIndex === 0 ? pageCanvasHeightPxFirst : pageCanvasHeightPxNext;
+        const sliceH = Math.min(perPagePx, imgH - rendered);
+        pageCanvas.height = sliceH;
+
+        ctx.clearRect(0, 0, imgW, sliceH);
+        ctx.drawImage(canvas, 0, rendered, imgW, sliceH, 0, 0, imgW, sliceH);
+
+        const imgData = pageCanvas.toDataURL('image/png');
+
+        // Segmentler arası: yeni sayfa aç
+        if (pagesAdded > 0 || localPageIndex > 0) pdf.addPage();
+        const yOffsetMm = pagesAdded === 0 && localPageIndex === 0 ? 0 : topMarginOtherMm;
+        pdf.addImage(imgData, 'PNG', 0, yOffsetMm, pdfW, sliceH * ratio);
+
+        rendered += sliceH;
+        localPageIndex += 1;
+        pagesAdded += 1;
+      }
+    } finally {
+      document.body.removeChild(tempDiv);
+    }
+  };
+
+  for (const html of segments.filter(Boolean)) {
+    await renderOne(html);
+  }
+
+  const blob = pdf.output('blob');
+  logger.debug('PDF boyutu (byte):', blob.size);
+  return blob;
+};
+
+// Geriye dönük API: tek segmentli sürüm
+const htmlToPdfBlob = async (html: string): Promise<Blob> => htmlSegmentsToPdfBlob([html]);
+
 const localeFromLang = (lang: SettingsLanguage): string => {
   switch (lang) {
     case 'tr': return 'tr-TR';
@@ -189,7 +284,7 @@ const localeFromLang = (lang: SettingsLanguage): string => {
   }
 };
 
-const buildLegalFieldsHtml = (c: CompanyProfile, country: CountryCode) => {
+const buildLegalFieldsHtml = (c: Partial<CompanyProfile>, country: CountryCode) => {
   const row = (label: string, value?: string) => value ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>${label}:</strong> ${value}</div>` : '';
   switch (country) {
     case 'TR':
@@ -232,167 +327,7 @@ const buildLegalFieldsHtml = (c: CompanyProfile, country: CountryCode) => {
   }
 };
 
-// HTML → PDF (jsPDF.html) → Blob
-// 1) HTML → (html2canvas) → Çok sayfalı PDF Blob
-const htmlToPdfBlob = async (html: string): Promise<Blob> => {
-  // Ekran dışında ama ölçüleri stabil bir konteyner kuralım
-  const tempDiv = document.createElement('div');
-  Object.assign(tempDiv.style, {
-    position: 'absolute',
-    left: '-10000px',
-    top: '0',
-    width: '794px',            // A4 genişliği @96dpi ≈ 794px (8.27in * 96)
-    background: '#ffffff',
-    fontFamily: 'Arial, sans-serif',
-  } as CSSStyleDeclaration);
-  // XSS koruması: HTML içeriğini sanitize et
-  tempDiv.innerHTML = DOMPurify.sanitize(html);
-  document.body.appendChild(tempDiv);
-
-  try {
-    // Sayfa kırılma koruması: belirli bölümleri sayfa arasında bölme
-    // Ölçek ve tahmini sayfa piksel yüksekliğini hesapla
-  const scale = 2;
-  const containerWidthPx = tempDiv.scrollWidth || 794;
-  const imgWEst = containerWidthPx * scale; // html2canvas çıktısının tahmini genişliği
-    // jsPDF A4 mm cinsinden: 210 x 297; sayfa piksel yüksekliği: pdfH * imgW / pdfW
-  const pdfWmm = 210; const pdfHmm = 297;
-  const pageCanvasHeightPxEst = (pdfHmm * imgWEst) / pdfWmm;
-  const pageCssHeightPx = pageCanvasHeightPxEst / scale; // DOM piksel cinsinden
-
-    // data-force-new-page: Bir sonraki sayfadan başlamasını zorla
-    const forceBreakers = Array.from(tempDiv.querySelectorAll('[data-force-new-page="true"]')) as HTMLElement[];
-    forceBreakers.forEach(el => {
-      try {
-        let top = 0; let node: HTMLElement | null = el;
-        while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
-        const posInPage = top % pageCssHeightPx;
-        // Mevcut sayfada kalan boşluk kadar spacer ekle ki yeni sayfadan başlasın
-        const spacerH = Math.ceil(pageCssHeightPx - posInPage);
-        if (spacerH > 0 && spacerH < pageCssHeightPx) {
-          const spacer = document.createElement('div');
-          spacer.style.height = `${spacerH}px`;
-          spacer.style.width = '100%';
-          spacer.style.display = 'block';
-          el.parentElement?.insertBefore(spacer, el);
-        }
-      } catch {}
-    });
-
-    // data-avoid-split işaretli tüm blokları sonraki sayfaya taşımak için boşluk ekle
-    const blockers = Array.from(tempDiv.querySelectorAll('[data-avoid-split="true"]')) as HTMLElement[];
-    blockers.forEach(el => {
-      try {
-        // tempDiv'e göre üst konum
-        let top = 0; let node: HTMLElement | null = el;
-        while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
-        const blockH = el.offsetHeight || 0;
-        // Not: 2. ve sonraki sayfalarda fazladan üst marj bırakıyoruz (mm→px farkını tolere etmek için)
-        // biraz daha cömert bir alt pay bırakın ki bölünme riski azalssın
-        const marginBottomReserve = 48; // sayfa dibinde bırakılacak güvenli boşluk (CSS px)
-        const posInPage = top % pageCssHeightPx;
-        if (posInPage + blockH > (pageCssHeightPx - marginBottomReserve)) {
-          const spacer = document.createElement('div');
-          spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
-          spacer.style.width = '100%';
-          spacer.style.display = 'block';
-          el.parentElement?.insertBefore(spacer, el);
-        }
-      } catch {}
-    });
-
-    // Tablo satırlarını (tr) sayfa arasında bölünmeyecek şekilde önceden ittir
-    const tableRows = Array.from(tempDiv.querySelectorAll('table tbody tr')) as HTMLElement[];
-    tableRows.forEach(rowEl => {
-      try {
-        let top = 0; let node: HTMLElement | null = rowEl;
-        while (node && node !== tempDiv) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null; }
-        const rowH = rowEl.offsetHeight || 0;
-        const reserve = 48; // sayfa alt güvenlik payı (CSS px)
-        const posInPage = top % pageCssHeightPx;
-        if (posInPage + rowH > (pageCssHeightPx - reserve)) {
-          const spacer = document.createElement('div');
-          spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
-          spacer.style.width = '100%';
-          spacer.style.display = 'block';
-          rowEl.parentElement?.insertBefore(spacer, rowEl);
-        }
-      } catch {}
-    });
-
-    // Yüksek kaliteli canvas
-    const canvas = await html2canvas(tempDiv, {
-      scale,                 // kalite
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      allowTaint: true,
-      windowWidth: tempDiv.scrollWidth || 794,
-      windowHeight: tempDiv.scrollHeight || tempDiv.clientHeight || 1123,
-    });
-
-    // jsPDF ölçüleri (mm)
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfW = pdf.internal.pageSize.getWidth();     // 210mm
-    const pdfH = pdf.internal.pageSize.getHeight();    // 297mm
-
-    // Sayfa marjları (mm)
-    const topMarginOtherMm = 12; // 2. ve sonraki sayfalar için üst boşluk
-    const bottomMarginMm = 0;    // şimdilik ek alt marj yok
-
-    // Canvas → PDF’e ölçek
-    const imgW = canvas.width;
-    const imgH = canvas.height;
-    const ratio = pdfW / imgW;
-  // İlk sayfa: yazdırılabilir alan için alt marj ayır
-  // İlk sayfada alt boşluk: footer taşmasını önlemek için daha cömert tut
-  const bottomMarginFirstMm = 12;
-  const availableHmmFirst = pdfH - bottomMarginFirstMm;
-  const pageCanvasHeightPxFirst = Math.floor(availableHmmFirst / ratio);
-    // Sonraki sayfalar: üst marjı rezerve et
-    const availableHmmNext = pdfH - topMarginOtherMm - bottomMarginMm;
-    const pageCanvasHeightPxNext = Math.floor(availableHmmNext / ratio);
-
-    // Büyük canvas’ı sayfa sayfa dilimle
-    let rendered = 0;
-    const pageCanvas = document.createElement('canvas');
-    const ctx = pageCanvas.getContext('2d')!;
-    pageCanvas.width = imgW;
-
-    let pageIndex = 0;
-    while (rendered < imgH) {
-      const perPagePx = pageIndex === 0 ? pageCanvasHeightPxFirst : pageCanvasHeightPxNext;
-      const sliceH = Math.min(perPagePx, imgH - rendered);
-      pageCanvas.height = sliceH;
-
-      // Ana canvas’tan bir dilim kopyala
-      ctx.clearRect(0, 0, imgW, sliceH);
-      ctx.drawImage(
-        canvas,
-        0, rendered,           // kaynaktaki üst başlangıç (sx, sy)
-        imgW, sliceH,          // kaynak genişlik-yükseklik
-        0, 0,                  // hedef başlangıç (dx, dy)
-        imgW, sliceH           // hedef genişlik-yükseklik
-      );
-
-      const imgData = pageCanvas.toDataURL('image/png');
-
-      // Sayfaya ekle (ilk sayfada 0, sonrakilerde üst marj kadar aşağıdan başla)
-      if (rendered > 0) pdf.addPage();
-      const yOffsetMm = pageIndex === 0 ? 0 : topMarginOtherMm;
-      pdf.addImage(imgData, 'PNG', 0, yOffsetMm, pdfW, sliceH * ratio);
-
-      rendered += sliceH;
-      pageIndex += 1;
-    }
-
-  const blob = pdf.output('blob');
-  // Debug (dev):
-  logger.debug('PDF boyutu (byte):', blob.size);
-    return blob;
-  } finally {
-    document.body.removeChild(tempDiv);
-  }
-};
+// (Tek segmentli eski fonksiyon artık htmlSegmentsToPdfBlob ile değiştirilmiştir)
 
 // 2) PDF’i yeni sekmede göster (pop-up’a takılmaz, fallback’li)
 // Basit ve güvenli dosya adı üretici
@@ -448,7 +383,7 @@ const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow
 
 
 // ——— ŞABLON ÜRETİCİLERİ ———————————————————————
-const buildInvoiceHtml = (invoice: Invoice, c: CompanyProfile = {}, lang?: string, currency?: Currency) => {
+const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lang?: string, currency?: Currency) => {
   // Logo yalnızca geçerli data URL ise gösterilsin; aksi halde boş alan kalmasın
   const hasLogo = !!(c.logoDataUrl && /^data:image\//.test(c.logoDataUrl));
   const activeLang = normalizeLang(lang);
@@ -740,7 +675,7 @@ export interface QuoteForPdf {
 
 const buildQuoteHtml = (
   quote: QuoteForPdf,
-  c: CompanyProfile = {},
+  c: Partial<CompanyProfile> = {},
   lang?: string,
   currency?: Currency,
   prepared?: { label: string; name?: string }
@@ -929,7 +864,7 @@ const buildQuoteHtml = (
     if (!raw) return '';
     const safe = DOMPurify.sanitize(raw);
     return `
-      <div data-force-new-page="true" style="max-width:170mm;margin:0 auto;min-height:263mm;box-sizing:border-box;padding:6mm 0 12mm;">
+  <div data-force-new-page="true" data-scope="true" style="max-width:170mm;margin:0 auto;min-height:263mm;box-sizing:border-box;padding:2mm 0 10mm;">
         <div style="border-bottom:2px solid #E5E7EB; padding-bottom:8px; margin-bottom:12px;">
           <div style="font-size:22px;font-weight:800;color:#111827;">${scopeTitle}</div>
           <div style="color:#6B7280;font-size:12px;margin-top:2px;">${L.appSubtitle}</div>
@@ -941,11 +876,11 @@ const buildQuoteHtml = (
     `;
   })();
 
-  return `${mainHtml}${scopeHtml}`;
+  return { mainHtml, scopeHtml };
 };
 
 export const generateQuotePDF = async (quote: QuoteForPdf, opts: OpenOpts & { preparedByName?: string } = {}) => {
-  let company: CompanyProfile | undefined = opts.company;
+  let company: Partial<CompanyProfile> | undefined = opts.company;
   if (!company) {
     try { company = await secureStorage.getJSON<CompanyProfile>('companyProfile') ?? undefined; } catch { company = undefined; }
     // Fallback: plain localStorage
@@ -970,8 +905,9 @@ export const generateQuotePDF = async (quote: QuoteForPdf, opts: OpenOpts & { pr
   }
 
   const label = (() => { const l = normalizeLang(opts.lang); return l === 'tr' ? 'Teklifi Hazırlayan' : l === 'fr' ? 'Préparé par' : l === 'de' ? 'Erstellt von' : 'Prepared by'; })();
-  const finalHtml = buildQuoteHtml(quote, company ?? {}, opts.lang, opts.currency, { label, name: preparedBy });
+  const { mainHtml, scopeHtml } = buildQuoteHtml(quote, company ?? {}, opts.lang, opts.currency, { label, name: preparedBy });
 
-  const blob = await htmlToPdfBlob(finalHtml);
+  // Segment bazlı render: ürün sayfası + kapsam (varsaysa) ayrı segmentler
+  const blob = await htmlSegmentsToPdfBlob([mainHtml, scopeHtml].filter(Boolean));
   openPdfInWindow(blob, `${opts.filename ?? quote.quoteNumber ?? 'Quote'}.pdf`, opts.targetWindow);
 };

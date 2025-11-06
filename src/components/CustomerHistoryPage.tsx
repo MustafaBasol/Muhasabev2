@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar } from 'lucide-react';
+import { Calendar, Eye, Download, Link as LinkIcon } from 'lucide-react';
 import * as customersApi from '../api/customers';
 import * as invoicesApi from '../api/invoices';
 import * as quotesApi from '../api/quotes';
@@ -22,6 +22,7 @@ interface HistoryRow {
   amount?: number;
   createdBy?: string;
   description?: string;
+  relatedInvoiceId?: string; // satış için ilişkili fatura
 }
 
 const parseHashCustomerId = (): string | null => {
@@ -35,7 +36,7 @@ const parseHashCustomerId = (): string | null => {
 };
 
 export default function CustomerHistoryPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { formatCurrency } = useCurrency();
   const { user } = useAuth();
   // Auth'taki kullanıcı adı fallback olarak kullanılabilir
@@ -49,6 +50,7 @@ export default function CustomerHistoryPage() {
   const [typeFilter, setTypeFilter] = React.useState<'all' | RowType>('all');
   const [sortBy, setSortBy] = React.useState<'name' | 'date' | 'status' | 'type' | 'createdBy'>('date');
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc');
+  const [statusFilter, setStatusFilter] = React.useState<'all' | string>('all');
 
   // View modal state
   const [viewInvoice, setViewInvoice] = React.useState<any | null>(null);
@@ -56,6 +58,58 @@ export default function CustomerHistoryPage() {
   const [viewSale, setViewSale] = React.useState<any | null>(null);
 
   const [loadingRowId, setLoadingRowId] = React.useState<string | null>(null);
+
+  // Çoklu anahtar denemesi + dil bazlı güvenli fallback
+  const tt = (keys: string[], fallbackId?: string): string => {
+    for (const k of keys) {
+      const out = String(t(k) || '');
+      if (out && out !== k) return out;
+    }
+    if (!fallbackId) return '';
+    const lang = (i18n?.language || 'en').toLowerCase();
+    const fb: Record<string, Record<string, string>> = {
+      'dateRanges.thisMonth': { tr: 'Bu ay', en: 'This month', fr: 'Ce mois-ci', de: 'Dieser Monat' },
+      'dateRanges.last30Days': { tr: 'Son 30 gün', en: 'Last 30 days', fr: '30 derniers jours', de: 'Letzte 30 Tage' },
+      'dateRanges.thisYear': { tr: 'Bu yıl', en: 'This year', fr: 'Cette année', de: 'Dieses Jahr' },
+      'exportCSV': { tr: 'CSV’e aktar', en: 'Export CSV', fr: 'Exporter en CSV', de: 'Als CSV exportieren' },
+      'filters.filterByStatus': { tr: 'Duruma göre filtrele', en: 'Filter by status', fr: 'Filtrer par statut', de: 'Nach Status filtern' },
+      'filters.status': { tr: 'Durum', en: 'Status', fr: 'Statut', de: 'Status' },
+      'total': { tr: 'Toplam', en: 'Total', fr: 'Total', de: 'Gesamt' },
+      'actions.view': { tr: 'Görüntüle', en: 'View', fr: 'Voir', de: 'Ansehen' },
+      'actions.copyLink': { tr: 'Bağlantıyı kopyala', en: 'Copy link', fr: 'Copier le lien', de: 'Link kopieren' },
+      'actions.downloadPDF': { tr: 'PDF indir', en: 'Download PDF', fr: 'Télécharger le PDF', de: 'PDF herunterladen' },
+      'actions.clear': { tr: 'Temizle', en: 'Clear', fr: 'Effacer', de: 'Löschen' },
+    };
+    const code = lang.startsWith('tr') ? 'tr' : lang.startsWith('fr') ? 'fr' : lang.startsWith('de') ? 'de' : 'en';
+    return fb[fallbackId]?.[code] || '';
+  };
+
+  // Yardımcı: ISO yyyy-mm-dd formatlayıcı
+  const toIsoDate = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  // Hızlı aralıklar
+  const applyQuickRange = (kind: 'thisMonth' | 'last30' | 'thisYear') => {
+    const today = new Date();
+    if (kind === 'thisMonth') {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      setFromDate(toIsoDate(start));
+      setToDate(toIsoDate(end));
+    } else if (kind === 'last30') {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 30);
+      setFromDate(toIsoDate(start));
+      setToDate(toIsoDate(today));
+    } else if (kind === 'thisYear') {
+      const start = new Date(today.getFullYear(), 0, 1);
+      const end = new Date(today.getFullYear(), 11, 31);
+      setFromDate(toIsoDate(start));
+      setToDate(toIsoDate(end));
+    }
+  };
 
   // Parse hash on mount
   React.useEffect(() => {
@@ -181,6 +235,7 @@ export default function CustomerHistoryPage() {
               amount: Number(s?.amount || s?.total || 0),
               createdBy: getCreatedBy(s) || currentUserName || '—',
               description: s?.productName || (Array.isArray(s?.items) && s.items[0]?.productName) || undefined,
+              relatedInvoiceId: s?.invoiceId ? String(s.invoiceId) : undefined,
             });
           }
         });
@@ -225,6 +280,7 @@ export default function CustomerHistoryPage() {
     if (fromDate) list = list.filter(r => r.date >= fromDate);
     if (toDate) list = list.filter(r => r.date <= toDate);
     if (typeFilter !== 'all') list = list.filter(r => r.type === typeFilter);
+    if (statusFilter !== 'all') list = list.filter(r => String(r.status || '').toLowerCase() === String(statusFilter).toLowerCase());
     const dir = sortDir === 'asc' ? 1 : -1;
     return list.sort((a, b) => {
       switch (sortBy) {
@@ -237,17 +293,22 @@ export default function CustomerHistoryPage() {
           return (new Date(a.date).getTime() - new Date(b.date).getTime()) * dir;
       }
     });
-  }, [rows, fromDate, toDate, sortBy, sortDir, typeFilter]);
+  }, [rows, fromDate, toDate, sortBy, sortDir, typeFilter, statusFilter]);
 
-  const SortHeader: React.FC<{ id: typeof sortBy; label: string }> = ({ id, label }) => (
-    <th
-      onClick={() => setSortBy(prev => { if (prev === id) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir(id === 'date' ? 'desc' : 'asc'); return id; })}
-      className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
-    >
-      {label}
-      <span className="inline-block ml-1 text-gray-400">{sortBy === id ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
-    </th>
-  );
+  const totalAmount = React.useMemo(() => {
+    const invoiceIds = new Set(
+      filtered.filter(r => r.type === 'invoice').map(r => String(r.id))
+    );
+    return filtered.reduce((acc, r) => {
+      if (r.type === 'sale' && r.relatedInvoiceId && invoiceIds.has(String(r.relatedInvoiceId))) {
+        // Satışın faturası varsa sadece faturayı say
+        return acc;
+      }
+      return acc + (typeof r.amount === 'number' ? r.amount : 0);
+    }, 0);
+  }, [filtered]);
+
+  // SortHeader kaldırıldı; başlık hücreleri satır içinde ele alınıyor.
 
   const getStatusBadge = (statusRaw?: string, type?: RowType) => {
     const status = String(statusRaw || '').toLowerCase();
@@ -368,31 +429,95 @@ export default function CustomerHistoryPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="max-w-6xl mx-auto p-6">
+      {/* Full-width container like other pages */}
+      <div className="w-full px-6 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">{t('customer.historyPageTitle') || 'Müşteri Geçmişi'}</h1>
           <p className="text-sm text-slate-500">{customer?.name ? (t('customer.historySubtitle', { name: customer.name }) as string) : (t('customer.historyPageTitle') as string)}</p>
         </div>
 
-        {/* Filtreler */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4 flex flex-col md:flex-row gap-3 items-start md:items-center">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-slate-500" />
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <span className="text-slate-500">→</span>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as any)}
-              className="border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">{t('common.allCategories') || 'Tümü'}</option>
-              <option value="invoice">{t('transactions.invoice') || 'Fatura'}</option>
-              <option value="sale">{t('transactions.sale') || 'Satış'}</option>
-              <option value="quote">{t('quotes.table.quote') || 'Teklif'}</option>
-            </select>
+        {/* Filtreler (Sticky) */}
+        <div className="sticky top-0 z-30">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4 flex flex-col gap-3 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-slate-500" />
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <span className="text-slate-500">→</span>
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="flex items-center gap-1 ml-2">
+                  <button onClick={() => applyQuickRange('thisMonth')} className="px-2 py-1 text-xs rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50">
+                    {tt(['common.dateRanges.thisMonth','dateRanges.thisMonth'], 'dateRanges.thisMonth')}
+                  </button>
+                  <button onClick={() => applyQuickRange('last30')} className="px-2 py-1 text-xs rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50">
+                    {tt(['common.dateRanges.last30Days','dateRanges.last30Days'], 'dateRanges.last30Days')}
+                  </button>
+                  <button onClick={() => applyQuickRange('thisYear')} className="px-2 py-1 text-xs rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50">
+                    {tt(['common.dateRanges.thisYear','dateRanges.thisYear'], 'dateRanges.thisYear')}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Tür chip butonları */}
+                {(['all','invoice','sale','quote'] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => setTypeFilter(k)}
+                    className={`px-3 py-1.5 text-sm rounded-full border ${typeFilter===k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
+                  >
+                    {k === 'all' ? ((t('common.allCategories') as string) || 'Tümü') : k === 'invoice' ? ((t('transactions.invoice') as string) || 'Fatura') : k === 'sale' ? ((t('transactions.sale') as string) || 'Satış') : ((t('quotes.table.quote') as string) || 'Teklif')}
+                  </button>
+                ))}
+                {/* CSV Export */}
+                <button
+                  onClick={() => {
+                    try {
+                      const header = ['name','date','status','createdBy','type','description','amount'];
+                      const rowsCsv = filtered.map(r => [
+                        r.name,
+                        new Date(r.date).toLocaleDateString(),
+                        r.status || '',
+                        r.createdBy || '',
+                        r.type,
+                        r.type === 'quote' ? '' : (r.description || ''),
+                        typeof r.amount === 'number' ? String(r.amount) : ''
+                      ]);
+                      const csv = [header, ...rowsCsv]
+                        .map(cols => cols.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+                        .join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      const fileName = `customer-history-${customer?.name ? customer.name.replace(/\s+/g,'-').toLowerCase() : 'export'}.csv`;
+                      a.href = url;
+                      a.download = fileName;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch (e) {
+                      console.error('CSV export failed', e);
+                    }
+                  }}
+                  className="ml-2 px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  {tt(['common.exportCSV','exportCSV'], 'exportCSV')}
+                </button>
+              </div>
+            </div>
+            {statusFilter !== 'all' && (
+              <div className="mt-2">
+                <span className="text-xs text-slate-500 mr-2">{tt(['filters.status','common.filters.status'], 'filters.status')}:</span>
+                <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                  {String(statusFilter)}
+                  <button
+                    onClick={() => setStatusFilter('all')}
+                    className="ml-1 text-blue-600 hover:text-blue-800"
+                    aria-label={tt(['actions.clear','common.actions.clear'], 'actions.clear')}
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -401,32 +526,89 @@ export default function CustomerHistoryPage() {
           <table className="w-full">
             <thead className="bg-slate-50">
               <tr>
-                <SortHeader id="name" label={t('customer.historyColumns.name') || 'İşlem Adı/No'} />
-                <SortHeader id="date" label={t('customer.historyColumns.date') || 'Tarih'} />
-                <SortHeader id="status" label={t('customer.historyColumns.status') || 'Durum'} />
-                <SortHeader id="createdBy" label={t('customer.historyColumns.createdBy') || 'Oluşturan'} />
-                <SortHeader id="type" label={t('customer.historyColumns.type') || 'Tür'} />
-                <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('customer.historyColumns.description') || (t('common.description') as string) || 'Açıklama'}</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{t('quotes.table.amount') || t('amount') || 'Tutar'}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'name') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return 'name'; })}>
+                  {t('customer.historyColumns.name') || 'İşlem Adı/No'}
+                  <span className="inline-block ml-1 text-gray-400">{sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'date') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('desc'); return 'date'; })}>
+                  {t('customer.historyColumns.date') || 'Tarih'}
+                  <span className="inline-block ml-1 text-gray-400">{sortBy === 'date' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'status') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return 'status'; })}>
+                  {t('customer.historyColumns.status') || 'Durum'}
+                  <span className="inline-block ml-1 text-gray-400">{sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'createdBy') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return 'createdBy'; })}>
+                  {t('customer.historyColumns.createdBy') || 'Oluşturan'}
+                  <span className="inline-block ml-1 text-gray-400">{sortBy === 'createdBy' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'type') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return 'type'; })}>
+                  {t('customer.historyColumns.type') || 'Tür'}
+                  <span className="inline-block ml-1 text-gray-400">{sortBy === 'type' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('customer.historyColumns.description') || (t('common.description') as string) || 'Açıklama'}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{t('quotes.table.amount') || t('amount') || 'Tutar'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filtered.map(row => (
                 <tr
                   key={`${row.type}:${row.id}`}
-                  className={`hover:bg-slate-50 cursor-pointer ${loadingRowId === `${row.type}-${row.id}` ? 'opacity-60' : ''}`}
+                  className={`group hover:bg-slate-50 cursor-pointer ${loadingRowId === `${row.type}-${row.id}` ? 'opacity-60' : ''}`}
                   onClick={() => openRow(row)}
                   title={t('common.view', { defaultValue: 'Görüntüle' }) as string}
                 >
-                  <td className="px-4 py-2 text-sm font-medium">
+                  <td className="px-4 py-3 text-sm font-medium">
                     <span className={`${typeColor(row.type)}`}>{row.name}</span>
+                    <span className="ml-2 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/* Görüntüle */}
+                      <button
+                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                        title={tt(['actions.view','common.actions.view'],'actions.view')}
+                        onClick={(e) => { e.stopPropagation(); openRow(row); }}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      {/* PDF sadece fatura için */}
+                      {row.type === 'invoice' && (
+                        <button
+                          className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded"
+                          title={tt(['actions.downloadPDF','common.actions.downloadPDF'],'actions.downloadPDF')}
+                          onClick={(e) => { e.stopPropagation(); openRow(row); /* indir işlemi modal içinde */ }}
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      )}
+                      {/* Link kopyala */}
+                      <button
+                        className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded"
+                        title={tt(['actions.copyLink','common.actions.copyLink'],'actions.copyLink')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          try {
+                            const url = `${window.location.origin}${window.location.pathname}?type=${row.type}&id=${encodeURIComponent(row.id)}`;
+                            navigator.clipboard?.writeText(url);
+                          } catch {}
+                        }}
+                      >
+                        <LinkIcon className="w-4 h-4" />
+                      </button>
+                    </span>
                   </td>
-                  <td className="px-4 py-2 text-sm text-slate-700">{new Date(row.date).toLocaleDateString()}</td>
-                  <td className="px-4 py-2 text-sm text-slate-700">{getStatusBadge(row.status, row.type)}</td>
-                  <td className="px-4 py-2 text-sm text-slate-700">{row.createdBy || '—'}</td>
-                  <td className="px-4 py-2 text-sm text-slate-700 capitalize">{row.type === 'invoice' ? (t('transactions.invoice') as string) : row.type === 'sale' ? (t('transactions.sale') as string) : (t('quotes.table.quote') as string)}</td>
-                  <td className="px-4 py-2 text-sm text-slate-700 truncate max-w-[320px]">{row.type === 'quote' ? '—' : (row.description || '—')}</td>
-                  <td className="px-4 py-2 text-sm text-right font-semibold text-slate-900">{typeof row.amount === 'number' ? formatCurrency(row.amount) : '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{new Date(row.date).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">
+                    <button
+                      className="hover:opacity-80"
+                      onClick={(e) => { e.stopPropagation(); const s = String(row.status || '').toLowerCase(); if (s) setStatusFilter(s as any); }}
+                      title={tt(['filters.filterByStatus','common.filters.filterByStatus'], 'filters.filterByStatus')}
+                    >
+                      {getStatusBadge(row.status, row.type)}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{row.createdBy || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700 capitalize">{row.type === 'invoice' ? (t('transactions.invoice') as string) : row.type === 'sale' ? (t('transactions.sale') as string) : (t('quotes.table.quote') as string)}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700 truncate max-w-[480px]" title={row.type === 'quote' ? undefined : (row.description || undefined)}>{row.type === 'quote' ? '—' : (row.description || '—')}</td>
+                  <td className="px-4 py-3 text-sm text-right font-semibold text-slate-900">{typeof row.amount === 'number' ? formatCurrency(row.amount) : '—'}</td>
                 </tr>
               ))}
               {filtered.length === 0 && (
@@ -435,6 +617,12 @@ export default function CustomerHistoryPage() {
                 </tr>
               )}
             </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={6} className="px-4 py-3 text-right text-xs font-medium uppercase text-slate-500">{tt(['common.total','total'], 'total')}</td>
+                <td className="px-4 py-3 text-sm text-right font-bold text-slate-900">{formatCurrency(totalAmount)}</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>

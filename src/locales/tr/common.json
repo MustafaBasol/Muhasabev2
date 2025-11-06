@@ -349,6 +349,33 @@
     "monthlyIncomeExpense": "Aylık Gelir/Gider",
     "last6MonthsPerformance": "Son 6 ay performansı (en yeni → en eski)",
     "allCategories": "Tüm kategoriler",
+    "dateRanges": {
+      "thisMonth": "Bu ay",
+      "last30Days": "Son 30 gün",
+      "thisYear": "Bu yıl"
+    },
+    "filters": {
+      "status": "Durum",
+      "filterByStatus": "Duruma göre filtrele"
+    },
+    "actions": {
+      "clear": "Temizle",
+      "view": "Görüntüle",
+      "copyLink": "Bağlantıyı kopyala",
+      "downloadPDF": "PDF indir"
+    },
+    "exportCSV": "CSV’e aktar",
+    "dateRanges.thisMonth": "Bu ay",
+    "dateRanges.last30Days": "Son 30 gün",
+    "dateRanges.thisYear": "Bu yıl",
+    "common.total": "Toplam",
+    "common.exportCSV": "CSV’e aktar",
+    "filters.status": "Durum",
+    "filters.filterByStatus": "Duruma göre filtrele",
+    "actions.clear": "Temizle",
+    "actions.view": "Görüntüle",
+    "actions.copyLink": "Bağlantıyı kopyala",
+    "actions.downloadPDF": "PDF indir",
     "allStock": "Tüm stoklar",
     "newest": "En yeni",
     "income": "Gelir",

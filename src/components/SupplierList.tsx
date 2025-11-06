@@ -51,7 +51,8 @@ export default function SupplierList({
   });
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200">
+    <div className="overflow-x-auto">
+      <div className="bg-white rounded-xl border border-gray-200 min-w-[720px]">
       {/* Header */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
@@ -138,13 +139,13 @@ export default function SupplierList({
               onClick={() => selectionMode && onSelectSupplier?.(supplier)}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 min-w-0">
                   <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                     <span className="text-orange-600 font-semibold text-lg">
                       {supplier.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     {selectionMode ? (
                       <h3 className="font-semibold text-gray-900">{supplier.name}</h3>
                     ) : (
@@ -161,31 +162,51 @@ export default function SupplierList({
                       </button>
                     )}
                     {supplier.company && (
-                      <p className="text-sm text-gray-600 flex items-center">
+                      <p className="text-sm text-gray-600 flex items-center truncate">
                         <Building2 className="w-3 h-3 mr-1" />
-                        {supplier.company}
+                        <span className="truncate">{supplier.company}</span>
                       </p>
                     )}
-                    <div className="flex items-center space-x-4 mt-1">
-                      <span className="text-sm text-gray-500 flex items-center">
+                    <div className="flex items-center space-x-4 mt-1 min-w-0">
+                      <span className="text-sm text-gray-500 flex items-center truncate">
                         <Mail className="w-3 h-3 mr-1" />
-                        {supplier.email}
+                        <span className="truncate">{supplier.email}</span>
                       </span>
                       {supplier.phone && (
-                        <span className="text-sm text-gray-500 flex items-center">
+                        <span className="text-sm text-gray-500 flex items-center truncate">
                           <Phone className="w-3 h-3 mr-1" />
-                          {supplier.phone}
+                          <span className="truncate">{supplier.phone}</span>
                         </span>
                       )}
                       <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
                         {supplier.category}
                       </span>
                     </div>
+
+                    {/* Mobile actions */}
+                    {!selectionMode && (
+                      <div className="flex items-center gap-2 mt-2 sm:hidden">
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEditSupplier(supplier); }}
+                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          aria-label="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteSupplier(supplier.id); }}
+                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          aria-label="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
                 {!selectionMode && (
-                  <div className="flex items-center space-x-2">
+                  <div className="hidden sm:flex items-center space-x-2 shrink-0">
                     <button
                       onClick={() => onEditSupplier(supplier)}
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -204,6 +225,7 @@ export default function SupplierList({
             </div>
           ))
         )}
+      </div>
       </div>
     </div>
   );

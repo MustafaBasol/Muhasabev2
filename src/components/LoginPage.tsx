@@ -164,13 +164,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-sm font-semibold text-gray-700 mb-2">{t('auth.demoAccount', 'Demo Hesap Bilgileri:')}</p>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>{t('auth.email', 'E-posta')}:</strong> admin@test.com</p>
-              <p><strong>{t('auth.password', 'Şifre')}:</strong> Test123456</p>
-            </div>
-          </div>
+          {/* Demo hesap bilgileri kaldırıldı */}
 
           <div className="mt-6 space-y-3">
             <div className="relative">

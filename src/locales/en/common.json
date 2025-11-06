@@ -269,6 +269,33 @@
     "monthlyIncomeExpense": "Monthly Income/Expense",
     "last6MonthsPerformance": "Last 6 months performance (newest → oldest)",
     "allCategories": "All categories",
+    "dateRanges": {
+      "thisMonth": "This month",
+      "last30Days": "Last 30 days",
+      "thisYear": "This year"
+    },
+    "filters": {
+      "status": "Status",
+      "filterByStatus": "Filter by status"
+    },
+    "actions": {
+      "clear": "Clear",
+      "view": "View",
+      "copyLink": "Copy link",
+      "downloadPDF": "Download PDF"
+    },
+  "exportCSV": "Export CSV",
+  "dateRanges.thisMonth": "This month",
+  "dateRanges.last30Days": "Last 30 days",
+  "dateRanges.thisYear": "This year",
+  "common.total": "Total",
+  "common.exportCSV": "Export CSV",
+  "filters.status": "Status",
+  "filters.filterByStatus": "Filter by status",
+  "actions.clear": "Clear",
+  "actions.view": "View",
+  "actions.copyLink": "Copy link",
+  "actions.downloadPDF": "Download PDF",
     "allStock": "All stocks",
     "newest": "Newest",
     "income": "Income",

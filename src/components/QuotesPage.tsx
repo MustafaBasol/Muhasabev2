@@ -442,7 +442,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[900px]">
                 <thead className="bg-gray-50">
                   <tr>
                     <th onClick={() => toggleSort('quoteNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
@@ -460,21 +460,22 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                     <th onClick={() => toggleSort('date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
                       {t('quotes.table.date')}<SortIndicator active={sortBy==='date'} />
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                       {t('quotes.table.actions')}
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filtered.map(item => (
-                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                    <React.Fragment key={item.id}>
+                    <tr className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
                             <FileText className="w-4 h-4 text-indigo-600" />
                           </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate">
                               <button
                                 onClick={() => openView(item)}
                                 className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors cursor-pointer"
@@ -494,8 +495,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{item.customerName}</div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">{item.customerName}</div>
                           <div className="text-xs text-gray-500">{item.currency}</div>
                         </div>
                       </td>
@@ -560,7 +561,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium hidden sm:table-cell">
                         <div className="flex items-center justify-end space-x-2">
                           <button 
                             onClick={() => openView(item)}
@@ -620,6 +621,68 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                         </div>
                       </td>
                     </tr>
+                    {/* Mobile actions row */}
+                    <tr className="sm:hidden">
+                      <td className="px-6 pb-4" colSpan={6}>
+                        <div className="flex items-center justify-start gap-3">
+                          <button 
+                            onClick={() => openView(item)}
+                            className="px-2 py-1 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 text-xs"
+                            title={t('quotes.view')}
+                          >
+                            <span className="inline-flex items-center gap-1"><Eye className="w-3 h-3" /> {t('quotes.view')}</span>
+                          </button>
+                          <button
+                            onClick={async () => {
+                              const { generateQuotePDF } = await import('../utils/pdfGenerator');
+                              await generateQuotePDF({
+                                id: item.id,
+                                quoteNumber: item.quoteNumber,
+                                customerName: item.customerName,
+                                customerId: (item as any).customerId,
+                                issueDate: item.issueDate,
+                                validUntil: item.validUntil,
+                                status: item.status as any,
+                                currency: item.currency as any,
+                                total: item.total,
+                                items: (item.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
+                                scopeOfWorkHtml: (item as any).scopeOfWorkHtml || ''
+                              }, { filename: item.quoteNumber });
+                            }}
+                            className="px-2 py-1 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 text-xs"
+                            title={t('quotes.actions.downloadPdf')}
+                          >
+                            <span className="inline-flex items-center gap-1"><FileDown className="w-3 h-3" /> PDF</span>
+                          </button>
+                          <button
+                            onClick={() => setDuplicateTarget(item)}
+                            className="px-2 py-1 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 text-xs"
+                            title={t('quotes.actions.duplicate')}
+                          >
+                            <span className="inline-flex items-center gap-1"><Copy className="w-3 h-3" /> {t('quotes.actions.duplicate')}</span>
+                          </button>
+                          {item.status !== 'accepted' && (
+                            <button 
+                              onClick={() => openEdit(item)}
+                              className="px-2 py-1 text-indigo-700 bg-indigo-50 rounded hover:bg-indigo-100 text-xs"
+                              title={t('quotes.edit')}
+                            >
+                              <span className="inline-flex items-center gap-1"><Edit className="w-3 h-3" /> {t('quotes.edit')}</span>
+                            </button>
+                          )}
+                          {item.status !== 'accepted' && (
+                            <button 
+                              onClick={() => handleDelete(item.id)}
+                              className="px-2 py-1 text-red-700 bg-red-50 rounded hover:bg-red-100 text-xs"
+                              title={t('quotes.delete')}
+                            >
+                              <span className="inline-flex items-center gap-1"><Trash2 className="w-3 h-3" /> {t('quotes.delete')}</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

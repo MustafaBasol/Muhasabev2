@@ -262,6 +262,33 @@
     "monthlyIncomeExpense": "Monatliches Einkommen/Ausgaben",
     "last6MonthsPerformance": "Leistung der letzten 6 Monate (neueste → älteste)",
     "allCategories": "Alle Kategorien",
+    "dateRanges": {
+      "thisMonth": "Dieser Monat",
+      "last30Days": "Letzte 30 Tage",
+      "thisYear": "Dieses Jahr"
+    },
+    "filters": {
+      "status": "Status",
+      "filterByStatus": "Nach Status filtern"
+    },
+    "actions": {
+      "clear": "Löschen",
+      "view": "Ansehen",
+      "copyLink": "Link kopieren",
+      "downloadPDF": "PDF herunterladen"
+    },
+  "exportCSV": "Als CSV exportieren",
+  "dateRanges.thisMonth": "Dieser Monat",
+  "dateRanges.last30Days": "Letzte 30 Tage",
+  "dateRanges.thisYear": "Dieses Jahr",
+  "common.total": "Gesamt",
+  "common.exportCSV": "Als CSV exportieren",
+  "filters.status": "Status",
+  "filters.filterByStatus": "Nach Status filtern",
+  "actions.clear": "Löschen",
+  "actions.view": "Ansehen",
+  "actions.copyLink": "Link kopieren",
+  "actions.downloadPDF": "PDF herunterladen",
     "allStock": "Alle Lagerbestände",
     "newest": "Neueste",
     "income": "Einkommen",

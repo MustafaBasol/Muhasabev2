@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { X, Plus, Trash2, Calculator, Search, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { Product } from './ProductList';
+import type { Product } from '../types';
 
 interface Customer {
   id: string;
@@ -91,8 +91,9 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       return;
     }
 
-    // İade faturası bayrağını kontrol et
-    const isReturnInvoice = (invoice as any)._isReturnInvoice === true;
+  // İade faturası bayrağını kontrol et
+  const isReturnInvoice = (invoice as any)._isReturnInvoice === true || String(invoice?.type || '') === 'return';
+  const linkedOriginalId = (invoice as any).originalInvoiceId || (invoice as any).refundedInvoiceId || '';
 
     // Düzenleme modunda backend'den gelen numarayı kullan
     const now = new Date();
@@ -111,7 +112,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       notes: invoice.notes || '',
       status: invoice.status || 'draft',
       type: isReturnInvoice ? 'return' : (invoice.type || 'product'),
-      originalInvoiceId: invoice.originalInvoiceId || '',
+      originalInvoiceId: linkedOriginalId || '',
     });
 
     const normalisedItems: InvoiceItem[] = (invoice.items || defaultItems).map((item: InvoiceItem, index: number) => {
@@ -142,6 +143,46 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     setShowCustomerDropdown(false);
     setActiveProductDropdown(null);
     setValidationError(null);
+
+    // Auto-select and auto-load when editing a return invoice linked to an original
+    if (isReturnInvoice && linkedOriginalId) {
+      const original = invoices.find(inv => String(inv.id) === String(linkedOriginalId));
+      if (original) {
+        // Fill customer info from original if not already set
+        setInvoiceData(prev => ({
+          ...prev,
+          originalInvoiceId: String(linkedOriginalId),
+          customerId: prev.customerId || original.customerId || '',
+          customerName: prev.customerName || original.customer?.name || original.customerName || '',
+          customerEmail: prev.customerEmail || original.customer?.email || original.customerEmail || '',
+          customerAddress: prev.customerAddress || original.customer?.address || original.customerAddress || '',
+        }));
+
+        // Reflect selection in UI inputs
+        if (original.customer) {
+          setSelectedCustomer(original.customer);
+          setCustomerSearch(original.customer.name || '');
+        } else if (original.customerName) {
+          setCustomerSearch(original.customerName);
+        }
+
+        // If current items look empty or default-like, prefill negative items from original
+        const hasMeaningfulItems = Array.isArray(invoice.items) && invoice.items.length > 0;
+        if (!hasMeaningfulItems) {
+          const mapped = (original.items || []).map((it: any, idx: number) => ({
+            id: `ret-${Date.now()}-${idx}`,
+            description: it.description || it.productName || '',
+            quantity: -(Number(it.quantity) || 1),
+            unitPrice: Number(it.unitPrice) || 0,
+            total: -(Number(it.quantity) || 1) * (Number(it.unitPrice) || 0),
+            productId: it.productId,
+            unit: it.unit || undefined,
+            taxRate: Number(it.taxRate ?? 18),
+          }));
+          setItems(mapped.length ? mapped : defaultItems);
+        }
+      }
+    }
   }, [invoice]);
 
   const addItem = () => {
@@ -403,7 +444,52 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
               </label>
               <select
                 value={invoiceData.type}
-                onChange={e => setInvoiceData(prev => ({ ...prev, type: e.target.value }))}
+                onChange={e => {
+                  const nextType = e.target.value;
+                  setInvoiceData(prev => ({ ...prev, type: nextType }));
+                  if (nextType === 'return') {
+                    // Eğer mevcut bir fatura düzenleniyorsa, onu otomatik orijinal olarak seç
+                    const candidateId = invoice?.id ? String(invoice.id) : '';
+                    if (candidateId) {
+                      const original = invoices.find(inv => String(inv.id) === candidateId);
+                      if (original) {
+                        // Müşteri ve orijinal fatura alanlarını doldur
+                        setInvoiceData(prev => ({
+                          ...prev,
+                          originalInvoiceId: candidateId,
+                          customerId: prev.customerId || original.customerId || '',
+                          customerName: prev.customerName || original.customer?.name || original.customerName || '',
+                          customerEmail: prev.customerEmail || original.customer?.email || original.customerEmail || '',
+                          customerAddress: prev.customerAddress || original.customer?.address || original.customerAddress || '',
+                        }));
+                        if (original.customer) {
+                          setSelectedCustomer(original.customer);
+                          setCustomerSearch(original.customer.name || '');
+                        } else if (original.customerName) {
+                          setCustomerSearch(original.customerName);
+                        }
+                        // Eğer satırlar boşsa otomatik negatif kalemleri yükle
+                        const isEmptyItems = items.length === 0 || (items.length === 1 && !items[0].description && (Number(items[0].total) || 0) === 0);
+                        if (isEmptyItems) {
+                          const mapped = (original.items || []).map((it: any, idx: number) => ({
+                            id: `ret-${Date.now()}-${idx}`,
+                            description: it.description || it.productName || '',
+                            quantity: -(Number(it.quantity) || 1),
+                            unitPrice: Number(it.unitPrice) || 0,
+                            total: -(Number(it.quantity) || 1) * (Number(it.unitPrice) || 0),
+                            productId: it.productId,
+                            unit: it.unit || undefined,
+                            taxRate: Number(it.taxRate ?? 18),
+                          }));
+                          setItems(mapped.length ? mapped : defaultItems);
+                        }
+                      }
+                    }
+                  } else {
+                    // Normal fatura tipine dönüldüyse orijinal fatura alanını temizle (opsiyonel)
+                    setInvoiceData(prev => ({ ...prev, originalInvoiceId: '' }));
+                  }
+                }}
                 className="w-full px-3 py-2 border-2 border-indigo-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
               >
                 <option value="product">✓ {t('invoices.productInvoice')}</option>
