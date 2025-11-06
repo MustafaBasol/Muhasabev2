@@ -24,6 +24,8 @@ export interface UpdateTenantDto {
   taxId?: string;
   businessLicenseNumber?: string;
   stateOfIncorporation?: string;
+  // Free-form settings blob to store brand/logo, default bank, country etc.
+  settings?: Record<string, any>;
 }
 
 export const tenantsApi = {

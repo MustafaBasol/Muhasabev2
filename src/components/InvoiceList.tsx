@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Eye, Edit, Download, Trash2, FileText, Calendar, Check, X, Ban, RotateCcw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderInvoices, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
 import { useAuth } from '../contexts/AuthContext';
+import Pagination from './Pagination';
 
 // Archive threshold: invoices older than this many days will only appear in archive
 const ARCHIVE_THRESHOLD_DAYS = 365; // 1 year
@@ -69,6 +70,12 @@ export default function InvoiceList({
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('invoices_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
 
   // Plan kullanımı: Free/Starter için bu ayki fatura sayısı (isVoided hariç)
   const planNormalized = String(tenant?.subscriptionPlan || '').toLowerCase();
@@ -172,6 +179,23 @@ export default function InvoiceList({
       }
     });
   }, [invoices, debouncedSearch, statusFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
+
+  const paginatedInvoices = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredInvoices.slice(start, start + pageSize);
+  }, [filteredInvoices, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('invoices_pageSize', String(size));
+    }
+    setPage(1);
+  };
 
   const toggleSort = (column: typeof sort.by) => {
     // Tek bir etkileşimde hem sütunu hem yönü tutarlı güncelle (atomik state)
@@ -417,7 +441,7 @@ export default function InvoiceList({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredInvoices.map((invoice) => (
+                {paginatedInvoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
@@ -619,6 +643,16 @@ export default function InvoiceList({
             </table>
           </div>
         )}
+      </div>
+
+      <div className="p-4 border-t border-gray-200 bg-white">
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filteredInvoices.length}
+          onPageChange={setPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
       </div>
 
       {/* Void Modal */}

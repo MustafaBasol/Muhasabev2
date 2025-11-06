@@ -1540,6 +1540,12 @@
       "marketing": "Marketing"
     }
   },
+  "pagination": {
+    "itemsPerPage": "Items per page",
+    "previous": "Previous",
+    "next": "Next",
+    "range": "{{start}}-{{end}} / {{total}}"
+  },
   "fiscalPeriods": {
     "title": "Fiscal Periods",
     "subtitle": "Manage your fiscal period settings",

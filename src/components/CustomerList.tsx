@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   Download,
@@ -11,6 +11,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import Pagination from './Pagination';
 
 export interface Customer {
   id?: string | number;
@@ -49,6 +50,12 @@ export default function CustomerList({
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('customers_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
 
   const safeCustomers = useMemo(
     () => (Array.isArray(customers) ? customers.filter(Boolean) : []),
@@ -72,6 +79,23 @@ export default function CustomerList({
       );
     });
   }, [safeCustomers, searchTerm]);
+
+  const paginatedCustomers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredCustomers.slice(start, start + pageSize);
+  }, [filteredCustomers, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('customers_pageSize', String(size));
+    }
+    setPage(1);
+  };
 
   const handleFilePick = () => {
     fileInputRef.current?.click();
@@ -315,7 +339,16 @@ export default function CustomerList({
       <div className="divide-y divide-gray-200">
         {filteredCustomers.length === 0
           ? renderEmptyState()
-          : filteredCustomers.map(renderCustomerRow)}
+          : paginatedCustomers.map(renderCustomerRow)}
+      </div>
+      <div className="p-4 border-t border-gray-200">
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filteredCustomers.length}
+          onPageChange={setPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
       </div>
     </div>
   );

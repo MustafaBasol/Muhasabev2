@@ -1,4 +1,10 @@
 {
+  "pagination": {
+    "itemsPerPage": "Elemente pro Seite",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "range": "{{start}}-{{end}} / {{total}}"
+  },
   "app": {
     "name": "comptario",
     "subtitle": "Buchhaltungssystem"

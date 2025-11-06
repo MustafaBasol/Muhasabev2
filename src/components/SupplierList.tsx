@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Edit, Trash2, Mail, Phone, Building2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import Pagination from './Pagination';
 
 interface Supplier {
   id: string;
@@ -36,19 +37,41 @@ export default function SupplierList({
   const { t, i18n } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('suppliers_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
 
   const categories = ['Ofis Malzemeleri', 'Teknoloji', 'Hizmet', 'Üretim', 'Lojistik', 'Diğer'];
 
-  const filteredSuppliers = suppliers.filter(supplier => {
+  const filteredSuppliers = useMemo(() => suppliers.filter(supplier => {
     const matchesSearch = 
       supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       supplier.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (supplier.company || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
     const matchesCategory = categoryFilter === 'all' || supplier.category === categoryFilter;
-    
     return matchesSearch && matchesCategory;
-  });
+  }), [suppliers, searchTerm, categoryFilter]);
+
+  const paginatedSuppliers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredSuppliers.slice(start, start + pageSize);
+  }, [filteredSuppliers, page, pageSize]);
+
+  useEffect(() => {
+    // Filtre değiştiğinde ilk sayfaya dön
+    setPage(1);
+  }, [searchTerm, categoryFilter]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('suppliers_pageSize', String(size));
+    }
+    setPage(1);
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -130,7 +153,7 @@ export default function SupplierList({
             )}
           </div>
         ) : (
-          filteredSuppliers.map((supplier) => (
+          paginatedSuppliers.map((supplier) => (
             <div 
               key={supplier.id} 
               className={`p-4 hover:bg-gray-50 transition-colors ${
@@ -225,6 +248,16 @@ export default function SupplierList({
             </div>
           ))
         )}
+      </div>
+      {/* Pagination */}
+      <div className="p-4 border-t border-gray-200 bg-white">
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filteredSuppliers.length}
+          onPageChange={setPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
       </div>
       </div>
     </div>

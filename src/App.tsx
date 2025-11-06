@@ -246,6 +246,149 @@ const AppContent: React.FC = () => {
     window.addEventListener('company-profile-updated', handler as EventListener);
     return () => { cancelled = true; window.removeEventListener('company-profile-updated', handler as EventListener); };
   }, []);
+
+  // Backend'den tenant şirket profilini yükle ve local cache'i override et
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token || !isAuthenticated) return;
+        const { tenantsApi } = await import('./api/tenants');
+        const me = await tenantsApi.getMyTenant();
+        if (!me) return;
+        const brand = ((me.settings || {}) as any)?.brand || {};
+
+        // One-time migration: If backend has empty brand/legal but we have richer local cache, push it to backend
+        try {
+          const tid = (localStorage.getItem('tenantId') || tenant?.id || '') as string;
+          const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+          const cached: CompanyProfile | null = await secureStorage.getJSON<CompanyProfile>(secureKey).catch(() => null);
+          const cachedFallback = (() => {
+            try {
+              const localKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+              const raw = localStorage.getItem(localKey) || localStorage.getItem(`${localKey}_plain`) || localStorage.getItem('company');
+              return raw ? (JSON.parse(raw) as CompanyProfile) : null;
+            } catch { return null; }
+          })();
+          const localRich = cached || cachedFallback;
+
+          const backendHasBrand = Boolean(brand?.logoDataUrl || brand?.bankAccountId || brand?.country);
+          const backendHasLegal = Boolean(
+            me?.taxNumber || me?.taxOffice || me?.address || me?.phone || me?.email || me?.website ||
+            (me as any)?.siretNumber || (me as any)?.sirenNumber || (me as any)?.tvaNumber || (me as any)?.apeCode || (me as any)?.rcsNumber ||
+            (me as any)?.steuernummer || (me as any)?.umsatzsteuerID || (me as any)?.handelsregisternummer || (me as any)?.geschaeftsfuehrer ||
+            (me as any)?.einNumber || (me as any)?.taxId || (me as any)?.businessLicenseNumber || (me as any)?.stateOfIncorporation
+          );
+
+          const localHasUseful = Boolean(localRich && (
+            localRich.logoDataUrl || localRich.taxNumber || localRich.taxOffice || localRich.address || localRich.phone || localRich.email || localRich.website ||
+            (localRich as any).siretNumber || (localRich as any).sirenNumber || (localRich as any).tvaNumber || (localRich as any).apeCode || (localRich as any).rcsNumber ||
+            (localRich as any).steuernummer || (localRich as any).umsatzsteuerID || (localRich as any).handelsregisternummer || (localRich as any).geschaeftsfuehrer ||
+            (localRich as any).einNumber || (localRich as any).taxId || (localRich as any).businessLicenseNumber || (localRich as any).stateOfIncorporation
+          ));
+
+          if (localHasUseful && !backendHasBrand && !backendHasLegal) {
+            // Push local → backend
+            try {
+              await tenantsApi.updateMyTenant({
+                companyName: me?.companyName || localRich!.name || undefined,
+                address: localRich!.address || undefined,
+                taxNumber: localRich!.taxNumber || undefined,
+                taxOffice: localRich!.taxOffice || undefined,
+                phone: localRich!.phone || undefined,
+                email: localRich!.email || undefined,
+                website: localRich!.website || undefined,
+                siretNumber: (localRich as any).siretNumber || undefined,
+                sirenNumber: (localRich as any).sirenNumber || undefined,
+                apeCode: (localRich as any).apeCode || undefined,
+                tvaNumber: (localRich as any).tvaNumber || undefined,
+                rcsNumber: (localRich as any).rcsNumber || undefined,
+                steuernummer: (localRich as any).steuernummer || undefined,
+                umsatzsteuerID: (localRich as any).umsatzsteuerID || undefined,
+                handelsregisternummer: (localRich as any).handelsregisternummer || undefined,
+                geschaeftsfuehrer: (localRich as any).geschaeftsfuehrer || undefined,
+                einNumber: (localRich as any).einNumber || undefined,
+                taxId: (localRich as any).taxId || undefined,
+                businessLicenseNumber: (localRich as any).businessLicenseNumber || undefined,
+                stateOfIncorporation: (localRich as any).stateOfIncorporation || undefined,
+                settings: {
+                  brand: {
+                    logoDataUrl: localRich!.logoDataUrl || '',
+                    bankAccountId: localRich!.bankAccountId || undefined,
+                    country: (localRich as any).country || '',
+                  }
+                } as any,
+              } as any);
+              // Reload tenant after migration
+              const me2 = await tenantsApi.getMyTenant();
+              if (me2) {
+                (me as any).settings = me2.settings;
+                (me as any).address = me2.address; (me as any).taxNumber = me2.taxNumber; (me as any).taxOffice = me2.taxOffice;
+                (me as any).phone = me2.phone; (me as any).email = me2.email; (me as any).website = me2.website;
+                Object.assign(me, {
+                  siretNumber: (me2 as any).siretNumber,
+                  sirenNumber: (me2 as any).sirenNumber,
+                  apeCode: (me2 as any).apeCode,
+                  tvaNumber: (me2 as any).tvaNumber,
+                  rcsNumber: (me2 as any).rcsNumber,
+                  steuernummer: (me2 as any).steuernummer,
+                  umsatzsteuerID: (me2 as any).umsatzsteuerID,
+                  handelsregisternummer: (me2 as any).handelsregisternummer,
+                  geschaeftsfuehrer: (me2 as any).geschaeftsfuehrer,
+                  einNumber: (me2 as any).einNumber,
+                  taxId: (me2 as any).taxId,
+                  businessLicenseNumber: (me2 as any).businessLicenseNumber,
+                  stateOfIncorporation: (me2 as any).stateOfIncorporation,
+                });
+              }
+            } catch { /* migration best-effort */ }
+          }
+        } catch { /* ignore migration errors */ }
+
+        const updated: CompanyProfile = {
+          name: me.companyName || me.name || '',
+          address: me.address || '',
+          taxNumber: me.taxNumber || '',
+          taxOffice: me.taxOffice || '',
+          phone: me.phone || '',
+          email: me.email || '',
+          website: me.website || '',
+          logoDataUrl: brand.logoDataUrl || '',
+          bankAccountId: brand.bankAccountId || brand.defaultBankAccountId || undefined,
+          country: brand.country || undefined,
+          // Legal fields
+          mersisNumber: (me as any).mersisNumber || '',
+          kepAddress: (me as any).kepAddress || '',
+          siretNumber: (me as any).siretNumber || '',
+          sirenNumber: (me as any).sirenNumber || '',
+          apeCode: (me as any).apeCode || '',
+          tvaNumber: (me as any).tvaNumber || '',
+          rcsNumber: (me as any).rcsNumber || '',
+          steuernummer: (me as any).steuernummer || '',
+          umsatzsteuerID: (me as any).umsatzsteuerID || '',
+          handelsregisternummer: (me as any).handelsregisternummer || '',
+          geschaeftsfuehrer: (me as any).geschaeftsfuehrer || '',
+          einNumber: (me as any).einNumber || '',
+          taxId: (me as any).taxId || '',
+          businessLicenseNumber: (me as any).businessLicenseNumber || '',
+          stateOfIncorporation: (me as any).stateOfIncorporation || '',
+        } as any;
+        if (!cancelled) {
+          setCompany(updated);
+          try {
+            const tid = (localStorage.getItem('tenantId') || '') as string;
+            const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+            await secureStorage.setJSON(secureKey, updated);
+            window.dispatchEvent(new Event('company-profile-updated'));
+          } catch {}
+        }
+      } catch (e) {
+        // Sessizce geç
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
   const [notifications, setNotifications] = useState<HeaderNotification[]>(() => {
     // localStorage'dan (tenant'a özel) yükle, yoksa initialNotifications kullan
     const tid = localStorage.getItem('tenantId') || '';
@@ -3012,10 +3155,20 @@ const AppContent: React.FC = () => {
     setShowSupplierModal(true);
   };
 
-  const openInvoiceModal = (invoice?: any) => {
-    // Eğer mevcut fatura düzenleniyor ise direkt eski modalı aç
+  const openInvoiceModal = async (invoice?: any) => {
+    // Eğer mevcut fatura düzenleniyor ise önce detayları (lineItems) gerekiyorsa çek
     if (invoice) {
-      setSelectedInvoice(invoice);
+      let full = invoice;
+      const hasItems = Array.isArray(invoice.items) && invoice.items.length > 0;
+      const hasLineItems = Array.isArray((invoice as any).lineItems) && (invoice as any).lineItems.length > 0;
+      try {
+        if (!hasItems && !hasLineItems && invoice.id) {
+          full = await invoicesApi.getInvoice(String(invoice.id));
+        }
+      } catch (e) {
+        console.warn('Fatura detayı alınamadı, mevcut veri kullanılacak:', e);
+      }
+      setSelectedInvoice(normalizeInvoiceForUi(full));
       setShowInvoiceModal(true);
     } else {
       // Yeni fatura için tip seçim modalını aç
@@ -3329,15 +3482,50 @@ const AppContent: React.FC = () => {
     setShowSupplierHistoryModal(false);
   };
 
+  
+
+  // Invoice nesnesini UI için normalize et: lineItems -> items, müşteri alanlarını zenginleştir
+  const normalizeInvoiceForUi = React.useCallback((inv: any) => {
+    if (!inv || typeof inv !== 'object') return inv;
+    const customerName = inv?.customer?.name || inv?.customerName || '';
+    const customerEmail = inv?.customer?.email || inv?.customerEmail || '';
+    const customerAddress = inv?.customer?.address || inv?.customerAddress || '';
+    let items: any[] = Array.isArray(inv.items) ? inv.items : [];
+    if ((!items || items.length === 0) && Array.isArray(inv.lineItems)) {
+      items = inv.lineItems.map((li: any, idx: number) => ({
+        id: li?.id || `${Date.now()}-${idx}-${Math.random().toString(36).slice(2,8)}`,
+        description: li?.description || li?.productName || '',
+        quantity: Number(li?.quantity) || 1,
+        unitPrice: Number(li?.unitPrice) || 0,
+        total: Number(li?.total) || ((Number(li?.quantity) || 1) * (Number(li?.unitPrice) || 0)),
+        productId: li?.productId,
+        unit: li?.unit,
+        taxRate: Number(li?.taxRate ?? 18),
+      }));
+    }
+    const customer = inv.customer || (inv.customerId ? {
+      id: String(inv.customerId),
+      name: customerName || undefined,
+      email: customerEmail || undefined,
+      address: customerAddress || undefined,
+    } : undefined);
+    return { ...inv, items, customerName, customerEmail, customerAddress, customer };
+  }, []);
+
   const handleDownloadInvoice = async (invoice: any) => {
     try {
-      // PDF generator için invoice verisini uygun formata çevir
-      const mappedInvoice = {
-        ...invoice,
-        customerName: invoice.customer?.name || 'N/A',
-        customerEmail: invoice.customer?.email || '',
-        customerAddress: invoice.customer?.address || '',
-      };
+      // PDF için eksikse tam detay çek (lineItems)
+      let full = invoice;
+      const hasItems = Array.isArray(invoice?.items) && invoice.items.length > 0;
+      const hasLineItems = Array.isArray(invoice?.lineItems) && invoice.lineItems.length > 0;
+      if (!hasItems && !hasLineItems && invoice?.id) {
+        try {
+          full = await invoicesApi.getInvoice(String(invoice.id));
+        } catch (e) {
+          console.warn('PDF için fatura detayı alınamadı, mevcut veri kullanılacak:', e);
+        }
+      }
+      const mappedInvoice = normalizeInvoiceForUi(full);
       
       const module = await import("./utils/pdfGenerator");
   await module.generateInvoicePDF(mappedInvoice, { company, lang: i18n.language });
@@ -3345,6 +3533,53 @@ const AppContent: React.FC = () => {
       console.error(error);
     }
   };
+
+  // Güvenli görüntüleme: Fatura detayı eksikse (items/lineItems), önce tam veriyi çekip normalize ederek view modal'ı aç
+  const openInvoiceView = React.useCallback(async (invoice: any) => {
+    try {
+      let full = invoice;
+      const hasItems = Array.isArray(invoice?.items) && invoice.items.length > 0;
+      const hasLineItems = Array.isArray((invoice as any)?.lineItems) && (invoice as any).lineItems.length > 0;
+      if (!hasItems && !hasLineItems && invoice?.id) {
+        try {
+          full = await invoicesApi.getInvoice(String(invoice.id));
+        } catch (e) {
+          console.warn('Fatura görüntüleme: detay alınamadı, mevcut veri kullanılacak:', e);
+        }
+      }
+      setSelectedInvoice(normalizeInvoiceForUi(full));
+      setShowInvoiceViewModal(true);
+    } catch (e) {
+      console.error('openInvoiceView failed:', e);
+      // yine de mevcut veriyi göster
+      setSelectedInvoice(normalizeInvoiceForUi(invoice));
+      setShowInvoiceViewModal(true);
+    }
+  }, [normalizeInvoiceForUi]);
+
+  // Global köprü: CustomerHistoryPage gibi alt sayfalardan düzenleme/PDF indir tetiklemek için event dinleyicileri
+  React.useEffect(() => {
+    const onOpenInvoiceEdit = (e: Event) => {
+      const ce = e as CustomEvent;
+      const inv = (ce.detail && (ce.detail.invoice || ce.detail)) as any;
+      if (inv) {
+        openInvoiceModal(inv);
+      }
+    };
+    const onDownloadInvoiceEvt = (e: Event) => {
+      const ce = e as CustomEvent;
+      const inv = (ce.detail && (ce.detail.invoice || ce.detail)) as any;
+      if (inv) {
+        handleDownloadInvoice(inv);
+      }
+    };
+    window.addEventListener('open-invoice-edit', onOpenInvoiceEdit as any);
+    window.addEventListener('download-invoice', onDownloadInvoiceEvt as any);
+    return () => {
+      window.removeEventListener('open-invoice-edit', onOpenInvoiceEdit as any);
+      window.removeEventListener('download-invoice', onDownloadInvoiceEvt as any);
+    };
+  }, [openInvoiceModal, handleDownloadInvoice]);
 
   const handleDownloadExpense = async (expense: any) => {
     try {
@@ -3583,10 +3818,7 @@ const AppContent: React.FC = () => {
             invoices={invoices}
             expenses={expenses}
             sales={sales}
-            onViewInvoice={invoice => {
-              setSelectedInvoice(invoice);
-              setShowInvoiceViewModal(true);
-            }}
+            onViewInvoice={(invoice) => { openInvoiceView(invoice); }}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
             onDownloadInvoice={handleDownloadInvoice}
             onViewExpense={expense => {
@@ -3699,10 +3931,7 @@ const AppContent: React.FC = () => {
             onAddInvoice={() => openInvoiceModal()}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
             onDeleteInvoice={deleteInvoice}
-            onViewInvoice={invoice => {
-              setSelectedInvoice(invoice);
-              setShowInvoiceViewModal(true);
-            }}
+            onViewInvoice={(invoice) => { openInvoiceView(invoice); }}
             onUpdateInvoice={handleInlineUpdateInvoice}
             onDownloadInvoice={handleDownloadInvoice}
             onVoidInvoice={voidInvoice}
@@ -3767,10 +3996,7 @@ const AppContent: React.FC = () => {
             invoices={invoices}
             expenses={expenses}
             sales={sales}
-            onViewInvoice={invoice => {
-              setSelectedInvoice(invoice);
-              setShowInvoiceViewModal(true);
-            }}
+            onViewInvoice={(invoice) => { openInvoiceView(invoice); }}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
             onViewExpense={expense => {
               setSelectedExpense(expense);
@@ -3806,10 +4032,7 @@ const AppContent: React.FC = () => {
             sales={sales}
             customers={customers}
             suppliers={suppliers}
-            onViewInvoice={invoice => {
-              setSelectedInvoice(invoice);
-              setShowInvoiceViewModal(true);
-            }}
+            onViewInvoice={(invoice) => { openInvoiceView(invoice); }}
             onViewExpense={expense => {
               setSelectedExpense(expense);
               setShowExpenseViewModal(true);
@@ -4278,10 +4501,20 @@ const AppContent: React.FC = () => {
           return invName && selName && invName === selName;
         })}
         sales={sales.filter(sale => sale.customerName === selectedCustomer?.name)}
-        onViewInvoice={invoice => {
+        onViewInvoice={async invoice => {
           closeCustomerHistoryModal();
-          setTimeout(() => {
-            setSelectedInvoice(invoice);
+          setTimeout(async () => {
+            let full = invoice;
+            const hasItems = Array.isArray(invoice?.items) && invoice.items.length > 0;
+            const hasLineItems = Array.isArray((invoice as any)?.lineItems) && (invoice as any).lineItems.length > 0;
+            if (!hasItems && !hasLineItems && invoice?.id) {
+              try {
+                full = await invoicesApi.getInvoice(String(invoice.id));
+              } catch (e) {
+                console.warn('Geçmişten fatura görüntüleme: detay alınamadı, mevcut veri kullanılacak:', e);
+              }
+            }
+            setSelectedInvoice(normalizeInvoiceForUi(full));
             setShowInvoiceViewModal(true);
           }, 50);
         }}

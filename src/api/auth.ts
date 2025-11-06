@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { logger } from '../utils/logger';
 
 export interface RegisterData {
   email: string;
@@ -45,7 +46,8 @@ export const authService = {
 
   async login(data: LoginData): Promise<AuthResponse> {
     try {
-      console.log('🔑 Login with fetch API:', data.email);
+      // Avoid logging raw credentials; keep minimal debug only
+      logger.debug('🔑 auth.login called');
       
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -55,7 +57,7 @@ export const authService = {
         body: JSON.stringify(data),
       });
       
-      console.log('🔍 Fetch response status:', response.status);
+      logger.debug('🔍 Fetch response status:', response.status);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -64,11 +66,12 @@ export const authService = {
       }
       
       const responseData = await response.json();
-      console.log('🔍 Auth service response:', responseData);
-      return responseData;
+      // Don't log tokens or full response bodies in console
+      logger.debug('🔍 Auth service response received');
+      return responseData as AuthResponse;
       
     } catch (error: any) {
-      console.error('🔍 Auth service error:', error);
+      logger.error('🔍 Auth service error:', error);
       throw error;
     }
   },

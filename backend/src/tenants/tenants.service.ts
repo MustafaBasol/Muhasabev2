@@ -50,6 +50,8 @@ export interface UpdateTenantDto {
   address?: string;
   taxNumber?: string;
   website?: string;
+  // Serbest biçimli ayarlar: marka/logo, varsayılan banka, ülke vb.
+  settings?: Record<string, any>;
 
   // Türkiye
   taxOffice?: string;
@@ -110,8 +112,8 @@ export class TenantsService {
   }
 
   async create(createTenantDto: CreateTenantDto): Promise<Tenant> {
-    // Generate slug from name
-    const slug = this.generateSlug(createTenantDto.name);
+    // Generate slug from name and ensure uniqueness
+    const slug = await this.generateUniqueSlug(createTenantDto.name);
 
     // Set trial expiration to 14 days from now
     const trialExpiresAt = new Date();
@@ -203,6 +205,24 @@ export class TenantsService {
     }
 
     return this.update(id, updateData);
+  }
+
+  private async generateUniqueSlug(name: string): Promise<string> {
+    const base = this.generateSlug(name);
+    let candidate = base;
+    let suffix = 1;
+    // Try until we find a free slug (bounded loop with reasonable cap)
+    // Even with high concurrency, DB unique constraint will protect; this reduces common collisions.
+    while (await this.tenantsRepository.exist({ where: { slug: candidate } })) {
+      candidate = `${base}-${suffix++}`.substring(0, 50);
+      if (suffix > 1000) {
+        // fallback: append random segment to avoid infinite loop
+        const rand = Math.random().toString(36).slice(2, 6);
+        candidate = `${base}-${rand}`.substring(0, 50);
+        break;
+      }
+    }
+    return candidate;
   }
 
   private generateSlug(name: string): string {

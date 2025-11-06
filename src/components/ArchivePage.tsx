@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { 
   Archive, 
   Search, 
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import Pagination from './Pagination';
 
 interface ArchivePageProps {
   invoices?: any[];
@@ -56,6 +57,37 @@ export default function ArchivePage({
   const [dateFilter, setDateFilter] = useState('');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['invoices', 'expenses', 'sales']));
   const [activeTab, setActiveTab] = useState('all');
+  // Per-section pagination state
+  const [invPage, setInvPage] = useState<number>(1);
+  const [invPageSize, setInvPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_invoices_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
+  const [expPage, setExpPage] = useState<number>(1);
+  const [expPageSize, setExpPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_expenses_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
+  const [salePage, setSalePage] = useState<number>(1);
+  const [salePageSize, setSalePageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_sales_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
+  const [custPage, setCustPage] = useState<number>(1);
+  const [custPageSize, setCustPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_customers_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
+  const [supPage, setSupPage] = useState<number>(1);
+  const [supPageSize, setSupPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_suppliers_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
 
   // Filter archived items (completed/paid items)
   const archivedInvoices = invoices.filter(invoice => 
@@ -92,7 +124,7 @@ export default function ArchivePage({
     return formatCurrency(amount);
   };
 
-  const getStatusBadge = (status: string, type: string) => {
+  const getStatusBadge = (status: string, _type: string) => {
     const statusColors = {
       // Invoice statuses
       paid: 'bg-green-100 text-green-800',
@@ -133,6 +165,27 @@ export default function ArchivePage({
   const filteredSales = filterItems(archivedSales, ['saleNumber', 'customerName', 'productName']);
   const filteredCustomers = filterItems(archivedCustomers, ['name', 'email', 'company']);
   const filteredSuppliers = filterItems(archivedSuppliers, ['name', 'email', 'company']);
+
+  const paginatedInvoices = useMemo(() => {
+    const start = (invPage - 1) * invPageSize;
+    return filteredInvoices.slice(start, start + invPageSize);
+  }, [filteredInvoices, invPage, invPageSize]);
+  const paginatedExpenses = useMemo(() => {
+    const start = (expPage - 1) * expPageSize;
+    return filteredExpenses.slice(start, start + expPageSize);
+  }, [filteredExpenses, expPage, expPageSize]);
+  const paginatedSales = useMemo(() => {
+    const start = (salePage - 1) * salePageSize;
+    return filteredSales.slice(start, start + salePageSize);
+  }, [filteredSales, salePage, salePageSize]);
+  const paginatedCustomers = useMemo(() => {
+    const start = (custPage - 1) * custPageSize;
+    return filteredCustomers.slice(start, start + custPageSize);
+  }, [filteredCustomers, custPage, custPageSize]);
+  const paginatedSuppliers = useMemo(() => {
+    const start = (supPage - 1) * supPageSize;
+    return filteredSuppliers.slice(start, start + supPageSize);
+  }, [filteredSuppliers, supPage, supPageSize]);
 
   // Calculate totals
   const totalArchivedAmount = archivedInvoices.reduce((sum, inv) => sum + inv.total, 0) + 
@@ -296,6 +349,7 @@ export default function ArchivePage({
                       <p className="text-sm text-gray-400">{t('archive.empty.invoicesHelper')}</p>
                     </div>
                   ) : (
+                    <>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-blue-100">
@@ -309,7 +363,7 @@ export default function ArchivePage({
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-blue-100">
-                          {filteredInvoices.map((invoice) => (
+                          {paginatedInvoices.map((invoice) => (
                             <tr key={invoice.id} className="hover:bg-blue-25 transition-colors">
                               <td className="px-4 py-3">
                                 <button
@@ -352,6 +406,16 @@ export default function ArchivePage({
                         </tbody>
                       </table>
                     </div>
+                    <div className="p-3 border-t border-blue-200 bg-blue-50">
+                      <Pagination
+                        page={invPage}
+                        pageSize={invPageSize}
+                        total={filteredInvoices.length}
+                        onPageChange={setInvPage}
+                        onPageSizeChange={(s) => { setInvPageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_invoices_pageSize', String(s)); setInvPage(1); }}
+                      />
+                    </div>
+                    </>
                   )}
                 </div>
               )}
@@ -385,6 +449,7 @@ export default function ArchivePage({
                       <p className="text-sm text-gray-400">{t('archive.empty.expensesHelper')}</p>
                     </div>
                   ) : (
+                    <>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-red-100">
@@ -398,7 +463,7 @@ export default function ArchivePage({
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-red-100">
-                          {filteredExpenses.map((expense) => (
+                          {paginatedExpenses.map((expense) => (
                             <tr key={expense.id} className="hover:bg-red-25 transition-colors">
                               <td className="px-4 py-3">
                                 <button
@@ -444,6 +509,16 @@ export default function ArchivePage({
                         </tbody>
                       </table>
                     </div>
+                    <div className="p-3 border-t border-red-200 bg-red-50">
+                      <Pagination
+                        page={expPage}
+                        pageSize={expPageSize}
+                        total={filteredExpenses.length}
+                        onPageChange={setExpPage}
+                        onPageSizeChange={(s) => { setExpPageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_expenses_pageSize', String(s)); setExpPage(1); }}
+                      />
+                    </div>
+                    </>
                   )}
                 </div>
               )}
@@ -477,6 +552,7 @@ export default function ArchivePage({
                       <p className="text-sm text-gray-400">{t('archive.empty.salesHelper')}</p>
                     </div>
                   ) : (
+                    <>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-green-100">
@@ -491,7 +567,7 @@ export default function ArchivePage({
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-green-100">
-                          {filteredSales.map((sale) => (
+                          {paginatedSales.map((sale) => (
                             <tr key={sale.id} className="hover:bg-green-25 transition-colors">
                               <td className="px-4 py-3">
                                 <button
@@ -535,6 +611,16 @@ export default function ArchivePage({
                         </tbody>
                       </table>
                     </div>
+                    <div className="p-3 border-t border-green-200 bg-green-50">
+                      <Pagination
+                        page={salePage}
+                        pageSize={salePageSize}
+                        total={filteredSales.length}
+                        onPageChange={setSalePage}
+                        onPageSizeChange={(s) => { setSalePageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_sales_pageSize', String(s)); setSalePage(1); }}
+                      />
+                    </div>
+                    </>
                   )}
                 </div>
               )}
@@ -567,8 +653,9 @@ export default function ArchivePage({
                       <p className="text-gray-500">{t('archive.empty.customers')}</p>
                     </div>
                   ) : (
+                    <>
                     <div className="divide-y divide-purple-100">
-                      {filteredCustomers.map((customer) => (
+                      {paginatedCustomers.map((customer) => (
                         <div key={customer.id} className="p-4 hover:bg-purple-25 transition-colors">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
@@ -606,6 +693,16 @@ export default function ArchivePage({
                         </div>
                       ))}
                     </div>
+                    <div className="p-3 border-t border-purple-200 bg-purple-50">
+                      <Pagination
+                        page={custPage}
+                        pageSize={custPageSize}
+                        total={filteredCustomers.length}
+                        onPageChange={setCustPage}
+                        onPageSizeChange={(s) => { setCustPageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_customers_pageSize', String(s)); setCustPage(1); }}
+                      />
+                    </div>
+                    </>
                   )}
                 </div>
               )}
@@ -638,8 +735,9 @@ export default function ArchivePage({
                       <p className="text-gray-500">{t('archive.empty.suppliers')}</p>
                     </div>
                   ) : (
+                    <>
                     <div className="divide-y divide-orange-100">
-                      {filteredSuppliers.map((supplier) => (
+                      {paginatedSuppliers.map((supplier) => (
                         <div key={supplier.id} className="p-4 hover:bg-orange-25 transition-colors">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
@@ -682,6 +780,16 @@ export default function ArchivePage({
                         </div>
                       ))}
                     </div>
+                    <div className="p-3 border-t border-orange-200 bg-orange-50">
+                      <Pagination
+                        page={supPage}
+                        pageSize={supPageSize}
+                        total={filteredSuppliers.length}
+                        onPageChange={setSupPage}
+                        onPageSizeChange={(s) => { setSupPageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_suppliers_pageSize', String(s)); setSupPage(1); }}
+                      />
+                    </div>
+                    </>
                   )}
                 </div>
               )}

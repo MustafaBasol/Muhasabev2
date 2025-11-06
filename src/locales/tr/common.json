@@ -237,6 +237,12 @@
     "alreadyHaveAccount": "Zaten hesabınız var mı?",
     "goToLogin": "Giriş yapın"
   },
+  "pagination": {
+    "itemsPerPage": "Sayfa başına",
+    "previous": "Önceki",
+    "next": "Sonraki",
+    "range": "{{start}}-{{end}} / {{total}}"
+  },
   "fiscalPeriods": {
     "title": "Mali Dönemler",
     "subtitle": "Mali dönem ayarlarınızı yönetin",

@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import ProductCategoryModal from './ProductCategoryModal';
 import InfoModal from './InfoModal';
 import ConfirmModal from './ConfirmModal';
+import Pagination from './Pagination';
 // product-categories API'yi dinamik içeri aktararak kod bölmeyi (code-splitting) iyileştir
 const loadProductCategoriesApi = async () => (await import('../api/product-categories')).productCategoriesApi;
 import type { ProductCategory } from '../types';
@@ -107,6 +108,12 @@ export default function ProductList({
     cancelText: string;
     onConfirm: () => void | Promise<void>;
   } | null>(null);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('products_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
 
   // Kategori bilgilerini backend'den çek
   useEffect(() => {
@@ -564,9 +571,14 @@ export default function ProductList({
     }
   };
 
+  const paginatedProducts = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, page, pageSize]);
+
   const visibleProductIds = useMemo(
-    () => filteredProducts.map(product => product.id),
-    [filteredProducts]
+    () => paginatedProducts.map(product => product.id),
+    [paginatedProducts]
   );
 
   const visibleSelectedIds = useMemo(
@@ -620,6 +632,19 @@ export default function ProductList({
       selectAllCheckboxRef.current.indeterminate = someVisibleSelected;
     }
   }, [someVisibleSelected]);
+
+  // Reset page when search/filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, categoryFilter, stockFilter, sortOption]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('products_pageSize', String(size));
+    }
+    setPage(1);
+  };
 
   return (
     <div className="space-y-6">
@@ -1114,7 +1139,7 @@ export default function ProductList({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
-                      {filteredProducts.map(product => {
+                      {paginatedProducts.map(product => {
                         const isSelected = selectedProductIds.includes(product.id);
                         const isOutOfStock = product.stockQuantity === 0;
                         const isCritical = !isOutOfStock && product.stockQuantity < product.reorderLevel;
@@ -1225,6 +1250,15 @@ export default function ProductList({
                   </table>
                 </div>
               )}
+            </div>
+            <div className="p-4 border border-t-0 border-gray-200 rounded-b-xl bg-white">
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={filteredProducts.length}
+                onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
+              />
             </div>
           </div>
         </div>

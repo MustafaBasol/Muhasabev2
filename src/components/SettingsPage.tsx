@@ -1448,7 +1448,57 @@ export default function SettingsPage({
         // Kullanıcıya sessiz geçebiliriz; önemli olan engellenmemesi. Dilersen uyarı göster.
       }
 
-      // Şirket bilgilerini (marka/yerel alanlar) kaydet
+      // Şirket bilgilerini BACKEND'E kaydet (tenant bazlı)
+      let tenantUpdateOk = true;
+      try {
+        const brandSettings = {
+          brand: {
+            logoDataUrl: companyData.logoDataUrl || '',
+            bankAccountId: companyData.bankAccountId || undefined,
+            country: companyData.country || '',
+          }
+        };
+        const payload: any = {
+          // Temel alanlar
+          companyName: officialCompanyName || companyData.name || undefined,
+          address: companyData.address || undefined,
+          taxNumber: companyData.taxNumber || undefined,
+          taxOffice: companyData.taxOffice || undefined,
+          phone: companyData.phone || undefined,
+          email: companyData.email || undefined,
+          website: companyData.website || undefined,
+          // Yasal alanlar
+          mersisNumber: companyData.mersisNumber || undefined,
+          kepAddress: companyData.kepAddress || undefined,
+          siretNumber: companyData.siretNumber || undefined,
+          sirenNumber: companyData.sirenNumber || undefined,
+          apeCode: companyData.apeCode || undefined,
+          tvaNumber: companyData.tvaNumber || undefined,
+          rcsNumber: companyData.rcsNumber || undefined,
+          steuernummer: companyData.steuernummer || undefined,
+          umsatzsteuerID: companyData.umsatzsteuerID || undefined,
+          handelsregisternummer: companyData.handelsregisternummer || undefined,
+          geschaeftsfuehrer: companyData.geschaeftsfuehrer || undefined,
+          einNumber: companyData.einNumber || undefined,
+          taxId: companyData.taxId || undefined,
+          businessLicenseNumber: companyData.businessLicenseNumber || undefined,
+          stateOfIncorporation: companyData.stateOfIncorporation || undefined,
+          // Settings blob: logo, default bank, country
+          settings: brandSettings,
+        } as any;
+
+        // Şirket sahibi değilse kimlik alanını hiç göndermeyelim
+        if (!isTenantOwner) {
+          delete payload.companyName;
+        }
+
+        await tenantsApi.updateMyTenant(payload);
+      } catch (e) {
+        console.error('Tenant settings update failed', e);
+        tenantUpdateOk = false;
+      }
+
+      // UI hızlı güncelleme ve cache için App'e bildir
       if (onCompanyUpdate) {
         const cleaned: CompanyProfile = {
           name: companyData.name,
@@ -1461,7 +1511,6 @@ export default function SettingsPage({
           logoDataUrl: companyData.logoDataUrl,
           bankAccountId: companyData.bankAccountId,
           country: (companyData.country ? (companyData.country as any) : undefined),
-          
           // Yasal alanlar
           mersisNumber: companyData.mersisNumber,
           kepAddress: companyData.kepAddress,
@@ -1478,8 +1527,7 @@ export default function SettingsPage({
           taxId: companyData.taxId,
           businessLicenseNumber: companyData.businessLicenseNumber,
           stateOfIncorporation: companyData.stateOfIncorporation,
-
-          // Diğer
+          // Diğer (genel)
           registrationNumber: companyData.registrationNumber,
           vatNumberGeneric: companyData.vatNumberGeneric,
           taxIdGeneric: companyData.taxIdGeneric,
@@ -1489,7 +1537,11 @@ export default function SettingsPage({
       }
 
       setUnsavedChanges(false);
-      setShowSaveSuccess(true);
+      if (tenantUpdateOk) {
+        setShowSaveSuccess(true);
+      } else {
+        setShowSaveError(true);
+      }
     } catch (error) {
       console.error('Ayarlar kaydedilirken hata:', error);
       setShowSaveError(true);

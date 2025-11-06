@@ -43,7 +43,8 @@ export interface CompanyProfile extends BaseCompanyProfile {
 }
 
 // ——— GENEL YARDIMCILAR ———————————————————————
-const LOGO_HEIGHT_PX = 48;
+// PDF genel logo yüksekliği (iki şablon için aynı)
+const PDF_LOGO_HEIGHT_PX = 80; // Fatura ve Teklif için eşit ve daha büyük
 
 const normalizeLang = (lang?: string): SettingsLanguage => {
   const l = (lang || i18n.language || 'tr').toLowerCase();
@@ -418,12 +419,32 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
     </div>
   `;
 
+  // Teklif PDF'indeki müşteri düzeni ile aynı görünüm ve zenginleştirme
+  let invCustomerEmail = invoice.customerEmail || '';
+  let invCustomerPhone = '' as string;
+  let invCustomerAddress = invoice.customerAddress || '';
+  try {
+    const raw = localStorage.getItem('customers_cache');
+    const arr = raw ? (JSON.parse(raw) as any[]) : [];
+    const found = Array.isArray(arr)
+      ? arr.find((c: any) => (invoice as any)?.customerId
+          ? String(c.id) === String((invoice as any).customerId)
+          : c.name === invoice.customerName)
+      : null;
+    if (found) {
+      if (!invCustomerEmail) invCustomerEmail = found.email || '';
+      invCustomerPhone = found.phone || '';
+      if (!invCustomerAddress) invCustomerAddress = found.address || '';
+    }
+  } catch {}
+
   const customerBlock = `
     <div style="text-align:right;">
       <h3 style="color:#1F2937;margin:0 0 6px 0;">${tf('pdf.invoice.customerInfo')}</h3>
-      <div style="font-weight:700;margin-bottom:2px;">${invoice.customerName}</div>
-      ${invoice.customerEmail ? `<div style="margin-bottom:2px;">${invoice.customerEmail}</div>` : ''}
-      ${invoice.customerAddress ? `<div>${invoice.customerAddress}</div>` : ''}
+      <div style="font-weight:700;margin-bottom:2px;">${invoice.customerName ?? ''}</div>
+      ${invCustomerEmail ? `<div style="font-size:12px;margin-top:2px;">${invCustomerEmail}</div>` : ''}
+      ${invCustomerPhone ? `<div style="font-size:12px;margin-top:2px;">${invCustomerPhone}</div>` : ''}
+      ${invCustomerAddress ? `<div style="font-size:12px;margin-top:2px;white-space:pre-line;">${invCustomerAddress}</div>` : ''}
     </div>
   `;
 
@@ -451,7 +472,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
       ">
         <div style="display:flex; align-items:flex-end;">
           ${hasLogo ? `<img src="${c.logoDataUrl}" alt="logo"
-            style="height:${LOGO_HEIGHT_PX}px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
+            style="height:${PDF_LOGO_HEIGHT_PX}px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
         </div>
         <div style="text-align:right; line-height:1;">
           <div style="color:#3B82F6; font-size:28px; font-weight:800;">${tf('pdf.invoice.title')}</div>
@@ -680,7 +701,7 @@ const buildQuoteHtml = (
   currency?: Currency,
   prepared?: { label: string; name?: string }
 ) => {
-  const hasLogo = !!c.logoDataUrl;
+  const hasLogo = !!(c.logoDataUrl && /^data:image\//.test(c.logoDataUrl));
   const activeLang = normalizeLang(lang);
   const country: CountryCode = (c.country as CountryCode) || countryFromLang(activeLang);
   const dloc = localeFromLang(activeLang);
@@ -793,7 +814,7 @@ const buildQuoteHtml = (
     <div style="max-width:170mm;margin:0 auto;padding-top:22mm;padding-bottom:12mm;display:flex;flex-direction:column;min-height:263mm;box-sizing:border-box;">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:2px solid #6366F1;padding-bottom:12px;">
         <div style="display:flex;align-items:flex-end;">
-          ${hasLogo ? `<img src="${c.logoDataUrl}" alt="logo" style="height:${LOGO_HEIGHT_PX}px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
+          ${hasLogo ? `<img src="${c.logoDataUrl}" alt="logo" style="height:${PDF_LOGO_HEIGHT_PX}px;width:auto;display:block;object-fit:contain;transform:translateY(6px);" />` : ''}
         </div>
         <div style="text-align:right;line-height:1;">
           <div style="color:#6366F1;font-size:28px;font-weight:800;">${L.title}</div>
@@ -882,9 +903,16 @@ const buildQuoteHtml = (
 export const generateQuotePDF = async (quote: QuoteForPdf, opts: OpenOpts & { preparedByName?: string } = {}) => {
   let company: Partial<CompanyProfile> | undefined = opts.company;
   if (!company) {
-    try { company = await secureStorage.getJSON<CompanyProfile>('companyProfile') ?? undefined; } catch { company = undefined; }
-    // Fallback: plain localStorage
-    if (!company) {
+    try {
+      const tid = (localStorage.getItem('tenantId') || '').toString();
+      const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+      company = await secureStorage.getJSON<CompanyProfile>(secureKey) ?? undefined;
+      if (!company) {
+        const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+        const raw = localStorage.getItem(baseKey) || localStorage.getItem(`${baseKey}_plain`) || localStorage.getItem('company');
+        if (raw) company = JSON.parse(raw);
+      }
+    } catch {
       try {
         const raw = localStorage.getItem('companyProfile') || localStorage.getItem('company');
         if (raw) company = JSON.parse(raw);

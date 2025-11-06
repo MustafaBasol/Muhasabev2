@@ -1,4 +1,10 @@
 {
+  "pagination": {
+    "itemsPerPage": "Éléments par page",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "range": "{{start}}-{{end}} / {{total}}"
+  },
   "app": {
     "name": "comptario",
     "subtitle": "Système de Comptabilité"

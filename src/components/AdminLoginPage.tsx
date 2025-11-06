@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Lock, Shield, Users, ArrowLeft } from 'lucide-react';
 import { adminApi } from '../api/admin';
+import { logger } from '../utils/logger';
 
 interface AdminLoginPageProps {
   onBack: () => void;
@@ -19,17 +20,19 @@ export default function AdminLoginPage({ onBack }: AdminLoginPageProps) {
     setError(null);
 
     try {
-      console.log('Admin login attempt:', { username: username.trim(), password: password.trim() });
+      // Avoid logging credentials in console
+      logger.debug('Admin login attempt');
       const response = await adminApi.login(username.trim(), password.trim());
-      console.log('Admin login response:', response);
+      logger.debug('Admin login response received');
       
       if (response.success) {
         // Store admin token
         localStorage.setItem('admin-token', response.adminToken);
         localStorage.setItem('isAdminLoggedIn', 'true');
         localStorage.removeItem('showAdminLogin');
-        
-        console.log('Admin login successful, reloading...', { token: response.adminToken });
+
+        // Do not log tokens
+        logger.info('Admin login successful, reloading...');
         // Navigate to admin panel
         window.location.hash = 'admin';
         window.location.reload();
@@ -37,7 +40,7 @@ export default function AdminLoginPage({ onBack }: AdminLoginPageProps) {
         setError('Giriş başarısız. Kullanıcı adı veya şifre hatalı.');
       }
     } catch (err: any) {
-      console.error('Admin login error:', err);
+      logger.error('Admin login error:', err);
       setError('Giriş başarısız. Kullanıcı adı veya şifre hatalı.');
     } finally {
       setIsLoading(false);

@@ -1,5 +1,5 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any, no-console */
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TrendingUp, Plus, Calendar, DollarSign, User, Package, Search, Eye, Edit, Trash2, Download, Check, X, FileText, CheckCircle } from 'lucide-react';
 import SaleModal from './SaleModal';
@@ -10,6 +10,7 @@ import type { Sale } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderSales, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
+import Pagination from './Pagination';
 
 
 
@@ -77,6 +78,12 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const [sortBy, setSortBy] = useState<'saleNumber' | 'customer' | 'product' | 'amount' | 'status' | 'date'>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('sales_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
 
   const handleAddSale = (newSale: any) => {
     console.log('➕ SimpleSalesPage: Yeni satış ekleniyor');
@@ -259,6 +266,23 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
           return compareBy(a, b, x => parseDateSafe(x.date), sortDir, 'date');
       }
     });
+
+  const paginatedSales = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredSales.slice(start, start + pageSize);
+  }, [filteredSales, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter, sortBy, sortDir]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sales_pageSize', String(size));
+    }
+    setPage(1);
+  };
 
   const toggleSort = (column: typeof sortBy) => {
     if (sortBy === column) {
@@ -671,6 +695,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               )}
             </div>
           ) : (
+            <>
             <div className="overflow-x-auto relative">
               {/* Küçük ekranlarda sıkışmayı önlemek için tabloya minimum genişlik ver */}
               <table className="w-full min-w-[1024px] table-fixed">
@@ -700,7 +725,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredSales.map((sale) => (
+                  {paginatedSales.map((sale) => (
                     <tr key={`${sale.id}-${sale.saleNumber || ''}`} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-3">
@@ -898,6 +923,16 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 </tbody>
               </table>
             </div>
+            <div className="p-3 border-t border-gray-200 bg-white">
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={filteredSales.length}
+                onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            </div>
+            </>
           )}
         </div>
       </div>

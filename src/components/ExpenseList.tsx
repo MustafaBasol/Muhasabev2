@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Pagination from './Pagination';
 import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X, Ban, RotateCcw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
@@ -69,6 +70,16 @@ export default function ExpenseList({
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
+  // Sayfalama
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const raw = localStorage.getItem('expenses_pageSize');
+    const n = raw ? Number(raw) : 20;
+    return [20,50,100].includes(n) ? n : 20;
+  });
+  useEffect(() => {
+    localStorage.setItem('expenses_pageSize', String(pageSize));
+  }, [pageSize]);
   
   // Plan kullanım bilgisi: Free/Starter için bu ayki gider sayısı (isVoided hariç)
   const planNormalized = String(tenant?.subscriptionPlan || '').toLowerCase();
@@ -151,6 +162,14 @@ export default function ExpenseList({
       }
     });
   }, [expenses, debouncedSearch, statusFilter, categoryFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
+
+  // Filtre/arama/sıralama değiştiğinde sayfayı 1'e al
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, categoryFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
+
+  const paginatedExpenses = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredExpenses.slice(start, start + pageSize);
+  }, [filteredExpenses, page, pageSize]);
 
   const toggleSort = (column: typeof sort.by) => {
     setSort(prev => {
@@ -392,6 +411,7 @@ export default function ExpenseList({
             )}
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             {/* Küçük ekranlarda sıkışmayı önlemek için tabloya minimum genişlik ver */}
             <table className="w-full min-w-[1024px] table-fixed">
@@ -421,7 +441,7 @@ export default function ExpenseList({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredExpenses.map((expense) => (
+                {paginatedExpenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
@@ -592,6 +612,17 @@ export default function ExpenseList({
               </tbody>
             </table>
           </div>
+          {/* Pagination */}
+          <div className="p-4 border-t border-gray-200 bg-white">
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={filteredExpenses.length}
+              onPageChange={setPage}
+              onPageSizeChange={(s: number) => { setPageSize(s); setPage(1); }}
+            />
+          </div>
+          </>
         )}
       </div>
 

@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { json, urlencoded } from 'express';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -17,6 +18,27 @@ async function bootstrap() {
     logger: isProd
       ? ['error', 'warn', 'log']
       : ['error', 'warn', 'log', 'debug', 'verbose'],
+    // Nest'in varsayılan body-parser'ını devre dışı bırakıyoruz; kendi limitlerimizi uygulayacağız
+    bodyParser: false,
+  });
+
+  // Increase body size limits to support base64-encoded logos and larger payloads
+  // Not: Base64 veri gerçek dosyadan ~%33 daha büyük olur; 10mb güvenli sınır.
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
+
+  // Body parser kaynaklı "PayloadTooLargeError" hatasını 413 olarak döndür
+  // (aksi halde GlobalExceptionFilter altında 500'e dönüşebiliyor)
+  app.use((err: any, _req: any, res: any, next: any) => {
+    if (err && (err.type === 'entity.too.large' || err.name === 'PayloadTooLargeError')) {
+      return res.status(413).json({
+        statusCode: 413,
+        error: 'Payload Too Large',
+        message:
+          'Gönderilen veri çok büyük. Lütfen 5MB altında bir logo veya daha küçük bir veri yükleyin.',
+      });
+    }
+    return next(err);
   });
 
   // Güvenlik headers

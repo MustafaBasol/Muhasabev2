@@ -4,12 +4,18 @@ import { Like, Repository } from 'typeorm';
 import { Quote, QuoteStatus } from './entities/quote.entity';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
+import { Tenant } from '../tenants/entities/tenant.entity';
+import { BankAccount } from '../bank-accounts/entities/bank-account.entity';
 
 @Injectable()
 export class QuotesService {
   constructor(
     @InjectRepository(Quote)
     private readonly repo: Repository<Quote>,
+    @InjectRepository(Tenant)
+    private readonly tenantsRepo: Repository<Tenant>,
+    @InjectRepository(BankAccount)
+    private readonly bankAccountsRepo: Repository<BankAccount>,
   ) {}
 
   private isUuid(val?: string | null) {
@@ -175,7 +181,68 @@ export class QuotesService {
   async findByPublicId(publicId: string) {
     const q = await this.repo.findOne({ where: { publicId } });
     if (!q) throw new NotFoundException('Quote not found');
-    return q;
+    // Enrich with tenant public profile for display on public page
+    try {
+      const tenant = await this.tenantsRepo.findOne({
+        where: { id: q.tenantId },
+      });
+      if (!tenant) return q;
+
+      // Logo & preferences from tenant.settings.brand
+      const brand = ((tenant.settings || {}) as any)?.brand || {};
+      let resolvedIban: string | undefined = undefined;
+      let resolvedBankName: string | undefined = undefined;
+      const defaultBankId: string | undefined =
+        brand.bankAccountId || brand.defaultBankAccountId;
+      if (defaultBankId) {
+        try {
+          const ba = await this.bankAccountsRepo.findOne({
+            where: { id: defaultBankId, tenantId: tenant.id },
+          });
+          if (ba) {
+            resolvedIban = ba.iban;
+            resolvedBankName = ba.bankName || undefined;
+          }
+        } catch {}
+      }
+
+      return {
+        ...q,
+        tenantPublicProfile: {
+          name: tenant.companyName || tenant.name,
+          address: tenant.address || '',
+          taxNumber: tenant.taxNumber || '',
+          taxOffice: tenant.taxOffice || '',
+          phone: tenant.phone || '',
+          email: tenant.email || '',
+          website: tenant.website || '',
+          // Legal fields
+          mersisNumber: (tenant as any).mersisNumber || '',
+          kepAddress: (tenant as any).kepAddress || '',
+          siretNumber: (tenant as any).siretNumber || '',
+          sirenNumber: (tenant as any).sirenNumber || '',
+          apeCode: (tenant as any).apeCode || '',
+          tvaNumber: (tenant as any).tvaNumber || '',
+          rcsNumber: (tenant as any).rcsNumber || '',
+          steuernummer: (tenant as any).steuernummer || '',
+          umsatzsteuerID: (tenant as any).umsatzsteuerID || '',
+          handelsregisternummer: (tenant as any).handelsregisternummer || '',
+          geschaeftsfuehrer: (tenant as any).geschaeftsfuehrer || '',
+          einNumber: (tenant as any).einNumber || '',
+          taxId: (tenant as any).taxId || '',
+          businessLicenseNumber: (tenant as any).businessLicenseNumber || '',
+          stateOfIncorporation: (tenant as any).stateOfIncorporation || '',
+          // Branding
+          logoDataUrl: brand.logoDataUrl || '',
+          bankAccountId: defaultBankId,
+          iban: resolvedIban,
+          bankName: resolvedBankName,
+          country: brand.country || '',
+        },
+      } as any;
+    } catch {
+      return q;
+    }
   }
 
   async markViewed(publicId: string) {

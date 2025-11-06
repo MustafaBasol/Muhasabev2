@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FileDown, Link as LinkIcon, Check, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
-import { secureStorage } from '../utils/storage';
 import DOMPurify from 'dompurify';
 import { getPublicQuote, markViewedPublic, acceptPublic, declinePublic } from '../api/quotes';
 
@@ -37,7 +36,13 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
     (async () => {
       try {
         const data = await getPublicQuote(String(quoteId));
-        if (!cancelled) setQuote(data);
+        if (!cancelled) {
+          setQuote(data);
+          // Backend'ten gelen tenantPublicProfile varsa şirket bilgilerini buradan al
+          if ((data as any)?.tenantPublicProfile) {
+            setCompany((data as any).tenantPublicProfile);
+          }
+        }
       } catch (e) {
         if (!cancelled) setQuote(null);
       }
@@ -61,32 +66,16 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
     }
   }, [quote, markedViewed, quoteId]);
 
-  // Şirket profili ve "hazırlayan" bilgisini yükle
+  // "Hazırlayan" bilgisini lokal kullanıcıdan (sadece görüntüleme için) yükle
   useEffect(() => {
-    const load = async () => {
-      try {
-        const fromSecure = await secureStorage.getJSON<any>('companyProfile');
-        if (fromSecure) setCompany(fromSecure);
-        else {
-          const raw = localStorage.getItem('companyProfile') || localStorage.getItem('company');
-          if (raw) setCompany(JSON.parse(raw));
-        }
-      } catch {
-        try {
-          const raw = localStorage.getItem('companyProfile') || localStorage.getItem('company');
-          if (raw) setCompany(JSON.parse(raw));
-        } catch {}
+    try {
+      const rawUser = localStorage.getItem('user');
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
+        setPreparedBy(name || null);
       }
-      try {
-        const rawUser = localStorage.getItem('user');
-        if (rawUser) {
-          const u = JSON.parse(rawUser);
-          const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
-          setPreparedBy(name || null);
-        }
-      } catch {}
-    };
-    load();
+    } catch {}
   }, []);
 
   const todayISO = new Date().toISOString().slice(0,10);
@@ -145,6 +134,58 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
       copied: 'Link kopiert.'
     }
   }[activeLang]), [activeLang]);
+
+  // PDF ile aynı şirket-alanları (ülkeye göre) oluşturucu
+  type Country = 'TR'|'FR'|'DE'|'US'|'OTHER';
+  const country: Country = useMemo(() => {
+    const fromCompany = (company?.country || '').toString().toUpperCase();
+    if (['TR','FR','DE','US','OTHER'].includes(fromCompany)) return fromCompany as Country;
+    // ülke gelmezse dili baz al
+    return activeLang === 'tr' ? 'TR' : activeLang === 'fr' ? 'FR' : activeLang === 'de' ? 'DE' : 'US';
+  }, [company?.country, activeLang]);
+
+  const legalRows = useMemo(() => {
+    const c = company || {};
+    const row = (label: string, value?: string) => value ? (<div key={label} className="text-sm text-gray-800"><strong>{label}:</strong> <span>{value}</span></div>) : null;
+    switch (country) {
+      case 'TR':
+        return [
+          row('VKN', c.taxNumber),
+          row('Vergi Dairesi', c.taxOffice),
+          row('Mersis', c.mersisNumber),
+          row('KEP', c.kepAddress),
+        ];
+      case 'FR':
+        return [
+          row('SIRET', c.siretNumber),
+          row('SIREN', c.sirenNumber),
+          row('APE', c.apeCode),
+          row('TVA', c.tvaNumber),
+          row('RCS', c.rcsNumber),
+        ];
+      case 'DE':
+        return [
+          row('Steuernummer', c.steuernummer),
+          row('USt-IdNr', c.umsatzsteuerID),
+          row('HRB', c.handelsregisternummer),
+          row('Geschäftsführer', c.geschaeftsfuehrer),
+        ];
+      case 'US':
+        return [
+          row('EIN', c.einNumber),
+          row('Tax ID', c.taxId),
+          row('Business License', c.businessLicenseNumber),
+          row('State', c.stateOfIncorporation),
+        ];
+      default:
+        return [
+          row('Registration No', c.registrationNumber),
+          row('VAT', c.vatNumberGeneric),
+          row('Tax ID', c.taxIdGeneric),
+          row('State/Region', c.stateOrRegion),
+        ];
+    }
+  }, [company, country]);
 
   const statusLabel = useMemo(() => {
     if (!quote) return '';
@@ -230,7 +271,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
                   total: displayTotal,
                   items: (quote.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
                   scopeOfWorkHtml: (quote as any).scopeOfWorkHtml || ''
-                }, { filename: quote.quoteNumber });
+                }, { filename: quote.quoteNumber, company: company || undefined });
               }}
               className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
             >
@@ -261,12 +302,11 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
             {company?.name ? <div className="text-base font-semibold text-gray-900">{company.name}</div> : null}
             {company?.address ? <div className="text-gray-600 whitespace-pre-line">{company.address}</div> : null}
             <div className="mt-2 space-y-1">
-              {company?.taxNumber ? <div><strong>VKN:</strong> <span>{company.taxNumber}</span></div> : null}
-              {company?.taxOffice ? <div><strong>Vergi Dairesi:</strong> <span>{company.taxOffice}</span></div> : null}
-              {company?.iban ? <div><strong>IBAN:</strong> <span>{company.iban}</span></div> : null}
-              {company?.phone ? <div><strong>Tel:</strong> <span>{company.phone}</span></div> : null}
-              {company?.email ? <div><strong>Email:</strong> <span>{company.email}</span></div> : null}
-              {company?.website ? <div><strong>Web:</strong> <span>{company.website}</span></div> : null}
+              {legalRows}
+              {company?.iban ? <div className="text-sm text-gray-800"><strong>IBAN:</strong> <span>{company.iban}</span></div> : null}
+              {company?.phone ? <div className="text-sm text-gray-800"><strong>Tel:</strong> <span>{company.phone}</span></div> : null}
+              {company?.email ? <div className="text-sm text-gray-800"><strong>Email:</strong> <span>{company.email}</span></div> : null}
+              {company?.website ? <div className="text-sm text-gray-800"><strong>Web:</strong> <span>{company.website}</span></div> : null}
             </div>
           </div>
           <div className="text-right text-sm text-gray-800">

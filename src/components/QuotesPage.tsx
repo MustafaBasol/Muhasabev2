@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus, Eye, Edit, Trash2, FileText, Calendar, Check, X, FileDown, Copy } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -8,6 +8,7 @@ import QuoteCreateModal, { type QuoteCreatePayload } from './QuoteCreateModal';
 import ConfirmModal from './ConfirmModal';
 import type { Customer, Product } from '../types';
 import * as quotesApi from '../api/quotes';
+import Pagination from './Pagination';
 
 interface QuotesPageProps {
   onAddQuote?: () => void;
@@ -65,6 +66,12 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const [reviseTarget, setReviseTarget] = useState<QuoteItem | null>(null);
   const [duplicateTarget, setDuplicateTarget] = useState<QuoteItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<QuoteItem | null>(null);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('quotes_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
 
   // Inline edit state (status, dates vs.)
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
@@ -137,6 +144,23 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
         }
       });
   }, [quotes, searchTerm, statusFilter, sortBy, sortDir]);
+
+  const paginated = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, sortBy, sortDir]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('quotes_pageSize', String(size));
+    }
+    setPage(1);
+  };
 
   const toggleSort = (col: typeof sortBy) => {
     setSortBy(prev => {
@@ -441,6 +465,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
               )}
             </div>
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px]">
                 <thead className="bg-gray-50">
@@ -466,7 +491,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filtered.map(item => (
+                  {paginated.map(item => (
                     <React.Fragment key={item.id}>
                     <tr className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -687,6 +712,16 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                 </tbody>
               </table>
             </div>
+            <div className="p-3 border-t border-gray-200 bg-white">
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={filtered.length}
+                onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            </div>
+            </>
           )}
         </div>
       </div>

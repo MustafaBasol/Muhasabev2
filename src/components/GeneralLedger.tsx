@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import InvoiceViewModal from './InvoiceViewModal';
 import ExpenseViewModal from './ExpenseViewModal';
 import SaleViewModal from './SaleViewModal';
 import { useCurrency } from '../contexts/CurrencyContext';
+import Pagination from './Pagination';
 
 // --- Helpers ---
 // Sayısal stringleri güvenli biçimde sayıya çevir ("2000.00", "2.000,00", "2,000.00")
@@ -81,6 +82,12 @@ export default function GeneralLedger({
   const [viewingInvoice, setViewingInvoice] = useState<any>(null);
   const [viewingExpense, setViewingExpense] = useState<any>(null);
   const [viewingSale, setViewingSale] = useState<any>(null);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('ledger_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
 
   // Convert all transactions to ledger entries
   const entries: LedgerEntry[] = useMemo(() => {
@@ -237,6 +244,23 @@ export default function GeneralLedger({
     });
   }, [entries, typeFilter, searchTerm, startDate, endDate, customerSearch, categoryFilter]);
 
+  const paginatedEntries = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredEntries.slice(start, start + pageSize);
+  }, [filteredEntries, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [typeFilter, searchTerm, startDate, endDate, customerSearch, categoryFilter]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ledger_pageSize', String(size));
+    }
+    setPage(1);
+  };
+
   // Rendering helpers
   const formatAmount = (n: number) =>
     formatCurrency(n || 0);
@@ -298,7 +322,7 @@ export default function GeneralLedger({
       {/* Entries List / Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="divide-y divide-gray-100">
-          {filteredEntries.map((entry) => (
+          {paginatedEntries.map((entry) => (
             <div key={entry.id} className="grid grid-cols-12 items-center px-4 py-3">
               <div className="col-span-3 flex items-center gap-3">
                 {getTypeIcon(entry.type)}
@@ -326,6 +350,15 @@ export default function GeneralLedger({
           {filteredEntries.length === 0 && (
             <div className="p-6 text-center text-sm text-gray-500">Kayıt bulunamadı.</div>
           )}
+        </div>
+        <div className="p-3 border-t border-gray-200 bg-white">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={filteredEntries.length}
+            onPageChange={setPage}
+            onPageSizeChange={handlePageSizeChange}
+          />
         </div>
       </div>
 

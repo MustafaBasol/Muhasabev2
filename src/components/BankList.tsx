@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Edit, Trash2, CreditCard, Building2, Eye, DollarSign } from 'lucide-react';
 import { formatCurrency as formatCurrencyUtil, type Currency } from '../utils/currencyFormatter';
 import { useTranslation } from 'react-i18next';
+import Pagination from './Pagination';
 
 interface Bank {
   id: string;
@@ -34,8 +35,14 @@ export default function BankList({
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('banks_pageSize') : null;
+    const n = saved ? Number(saved) : 20;
+    return [20, 50, 100].includes(n) ? n : 20;
+  });
 
-  const filteredBanks = bankAccounts.filter(bank => {
+  const filteredBanks = useMemo(() => bankAccounts.filter(bank => {
     const matchesSearch = 
       bank.bankName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bank.accountName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -46,7 +53,24 @@ export default function BankList({
       (statusFilter === 'inactive' && !bank.isActive);
     
     return matchesSearch && matchesStatus;
-  });
+  }), [bankAccounts, searchTerm, statusFilter]);
+
+  const paginatedBanks = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredBanks.slice(start, start + pageSize);
+  }, [filteredBanks, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('banks_pageSize', String(size));
+    }
+    setPage(1);
+  };
 
   const formatAmount = (amount: number, currency: string = 'TRY') => {
     return formatCurrencyUtil(amount, currency as Currency);
@@ -154,7 +178,7 @@ export default function BankList({
             )}
           </div>
         ) : (
-          filteredBanks.map((bank) => (
+          paginatedBanks.map((bank) => (
             <div key={bank.id} className="p-4 hover:bg-gray-50 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 min-w-0">
@@ -256,6 +280,15 @@ export default function BankList({
             </div>
           ))
         )}
+      </div>
+      <div className="p-4 border-t border-gray-200 bg-white">
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filteredBanks.length}
+          onPageChange={setPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
       </div>
     </div>
     </div>

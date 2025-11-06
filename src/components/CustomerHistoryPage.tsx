@@ -354,6 +354,30 @@ export default function CustomerHistoryPage() {
       setLoadingRowId(`${row.type}-${row.id}`);
       if (row.type === 'invoice') {
         const inv = await invoicesApi.getInvoice(String(row.id));
+        // Kalemleri belirle: öncelik inv.items > inv.lineItems > sale.items
+        let items: any[] = Array.isArray((inv as any).items) && (inv as any).items.length > 0
+          ? (inv as any).items
+          : (Array.isArray((inv as any).lineItems) ? (inv as any).lineItems : []);
+        if (!items || items.length === 0) {
+          const saleId = (inv as any).saleId;
+          if (saleId) {
+            try {
+              const s = await salesApi.getSale(String(saleId));
+              if (Array.isArray(s.items)) {
+                items = s.items.map((it: any) => ({
+                  description: it.productName || it.description || 'Ürün/Hizmet',
+                  quantity: Number(it.quantity) || 1,
+                  unitPrice: Number(it.unitPrice) || 0,
+                  total: Number(it.total ?? (Number(it.quantity)||1)*(Number(it.unitPrice)||0)) || 0,
+                  productId: it.productId,
+                }));
+              }
+            } catch (e) {
+              console.warn('Satıştan kalem türetilemedi:', e);
+            }
+          }
+        }
+
         // Map API invoice to InvoiceViewModal expected shape
         const mapped = {
           id: String(inv.id),
@@ -367,12 +391,14 @@ export default function CustomerHistoryPage() {
           status: inv.status,
           issueDate: String(inv.issueDate || '').slice(0,10),
           dueDate: String(inv.dueDate || '').slice(0,10),
-          items: Array.isArray(inv.lineItems) ? inv.lineItems.map((li: any) => ({
-            description: li.productName || li.description,
-            quantity: li.quantity,
-            unitPrice: li.unitPrice,
-            total: li.total,
-          })) : [],
+          items: Array.isArray(items)
+            ? items.map((li: any) => ({
+                description: (li.description ?? li.productName ?? ''),
+                quantity: Number(li.quantity) || 1,
+                unitPrice: Number(li.unitPrice) || 0,
+                total: Number(li.total ?? (Number(li.quantity)||1)*(Number(li.unitPrice)||0)) || 0,
+              }))
+            : [],
           notes: inv.notes,
           type: inv.type,
         } as any;
@@ -631,9 +657,17 @@ export default function CustomerHistoryPage() {
         isOpen={!!viewInvoice}
         onClose={() => setViewInvoice(null)}
         invoice={viewInvoice}
-        onEdit={() => {
-          // Bu sayfada sadece görüntüleme var; düzenleme akışı App içinde kurgulanmış olabilir
+        onEdit={(inv: any) => {
+          // App tarafından yakalanacak global event ile düzenleme modalını aç
+          try {
+            window.dispatchEvent(new CustomEvent('open-invoice-edit', { detail: { invoice: inv } }));
+          } catch {}
           setViewInvoice(null);
+        }}
+        onDownload={(inv: any) => {
+          try {
+            window.dispatchEvent(new CustomEvent('download-invoice', { detail: { invoice: inv } }));
+          } catch {}
         }}
       />
       <QuoteViewModal
