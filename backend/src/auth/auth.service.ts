@@ -198,6 +198,26 @@ export class AuthService {
     };
   }
 
+  /**
+   * Issue a new short-lived access token for sliding sessions.
+   * Frontend will call this periodically (e.g. every 5 minutes) while user is active.
+   */
+  async refresh(user: any) {
+    if (!user) {
+      throw new UnauthorizedException('Invalid session');
+    }
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+    };
+    return {
+      token: this.jwtService.sign(payload),
+      expiresIn: '15m',
+    };
+  }
+
   async resendVerification(email: string) {
     const user = await this.usersService.findByEmail(email);
     if (!user) {

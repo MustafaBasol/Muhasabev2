@@ -185,12 +185,10 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.createModal.amount')}</label>
               <input
-                type="number"
-                value={Number(linesTotal || 0)}
+                type="text"
+                value={Number(linesTotal || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 readOnly
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-700"
-                min={0}
-                step={0.01}
               />
             </div>
             <div>

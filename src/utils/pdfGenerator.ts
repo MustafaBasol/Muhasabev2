@@ -883,16 +883,29 @@ const buildQuoteHtml = (
   const scopeHtml = (() => {
     const raw = quote.scopeOfWorkHtml || '';
     if (!raw) return '';
-    const safe = DOMPurify.sanitize(raw);
+    // RTE içeriğini geniş izinlerle temizle (img/data URI vb.)
+    const safe = DOMPurify.sanitize(raw, {
+      ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','br','strong','b','em','i','u','s','code','pre','blockquote','hr','ul','ol','li','a','img','table','thead','tbody','tr','th','td'],
+      ALLOWED_ATTR: ['href','target','rel','src','alt','title','colspan','rowspan'],
+      ALLOW_DATA_ATTR: false,
+      ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|ftp|tel|file|sms|cid|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.-]|$))/i,
+      FORBID_TAGS: ['script','style']
+    });
     return `
   <div data-force-new-page="true" data-scope="true" style="max-width:170mm;margin:0 auto;min-height:263mm;box-sizing:border-box;padding:2mm 0 10mm;">
+        <style>
+          .rte-scope table { width: 100%; border-collapse: collapse; }
+          .rte-scope th, .rte-scope td { border: 1px solid #D1D5DB; padding: 6px; }
+          .rte-scope thead th { background: #F9FAFB; }
+          .rte-scope blockquote { border-left: 3px solid #E5E7EB; padding-left: 8px; color: #111827; }
+          .rte-scope pre { background: #111827; color: #F3F4F6; padding: 8px 10px; border-radius: 6px; }
+          .rte-scope img { max-width: 100%; height: auto; border-radius: 4px; }
+        </style>
         <div style="border-bottom:2px solid #E5E7EB; padding-bottom:8px; margin-bottom:12px;">
           <div style="font-size:22px;font-weight:800;color:#111827;">${scopeTitle}</div>
           <div style="color:#6B7280;font-size:12px;margin-top:2px;">${L.appSubtitle}</div>
         </div>
-        <div style="font-size:12.5px;color:#111827;line-height:1.6;">
-          ${safe}
-        </div>
+        <div class="rte-scope" style="font-size:12.5px;color:#111827;line-height:1.6;">${safe}</div>
       </div>
     `;
   })();

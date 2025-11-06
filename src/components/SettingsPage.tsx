@@ -25,6 +25,7 @@ import type { CompanyProfile } from '../utils/pdfGenerator';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usersApi } from '../api/users';
+import { useNotificationPreferences } from '../contexts/NotificationPreferencesContext';
 import { tenantsApi } from '../api/tenants';
 import { AuditLogComponent } from './AuditLogComponent';
 
@@ -57,13 +58,13 @@ type LocalCompanyState = Omit<CompanyProfile, 'country'> & {
 const SUPPORTED_LANGUAGES = ['tr', 'en', 'fr', 'de'] as const;
 type SettingsLanguage = typeof SUPPORTED_LANGUAGES[number];
 
+// Bildirim tipi anahtarları sadece istenen kategorilerle sınırlandı
 type NotificationKey =
-  | 'emailNotifications'
-  | 'invoiceReminders'
-  | 'expenseAlerts'
-  | 'paymentNotifications'
-  | 'weeklyReports'
-  | 'monthlyReports';
+  | 'invoiceReminders'      // Fatura vade yaklaşan / gecikmiş
+  | 'expenseAlerts'         // Gider vade yaklaşan / gecikmiş
+  | 'salesNotifications'    // Yeni satış, kritik satış uyarıları
+  | 'lowStockAlerts'        // Düşük / tükenmiş stok
+  | 'quoteReminders';       // Teklif süresi dolmak üzere / doldu
 
 type SettingsTranslations = {
   header: {
@@ -389,12 +390,11 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
     notifications: {
       title: 'Bildirim Tercihleri',
       labels: {
-        emailNotifications: 'E-posta Bildirimleri',
         invoiceReminders: 'Fatura Hatırlatmaları',
         expenseAlerts: 'Gider Uyarıları',
-        paymentNotifications: 'Ödeme Bildirimleri',
-        weeklyReports: 'Haftalık Raporlar',
-        monthlyReports: 'Aylık Raporlar',
+        salesNotifications: 'Satış Bildirimleri',
+        lowStockAlerts: 'Düşük Stok Uyarıları',
+        quoteReminders: 'Teklif Hatırlatmaları',
       },
     },
     system: {
@@ -603,12 +603,11 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
     notifications: {
       title: 'Notification Preferences',
       labels: {
-        emailNotifications: 'Email Notifications',
         invoiceReminders: 'Invoice Reminders',
         expenseAlerts: 'Expense Alerts',
-        paymentNotifications: 'Payment Notifications',
-        weeklyReports: 'Weekly Reports',
-        monthlyReports: 'Monthly Reports',
+        salesNotifications: 'Sales Notifications',
+        lowStockAlerts: 'Low Stock Alerts',
+        quoteReminders: 'Quote Reminders',
       },
     },
     system: {
@@ -817,12 +816,11 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
     notifications: {
       title: 'Préférences de notification',
       labels: {
-        emailNotifications: 'Notifications par e-mail',
         invoiceReminders: 'Rappels de facture',
         expenseAlerts: 'Alertes de dépenses',
-        paymentNotifications: 'Notifications de paiement',
-        weeklyReports: 'Rapports hebdomadaires',
-        monthlyReports: 'Rapports mensuels',
+        salesNotifications: 'Notifications de ventes',
+        lowStockAlerts: 'Alertes de stock bas',
+        quoteReminders: 'Rappels de devis',
       },
     },
     system: {
@@ -1031,12 +1029,11 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
     notifications: {
       title: 'Benachrichtigungseinstellungen',
       labels: {
-        emailNotifications: 'E-Mail-Benachrichtigungen',
         invoiceReminders: 'Rechnungserinnerungen',
         expenseAlerts: 'Ausgabenwarnungen',
-        paymentNotifications: 'Zahlungsbenachrichtigungen',
-        weeklyReports: 'Wöchentliche Berichte',
-        monthlyReports: 'Monatliche Berichte',
+        salesNotifications: 'Verkaufsbenachrichtigungen',
+        lowStockAlerts: 'Niedriger Lagerbestand',
+        quoteReminders: 'Angebotserinnerungen',
       },
     },
     system: {
@@ -1292,14 +1289,139 @@ export default function SettingsPage({
   }, [company]);
 
   // Notifications
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
+  // Varsayılanlar (kullanıcı hiç ayarlamadıysa hepsi açık)
+  type NotificationSettings = {
+    invoiceReminders: boolean;
+    expenseAlerts: boolean;
+    salesNotifications: boolean;
+    lowStockAlerts: boolean;
+    quoteReminders: boolean;
+  };
+
+  const defaultNotificationSettings: NotificationSettings = {
     invoiceReminders: true,
     expenseAlerts: true,
-    paymentNotifications: true,
-    weeklyReports: false,
-    monthlyReports: true,
-  });
+    salesNotifications: true,
+    lowStockAlerts: true,
+    quoteReminders: true,
+  } as const;
+
+  // İlk render'da authUser henüz gelmemiş olabilir; localStorage'daki user objesinden ID'yi okumaya çalış.
+  const loadInitialNotificationSettings = (): NotificationSettings => {
+    try {
+      const tid = (localStorage.getItem('tenantId') || 'default') as string;
+      // localStorage'taki user objesinden id/_id al; yoksa authUser'dan; en sonda 'anon'
+      let localUid = 'anon';
+      try {
+        const userRaw = localStorage.getItem('user');
+        if (userRaw) {
+          const u = JSON.parse(userRaw);
+          localUid = u?.id || u?._id || localUid;
+        }
+      } catch {}
+      const runtimeUid = (authUser as any)?.id || (authUser as any)?._id || localUid;
+      const tryKeys: string[] = [];
+      // Önce mevcut tenant id + runtimeUid
+      tryKeys.push(`notif_prefs:${tid}:${runtimeUid}`);
+      // Sonra mevcut tenant id + localUid (auth henüz hazır değilse)
+      if (runtimeUid !== localUid) tryKeys.push(`notif_prefs:${tid}:${localUid}`);
+      // Ardından default tenant altında aynı kimlikler
+      if (tid !== 'default') {
+        tryKeys.push(`notif_prefs:default:${runtimeUid}`);
+        if (runtimeUid !== localUid) tryKeys.push(`notif_prefs:default:${localUid}`);
+      }
+      for (const k of tryKeys) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              return { ...defaultNotificationSettings, ...parsed };
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+    return { ...defaultNotificationSettings };
+  };
+
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(loadInitialNotificationSettings);
+  const { updatePref } = useNotificationPreferences();
+
+  // İlk mount'ta backend'den prefs çek ve state'i güncelle (local cache fallback)
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return; // public modda deneme
+        const prefs = await usersApi.getNotificationPreferences();
+        if (prefs && typeof prefs === 'object') {
+          const next: NotificationSettings = {
+            invoiceReminders: prefs.invoiceReminders ?? notificationSettings.invoiceReminders,
+            expenseAlerts: prefs.expenseAlerts ?? notificationSettings.expenseAlerts,
+            salesNotifications: prefs.salesNotifications ?? notificationSettings.salesNotifications,
+            lowStockAlerts: prefs.lowStockAlerts ?? notificationSettings.lowStockAlerts,
+            quoteReminders: prefs.quoteReminders ?? notificationSettings.quoteReminders,
+          };
+          setNotificationSettings(next);
+          // local cache'i de senkron tut
+          persistNotificationSettings(next);
+        }
+      } catch (e) {
+        // sessiz geç; offline/local cache kullanılacak
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auth kullanıcı kimliği kesinleşince tercihi tek seferde yeniden oku (merge yok; tam overwrite)
+  useEffect(() => {
+    const readPrefsExact = (): NotificationSettings | null => {
+      try {
+        const tid = (localStorage.getItem('tenantId') || 'default') as string;
+        const ids: string[] = [];
+        const authId = (authUser as any)?.id || (authUser as any)?._id;
+        if (authId) ids.push(String(authId));
+        try {
+          const userRaw = localStorage.getItem('user');
+          if (userRaw) {
+            const u = JSON.parse(userRaw);
+            const lid = u?.id || u?._id;
+            if (lid && !ids.includes(String(lid))) ids.push(String(lid));
+          }
+        } catch {}
+        if (ids.length === 0) ids.push('anon');
+        const tidCandidates = tid !== 'default' ? [tid, 'default'] : [tid];
+        for (const tCandidate of tidCandidates) {
+          for (const idCandidate of ids) {
+            const key = `notif_prefs:${tCandidate}:${idCandidate}`;
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed && typeof parsed === 'object') {
+                // Eksik anahtarları default ile doldur ama mevcut state'i zorla değiştirme, sadece storage değerlerini uygula
+                return {
+                  invoiceReminders: parsed.invoiceReminders ?? notificationSettings.invoiceReminders,
+                  expenseAlerts: parsed.expenseAlerts ?? notificationSettings.expenseAlerts,
+                  salesNotifications: parsed.salesNotifications ?? notificationSettings.salesNotifications,
+                  lowStockAlerts: parsed.lowStockAlerts ?? notificationSettings.lowStockAlerts,
+                  quoteReminders: parsed.quoteReminders ?? notificationSettings.quoteReminders,
+                };
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+      return null;
+    };
+    const loaded = readPrefsExact();
+    if (loaded) {
+      // Eğer zaten aynı ise state'i değiştirme
+      const same = (Object.keys(loaded) as (keyof NotificationSettings)[]).every(k => loaded[k] === notificationSettings[k]);
+      if (!same) setNotificationSettings(loaded);
+    }
+  }, [authUser]);
 
   // System (currency context'ten geliyor, burada tutmuyoruz)
   const [systemSettings, setSystemSettings] = useState({
@@ -1372,9 +1494,44 @@ export default function SettingsPage({
     setUnsavedChanges(true);
   };
 
-  const handleNotificationChange = (field: string, value: boolean) => {
+  const persistNotificationSettings = (settingsObj: typeof notificationSettings) => {
+    try {
+      const tid = (localStorage.getItem('tenantId') || 'default') as string;
+      // Mümkün olan tüm ID varyasyonlarına yaz (id / _id); böylece sonraki oturumda hangisi gelirse gelsin okunacak
+      const ids: string[] = [];
+      const authId = (authUser as any)?.id || (authUser as any)?._id;
+      if (authId) ids.push(String(authId));
+      try {
+        const userRaw = localStorage.getItem('user');
+        if (userRaw) {
+          const u = JSON.parse(userRaw);
+          const lid = u?.id || u?._id;
+          if (lid) ids.push(String(lid));
+        }
+      } catch {}
+      if (ids.length === 0) ids.push('anon');
+      // Yinelenenleri kaldır
+      const uniqueIds = Array.from(new Set(ids));
+      const tidTargets = new Set<string>([tid]);
+      if (tid !== 'default') tidTargets.add('default'); // tenant henüz yazılmadan önce de erişilebilir olsun
+      tidTargets.forEach(tCandidate => {
+        uniqueIds.forEach(idCandidate => {
+          const key = `notif_prefs:${tCandidate}:${idCandidate}`;
+          try { localStorage.setItem(key, JSON.stringify(settingsObj)); } catch {}
+        });
+      });
+    } catch {}
+  };
+
+  const handleNotificationChange = async (field: string, value: boolean) => {
     setNotificationSettings(prev => ({ ...prev, [field]: value }));
-    setUnsavedChanges(true);
+    try {
+      await updatePref(field as any, value);
+      const updatedPrefs = { ...notificationSettings, [field]: value };
+      persistNotificationSettings(updatedPrefs);
+    } catch (e) {
+      console.error('Notification preference update failed:', e);
+    }
   };
 
   const handleSystemChange = (field: string, value: string | boolean) => {
@@ -1534,6 +1691,14 @@ export default function SettingsPage({
           stateOrRegion: companyData.stateOrRegion,
         };
         onCompanyUpdate(cleaned);
+      }
+
+      // Bildirim tercihlerini backend'e yaz (kaydet butonu ile de tetikleyelim - idempotent)
+      try {
+        await usersApi.updateNotificationPreferences(notificationSettings);
+        persistNotificationSettings(notificationSettings); // lokal cache
+      } catch (e) {
+        console.error('Notification prefs save failed:', e);
       }
 
       setUnsavedChanges(false);
@@ -2116,7 +2281,7 @@ export default function SettingsPage({
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={value}
+                    checked={Boolean(value)}
                     onChange={e => handleNotificationChange(key, e.target.checked)}
                     className="sr-only peer"
                   />

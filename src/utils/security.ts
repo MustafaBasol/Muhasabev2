@@ -15,6 +15,27 @@ export const sanitizeHtml = (dirty: string): string => {
 };
 
 /**
+ * Zengin metin (RTE) HTML temizleyici
+ * - Başlıklar, listeler, alıntı, kod bloğu, img, link vb. korunur
+ * - data: URI ile gömülü görsellere izin verir (sadece img/src)
+ */
+export const sanitizeRteHtml = (dirty: string): string => {
+  const ALLOWED_URI_REGEXP = /^(?:(?:https?|mailto|ftp|tel|file|sms|cid|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.-]|$))/i;
+  return DOMPurify.sanitize(dirty, {
+    ALLOWED_TAGS: [
+      'h1','h2','h3','h4','h5','h6',
+      'p','br','strong','b','em','i','u','s','code','pre','blockquote','hr',
+      'ul','ol','li','a','img',
+      'table','thead','tbody','tr','th','td'
+    ],
+    ALLOWED_ATTR: ['href','target','rel','src','alt','title','colspan','rowspan'],
+    ALLOW_DATA_ATTR: false,
+    ALLOWED_URI_REGEXP,
+    FORBID_TAGS: ['script','style']
+  });
+};
+
+/**
  * Güvenli string escape - özel karakterleri encode et
  */
 export const escapeHtml = (unsafe: string): string => {

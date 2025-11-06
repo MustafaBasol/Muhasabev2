@@ -40,6 +40,28 @@ export class AuthController {
     return this.authService.getProfile(user);
   }
 
+  @Post('refresh')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Refresh access token (sliding session)' })
+  @HttpCode(200)
+  async refresh(@User() user: any) {
+    // Debug log: route hit confirmation (geçici - üretimde kaldırılabilir)
+    // console.log('[AuthController] /auth/refresh endpoint hit for user:', user?.id);
+    return this.authService.refresh(user);
+  }
+
+  // Alternative endpoint to avoid potential proxies or middlewares conflicting with 
+  // the "/auth/refresh" path in some environments.
+  @Post('refresh-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Refresh access token (alt path)' })
+  @HttpCode(200)
+  async refreshAlt(@User() user: any) {
+    return this.authService.refresh(user);
+  }
+
   @Post('resend-verification')
   @ApiOperation({ summary: 'Resend email verification link' })
   async resendVerification(@Body() body: { email: string }) {

@@ -25,7 +25,7 @@ if ! docker ps | grep -q "postgres\|redis"; then
 fi
 
 # Backend başlat
-echo -e "${BLUE}🔧 Backend başlatılıyor (Port 3000)...${NC}"
+echo -e "${BLUE}🔧 Backend başlatılıyor (Port 3001 - development)...${NC}"
 cd /workspaces/Muhasabev2/backend
 
 # Dependencies check
@@ -35,6 +35,8 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # Backend loglarını dosyaya yaz
+export NODE_ENV=development
+export PORT=3001
 npm run start:dev > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 
@@ -43,7 +45,7 @@ echo -e "${YELLOW}⏳ Backend'in başlaması bekleniyor...${NC}"
 sleep 8
 
 # Health check
-HEALTH_CHECK=$(curl -s "http://localhost:3000/health" 2>/dev/null || echo "failed")
+HEALTH_CHECK=$(curl -s "http://localhost:3001/health" 2>/dev/null || echo "failed")
 if [[ "$HEALTH_CHECK" == *"Hello World"* ]]; then
     echo -e "${GREEN}✅ Backend başarıyla başlatıldı (PID: $BACKEND_PID)${NC}"
 else
@@ -70,9 +72,9 @@ echo ""
 echo "✅ All services started!"
 echo ""
 echo "📊 Services:"
-echo "  - Backend:  http://localhost:3000"
+echo "  - Backend:  http://localhost:3001"
 echo "  - Frontend: http://localhost:5174"
-echo "  - Swagger:  http://localhost:3000/api/docs"
+echo "  - Swagger:  http://localhost:3001/api/docs"
 echo "  - pgAdmin:  http://localhost:5050"
 echo ""
 echo "📝 Logs:"

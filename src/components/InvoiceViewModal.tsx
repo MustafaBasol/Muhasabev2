@@ -119,11 +119,17 @@ export default function InvoiceViewModal({
                 <div className="flex items-center text-sm">
                   <span className="text-gray-600">{t('invoice.type')}:</span>
                   <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                    invoice.type === 'product' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
+                    invoice.type === 'product'
+                      ? 'bg-blue-100 text-blue-800'
+                      : invoice.type === 'service'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-indigo-100 text-indigo-800'
                   }`}>
-                    {invoice.type === 'product' ? t('invoice.productSale') : t('invoice.serviceSale')}
+                    {invoice.type === 'product'
+                      ? t('invoice.productSale')
+                      : invoice.type === 'service'
+                        ? t('invoice.serviceSale')
+                        : t('invoice.generalSale', 'Genel')}
                   </span>
                 </div>
                 <div className="flex items-center text-sm">

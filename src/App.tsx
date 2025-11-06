@@ -4,6 +4,7 @@ import { useAuth } from "./contexts/AuthContext";
 import { CurrencyProvider, useCurrency } from "./contexts/CurrencyContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import { CookieConsentProvider } from "./contexts/CookieConsentContext";
+import { NotificationPreferencesProvider, useNotificationPreferences } from "./contexts/NotificationPreferencesContext";
 import { analyticsManager } from "./utils/analyticsManager";
 import { useTranslation } from "react-i18next";
 
@@ -167,6 +168,7 @@ const AppContent: React.FC = () => {
   const { isAuthenticated, user: authUser, logout, tenant } = useAuth();
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
+  const { prefs } = useNotificationPreferences();
   
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
@@ -1118,89 +1120,112 @@ const AppContent: React.FC = () => {
   // 🔔 Yaklaşan ve geçmiş ödemeler için bildirim kontrol et
   useEffect(() => {
     if (!isAuthenticated) return;
-    
     const checkPaymentNotifications = () => {
+      const allowInvoiceReminders = prefs.invoiceReminders !== false; // varsayılan: açık
+      const allowExpenseAlerts = prefs.expenseAlerts !== false; // varsayılan: açık
+      const allowLowStockAlerts = prefs.lowStockAlerts !== false; // varsayılan: açık
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayMs = today.getTime();
       const threeDaysLater = new Date(today);
       threeDaysLater.setDate(threeDaysLater.getDate() + 3);
       
-      // Faturaları kontrol et
-      invoices.forEach(invoice => {
-        if (invoice.status === 'paid' || invoice.status === 'cancelled') return;
-        
-        const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
-        if (!dueDate) return;
-        
-        dueDate.setHours(0, 0, 0, 0);
-        const dueDateMs = dueDate.getTime();
-        
-        const customerName = invoice.customer?.name || 'Müşteri';
-        const invoiceNumber = invoice.invoiceNumber || `#${invoice.id}`;
-        
-        if (dueDateMs < todayMs) {
-          // Ödeme tarihi geçmiş
-          const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
-          addNotification(
-            'Gecikmiş fatura ödemesi',
-            `${invoiceNumber} - ${customerName} (${daysOverdue} gün gecikmiş)`,
-            'danger',
-            'invoices',
-            { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
-          );
-        } else if (dueDateMs <= threeDaysLater.getTime()) {
-          // 3 gün içinde ödeme
-          const daysLeft = Math.ceil((dueDateMs - todayMs) / (1000 * 60 * 60 * 24));
-          addNotification(
-            'Yaklaşan fatura ödemesi',
-            `${invoiceNumber} - ${customerName} (${daysLeft} gün kaldı)`,
-            'warning',
-            'invoices',
-            { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
-          );
-        }
-      });
+      // Faturaları kontrol et (tercih açık ise)
+      if (allowInvoiceReminders) {
+        invoices.forEach(invoice => {
+          if (invoice.status === 'paid' || invoice.status === 'cancelled') return;
+          
+          const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
+          if (!dueDate) return;
+          
+          dueDate.setHours(0, 0, 0, 0);
+          const dueDateMs = dueDate.getTime();
+          
+          const customerName = invoice.customer?.name || 'Müşteri';
+          const invoiceNumber = invoice.invoiceNumber || `#${invoice.id}`;
+          
+          if (dueDateMs < todayMs) {
+            // Ödeme tarihi geçmiş
+            const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
+            addNotification(
+              'Gecikmiş fatura ödemesi',
+              `${invoiceNumber} - ${customerName} (${daysOverdue} gün gecikmiş)`,
+              'danger',
+              'invoices',
+              { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
+            );
+          } else if (dueDateMs <= threeDaysLater.getTime()) {
+            // 3 gün içinde ödeme
+            const daysLeft = Math.ceil((dueDateMs - todayMs) / (1000 * 60 * 60 * 24));
+            addNotification(
+              'Yaklaşan fatura ödemesi',
+              `${invoiceNumber} - ${customerName} (${daysLeft} gün kaldı)`,
+              'warning',
+              'invoices',
+              { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
+            );
+          }
+        });
+      }
       
-      // Giderleri kontrol et
-      expenses.forEach(expense => {
-        if (expense.status === 'paid' || expense.status === 'cancelled') return;
-        
-        const dueDate = expense.dueDate || expense.expenseDate ? new Date(expense.dueDate || expense.expenseDate) : null;
-        if (!dueDate) return;
-        
-        dueDate.setHours(0, 0, 0, 0);
-        const dueDateMs = dueDate.getTime();
-        
-        const supplierName = expense.supplier?.name || expense.supplier || 'Tedarikçi';
-        const description = expense.description || 'Gider';
-        
-        if (dueDateMs < todayMs) {
-          // Ödeme tarihi geçmiş
-          const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
-          addNotification(
-            'Gecikmiş gider ödemesi',
-            `${description} - ${supplierName} (${daysOverdue} gün gecikmiş)`,
-            'danger',
-            'expenses',
-            { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
-          );
-        } else if (dueDateMs <= threeDaysLater.getTime()) {
-          // 3 gün içinde ödeme
-          const daysLeft = Math.ceil((dueDateMs - todayMs) / (1000 * 60 * 60 * 24));
-          addNotification(
-            'Yaklaşan gider ödemesi',
-            `${description} - ${supplierName} (${daysLeft} gün kaldı)`,
-            'warning',
-            'expenses',
-            { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
-          );
-        }
-      });
+      // Giderleri kontrol et (tercih açık ise)
+      if (allowExpenseAlerts) {
+        expenses.forEach(expense => {
+          if (expense.status === 'paid' || expense.status === 'cancelled') return;
+          
+          const dueDate = expense.dueDate || expense.expenseDate ? new Date(expense.dueDate || expense.expenseDate) : null;
+          if (!dueDate) return;
+          
+          dueDate.setHours(0, 0, 0, 0);
+          const dueDateMs = dueDate.getTime();
+          
+          const supplierName = expense.supplier?.name || expense.supplier || 'Tedarikçi';
+          const description = expense.description || 'Gider';
+          
+          if (dueDateMs < todayMs) {
+            // Ödeme tarihi geçmiş
+            const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
+            addNotification(
+              'Gecikmiş gider ödemesi',
+              `${description} - ${supplierName} (${daysOverdue} gün gecikmiş)`,
+              'danger',
+              'expenses',
+              { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
+            );
+          } else if (dueDateMs <= threeDaysLater.getTime()) {
+            // 3 gün içinde ödeme
+            const daysLeft = Math.ceil((dueDateMs - todayMs) / (1000 * 60 * 60 * 24));
+            addNotification(
+              'Yaklaşan gider ödemesi',
+              `${description} - ${supplierName} (${daysLeft} gün kaldı)`,
+              'warning',
+              'expenses',
+              { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
+            );
+          }
+        });
+      }
+
+      // Düşük stok kontrolü (ürün state'inden) - tercih açık ise
+      if (allowLowStockAlerts) {
+        try {
+          const lowOrEmpty = products.filter(p => Number(p.stockQuantity || 0) <= Number(p.reorderLevel || 0));
+          lowOrEmpty.forEach(p => {
+            const stock = Number(p.stockQuantity || 0);
+            const min = Number(p.reorderLevel || 0);
+            if (stock <= 0) {
+              addNotification('Stok tükendi', `${p.name} - Stok tükendi!`, 'danger', 'products', { persistent: true, repeatDaily: true, relatedId: `out-of-stock-${p.id}` });
+            } else {
+              addNotification('Düşük stok uyarısı', `${p.name} - Stok seviyesi minimum limitin altında! (${stock}/${min})`, 'warning', 'products', { persistent: true, repeatDaily: true, relatedId: `low-stock-${p.id}` });
+            }
+          });
+        } catch {}
+      }
     };
     
-    // İlk yüklemede kontrol et
-    checkPaymentNotifications();
+  // İlk yüklemede kontrol et
+  checkPaymentNotifications();
     
     // Her gün sabah 9'da kontrol et
     const now = new Date();
@@ -1218,7 +1243,40 @@ const AppContent: React.FC = () => {
     }, msUntil9am);
     
     return () => clearTimeout(timeout);
-  }, [invoices, expenses, isAuthenticated]);
+  }, [invoices, expenses, products, isAuthenticated, prefs]);
+
+  // Teklif (quote) hatırlatma bildirimi: süresi dolmak üzere / doldu
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const loadAndNotifyQuotes = () => {
+      try {
+        const tid = (localStorage.getItem('tenantId') || 'default') as string;
+        const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+        const raw = localStorage.getItem(key);
+        const quotes = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(quotes)) return;
+        if (prefs.quoteReminders === false) return;
+        const today = new Date(); today.setHours(0,0,0,0);
+        const todayMs = today.getTime();
+        quotes.forEach((q: any) => {
+          if (!q?.validUntil) return;
+          const status = String(q.status || '').toLowerCase();
+          if (['accepted','declined','expired'].includes(status)) return; // tamamlanmış veya geçersiz
+          const due = new Date(q.validUntil); due.setHours(0,0,0,0);
+          const dueMs = due.getTime();
+          const diffDays = Math.ceil((dueMs - todayMs) / 86400000);
+          if (dueMs < todayMs) {
+            addNotification('Teklif süresi doldu', `${q.quoteNumber || 'Teklif'} - süre doldu`, 'danger', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-expired-${q.id}` });
+          } else if (diffDays <= 3) {
+            addNotification('Teklif süresi yaklaşıyor', `${q.quoteNumber || 'Teklif'} - ${diffDays} gün kaldı`, 'warning', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-due-${q.id}` });
+          }
+        });
+      } catch (e) { /* sessiz */ }
+    };
+    loadAndNotifyQuotes();
+    const interval = setInterval(loadAndNotifyQuotes, 6 * 60 * 60 * 1000); // 6 saatte bir
+    return () => clearInterval(interval);
+  }, [isAuthenticated, prefs]);
 
   const normalizeId = (value?: string | number) => String(value ?? Date.now());
 
@@ -1526,6 +1584,55 @@ const AppContent: React.FC = () => {
       relatedId?: string;
     }
   ) => {
+    // Kategori bazlı filtre: sadece talep edilenler
+    const allowedCategories = new Set(['invoices', 'expenses', 'sales', 'products', 'quotes']);
+    const category = link || '';
+    const readPrefs = () => {
+      try {
+        const tid = (localStorage.getItem('tenantId') || 'default') as string;
+        let uid = 'anon';
+        const userRaw = localStorage.getItem('user');
+        if (userRaw) {
+          const u = JSON.parse(userRaw);
+          uid = u?.id || u?._id || uid;
+        }
+        const key = `notif_prefs:${tid}:${uid}`;
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : {};
+      } catch { return {}; }
+    };
+
+    // İzin verilmeyen kategorileri sessizce yoksay
+    if (category && !allowedCategories.has(category)) {
+      return;
+    }
+    // products: sadece low/out-of-stock ilgili bildirimlere izin ver
+    if (category === 'products') {
+      const rid = options?.relatedId || '';
+      const isStockAlert = /^low-stock-|^out-of-stock-/.test(rid);
+      if (!isStockAlert) {
+        return; // yeni ürün vb. bildirimleri gösterme
+      }
+      const prefs = readPrefs();
+      if (prefs?.lowStockAlerts === false) return;
+    }
+    if (category === 'sales') {
+      const prefs = readPrefs();
+      if (prefs?.salesNotifications === false) return;
+    }
+    if (category === 'quotes') {
+      const prefs = readPrefs();
+      if (prefs?.quoteReminders === false) return;
+    }
+    if (category === 'invoices') {
+      const prefs = readPrefs();
+      if (prefs?.invoiceReminders === false) return;
+    }
+    if (category === 'expenses') {
+      const prefs = readPrefs();
+      if (prefs?.expenseAlerts === false) return;
+    }
+
     // Benzersiz ID oluştur (Date.now + random)
     const uniqueId = options?.relatedId 
       ? `${options.relatedId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
@@ -2396,13 +2503,23 @@ const AppContent: React.FC = () => {
               invoiceId: newSale.invoiceId
             });
             
-            // 🔔 Satış bildirimi
-            addNotification(
-              'Yeni satış gerçekleşti',
-              `${newSale.saleNumber} - ${newSale.customerName}: ${newSale.amount} TL`,
-              'success',
-              'sales'
-            );
+            // 🔔 Satış bildirimi (tercihe tabi)
+            try {
+              const tid = (localStorage.getItem('tenantId') || 'default') as string;
+              const userRaw = localStorage.getItem('user');
+              let uid = 'anon';
+              if (userRaw) { const u = JSON.parse(userRaw); uid = u?.id || u?._id || uid; }
+              const key = `notif_prefs:${tid}:${uid}`;
+              const prefs = JSON.parse(localStorage.getItem(key) || '{}');
+              if (prefs?.salesNotifications !== false) {
+                addNotification(
+                  'Yeni satış gerçekleşti',
+                  `${newSale.saleNumber} - ${newSale.customerName}: ${newSale.amount} TL`,
+                  'success',
+                  'sales'
+                );
+              }
+            } catch {}
             
           } catch (saleError) {
             console.error('⚠️ Otomatik satış oluşturulamadı:', saleError);
@@ -2912,13 +3029,7 @@ const AppContent: React.FC = () => {
         } as Product]);
         showToast('Ürün eklendi', 'success');
         
-        // 🔔 Bildirim ekle
-        addNotification(
-          'Yeni ürün eklendi',
-          `${created.name} stoğa kaydedildi. Stok: ${created.stock} ${created.unit}`,
-          'info',
-          'products'
-        );
+        // Ürün eklendi bildirimi kaldırıldı (yalnızca düşük stok/tükenmiş stok bildirimleri gösterilecek)
         
         // ⚠️ Stok uyarısı
         if (created.stock <= created.minStock) {
@@ -3453,7 +3564,6 @@ const AppContent: React.FC = () => {
   const closeSaleViewModal = () => setShowSaleViewModal(false);
   const closeProductViewModal = () => {
     setShowProductViewModal(false);
-    setSelectedProduct(null);
   };
   const closeBankViewModal = () => setShowBankViewModal(false);
   const closeCustomerHistoryModal = () => setShowCustomerHistoryModal(false);
@@ -3503,14 +3613,54 @@ const AppContent: React.FC = () => {
         taxRate: Number(li?.taxRate ?? 18),
       }));
     }
+    // Fatura türünü ürün/hizmet/genel olarak belirle (ürün kategorisi köküne göre)
+    const detectType = (): 'product' | 'service' | 'general' | undefined => {
+      try {
+        if (!Array.isArray(items) || items.length === 0) return inv.type as any;
+        const kinds = new Set<'product' | 'service'>();
+        const byId = new Map<string, any>();
+        products.forEach(p => byId.set(String(p.id), p));
+        const catsByName = new Map<string, ProductCategory>();
+        productCategoryObjects.forEach(c => catsByName.set((c.name || '').toLowerCase(), c));
+
+        const getRootName = (catName?: string): string | undefined => {
+          if (!catName) return undefined;
+          const c = catsByName.get(String(catName).toLowerCase());
+          if (!c) return String(catName);
+          let cur: ProductCategory | undefined = c;
+          const byIdLookup = new Map(productCategoryObjects.map(cc => [cc.id, cc] as const));
+          while (cur && cur.parentId) {
+            cur = byIdLookup.get(cur.parentId);
+          }
+          return cur?.name || c.name;
+        };
+
+        for (const it of items) {
+          const p = (it.productId ? byId.get(String(it.productId)) : undefined) ||
+                    products.find(pp => (pp.name || '').toLowerCase() === String(it.productName || it.description || '').toLowerCase());
+          const catName = p?.category;
+          const root = getRootName(catName)?.toLowerCase() || '';
+          const normalized = root.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+          if (normalized.includes('hizmet') || root.includes('hizmet')) kinds.add('service');
+          else if (normalized.includes('urun') || root.includes('ürün')) kinds.add('product');
+        }
+        if (kinds.size === 0) return inv.type as any;
+        if (kinds.size > 1) return 'general';
+        return kinds.values().next().value as any;
+      } catch {
+        return inv.type as any;
+      }
+    };
+
     const customer = inv.customer || (inv.customerId ? {
       id: String(inv.customerId),
       name: customerName || undefined,
       email: customerEmail || undefined,
       address: customerAddress || undefined,
     } : undefined);
-    return { ...inv, items, customerName, customerEmail, customerAddress, customer };
-  }, []);
+    const derivedType = detectType();
+    return { ...inv, items, customerName, customerEmail, customerAddress, customer, type: derivedType || inv.type };
+  }, [products, productCategoryObjects]);
 
   const handleDownloadInvoice = async (invoice: any) => {
     try {
@@ -3557,27 +3707,39 @@ const AppContent: React.FC = () => {
     }
   }, [normalizeInvoiceForUi]);
 
-  // Global köprü: CustomerHistoryPage gibi alt sayfalardan düzenleme/PDF indir tetiklemek için event dinleyicileri
+  // Global köprü: Alt sayfalardan düzenleme/PDF indir tetiklemek için event dinleyicileri
   React.useEffect(() => {
     const onOpenInvoiceEdit = (e: Event) => {
       const ce = e as CustomEvent;
       const inv = (ce.detail && (ce.detail.invoice || ce.detail)) as any;
-      if (inv) {
-        openInvoiceModal(inv);
-      }
+      if (inv) openInvoiceModal(inv);
     };
     const onDownloadInvoiceEvt = (e: Event) => {
       const ce = e as CustomEvent;
       const inv = (ce.detail && (ce.detail.invoice || ce.detail)) as any;
-      if (inv) {
-        handleDownloadInvoice(inv);
-      }
+      if (inv) handleDownloadInvoice(inv);
+    };
+    const onOpenQuoteEdit = (e: Event) => {
+      const ce = e as CustomEvent;
+      const q = (ce.detail && (ce.detail.quote || ce.detail)) as any;
+      if (!q) return;
+      setSelectedQuote(q);
+      setShowQuoteEditModal(true);
+    };
+    const onOpenSaleEdit = (e: Event) => {
+      const ce = e as CustomEvent;
+      const s = (ce.detail && (ce.detail.sale || ce.detail)) as any;
+      if (s) openSaleModal(s);
     };
     window.addEventListener('open-invoice-edit', onOpenInvoiceEdit as any);
     window.addEventListener('download-invoice', onDownloadInvoiceEvt as any);
+    window.addEventListener('open-quote-edit', onOpenQuoteEdit as any);
+    window.addEventListener('open-sale-edit', onOpenSaleEdit as any);
     return () => {
       window.removeEventListener('open-invoice-edit', onOpenInvoiceEdit as any);
       window.removeEventListener('download-invoice', onDownloadInvoiceEvt as any);
+      window.removeEventListener('open-quote-edit', onOpenQuoteEdit as any);
+      window.removeEventListener('open-sale-edit', onOpenSaleEdit as any);
     };
   }, [openInvoiceModal, handleDownloadInvoice]);
 
@@ -3814,10 +3976,22 @@ const AppContent: React.FC = () => {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <ChartCard sales={sales} expenses={expenses} invoices={invoices} />
+          {(() => {
+            // Quotes: Son İşlemler için local cache'den oku (tenant scoped)
+            let quotesForRecent: any[] = [];
+            try {
+              const tid = tenant?.id;
+              const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+              const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+              const list = raw ? JSON.parse(raw) : [];
+              if (Array.isArray(list)) quotesForRecent = list;
+            } catch {}
+            return (
           <RecentTransactions
             invoices={invoices}
             expenses={expenses}
             sales={sales}
+            quotes={quotesForRecent}
             onViewInvoice={(invoice) => { openInvoiceView(invoice); }}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
             onDownloadInvoice={handleDownloadInvoice}
@@ -3833,8 +4007,14 @@ const AppContent: React.FC = () => {
             }}
             onEditSale={sale => openSaleModal(sale)}
             onDownloadSale={handleDownloadSale}
+            onViewQuote={quote => {
+              setSelectedQuote(quote as any);
+              setShowQuoteViewModal(true);
+            }}
             onViewAllTransactions={() => navigateTo("general-ledger")}
           />
+            );
+          })()}
         </div>
         <div className="space-y-6">
           <QuickActions
@@ -4880,7 +5060,9 @@ const App: React.FC = () => {
     <LanguageProvider>
       <CurrencyProvider>
         <CookieConsentProvider>
-          <AppContent />
+          <NotificationPreferencesProvider>
+            <AppContent />
+          </NotificationPreferencesProvider>
         </CookieConsentProvider>
       </CurrencyProvider>
     </LanguageProvider>

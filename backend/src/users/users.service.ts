@@ -130,6 +130,37 @@ export class UsersService {
     return this.findOne(id);
   }
 
+  async updateNotificationPreferences(
+    id: string,
+    prefs: {
+      invoiceReminders?: boolean;
+      expenseAlerts?: boolean;
+      salesNotifications?: boolean;
+      lowStockAlerts?: boolean;
+      quoteReminders?: boolean;
+    },
+  ): Promise<User> {
+    // Shallow validation (ensure booleans if provided)
+    const cleaned: any = {};
+    for (const key of [
+      'invoiceReminders',
+      'expenseAlerts',
+      'salesNotifications',
+      'lowStockAlerts',
+      'quoteReminders',
+    ]) {
+      if (key in prefs) {
+        const v = (prefs as any)[key];
+        if (typeof v === 'boolean') cleaned[key] = v;
+      }
+    }
+    await this.userRepository.update(id, {
+      notificationPreferences: cleaned,
+      updatedAt: new Date(),
+    } as any);
+    return this.findOne(id);
+  }
+
   async remove(id: string): Promise<void> {
     const user = await this.findOne(id);
     await this.userRepository.remove(user);

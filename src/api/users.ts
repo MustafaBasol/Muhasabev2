@@ -21,4 +21,32 @@ export const usersApi = {
     const response = await apiClient.put('/users/me', data);
     return response.data;
   },
+
+  /**
+   * Bildirim tercihlerini getir
+   */
+  getNotificationPreferences: async (): Promise<{
+    invoiceReminders?: boolean;
+    expenseAlerts?: boolean;
+    salesNotifications?: boolean;
+    lowStockAlerts?: boolean;
+    quoteReminders?: boolean;
+  }> => {
+    const response = await apiClient.get('/users/me/notification-preferences');
+    return response.data || {};
+  },
+
+  /**
+   * Bildirim tercihlerini güncelle
+   */
+  updateNotificationPreferences: async (prefs: {
+    invoiceReminders?: boolean;
+    expenseAlerts?: boolean;
+    salesNotifications?: boolean;
+    lowStockAlerts?: boolean;
+    quoteReminders?: boolean;
+  }) => {
+    const response = await apiClient.put('/users/me/notification-preferences', prefs);
+    return response.data;
+  },
 };

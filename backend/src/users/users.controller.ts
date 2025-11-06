@@ -74,6 +74,37 @@ export class UsersController {
   }
 
   /**
+   * Get current user's notification preferences
+   */
+  @Get('me/notification-preferences')
+  async getNotificationPreferences(@Request() req) {
+    const user = await this.usersService.findOne(req.user.id);
+    return user.notificationPreferences || {};
+  }
+
+  /**
+   * Update current user's notification preferences
+   */
+  @Put('me/notification-preferences')
+  @HttpCode(HttpStatus.OK)
+  async updateNotificationPreferences(
+    @Request() req,
+    @Body()
+    body: {
+      invoiceReminders?: boolean;
+      expenseAlerts?: boolean;
+      salesNotifications?: boolean;
+      lowStockAlerts?: boolean;
+      quoteReminders?: boolean;
+    },
+  ) {
+    const userId = req.user.id;
+    return this.usersService.update(userId, {
+      notificationPreferences: body,
+    });
+  }
+
+  /**
    * GDPR: Export user's personal data
    */
   @Get('me/export')

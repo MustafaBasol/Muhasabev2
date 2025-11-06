@@ -33,6 +33,11 @@ export interface AuthResponse {
   token: string;
 }
 
+export interface RefreshResponse {
+  token: string;
+  expiresIn?: string;
+}
+
 export const authService = {
   async register(data: RegisterData): Promise<AuthResponse> {
     try {
@@ -79,6 +84,19 @@ export const authService = {
   async getProfile() {
     const response = await apiClient.get('/auth/me');
     return response.data;
+  },
+
+  async refresh(): Promise<RefreshResponse> {
+    // Authenticated route re-issues a short-lived access token
+    // Prefer alt path in case "/auth/refresh" collides with proxies.
+    try {
+      const response = await apiClient.post<RefreshResponse>('/auth/refresh-token', {});
+      return response.data;
+    } catch (err) {
+      // Fallback to original path
+      const response = await apiClient.post<RefreshResponse>('/auth/refresh', {});
+      return response.data;
+    }
   },
 
   async resendVerification(email: string) {

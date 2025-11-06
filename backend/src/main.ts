@@ -172,7 +172,18 @@ async function bootstrap() {
 
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = parseInt(process.env.PORT || '3000', 10);
+  // Port seçimi: Production'da 3000, diğer tüm ortamlarda (development, test, undefined) 3001 kullan.
+  const defaultPort = process.env.NODE_ENV === 'production' ? '3000' : '3001';
+  const port = parseInt(process.env.PORT || defaultPort, 10);
+  if (!process.env.PORT) {
+    console.log(
+      `ℹ️ PORT env tanımlı değil; NODE_ENV='${process.env.NODE_ENV ?? ''}' için varsayılan port ${port} seçildi. Çakışma varsa PORT değişkeni ile özelleştirin.`,
+    );
+  } else {
+    console.log(
+      `ℹ️ PORT env tanımlı: ${process.env.PORT}. NODE_ENV='${process.env.NODE_ENV ?? ''}'. Dinlenecek port: ${port}.`,
+    );
+  }
   const host = '0.0.0.0'; // Bu tüm interface'lerde dinlemeyi sağlar
 
   await app.listen(port, host);

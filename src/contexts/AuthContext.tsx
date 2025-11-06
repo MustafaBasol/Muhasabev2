@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { authService, AuthResponse } from '../api/auth';
-import { secureStorage } from '../utils/storage';
+// import { secureStorage } from '../utils/storage';
 import { logger } from '../utils/logger';
+import { createSessionManager, SessionManager } from '../utils/sessionManager';
 
 interface User {
   id: string;
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const sessionRef = useRef<SessionManager | null>(null);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -59,48 +61,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initUser = async () => {
       try {
-        if (token && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
+        // 1) Local hızlı başlangıç (varsa ve parse edilebilirse)
+        if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
           try {
-            // Önce localStorage'dan hızlı başlat
-            let parsedUser;
-            try {
-              parsedUser = JSON.parse(storedUser);
-            } catch (parseError) {
-              console.error('❌ User parse hatası:', parseError);
-              // Bozuk veriyi ve ilişkili cache'i temizle, sonra güvenli şekilde devam et
-              clearCorruptedData();
-              setUser(null);
-              setTenant(null);
-              return; // finally bloğunda isLoading kapatılacak
-            }
+            const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
-            logger.info("✅ User localStorage'dan yüklendi:", parsedUser.email);
-
-            // Sonra backend'den güncel bilgiyi al
-            try {
-              logger.info("🔄 Backend'den güncel user bilgisi çekiliyor...");
-              const updatedUser = await authService.getProfile();
-              setUser(updatedUser);
-              await secureStorage.setJSON('user', updatedUser);
-              logger.info("✅ User bilgisi backend'den güncellendi:", updatedUser);
-            } catch (error) {
-              console.error('⚠️ Backend\'den user yüklenemedi, localStorage kullanılıyor:', error);
-            }
-          } catch (error) {
-            console.error('❌ User parse hatası:', error);
+            logger.info("✅ User localStorage'dan yüklendi:", parsedUser?.email);
+          } catch (parseError) {
+            console.error('❌ User parse hatası (yoksayılıp yenisi çekilecek):', parseError);
+            // Sadece bozuk user kaydını temizle, token kalsın
             localStorage.removeItem('user');
           }
+        }
 
-          if (storedTenant && storedTenant !== 'undefined' && storedTenant !== 'null') {
-            try {
-              const parsedTenant = JSON.parse(storedTenant);
-              setTenant(parsedTenant);
-              logger.info("✅ Tenant localStorage'dan yüklendi:", parsedTenant.name);
-            } catch (error) {
-              console.error('❌ Tenant parse hatası:', error);
-              logger.warn('🧹 Bozuk tenant data temizleniyor...');
-              localStorage.removeItem('tenant');
+        // 2) Tenant'i localStorage'dan oku (varsa)
+        if (storedTenant && storedTenant !== 'undefined' && storedTenant !== 'null') {
+          try {
+            const parsedTenant = JSON.parse(storedTenant);
+            setTenant(parsedTenant);
+            logger.info("✅ Tenant localStorage'dan yüklendi:", parsedTenant?.name);
+          } catch (e) {
+            console.error('❌ Tenant parse hatası:', e);
+            localStorage.removeItem('tenant');
+          }
+        }
+
+        // 3) Token varsa backend'den güncel profili çek (storedUser olsa da olmasa da)
+        if (token) {
+          try {
+            logger.info("🔄 Backend'den güncel user bilgisi çekiliyor...");
+            const res = await authService.getProfile();
+            // API bazı durumlarda { user, tenant } dönebilir
+            const nextUser = (res as any)?.user || res;
+            const nextTenant = (res as any)?.tenant;
+            if (nextUser) {
+              setUser(nextUser);
+              localStorage.setItem('user', JSON.stringify(nextUser));
+              logger.info('✅ User bilgisi backend\'den güncellendi');
             }
+            if (nextTenant) {
+              setTenant(nextTenant);
+              localStorage.setItem('tenant', JSON.stringify(nextTenant));
+            }
+          } catch (e) {
+            console.error('⚠️ Backend\'den profil çekilemedi:', e);
+            // Token çalışmıyorsa kullanıcı oturumu olmayabilir; ama burada token'ı silmeyelim.
           }
         }
       } finally {
@@ -109,6 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initUser();
+    return () => {
+      // cleanup on unmount
+      try { sessionRef.current?.stop(); } catch {}
+    };
   }, []);
 
   const handleAuthSuccess = (data: AuthResponse) => {
@@ -133,6 +142,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.tenant) {
       localStorage.setItem('tenant', JSON.stringify(data.tenant));
       setTenant(data.tenant);
+    }
+    // Start/Restart session manager for activity + refresh
+    try {
+      sessionRef.current?.stop();
+      sessionRef.current = createSessionManager(
+        () => localStorage.getItem('auth_token'),
+        (t: string) => localStorage.setItem('auth_token', t),
+        () => logout(),
+        {
+          idleTimeoutMinutes: Number((import.meta as any)?.env?.VITE_IDLE_TIMEOUT_MINUTES) || 30,
+        }
+      );
+      sessionRef.current.start();
+    } catch (e) {
+      // ignore
     }
     
     logger.info('✅ Yeni kullanıcı girişi:', {
@@ -217,6 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      try { sessionRef.current?.stop(); } catch {}
       setUser(null);
       setTenant(null);
       clearCorruptedData();

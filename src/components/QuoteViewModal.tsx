@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, Link, Mail, RefreshCw, Lock } from 'lucide-react';
+import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, Mail, RefreshCw, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
 import ConfirmModal from './ConfirmModal';
@@ -280,7 +280,16 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
             </div>
           )}
 
-          {/* İkincil aksiyonlar: PDF indir, genel link kopyala, e-postayı yeniden gönder (stub) */}
+          {/* İşin Kapsamı */}
+          {((quote as any).scopeOfWorkHtml && String((quote as any).scopeOfWorkHtml).trim().length > 0) && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</h3>
+              <div className="prose max-w-none prose-sm text-gray-800 border border-gray-200 rounded-lg p-4 bg-white"
+                   dangerouslySetInnerHTML={{ __html: String((quote as any).scopeOfWorkHtml) }} />
+            </div>
+          )}
+
+          {/* İkincil aksiyonlar: Sadece PDF indir ve gerekirse e-posta (link kopyalama kaldırıldı) */}
           <div className="flex flex-wrap gap-3 pt-2 border-t border-gray-100">
             <button
               onClick={async () => {
@@ -304,25 +313,6 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
             >
               <FileDown className="w-4 h-4" />
               <span className="text-sm font-medium">{t('quotes.actions.downloadPdf')}</span>
-            </button>
-
-            <button
-              onClick={async () => {
-                const pid = (quote as any).publicId || quote.id;
-                const url = `${window.location.origin}/public/quote/${pid}`;
-                try {
-                  await navigator.clipboard.writeText(url);
-                  try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: t('common.copied', 'Kopyalandı'), tone: 'success' } })); } catch {}
-                } catch (e) {
-                  console.warn('Clipboard not available, showing prompt');
-                  try { prompt(t('quotes.actions.copyLink'), url); } catch {}
-                }
-              }}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-              title={t('quotes.actions.copyLink')}
-            >
-              <Link className="w-4 h-4" />
-              <span className="text-sm font-medium">{t('quotes.actions.copyLink')}</span>
             </button>
 
             {(quote.status === 'sent' || quote.status === 'viewed') && (

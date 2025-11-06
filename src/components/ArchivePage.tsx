@@ -120,8 +120,14 @@ export default function ArchivePage({
     return new Date(dateString).toLocaleDateString('tr-TR');
   };
 
+  const safeNumber = (v: any): number => {
+    // Normalize numbers coming as number, numeric string or undefined/null
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+    return Number.isFinite(n) ? n : 0;
+  };
+
   const formatAmount = (amount: number) => {
-    return formatCurrency(amount);
+    return formatCurrency(safeNumber(amount));
   };
 
   const getStatusBadge = (status: string, _type: string) => {
@@ -188,9 +194,18 @@ export default function ArchivePage({
   }, [filteredSuppliers, supPage, supPageSize]);
 
   // Calculate totals
-  const totalArchivedAmount = archivedInvoices.reduce((sum, inv) => sum + inv.total, 0) + 
-                             archivedSales.reduce((sum, sale) => sum + sale.amount, 0);
-  const totalArchivedExpenses = archivedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const totalArchivedAmount = archivedInvoices.reduce(
+    (sum, inv) => sum + safeNumber(inv.total ?? inv.amount ?? inv.grandTotal),
+    0,
+  ) + archivedSales.reduce(
+    (sum, sale) => sum + safeNumber(sale.amount ?? sale.total),
+    0,
+  );
+
+  const totalArchivedExpenses = archivedExpenses.reduce(
+    (sum, exp) => sum + safeNumber(exp.amount ?? exp.total),
+    0,
+  );
 
   const tabs = [
     { id: 'all', label: t('archive.tabs.all'), count: filteredInvoices.length + filteredExpenses.length + filteredSales.length },

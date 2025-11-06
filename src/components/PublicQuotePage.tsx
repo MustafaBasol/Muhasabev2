@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FileDown, Link as LinkIcon, Check, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
-import DOMPurify from 'dompurify';
+// DOMPurify doğrudan kullanılmıyor; RTE içeriği için sanitizeRteHtml kullanıyoruz
+import { sanitizeRteHtml } from '../utils/security';
 import { getPublicQuote, markViewedPublic, acceptPublic, declinePublic } from '../api/quotes';
 
 interface QuoteItem { id: string; description: string; quantity: number; unitPrice: number; total: number; }
@@ -392,7 +393,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
             <div className="text-base font-semibold text-gray-900 mb-2">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</div>
             <div
               className="prose prose-sm max-w-none text-gray-800"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((quote as any).scopeOfWorkHtml || '') }}
+              dangerouslySetInnerHTML={{ __html: sanitizeRteHtml((quote as any).scopeOfWorkHtml || '') }}
             />
           </div>
         )}

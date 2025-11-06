@@ -9,6 +9,7 @@ import ConfirmModal from './ConfirmModal';
 import type { Customer, Product } from '../types';
 import * as quotesApi from '../api/quotes';
 import Pagination from './Pagination';
+import { useAuth } from '../contexts/AuthContext';
 
 interface QuotesPageProps {
   onAddQuote?: () => void;
@@ -49,11 +50,15 @@ interface QuoteItem {
     snapshotAt: string; // ISO
   }>;
   convertedToSale?: boolean;
+  createdAt?: string; // ISO
+  updatedAt?: string; // ISO
 }
 
 const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }) => {
   const { t } = useTranslation();
   const { formatCurrency, currency: defaultCurrency } = useCurrency();
+  const { tenant } = useAuth(); // tenant şu an sadece ileride cache anahtarı için gerekebilir; lint uyarısını önlemek adına referans veriyoruz
+  void tenant;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | QuoteStatus>('all');
@@ -105,6 +110,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           items: Array.isArray(q.items) ? q.items.map((it: any) => ({ id: it.id || `${Math.random()}`, description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })) : [],
           revisions: Array.isArray(q.revisions) ? q.revisions : [],
           convertedToSale: false,
+          createdAt: q.createdAt || q.created_at || undefined,
+          updatedAt: q.updatedAt || q.updated_at || undefined,
         } as QuoteItem));
         setQuotes(mapped);
       } catch (e) {
@@ -295,6 +302,32 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
     }
   };
 
+  // Quotes değiştiğinde dashboard'un kullandığı local cache'i güncelle
+  React.useEffect(() => {
+    try {
+      const tid = (localStorage.getItem('tenantId') || '') as string;
+      const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+      const slim = quotes.map(q => ({
+        id: q.id,
+        quoteNumber: q.quoteNumber,
+        customerName: q.customerName,
+        customerId: q.customerId,
+        issueDate: q.issueDate,
+        validUntil: q.validUntil,
+        currency: q.currency,
+        total: q.total,
+        status: q.status,
+        version: q.version,
+        scopeOfWorkHtml: q.scopeOfWorkHtml,
+        items: q.items,
+        createdAt: q.createdAt,
+        updatedAt: q.updatedAt,
+      }));
+      localStorage.setItem(key, JSON.stringify(slim));
+      try { window.dispatchEvent(new Event('quotes-cache-updated')); } catch {}
+    } catch {}
+  }, [quotes]);
+
   return (
     <div className="space-y-6">
       {/* Yinele onayı */}
@@ -336,6 +369,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                 version: created.version || 1,
                 scopeOfWorkHtml: created.scopeOfWorkHtml || '',
                 items: Array.isArray(created.items) ? created.items : [],
+                createdAt: created.createdAt || new Date().toISOString(),
+                updatedAt: created.updatedAt || new Date().toISOString(),
               };
               setQuotes(prev => [mapped, ...prev]);
             } catch (e) {
@@ -385,6 +420,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                 validUntil: updated.validUntil ? String(updated.validUntil).slice(0,10) : undefined,
                 version: updated.version || item.version,
                 revisions: Array.isArray(updated.revisions) ? updated.revisions : item.revisions,
+                updatedAt: updated.updatedAt || item.updatedAt,
               } : item));
               setSelectedQuote(prev => prev && prev.id === target.id ? ({
                 ...(prev as any),
@@ -762,6 +798,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                 version: created.version || 1,
                 scopeOfWorkHtml: created.scopeOfWorkHtml || '',
                 items: Array.isArray(created.items) ? created.items : payload.items,
+                createdAt: created.createdAt || new Date().toISOString(),
+                updatedAt: created.updatedAt || new Date().toISOString(),
               };
               setQuotes(prev => [next, ...prev]);
             } catch (e) {
@@ -811,6 +849,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             const updated = await quotesApi.updateQuote(String(q.id), { status });
             setQuotes(prev => prev.map(item => item.id === q.id ? { ...item, status: updated.status } : item));
             setSelectedQuote(prev => (prev && prev.id === q.id) ? { ...(prev as any), status: updated.status } : prev);
+            setQuotes(prev => prev.map(item => item.id === q.id ? { ...item, updatedAt: updated.updatedAt || item.updatedAt } : item));
           } catch (e) {
             console.error('Quote status update failed:', e);
           }
@@ -847,6 +886,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
               version: saved.version || q.version,
               scopeOfWorkHtml: saved.scopeOfWorkHtml || '',
               items: Array.isArray(saved.items) ? saved.items : q.items,
+              updatedAt: saved.updatedAt || q.updatedAt,
             } : q));
             setSelectedQuote(prev => prev && prev.id === saved.id ? ({
               ...(prev as any),
@@ -860,6 +900,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
               version: saved.version || (prev as any).version,
               scopeOfWorkHtml: saved.scopeOfWorkHtml || '',
               items: Array.isArray(saved.items) ? saved.items : (prev as any).items,
+              updatedAt: saved.updatedAt || (prev as any).updatedAt,
             }) : prev);
           } catch (e) {
             console.error('Quote update failed:', e);

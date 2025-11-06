@@ -120,4 +120,15 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // Notification preferences (per user, per tenant context)
+  // Stored as JSON blob to allow easy extension without extra migrations
+  @Column({ type: 'json', nullable: true })
+  notificationPreferences?: {
+    invoiceReminders?: boolean;
+    expenseAlerts?: boolean;
+    salesNotifications?: boolean;
+    lowStockAlerts?: boolean;
+    quoteReminders?: boolean;
+  };
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, Eye, Download, Link as LinkIcon } from 'lucide-react';
+import { Calendar, Eye, Download } from 'lucide-react';
 import * as customersApi from '../api/customers';
 import * as invoicesApi from '../api/invoices';
 import * as quotesApi from '../api/quotes';
@@ -39,6 +39,28 @@ export default function CustomerHistoryPage() {
   const { t, i18n } = useTranslation();
   const { formatCurrency } = useCurrency();
   const { user } = useAuth();
+  // Oturumdaki kullanıcının görünen adı (ad soyad, yoksa e‑posta)
+  const currentUserName = React.useMemo(() => {
+    if (!user) return undefined;
+    const full = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+    return full || user.email || undefined;
+  }, [user]);
+
+  // Kullanıcı adı sonradan geldiğinde daha önce '—' olarak işaretlenmiş satırları güncelle
+  React.useEffect(() => {
+    if (!currentUserName) return;
+    setRows(prev => {
+      let changed = false;
+      const next = prev.map(r => {
+        if (!r.createdBy || r.createdBy === '—') {
+          changed = true;
+          return { ...r, createdBy: currentUserName };
+        }
+        return r;
+      });
+      return changed ? next : prev;
+    });
+  }, [currentUserName]);
   // Auth'taki kullanıcı adı fallback olarak kullanılabilir
   // import'u minimum tutmak için dinamik erişim: window.__authUser gibi bir global yok.
   // Bu yüzden createdBy bulunamazsa '—' yerine boş bırakıyoruz; ileride useAuth ekleyebiliriz.
@@ -192,15 +214,14 @@ export default function CustomerHistoryPage() {
           return undefined;
         };
 
-        const currentUserName = (() => {
-          if (!user) return undefined;
-          const full = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
-          return full || user.email || undefined;
-        })();
-
         (invoices || []).forEach((inv: any) => {
           const invCid = String(inv?.customerId || inv?.customer?.id || '');
           const invName = String(inv?.invoiceNumber || inv?.id);
+          // Debug log
+          // Debug (vite import.meta.env)
+          if (import.meta && import.meta.env && import.meta.env.DEV) {
+            try { console.debug('[CustomerHistory] invoice mapping', { id: inv?.id, createdBy: inv?.createdBy, currentUserName }); } catch {}
+          }
           if (invCid === cidStr || (!invCid && cust && (inv?.customer?.name || inv?.customerName) === cust.name)) {
             const lineSummary = (() => {
               const items = Array.isArray(inv?.lineItems || inv?.items) ? (inv.lineItems || inv.items) : [];
@@ -225,6 +246,9 @@ export default function CustomerHistoryPage() {
         (sales || []).forEach((s: any) => {
           const sName = s?.saleNumber || `SAL-${s?.id}`;
           const sCid = String(s?.customerId || '');
+          if (import.meta && import.meta.env && import.meta.env.DEV) {
+            try { console.debug('[CustomerHistory] sale mapping', { id: s?.id, createdBy: s?.createdBy, currentUserName }); } catch {}
+          }
           if (sCid === cidStr || (!sCid && cust && (s?.customerName === cust.name || s?.customer?.name === cust.name))) {
             rowsCombined.push({
               id: String(s.id || sName),
@@ -242,6 +266,9 @@ export default function CustomerHistoryPage() {
 
         (quotes || []).forEach((q: any) => {
           const qCid = String(q?.customerId || '');
+          if (import.meta && import.meta.env && import.meta.env.DEV) {
+            try { console.debug('[CustomerHistory] quote mapping', { id: q?.id, createdBy: q?.createdBy, currentUserName }); } catch {}
+          }
           if (qCid === cidStr || (!qCid && cust && (q?.customerName === cust.name || q?.customer?.name === cust.name))) {
             rowsCombined.push({
               id: String(q.id),
@@ -273,7 +300,7 @@ export default function CustomerHistoryPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [customerId]);
+  }, [customerId, currentUserName]);
 
   const filtered = React.useMemo(() => {
     let list = [...rows];
@@ -425,22 +452,28 @@ export default function CustomerHistoryPage() {
         setViewQuote(mapped);
       } else if (row.type === 'sale') {
         const s = await salesApi.getSale(String(row.id));
+        const firstItem = Array.isArray(s.items) && s.items.length > 0 ? s.items[0] : undefined;
+        const quantity = Number(s.quantity ?? firstItem?.quantity ?? 1);
+        let unitPrice = Number(s.unitPrice ?? firstItem?.unitPrice ?? 0);
+        if ((!Number.isFinite(unitPrice) || unitPrice === 0) && Number.isFinite(Number(s.total)) && quantity > 0) {
+          unitPrice = Number(s.total) / quantity;
+        }
         const mapped = {
           id: String(s.id),
           saleNumber: s.saleNumber || `SAL-${s.id}`,
-          customerName: s.customer?.name || s.customerName || '',
-          customerEmail: s.customer?.email || s.customerEmail,
-          productName: s.productName || (Array.isArray(s.items) && s.items[0]?.productName) || '',
-          quantity: s.quantity,
-          unitPrice: s.unitPrice,
-          amount: Number(s.amount || s.total || 0),
-          total: Number(s.total || s.amount || 0),
+          customerName: s.customer?.name || s.customerName || (customer?.name || ''),
+          customerEmail: s.customer?.email || s.customerEmail || customer?.email,
+          productName: s.productName || firstItem?.productName || '',
+          quantity,
+          unitPrice,
+          amount: Number(s.amount || s.total || (quantity * unitPrice) || 0),
+          total: Number(s.total || s.amount || (quantity * unitPrice) || 0),
           status: (s.status || 'pending') as any,
           date: String(s.saleDate || s.date || new Date()).slice(0,10),
           paymentMethod: s.paymentMethod,
           notes: s.notes,
-          productId: s.productId,
-          productUnit: s.productUnit,
+          productId: s.productId || firstItem?.productId,
+          productUnit: s.productUnit || firstItem?.unit,
           invoiceId: s.invoiceId,
           items: Array.isArray(s.items) ? s.items.map((it: any) => ({ productId: it.productId, productName: it.productName, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })) : [],
         } as any;
@@ -503,7 +536,7 @@ export default function CustomerHistoryPage() {
                         r.name,
                         new Date(r.date).toLocaleDateString(),
                         r.status || '',
-                        r.createdBy || '',
+                        r.createdBy || currentUserName || '',
                         r.type,
                         r.type === 'quote' ? '' : (r.description || ''),
                         typeof r.amount === 'number' ? String(r.amount) : ''
@@ -600,25 +633,22 @@ export default function CustomerHistoryPage() {
                         <button
                           className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded"
                           title={tt(['actions.downloadPDF','common.actions.downloadPDF'],'actions.downloadPDF')}
-                          onClick={(e) => { e.stopPropagation(); openRow(row); /* indir işlemi modal içinde */ }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              setLoadingRowId(`invoice-${row.id}-pdf`);
+                              const inv = await invoicesApi.getInvoice(String(row.id));
+                              window.dispatchEvent(new CustomEvent('download-invoice', { detail: { invoice: inv } }));
+                            } catch (err) {
+                              console.error('Invoice PDF download failed:', err);
+                            } finally {
+                              setLoadingRowId(null);
+                            }
+                          }}
                         >
                           <Download className="w-4 h-4" />
                         </button>
                       )}
-                      {/* Link kopyala */}
-                      <button
-                        className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded"
-                        title={tt(['actions.copyLink','common.actions.copyLink'],'actions.copyLink')}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          try {
-                            const url = `${window.location.origin}${window.location.pathname}?type=${row.type}&id=${encodeURIComponent(row.id)}`;
-                            navigator.clipboard?.writeText(url);
-                          } catch {}
-                        }}
-                      >
-                        <LinkIcon className="w-4 h-4" />
-                      </button>
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-700">{new Date(row.date).toLocaleDateString()}</td>
@@ -631,7 +661,7 @@ export default function CustomerHistoryPage() {
                       {getStatusBadge(row.status, row.type)}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{row.createdBy || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{row.createdBy || currentUserName || '—'}</td>
                   <td className="px-4 py-3 text-sm text-slate-700 capitalize">{row.type === 'invoice' ? (t('transactions.invoice') as string) : row.type === 'sale' ? (t('transactions.sale') as string) : (t('quotes.table.quote') as string)}</td>
                   <td className="px-4 py-3 text-sm text-slate-700 truncate max-w-[480px]" title={row.type === 'quote' ? undefined : (row.description || undefined)}>{row.type === 'quote' ? '—' : (row.description || '—')}</td>
                   <td className="px-4 py-3 text-sm text-right font-semibold text-slate-900">{typeof row.amount === 'number' ? formatCurrency(row.amount) : '—'}</td>
@@ -674,7 +704,11 @@ export default function CustomerHistoryPage() {
         isOpen={!!viewQuote}
         onClose={() => setViewQuote(null)}
         quote={viewQuote}
-        onEdit={() => setViewQuote(null)}
+        onEdit={(q) => {
+          // Global event ile ana uygulamada düzenleme modalını aç
+          try { window.dispatchEvent(new CustomEvent('open-quote-edit', { detail: { quote: q } })); } catch {}
+          setViewQuote(null);
+        }}
         onChangeStatus={async (q, status) => {
           try {
             const updated = await quotesApi.updateQuote(String(q.id), { status });
@@ -690,7 +724,10 @@ export default function CustomerHistoryPage() {
         isOpen={!!viewSale}
         onClose={() => setViewSale(null)}
         sale={viewSale}
-        onEdit={() => setViewSale(null)}
+        onEdit={(s) => {
+          try { window.dispatchEvent(new CustomEvent('open-sale-edit', { detail: { sale: s } })); } catch {}
+          setViewSale(null);
+        }}
       />
     </div>
   );

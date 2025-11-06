@@ -1,5 +1,4 @@
-import React, { useState, useMemo } from 'react';
-import { Eye, Edit, Download } from 'lucide-react';
+import React, { useMemo } from 'react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 
@@ -7,6 +6,7 @@ interface RecentTransactionsProps {
   invoices?: any[];
   expenses?: any[];
   sales?: any[];
+  quotes?: any[];
   onViewInvoice?: (invoice: any) => void;
   onEditInvoice?: (invoice: any) => void;
   onDownloadInvoice?: (invoice: any) => void;
@@ -16,6 +16,7 @@ interface RecentTransactionsProps {
   onViewSale?: (sale: any) => void;
   onEditSale?: (sale: any) => void;
   onDownloadSale?: (sale: any) => void;
+  onViewQuote?: (quote: any) => void;
   onViewAllTransactions?: () => void;
 }
 
@@ -23,6 +24,7 @@ export default function RecentTransactions({
   invoices = [], 
   expenses = [], 
   sales = [],
+  quotes = [],
   onViewInvoice,
   onEditInvoice,
   onDownloadInvoice,
@@ -32,11 +34,15 @@ export default function RecentTransactions({
   onViewSale,
   onEditSale,
   onDownloadSale,
+  onViewQuote,
   onViewAllTransactions
 }: RecentTransactionsProps) {
   
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
+  // Opsiyonel callback'ler şu an satır aksiyonlarında kullanılmıyor; lint uyarılarını önlemek için referansla.
+  const _callbacks = { onEditInvoice, onDownloadInvoice, onEditExpense, onDownloadExpense, onEditSale, onDownloadSale, React };
+  void _callbacks;
   
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(i18n.language, {
@@ -52,19 +58,43 @@ export default function RecentTransactions({
     return formatCurrency(safe);
   };
 
-  // Combine all transactions and sort by date
+  // Combine all transactions and sort by exact time (descending: newest first)
   const transactions = useMemo(() => {
+    // Sıralama mantığı:
+    // 1) Ana görünür tarih (issueDate/expenseDate/date) gün sıralamasını belirler.
+    // 2) Aynı gün içindeki sıralama için createdAt varsa ve aynı güne denk geliyorsa onu saat/dakika için kullanır;
+    //    yoksa updatedAt aynı günse onu kullanır; değilse ana tarih kullanılır.
+    const parseDate = (v: any): Date | null => {
+      if (!v) return null;
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? null : d;
+    };
+    const isSameDay = (a: Date | null, b: Date | null): boolean => {
+      if (!a || !b) return false;
+      return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    };
+    const pickSortDate = (raw: any, baseField: string): Date => {
+      const base = parseDate(raw?.[baseField]);
+      const created = parseDate(raw?.createdAt);
+      const updated = parseDate(raw?.updatedAt);
+      if (base) {
+        if (isSameDay(created, base)) return created as Date;
+        if (isSameDay(updated, base)) return updated as Date;
+        return base;
+      }
+      return created || updated || new Date(0);
+    };
     const allTransactions = [
       // Invoices
       ...invoices.map(invoice => ({
         id: invoice.invoiceNumber || invoice.id,
-        customer: invoice.customerName,
+        customer: (invoice as any)?.customer?.name || (invoice as any)?.customerName || t('dashboard.noCustomer'),
         amount: formatAmount(invoice.total),
         status: invoice.status,
-        date: formatDate(invoice.issueDate),
+        date: formatDate(invoice.issueDate), // Görsel tarihte gün seviyesinde gösterim
         type: 'invoice',
         originalData: invoice,
-        sortDate: new Date(invoice.issueDate)
+        sortDate: pickSortDate(invoice, 'issueDate')
       })),
       // Expenses
       ...expenses.map(expense => ({
@@ -75,7 +105,7 @@ export default function RecentTransactions({
         date: formatDate(expense.expenseDate),
         type: 'expense',
         originalData: expense,
-        sortDate: new Date(expense.expenseDate)
+        sortDate: pickSortDate(expense, 'expenseDate')
       })),
       // Sales
       ...sales.map(sale => ({
@@ -86,17 +116,47 @@ export default function RecentTransactions({
         date: formatDate(sale.date),
         type: 'sale',
         originalData: sale,
-        sortDate: new Date(sale.date)
+        sortDate: pickSortDate(sale, 'date')
+      })),
+      // Quotes
+      ...quotes.map((q: any) => ({
+        id: q.quoteNumber || `Q-${q.id}`,
+        customer: q.customerName,
+        amount: formatCurrency(Number(q.total) || 0, q.currency),
+        status: q.status,
+        date: formatDate(q.issueDate || q.createdAt || new Date().toISOString()),
+        type: 'quote',
+        originalData: q,
+        sortDate: pickSortDate(q, 'issueDate')
       }))
     ];
 
-    // Sort by date (newest first) and take only the last 3
+    // Sort by exact datetime descending and take only the newest 3
     return allTransactions
       .sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime())
       .slice(0, 3);
-  }, [invoices, expenses, sales]);
+  }, [invoices, expenses, sales, quotes, t, formatCurrency, i18n.language]);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, type: string) => {
+    if (type === 'quote') {
+      // Teklif durumları için bazı anahtarlar quotes.statusLabels.* altında tanımlı değil (draft, sent);
+      // Bu nedenle önce quotes.statusLabels.* deniyoruz, bulunamazsa status.* fallback kullanıyoruz.
+      const resolve = (primary: string, fallback: string) => {
+        const val = t(primary);
+        return val === primary ? t(fallback) : val;
+      };
+      const quoteStatus = {
+        draft: { label: resolve('quotes.statusLabels.draft', 'status.draft'), class: 'bg-gray-100 text-gray-800' },
+        sent: { label: resolve('quotes.statusLabels.sent', 'status.sent'), class: 'bg-blue-100 text-blue-800' },
+        viewed: { label: resolve('quotes.statusLabels.viewed', 'status.viewed'), class: 'bg-indigo-100 text-indigo-800' },
+        accepted: { label: resolve('quotes.statusLabels.accepted', 'status.accepted'), class: 'bg-green-100 text-green-800' },
+        declined: { label: resolve('quotes.statusLabels.declined', 'status.declined'), class: 'bg-red-100 text-red-800' },
+        expired: { label: resolve('quotes.statusLabels.expired', 'status.expired'), class: 'bg-yellow-100 text-yellow-800' }
+      } as const;
+      const cfg = quoteStatus[status as keyof typeof quoteStatus];
+      return cfg || { label: status, class: 'bg-gray-100 text-gray-800' };
+    }
+
     const statusConfig = {
       paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
       completed: { label: t('status.completed'), class: 'bg-green-100 text-green-800' },
@@ -106,8 +166,7 @@ export default function RecentTransactions({
       sent: { label: t('status.sent'), class: 'bg-blue-100 text-blue-800' },
       approved: { label: t('status.approved'), class: 'bg-blue-100 text-blue-800' },
       cancelled: { label: t('status.cancelled'), class: 'bg-red-100 text-red-800' }
-    };
-    
+    } as const;
     const config = statusConfig[status as keyof typeof statusConfig];
     return config || { label: status, class: 'bg-gray-100 text-gray-800' };
   };
@@ -131,6 +190,12 @@ export default function RecentTransactions({
           <span className="text-green-600 text-xs font-bold">S</span>
         </div>
       );
+    } else if (type === 'quote') {
+      return (
+        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+          <span className="text-purple-600 text-xs font-bold">T</span>
+        </div>
+      );
     }
     return (
       <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -147,32 +212,12 @@ export default function RecentTransactions({
       onViewExpense?.(transaction.originalData);
     } else if (transaction.type === 'sale') {
       onViewSale?.(transaction.originalData);
+    } else if (transaction.type === 'quote') {
+      onViewQuote?.(transaction.originalData);
     }
   };
 
-  const handleEdit = (e: React.MouseEvent, transaction: any) => {
-    e.stopPropagation();
-    
-    if (transaction.type === 'invoice') {
-      onEditInvoice?.(transaction.originalData);
-    } else if (transaction.type === 'expense') {
-      onEditExpense?.(transaction.originalData);
-    } else if (transaction.type === 'sale') {
-      onEditSale?.(transaction.originalData);
-    }
-  };
-
-  const handleDownload = (e: React.MouseEvent, transaction: any) => {
-    e.stopPropagation();
-    
-    if (transaction.type === 'invoice') {
-      onDownloadInvoice?.(transaction.originalData);
-    } else if (transaction.type === 'expense') {
-      onDownloadExpense?.(transaction.originalData);
-    } else if (transaction.type === 'sale') {
-      onDownloadSale?.(transaction.originalData);
-    }
-  };
+  // Not: Edit/Download ikonları kaldırıldığı için ilgili handler'lar da kaldırıldı.
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -253,8 +298,8 @@ export default function RecentTransactions({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(transaction.status).class}`}>
-                      {getStatusBadge(transaction.status).label}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(transaction.status, transaction.type).class}`}>
+                      {getStatusBadge(transaction.status, transaction.type).label}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
