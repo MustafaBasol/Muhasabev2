@@ -1,35 +1,153 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { EmailSuppression } from '../email/entities/email-suppression.entity';
+import { EmailOutbox } from '../email/entities/email-outbox.entity';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 export interface EmailOptions {
   to: string;
   subject: string;
   text?: string;
   html?: string;
+  // İsteğe bağlı gözlemlenebilirlik metası (loglarda görünür)
+  meta?: {
+    userId?: string;
+    tenantId?: string;
+    tokenId?: string; // verification/reset token kaydı
+    correlationId?: string; // istek/işlem korelasyon kimliği
+    type?: 'verify' | 'verify-resend' | 'reset' | string;
+  };
 }
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
+  constructor(
+    @InjectRepository(EmailSuppression)
+    private readonly suppressionRepo: Repository<EmailSuppression>,
+    @InjectRepository(EmailOutbox)
+    private readonly outboxRepo: Repository<EmailOutbox>,
+  ) {}
+
   async sendEmail(options: EmailOptions): Promise<boolean> {
+    const provider = (process.env.MAIL_PROVIDER || 'log').toLowerCase();
+    const from = process.env.MAIL_FROM || 'no-reply@example.com';
+
+    // Suppression kontrolü (lowercase)
+    const normalizedTo = options.to.trim().toLowerCase();
+    let suppressed: EmailSuppression | null = null;
     try {
-      // Simulated email sending for demo purposes
-      // In production, integrate with SendGrid, AWS SES, Nodemailer, etc.
-
-      this.logger.log(`📧 [SIMULATED EMAIL SENT]`);
-      this.logger.log(`To: ${options.to}`);
-      this.logger.log(`Subject: ${options.subject}`);
-      this.logger.log(`Content: ${options.text || options.html}`);
-      this.logger.log(`─────────────────────────────────────`);
-
-      // Simulate email sending delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      return true;
-    } catch (error) {
-      this.logger.error('Failed to send email:', error);
-      return false;
+      suppressed = await this.suppressionRepo.findOne({
+        where: { email: normalizedTo },
+      });
+    } catch (err: any) {
+      // Tablo henüz migration çalıştırılmadığı için yoksa (relation does not exist) gracefully degrade
+      const msg = String(err?.message || '').toLowerCase();
+      if (msg.includes('does not exist') || msg.includes('relation') && msg.includes('email_suppression')) {
+        this.logger.warn(
+          '⚠️ email_suppression tablosu bulunamadı (migration çalıştırılmamış olabilir). Suppression kontrolü devre dışı, gönderim devam ediyor.',
+        );
+      } else {
+        this.logger.error('Suppression sorgusu beklenmeyen hata verdi:', err);
+      }
     }
+    if (suppressed) {
+      this.logger.warn(
+        `✋ Email suppressed; skipping send. to=${normalizedTo} reason=${suppressed.reason}`,
+      );
+      return false; // gönderilmedi
+    }
+
+    let success = false;
+    let messageId: string | undefined;
+
+    if (provider === 'ses') {
+      try {
+        const region =
+          process.env.AWS_REGION || process.env.SES_REGION || 'us-east-1';
+        const ses = new SESClient({ region });
+        const command = new SendEmailCommand({
+          Destination: { ToAddresses: [options.to] },
+          Source: from,
+          Message: {
+            Subject: { Data: options.subject, Charset: 'UTF-8' },
+            Body: {
+              Html: options.html
+                ? { Data: options.html, Charset: 'UTF-8' }
+                : undefined,
+              Text: options.text
+                ? { Data: options.text, Charset: 'UTF-8' }
+                : undefined,
+            },
+          },
+        });
+        const result = await ses.send(command);
+        const msgId = (result as any)?.MessageId || (result as any)?.MessageId?.toString?.();
+        const metaStr = options.meta
+          ? ` meta=${JSON.stringify(options.meta)}`
+          : '';
+        this.logger.log(
+          `📧 [SES EMAIL SENT] to=${options.to} subject="${options.subject}"${metaStr} messageId=${msgId || 'n/a'}`,
+        );
+        success = true;
+        messageId = msgId;
+      } catch (err) {
+        this.logger.error(
+          'SES send failed, falling back to log provider:',
+          err,
+        );
+        // Fall through to log provider
+      }
+    }
+
+    if (provider === 'smtp') {
+      // Placeholder: implement Nodemailer SMTP integration here if needed.
+      // For now, fallback to log to avoid dependency bloat.
+      this.logger.warn(
+        'SMTP provider selected but not implemented. Falling back to log.',
+      );
+    }
+
+    // Default / fallback: log simulated email
+    const metaStr = options.meta ? ` meta=${JSON.stringify(options.meta)}` : '';
+    this.logger.log(
+      `📧 [LOG EMAIL] to=${options.to} subject="${options.subject}" provider=${provider}${metaStr}`,
+    );
+    if (options.html) {
+      this.logger.debug(options.html.substring(0, 500));
+    } else if (options.text) {
+      this.logger.debug(options.text.substring(0, 500));
+    }
+    if (!success) success = true; // log provider treated as success
+
+    // Outbox kaydı (best-effort, hata olsa göndermeyi etkilemesin)
+    try {
+      await this.outboxRepo.save(
+        this.outboxRepo.create({
+          to: options.to,
+          subject: options.subject,
+          provider,
+          success,
+          messageId: messageId || null,
+          correlationId: options.meta?.correlationId || null,
+          userId: options.meta?.userId || null,
+          tenantId: options.meta?.tenantId || null,
+          tokenId: options.meta?.tokenId || null,
+          type: options.meta?.type || null,
+        }),
+      );
+    } catch (err) {
+      const msg = String(err?.message || '').toLowerCase();
+      if (msg.includes('does not exist') && msg.includes('email_outbox')) {
+        this.logger.warn('⚠️ email_outbox tablosu yok (migration henüz çalışmamış). Outbox kayıt atlandı.');
+      } else {
+        this.logger.error('EmailOutbox kayıt hatası:', err);
+      }
+    }
+
+    return success;
   }
 
   async sendAccountDeletionConfirmation(

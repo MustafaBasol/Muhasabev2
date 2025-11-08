@@ -25,6 +25,12 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Email Akışları (Doğrulama & Şifre Sıfırlama)
+
+Uygulamadaki e-posta doğrulama ve şifre sıfırlama akışlarının nasıl çalıştığı, gerekli ortam değişkenleri ve SES sandbox test adımları için:
+
+- bkz: `backend/EMAIL_FLOW.md`
+
 ## Project setup
 
 ```bash

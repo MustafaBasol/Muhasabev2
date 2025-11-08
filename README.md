@@ -705,6 +705,8 @@ VITE_API_URL=http://localhost:3002
 - [Frontend Entegrasyon](./FRONTEND_INTEGRATION.md) - Frontend-backend entegrasyon rehberi
 - [Multi-User Roadmap](./MULTI_USER_ROADMAP.md) - Çoklu kullanıcı özellik haritası
 - [Güvenlik İyileştirmeleri](./SECURITY_IMPROVEMENTS.md) - Güvenlik önlemleri
+- [Email Doğrulama & Şifre Sıfırlama Akışları](./backend/EMAIL_FLOW.md) - SES sandbox ile test ve yapılandırma
+- [SES Bounce/Complaint Entegrasyonu](./backend/SES_SNS_BOUNCE_COMPLAINT.md) - SNS topic + suppression listesi
 
 ## 📄 Lisans
 

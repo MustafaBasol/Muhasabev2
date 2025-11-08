@@ -109,6 +109,11 @@ export const authService = {
     return response.data;
   },
 
+  async verifyEmailHashed(token: string, userId: string) {
+    const response = await apiClient.get(`/auth/verify`, { params: { token, u: userId } });
+    return response.data;
+  },
+
   async forgotPassword(email: string) {
     const response = await apiClient.post('/auth/forgot-password', { email });
     return response.data;
@@ -116,6 +121,17 @@ export const authService = {
 
   async resetPassword(token: string, newPassword: string) {
     const response = await apiClient.post('/auth/reset-password', { token, newPassword });
+    return response.data;
+  },
+
+  async resetPasswordHashed(token: string, userId: string, newPassword: string) {
+    const response = await apiClient.post('/auth/reset', { token, u: userId, newPassword });
+    return response.data;
+  },
+
+  async signup(data: RegisterData): Promise<{ success: boolean }> {
+    // Spec-compliant minimal response endpoint
+    const response = await apiClient.post('/auth/signup', data);
     return response.data;
   },
 

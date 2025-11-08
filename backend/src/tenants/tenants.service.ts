@@ -112,8 +112,9 @@ export class TenantsService {
   }
 
   async create(createTenantDto: CreateTenantDto): Promise<Tenant> {
-    // Generate slug from name and ensure uniqueness
-    const slug = await this.generateUniqueSlug(createTenantDto.name);
+    // Generate unique name and slug to avoid 23505 unique violations
+    const uniqueName = await this.generateUniqueName(createTenantDto.name);
+    const slug = await this.generateUniqueSlug(uniqueName);
 
     // Set trial expiration to 14 days from now
     const trialExpiresAt = new Date();
@@ -121,6 +122,7 @@ export class TenantsService {
 
     const tenant = this.tenantsRepository.create({
       ...createTenantDto,
+      name: uniqueName,
       slug,
       subscriptionPlan: SubscriptionPlan.FREE,
       status: TenantStatus.TRIAL,
@@ -137,7 +139,33 @@ export class TenantsService {
       },
     });
 
-    const savedTenant = await this.tenantsRepository.save(tenant);
+    // Save with small retry on unique conflicts (race condition protection)
+    let savedTenant: Tenant | null = null;
+    let attempt = 0;
+    while (!savedTenant && attempt < 3) {
+      try {
+        savedTenant = await this.tenantsRepository.save(tenant);
+      } catch (err: any) {
+        // Postgres unique violation
+        const code = err?.code || err?.driverError?.code;
+        if (code === '23505') {
+          // regenerate name/slug and retry once more
+          const baseName = createTenantDto.name;
+          const rand = Math.random().toString(36).slice(2, 6);
+          const nextName = `${baseName} ${rand}`.substring(0, 50);
+          const nextSlug = await this.generateUniqueSlug(nextName);
+          tenant.name = nextName;
+          tenant.slug = nextSlug;
+          attempt++;
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (!savedTenant) {
+      // last attempt
+      savedTenant = await this.tenantsRepository.save(tenant);
+    }
 
     // Otomatik olarak korumalı kategorileri oluştur
     await this.createDefaultCategories(savedTenant);
@@ -219,6 +247,21 @@ export class TenantsService {
         // fallback: append random segment to avoid infinite loop
         const rand = Math.random().toString(36).slice(2, 6);
         candidate = `${base}-${rand}`.substring(0, 50);
+        break;
+      }
+    }
+    return candidate;
+  }
+
+  private async generateUniqueName(name: string): Promise<string> {
+    const base = (name || '').trim() || 'tenant';
+    let candidate = base;
+    let suffix = 1;
+    while (await this.tenantsRepository.exist({ where: { name: candidate } })) {
+      candidate = `${base} ${suffix++}`.substring(0, 50);
+      if (suffix > 1000) {
+        const rand = Math.random().toString(36).slice(2, 6);
+        candidate = `${base} ${rand}`.substring(0, 50);
         break;
       }
     }

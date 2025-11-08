@@ -27,8 +27,8 @@ export class Invite {
   email: string;
 
   @Column({
-    type: __isTestEnv ? 'text' : 'enum',
-    enum: __isTestEnv ? undefined : Role,
+    type: 'simple-enum',
+    enum: Role,
     default: Role.MEMBER,
   })
   role: Role;
@@ -36,10 +36,10 @@ export class Invite {
   @Column({ unique: true })
   token: string;
 
-  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp' })
+  @Column()
   expiresAt: Date;
 
-  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  @Column({ nullable: true })
   acceptedAt: Date;
 
   @ManyToOne(() => Organization, (organization) => organization.invites, {

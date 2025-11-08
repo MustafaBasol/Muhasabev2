@@ -4,19 +4,26 @@ import { useTranslation } from 'react-i18next';
 import { authService } from '../api/auth';
 import LegalHeader from './LegalHeader';
 
-function useTokenFromHash(paramName: string) {
+function useQueryParam(paramName: string) {
   return useMemo(() => {
-    const hash = window.location.hash || '';
-    const qIndex = hash.indexOf('?');
-    if (qIndex === -1) return '';
-    const query = new URLSearchParams(hash.substring(qIndex + 1));
-    return query.get(paramName) || '';
+    // Support both hash (#verify-email?token=...) and path (/auth/verify?token=...&u=...)
+    const url = new URL(window.location.href);
+    // If hash contains query, parse that first
+    if (url.hash && url.hash.includes('?')) {
+      const idx = url.hash.indexOf('?');
+      const qs = url.hash.substring(idx + 1);
+      const params = new URLSearchParams(qs);
+      const val = params.get(paramName);
+      if (val) return val;
+    }
+    return url.searchParams.get(paramName) || '';
   }, []);
 }
 
 export default function VerifyEmailPage() {
   const { t } = useTranslation();
-  const token = useTokenFromHash('token');
+  const token = useQueryParam('token');
+  const userId = useQueryParam('u');
   const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'loading'>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [seconds, setSeconds] = useState<number>(5);
@@ -24,15 +31,25 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     const run = async () => {
       try {
-        await authService.verifyEmail(token);
+        if (token && userId) {
+          // New hashed token flow
+            await authService.verifyEmailHashed(token, userId);
+        } else if (token) {
+          // Legacy fallback (#verify-email?token=...)
+          await authService.verifyEmail(token);
+        } else {
+          throw new Error('Token bulunamadı');
+        }
         setStatus('success');
+        // Doğrulama başarıyla tamamlandığında pending email bilgisini temizle
+        try { sessionStorage.removeItem('pending_verification_email'); } catch {}
       } catch (err: any) {
         setStatus('error');
         setMessage(err?.message || 'Doğrulama başarısız');
       }
     };
     if (token) run();
-  }, [token]);
+  }, [token, userId]);
 
   // Başarılı doğrulama sonrası otomatik giriş sayfasına yönlendirme (5 sn)
   useEffect(() => {
@@ -74,6 +91,18 @@ export default function VerifyEmailPage() {
                 <XCircle className="h-12 w-12 text-red-600" />
                 <h1 className="text-2xl font-bold text-gray-900">{t('auth.verificationFailed', 'Doğrulama başarısız')}</h1>
                 {message && <p className="text-gray-600">{message}</p>}
+                <button
+                  onClick={() => {
+                    if (userId) {
+                      window.location.hash = 'login';
+                    } else {
+                      window.location.hash = 'register';
+                    }
+                  }}
+                  className="text-sm text-blue-600 underline mt-2"
+                >
+                  {t('auth.backToStart', 'Başa dön')}
+                </button>
               </div>
             )}
           </div>

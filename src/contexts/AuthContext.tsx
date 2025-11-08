@@ -209,15 +209,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         companyName: registerData.company
       };
       
-      const data = await authService.register(authData);
-      // Eğer e-posta doğrulaması zorunlu ise, otomatik giriş yapma
       const verificationRequired = String(import.meta.env.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
-      if (!verificationRequired) {
+
+      // Eğer e-posta doğrulaması zorunlu ise spec uyumlu /auth/signup kullan
+      if (verificationRequired) {
+        await authService.signup(authData);
+        try { sessionStorage.setItem('pending_verification_email', registerData.email); } catch {}
+      } else {
+        const data = await authService.register(authData);
         handleAuthSuccess(data);
       }
-    } catch (error) {
+      // Eğer e-posta doğrulaması zorunlu ise, otomatik giriş yapma
+      if (verificationRequired) {
+        // Yönlendirme: verify notice ekranı
+        window.location.hash = 'verify-notice';
+      }
+    } catch (error: any) {
       console.error('Registration failed:', error);
-      throw error;
+      // 409 özel durumu kullanıcı dostu şekilde komponentte ele alabilmek için fırlat
+      const status = error?.response?.status;
+      const message = error?.response?.data?.message || error?.message || 'Kayıt sırasında bir hata oluştu';
+      if (status === 409) {
+        const err = new Error('EMAIL_IN_USE');
+        (err as any).status = 409;
+        throw err;
+      }
+      throw new Error(message);
     }
   };
 
@@ -245,6 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setTenant(null);
       clearCorruptedData();
+      try { sessionStorage.removeItem('pending_verification_email'); } catch {}
     }
   };
   const refreshUser = async () => {

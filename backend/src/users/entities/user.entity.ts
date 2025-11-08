@@ -40,8 +40,8 @@ export class User {
   lastName: string;
 
   @Column({
-    type: __isTestEnv ? 'text' : 'enum',
-    enum: __isTestEnv ? undefined : UserRole,
+    type: 'simple-enum',
+    enum: UserRole,
     default: UserRole.USER,
   })
   role: UserRole;
@@ -49,10 +49,10 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  @Column({ nullable: true })
   lastLoginAt: Date;
 
-  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  @Column({ nullable: true })
   deletionRequestedAt: Date;
 
   @Column({ default: false })
@@ -67,15 +67,13 @@ export class User {
 
   @Column({
     name: 'twoFactorBackupCodes',
-    type: __isTestEnv ? 'simple-json' : 'text',
-    array: __isTestEnv ? undefined : true,
+    type: 'simple-json',
     nullable: true,
   })
   backupCodes: string[];
 
   @Column({
     name: 'twoFactorEnabledAt',
-    type: __isTestEnv ? 'datetime' : 'timestamp',
     nullable: true,
   })
   twoFactorEnabledAt: Date;
@@ -87,17 +85,17 @@ export class User {
   @Column({ nullable: true })
   emailVerificationToken: string;
 
-  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  @Column({ nullable: true })
   emailVerificationSentAt: Date;
 
-  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  @Column({ nullable: true })
   emailVerifiedAt: Date;
 
   // Password reset fields
   @Column({ nullable: true })
   passwordResetToken: string;
 
-  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  @Column({ nullable: true })
   passwordResetExpiresAt: Date;
 
   @ManyToOne(() => Tenant, (tenant) => tenant.users, { onDelete: 'CASCADE' })
@@ -123,7 +121,7 @@ export class User {
 
   // Notification preferences (per user, per tenant context)
   // Stored as JSON blob to allow easy extension without extra migrations
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: 'simple-json', nullable: true })
   notificationPreferences?: {
     invoiceReminders?: boolean;
     expenseAlerts?: boolean;

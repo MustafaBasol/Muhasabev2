@@ -18,12 +18,14 @@ import { Organization } from '../organizations/entities/organization.entity';
 import { OrganizationMember } from '../organizations/entities/organization-member.entity';
 import { Invite } from '../organizations/entities/invite.entity';
 import { AdminOrganizationsController } from './admin-organizations.controller';
-import { EmailService } from '../services/email.service';
+import { EmailModule } from '../email/email.module';
 import { PlanLimitsService } from './plan-limits.service';
 import { PlanLimitsLoader } from './plan-limits.loader';
+import { SuppressionAdminController } from './suppression.controller';
 
 @Module({
   imports: [
+    EmailModule,
     TypeOrmModule.forFeature([
       User,
       Tenant,
@@ -43,12 +45,12 @@ import { PlanLimitsLoader } from './plan-limits.loader';
     AdminController,
     BackupController,
     AdminOrganizationsController,
+    SuppressionAdminController,
   ],
   providers: [
     AdminService,
     BackupService,
     SecurityService,
-    EmailService,
     PlanLimitsService,
     PlanLimitsLoader,
   ],

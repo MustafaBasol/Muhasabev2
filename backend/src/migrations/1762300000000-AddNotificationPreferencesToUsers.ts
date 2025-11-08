@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class AddNotificationPreferencesToUsers1762300000000 implements MigrationInterface {
+export class AddNotificationPreferencesToUsers1762300000000
+  implements MigrationInterface
+{
   name = 'AddNotificationPreferencesToUsers1762300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -11,22 +13,26 @@ export class AddNotificationPreferencesToUsers1762300000000 implements Migration
 
     // Kolon zaten varsa ekleme
     const table = await queryRunner.getTable('users');
-    const exists = table?.columns.find(c => c.name === 'notificationPreferences');
+    const exists = table?.columns.find(
+      (c) => c.name === 'notificationPreferences',
+    );
     if (!exists) {
       await queryRunner.addColumn(
         'users',
         new TableColumn({
           name: 'notificationPreferences',
-            type: jsonType,
-            isNullable: true,
-        })
+          type: jsonType,
+          isNullable: true,
+        }),
       );
     }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     const table = await queryRunner.getTable('users');
-    const exists = table?.columns.find(c => c.name === 'notificationPreferences');
+    const exists = table?.columns.find(
+      (c) => c.name === 'notificationPreferences',
+    );
     if (exists) {
       await queryRunner.dropColumn('users', 'notificationPreferences');
     }

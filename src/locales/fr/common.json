@@ -214,6 +214,8 @@
     "passwordPlaceholder": "••••••••",
     "rememberMe": "Se souvenir de moi",
     "forgotPassword": "Mot de passe oublié",
+    "forgotPasswordHelp": "Entrez votre adresse e-mail ; si un compte existe, nous enverrons un lien de réinitialisation.",
+    "resetEmailSent": "Si un compte existe, un e-mail de réinitialisation a été envoyé.",
     "signIn": "Se connecter",
     "demoAccount": "Compte démo :",
     "email": "E-mail",
@@ -240,7 +242,9 @@
     "dataProcessing": "Accord de traitement des données",
     "registerCta": "Créer un compte",
     "alreadyHaveAccount": "Vous avez déjà un compte ?",
-    "goToLogin": "Se connecter"
+    "goToLogin": "Se connecter",
+    "sendResetLink": "Envoyer le lien de réinitialisation",
+    "resendIn": "Vous pouvez renvoyer dans {{seconds}}s"
   },
   "common": {
     "save": "Enregistrer",
@@ -252,6 +256,7 @@
     "add": "Ajouter",
     "search": "Rechercher",
     "close": "Fermer",
+    "back": "Retour",
     "backToHome": "Retour à l'accueil",
     "yes": "Oui",
     "no": "Non",

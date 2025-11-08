@@ -89,6 +89,7 @@ import RegisterPage from "./components/RegisterPage";
 import ForgotPasswordPage from "./components/ForgotPasswordPage";
 import ResetPasswordPage from "./components/ResetPasswordPage";
 import VerifyEmailPage from "./components/VerifyEmailPage";
+import VerifyNoticePage from "./components/VerifyNoticePage"; // Yeni: Kayıt sonrası doğrulama bilgilendirme sayfası
 import LandingPage from "./components/landing/LandingPage";
 import AboutPage from "./components/landing/AboutPage";
 import ApiPage from "./components/landing/ApiPage";
@@ -1304,6 +1305,9 @@ const AppContent: React.FC = () => {
       } else if (hash.startsWith('verify-email')) {
         console.log('E-posta doğrulama sayfasına yönlendiriliyor...');
         setCurrentPage('verify-email');
+      } else if (hash === 'verify-notice') {
+        console.log('Doğrulama bilgilendirme sayfasına yönlendiriliyor...');
+        setCurrentPage('verify-notice');
       } else if (hash === 'help') {
         console.log('Yardım Merkezi sayfasına yönlendiriliyor...');
         setCurrentPage('help');
@@ -4935,6 +4939,9 @@ const AppContent: React.FC = () => {
   }
   if (!isAuthenticated && currentPage === 'verify-email') {
     return <VerifyEmailPage />;
+  }
+  if (!isAuthenticated && currentPage === 'verify-notice') {
+    return <VerifyNoticePage />;
   }
 
   // Allow access to legal pages without authentication

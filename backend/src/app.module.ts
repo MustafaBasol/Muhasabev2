@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
+import { HealthController } from './health/health.controller';
+import { WebhooksModule } from './webhooks/webhooks.module';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -22,6 +24,7 @@ import { FiscalPeriodsModule } from './fiscal-periods/fiscal-periods.module';
 import { CommonModule } from './common/common.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { SubprocessorsModule } from './subprocessors/subprocessors.module';
+import { EmailModule } from './email/email.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { SeedService } from './database/seed.service';
@@ -107,8 +110,10 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     FiscalPeriodsModule,
     CommonModule,
     SubprocessorsModule,
+    EmailModule,
+    WebhooksModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [
     AppService,
     SeedService,

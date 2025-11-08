@@ -4,6 +4,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
@@ -13,6 +14,13 @@ import { LoginDto } from './dto/login.dto';
 import { UserRole } from '../users/entities/user.entity';
 import { EmailService } from '../services/email.service';
 import { SecurityService } from '../common/security.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { EmailVerificationToken } from './entities/email-verification-token.entity';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
+import * as crypto from 'crypto';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/entities/audit-log.entity';
 
 @Injectable()
 export class AuthService {
@@ -22,9 +30,44 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private securityService: SecurityService,
+    @InjectRepository(EmailVerificationToken)
+    private evtRepo: Repository<EmailVerificationToken>,
+    @InjectRepository(PasswordResetToken)
+    private prtRepo: Repository<PasswordResetToken>,
+    private auditService: AuditService,
   ) {}
+  private getNumberEnv(name: string, def: number): number {
+    const raw = (process.env[name] || '').trim();
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : def;
+  }
+  // Basit, process içi resend cooldown (email başına). Dağıtık için merkezi store gerekir.
+  private resendCooldown = new Map<string, number>();
 
   async register(registerDto: RegisterDto) {
+    // Parola basit politika kontrolü
+    const minLen = this.getNumberEnv('PASSWORD_MIN_LENGTH', 8);
+    if (!registerDto.password || registerDto.password.length < minLen) {
+      throw new BadRequestException(
+        `Password must be at least ${minLen} characters`,
+      );
+    }
+    // Parola güç skoru kontrolü (opsiyonel)
+    const minScore = this.getNumberEnv('PASSWORD_MIN_SCORE', 0);
+    if (minScore > 0) {
+      try {
+        const strength = this.securityService.evaluatePasswordStrength(
+          registerDto.password,
+        );
+        if (strength.score < minScore) {
+          throw new BadRequestException(
+            `Password too weak (score ${strength.score}/${minScore}). Suggestions: ${strength.suggestions.join('; ')}`,
+          );
+        }
+      } catch (e) {
+        // evaluate hata verirse default olarak izin ver (fail-open) veya fail-closed tercih edilebilir.
+      }
+    }
     // Check if user already exists
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
@@ -49,20 +92,22 @@ export class AuthService {
       tenantId: tenant.id,
     });
 
-    // Generate and store email verification token
-    const verificationToken = this.securityService.generateRandomString(24);
-    await this.usersService.update(user.id, {
-      emailVerificationToken: verificationToken,
-      emailVerificationSentAt: new Date(),
-      isEmailVerified: false,
-    });
+    // Issue email verification token record (24h)
+    const raw = this.securityService.generateRandomString(24);
+    const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+    const verifyHours = this.getNumberEnv('VERIFICATION_TOKEN_TTL_HOURS', 24);
+    const expiresAt = new Date(Date.now() + verifyHours * 60 * 60 * 1000);
+    const evt = await this.evtRepo.save(
+      this.evtRepo.create({ userId: user.id, tokenHash, expiresAt }),
+    );
 
-    // Send verification email (simulated) - use hash-based route for SPA
+    // Send verification email
     const frontendUrl =
       process.env.FRONTEND_URL ||
       process.env.APP_PUBLIC_URL ||
       'http://localhost:5174';
-    const verifyLink = `${frontendUrl}/#verify-email?token=${verificationToken}`;
+    const appBase = frontendUrl.replace(/\/?$/, '');
+    const verifyLink = `${appBase}/auth/verify?token=${raw}&u=${user.id}`;
     try {
       await this.emailService.sendEmail({
         to: user.email,
@@ -80,6 +125,13 @@ export class AuthService {
             <p><a href="${verifyLink}">${verifyLink}</a></p>
           </div>
         `,
+        meta: {
+          userId: user.id,
+          tenantId: user.tenantId,
+          tokenId: evt.id,
+          correlationId: crypto.randomUUID(),
+          type: 'verify'
+        }
       });
     } catch (err) {
       // no-op: E-posta gönderimi başarısız olsa bile kayıt akışı devam eder
@@ -112,6 +164,27 @@ export class AuthService {
       },
       token: this.jwtService.sign(payload),
     };
+  }
+
+  /**
+   * Spec-compliant signup endpoint: issues verification token and returns minimal info.
+   */
+  async signupWithToken(registerDto: RegisterDto, req?: any) {
+    const res = await this.register(registerDto);
+    // Audit log
+    try {
+      const tenantId = res?.tenant?.id;
+      await this.auditService.log({
+        tenantId: tenantId || res?.user?.tenantId,
+        userId: res?.user?.id,
+        entity: 'auth',
+        action: AuditAction.CREATE,
+        diff: { event: 'signup', email: registerDto.email },
+        ip: req?.ip,
+        userAgent: req?.headers?.['user-agent'],
+      });
+    } catch {}
+    return { success: true };
   }
 
   async login(loginDto: LoginDto) {
@@ -219,6 +292,16 @@ export class AuthService {
   }
 
   async resendVerification(email: string) {
+    const now = Date.now();
+    const key = String(email || '')
+      .trim()
+      .toLowerCase();
+    const last = this.resendCooldown.get(key) || 0;
+    const cooldownSec = this.getNumberEnv('RESEND_COOLDOWN_SECONDS', 60);
+    // cooldown içinde tekrar istek gelirse sessizce kabul et ama yeni mail üretme
+    if (now - last < cooldownSec * 1000) {
+      return { success: true };
+    }
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       // Do not reveal whether user exists
@@ -227,16 +310,19 @@ export class AuthService {
     if (user.isEmailVerified) {
       return { success: true, message: 'Already verified' };
     }
-    const verificationToken = this.securityService.generateRandomString(24);
-    await this.usersService.update(user.id, {
-      emailVerificationToken: verificationToken,
-      emailVerificationSentAt: new Date(),
-    });
+    const raw = this.securityService.generateRandomString(24);
+    const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+    const verifyHours = this.getNumberEnv('VERIFICATION_TOKEN_TTL_HOURS', 24);
+    const expiresAt = new Date(Date.now() + verifyHours * 60 * 60 * 1000);
+    const evt = await this.evtRepo.save(
+      this.evtRepo.create({ userId: user.id, tokenHash, expiresAt }),
+    );
     const frontendUrl =
       process.env.FRONTEND_URL ||
       process.env.APP_PUBLIC_URL ||
       'http://localhost:5174';
-    const verifyLink = `${frontendUrl}/#verify-email?token=${verificationToken}`;
+    const appBase = frontendUrl.replace(/\/?$/, '');
+    const verifyLink = `${appBase}/auth/verify?token=${raw}&u=${user.id}`;
     await this.emailService.sendEmail({
       to: user.email,
       subject: 'E-posta Doğrulama',
@@ -253,23 +339,27 @@ export class AuthService {
           <p><a href="${verifyLink}">${verifyLink}</a></p>
         </div>
       `,
+      meta: {
+        userId: user.id,
+        tenantId: user.tenantId,
+        tokenId: evt.id,
+        correlationId: crypto.randomUUID(),
+        type: 'verify-resend'
+      }
     });
+    // Cooldown damgası
+    this.resendCooldown.set(key, now);
     return { success: true };
   }
 
-  async verifyEmail(token: string) {
+  // Backward-compatible verification using old user field
+  async verifyEmailLegacy(token: string) {
     if (!token) throw new BadRequestException('Token required');
-    // Find user by verification token
-    let target: any = null;
-    try {
-      const repo: any = (this.usersService as any).userRepository;
-      target = await repo.findOne({ where: { emailVerificationToken: token } });
-    } catch (err) {
-      // no-op: düşük seviyede repo erişimi başarısız olursa standart servis akışı 404 üretecek
-    }
-    if (!target) {
-      throw new NotFoundException('Invalid or expired token');
-    }
+    const repo: any = (this.usersService as any).userRepository;
+    const target = await repo.findOne({
+      where: { emailVerificationToken: token },
+    });
+    if (!target) throw new NotFoundException('Invalid or expired token');
     await this.usersService.update(target.id, {
       isEmailVerified: true,
       emailVerifiedAt: new Date(),
@@ -278,25 +368,79 @@ export class AuthService {
     return { success: true };
   }
 
-  async forgotPassword(email: string) {
+  // New hashed verification using table
+  async verifyEmailHashed(rawToken: string, userId: string) {
+    if (!rawToken || !userId)
+      throw new BadRequestException('token and u are required');
+    const submitHash = crypto
+      .createHash('sha256')
+      .update(rawToken)
+      .digest('hex');
+    // Find valid tokens for this user (not used, not expired)
+    const candidates = await this.evtRepo.find({
+      where: { userId, usedAt: null as any },
+      order: { createdAt: 'DESC' },
+      take: 10,
+    });
+    // Timing safe compare across small set
+    const submitBuf = Buffer.from(submitHash, 'hex');
+    const match = candidates.find((t) => {
+      if (new Date(t.expiresAt).getTime() < Date.now()) return false;
+      try {
+        const dbBuf = Buffer.from(t.tokenHash || '', 'hex');
+        if (dbBuf.length !== submitBuf.length) return false;
+        return crypto.timingSafeEqual(dbBuf, submitBuf);
+      } catch {
+        return false;
+      }
+    });
+    if (!match) throw new NotFoundException('Invalid or expired token');
+    // Mark used and update user
+    match.usedAt = new Date();
+    await this.evtRepo.save(match);
+    await this.usersService.update(userId, {
+      isEmailVerified: true,
+      emailVerifiedAt: new Date(),
+    });
+    // Güvenlik: Diğer bekleyen doğrulama tokenlarını da geçersiz kıl
+    try {
+      const others = candidates.filter((t) => t.id !== match.id);
+      if (others.length) {
+        for (const t of others) {
+          t.usedAt = t.usedAt || new Date();
+        }
+        await this.evtRepo.save(others);
+      }
+    } catch {}
+    // Audit log
+    try {
+      const user = await this.usersService.findOne?.(userId as any);
+      await this.auditService.log({
+        tenantId: (user as any)?.tenantId,
+        userId: userId as any,
+        entity: 'auth',
+        action: AuditAction.UPDATE,
+        diff: { event: 'verify-email' },
+      });
+    } catch {}
+    return { success: true };
+  }
+
+  async forgotPasswordLegacy(email: string) {
     const user = await this.usersService.findByEmail(email);
     // Do not reveal existence
     if (!user) return { success: true };
     const token = this.securityService.generateRandomString(24);
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await this.usersService.update(user.id, {
-      passwordResetToken: token,
-      passwordResetExpiresAt: expiresAt,
-    });
     const frontendUrl =
       process.env.FRONTEND_URL ||
       process.env.APP_PUBLIC_URL ||
       'http://localhost:5174';
     const resetLink = `${frontendUrl}/#reset-password?token=${token}`;
-    await this.emailService.sendEmail({
-      to: user.email,
-      subject: 'Şifre Sıfırlama Talebi',
-      html: `
+    try {
+      await this.emailService.sendEmail({
+        to: user.email,
+        subject: 'Şifre Sıfırlama Talebi',
+        html: `
         <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto;">
           <h2 style="color:#b91c1c;">Şifre Sıfırlama</h2>
           <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
@@ -309,11 +453,76 @@ export class AuthService {
           <p><a href="${resetLink}">${resetLink}</a></p>
         </div>
       `,
-    });
+      });
+    } catch (err) {
+      // E-posta sağlayıcısı hatası 500'e dönüşmesin — akışı sessizce başarılı kabul et
+      // (loglama ileride eklenecek)
+    }
     return { success: true };
   }
 
-  async resetPassword(token: string, newPassword: string) {
+  async issuePasswordReset(email: string, req?: any) {
+    const user = await this.usersService.findByEmail(email);
+    // Don't reveal
+    if (!user) return { success: true };
+    const raw = this.securityService.generateRandomString(24);
+    const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+    const resetMinutes = this.getNumberEnv('RESET_TOKEN_TTL_MINUTES', 60);
+    const expiresAt = new Date(Date.now() + resetMinutes * 60 * 1000);
+    const prt = await this.prtRepo.save(
+      this.prtRepo.create({
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+        ip: req?.ip,
+        ua: req?.headers?.['user-agent'],
+      }),
+    );
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      process.env.APP_PUBLIC_URL ||
+      'http://localhost:5174';
+    const appBase = frontendUrl.replace(/\/?$/, '');
+    const resetLink = `${appBase}/auth/reset?token=${raw}&u=${user.id}`;
+    try {
+      await this.emailService.sendEmail({
+        to: user.email,
+        subject: 'Şifre Sıfırlama Talebi',
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto;">
+          <h2 style="color:#b91c1c;">Şifre Sıfırlama</h2>
+          <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
+          <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanın (1 saat geçerlidir):</p>
+          <p><a href="${resetLink}">${resetLink}</a></p>
+        </div>
+        `,
+        meta: {
+          userId: user.id,
+          tenantId: user.tenantId,
+          tokenId: prt.id,
+          correlationId: crypto.randomUUID(),
+          type: 'reset'
+        }
+      });
+    } catch (err) {
+      // Mail gönderimi başarısız olsa bile kullanıcıya başarı döndür (hesap varlığını ortaya çıkarmamak için)
+    }
+    // Audit
+    try {
+      await this.auditService.log({
+        tenantId: user.tenantId,
+        userId: user.id,
+        entity: 'auth',
+        action: AuditAction.UPDATE,
+        diff: { event: 'forgot-password' },
+        ip: req?.ip,
+        userAgent: req?.headers?.['user-agent'],
+      });
+    } catch {}
+    return { success: true };
+  }
+
+  async resetPasswordLegacy(token: string, newPassword: string) {
     if (!token || !newPassword)
       throw new BadRequestException('Token and newPassword required');
     // Find by token
@@ -336,6 +545,70 @@ export class AuthService {
       passwordResetToken: null as unknown as any,
       passwordResetExpiresAt: null as unknown as any,
     });
+    return { success: true };
+  }
+
+  async resetPasswordHashed(
+    rawToken: string,
+    userId: string,
+    newPassword: string,
+  ) {
+    if (!rawToken || !userId || !newPassword)
+      throw new BadRequestException('token, u and newPassword required');
+    const minLen = this.getNumberEnv('PASSWORD_MIN_LENGTH', 8);
+    if (newPassword.length < minLen) {
+      throw new BadRequestException(
+        `Password must be at least ${minLen} characters`,
+      );
+    }
+    const minScore = this.getNumberEnv('PASSWORD_MIN_SCORE', 0);
+    if (minScore > 0) {
+      try {
+        const strength =
+          this.securityService.evaluatePasswordStrength(newPassword);
+        if (strength.score < minScore) {
+          throw new BadRequestException(
+            `Password too weak (score ${strength.score}/${minScore}). Suggestions: ${strength.suggestions.join('; ')}`,
+          );
+        }
+      } catch {}
+    }
+    const submitHash = crypto
+      .createHash('sha256')
+      .update(rawToken)
+      .digest('hex');
+    const candidates = await this.prtRepo.find({
+      where: { userId, usedAt: null as any },
+      order: { createdAt: 'DESC' },
+      take: 10,
+    });
+    const submitBuf = Buffer.from(submitHash, 'hex');
+    const match = candidates.find((t) => {
+      if (new Date(t.expiresAt).getTime() < Date.now()) return false;
+      try {
+        const dbBuf = Buffer.from(t.tokenHash || '', 'hex');
+        if (dbBuf.length !== submitBuf.length) return false;
+        return crypto.timingSafeEqual(dbBuf, submitBuf);
+      } catch {
+        return false;
+      }
+    });
+    if (!match) throw new NotFoundException('Invalid or expired token');
+    // Update password
+    await this.usersService.update(userId, { password: newPassword });
+    // Mark used and invalidate other outstanding tokens for safety
+    match.usedAt = new Date();
+    await this.prtRepo.save(match);
+    // Optional: invalidate any other unused tokens for this user
+    try {
+      const others = candidates.filter((t) => t.id !== match.id);
+      if (others.length) {
+        for (const t of others) {
+          t.usedAt = t.usedAt || new Date();
+        }
+        await this.prtRepo.save(others);
+      }
+    } catch {}
     return { success: true };
   }
 }

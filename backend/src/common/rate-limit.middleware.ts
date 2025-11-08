@@ -16,7 +16,7 @@ interface RateLimitEntry {
 export class RateLimitMiddleware implements NestMiddleware {
   private readonly rateLimitStore = new Map<string, RateLimitEntry>();
   private readonly RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-  private readonly MAX_REQUESTS = 5; // 5 requests per minute
+  private readonly MAX_REQUESTS = 5; // default fallback
   private readonly ADMIN_IP_ALLOWLIST = [
     '127.0.0.1',
     '::1',
@@ -28,7 +28,9 @@ export class RateLimitMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     const clientIP = this.getClientIP(req);
     const isAuthEndpoint = this.isAuthEndpoint(req.path);
+    const perRouteLimit = this.getPerRouteLimit(req.path);
     const isAdminEndpoint = this.isAdminEndpoint(req.path);
+    const isWebhookEndpoint = this.isWebhookEndpoint(req.path);
 
     // Admin API IP kontrolü
     if (isAdminEndpoint && !this.isIPAllowed(clientIP)) {
@@ -42,9 +44,10 @@ export class RateLimitMiddleware implements NestMiddleware {
       );
     }
 
-    // Auth endpoint'ler için rate limiting
-    if (isAuthEndpoint) {
-      const rateLimitKey = `auth:${clientIP}`;
+    // Auth ve Webhook endpoint'ler için rate limiting
+    if (isAuthEndpoint || isWebhookEndpoint) {
+      const scope = isWebhookEndpoint ? 'webhook' : 'auth';
+      const rateLimitKey = `${scope}:${perRouteLimit.key}:${clientIP}`;
       const currentTime = Date.now();
 
       // Mevcut rate limit entry'yi al veya yeni oluştur
@@ -70,11 +73,12 @@ export class RateLimitMiddleware implements NestMiddleware {
       }
 
       // Rate limit aşıldıysa hata fırlat
-      if (entry.count > this.MAX_REQUESTS) {
+      const limit = perRouteLimit.limit ?? this.MAX_REQUESTS;
+      if (entry.count > limit) {
         const resetTime = entry.firstAttempt + this.RATE_LIMIT_WINDOW;
         const remainingTime = Math.ceil((resetTime - currentTime) / 1000);
 
-        res.setHeader('X-RateLimit-Limit', this.MAX_REQUESTS);
+        res.setHeader('X-RateLimit-Limit', limit);
         res.setHeader('X-RateLimit-Remaining', 0);
         res.setHeader('X-RateLimit-Reset', Math.ceil(resetTime / 1000));
         res.setHeader('Retry-After', remainingTime);
@@ -90,11 +94,9 @@ export class RateLimitMiddleware implements NestMiddleware {
       }
 
       // Rate limit headers ekle
-      res.setHeader('X-RateLimit-Limit', this.MAX_REQUESTS);
-      res.setHeader(
-        'X-RateLimit-Remaining',
-        Math.max(0, this.MAX_REQUESTS - entry.count),
-      );
+      const limit2 = perRouteLimit.limit ?? this.MAX_REQUESTS;
+      res.setHeader('X-RateLimit-Limit', limit2);
+      res.setHeader('X-RateLimit-Remaining', Math.max(0, limit2 - entry.count));
       res.setHeader(
         'X-RateLimit-Reset',
         Math.ceil((entry.firstAttempt + this.RATE_LIMIT_WINDOW) / 1000),
@@ -138,8 +140,51 @@ export class RateLimitMiddleware implements NestMiddleware {
       '/auth/admin-login',
       '/auth/verify-2fa',
       '/users/2fa/verify',
+      // Yeni akış uç noktaları (rate-limit kapsamına al)
+      '/auth/signup',
+      '/auth/verify',
+      '/auth/forgot',
+      '/auth/reset',
+      '/auth/resend-verification',
+      '/auth/forgot-password', // geriye uyumluluk
+      '/auth/reset-password', // geriye uyumluluk
     ];
     return authPaths.some((authPath) => path.includes(authPath));
+  }
+
+  /**
+   * Route bazlı limitleri env'den oku
+   */
+  private getPerRouteLimit(path: string): { key: string; limit?: number } {
+    // default
+    const out = { key: 'generic', limit: undefined as number | undefined };
+    const norm = path.toLowerCase();
+    const n = (name: string, d: number) => {
+      const v = Number((process.env[name] || '').trim());
+      return Number.isFinite(v) && v > 0 ? v : d;
+    };
+    if (norm.includes('/auth/signup') || norm.includes('/auth/register')) {
+      return { key: 'signup', limit: n('SIGNUP_RATE_LIMIT', 5) };
+    }
+    if (
+      norm.includes('/auth/forgot') ||
+      norm.includes('/auth/forgot-password')
+    ) {
+      return { key: 'forgot', limit: n('FORGOT_RATE_LIMIT', 5) };
+    }
+    if (norm.includes('/auth/reset') || norm.includes('/auth/reset-password')) {
+      return { key: 'reset', limit: n('RESET_RATE_LIMIT', 10) };
+    }
+    if (norm.includes('/auth/verify') || norm.includes('/auth/verify-email')) {
+      return { key: 'verify', limit: n('VERIFY_RATE_LIMIT', 20) };
+    }
+    if (norm.includes('/auth/resend-verification')) {
+      return { key: 'resend', limit: n('RESEND_RATE_LIMIT', 3) };
+    }
+    if (norm.includes('/webhooks/ses/sns')) {
+      return { key: 'sns-webhook', limit: n('WEBHOOK_SNS_RATE_LIMIT', 120) };
+    }
+    return out;
   }
 
   /**
@@ -147,6 +192,13 @@ export class RateLimitMiddleware implements NestMiddleware {
    */
   private isAdminEndpoint(path: string): boolean {
     return path.startsWith('/admin') || path.includes('admin-login');
+  }
+
+  /**
+   * Webhook endpoint kontrolü
+   */
+  private isWebhookEndpoint(path: string): boolean {
+    return path.startsWith('/webhooks/ses');
   }
 
   /**

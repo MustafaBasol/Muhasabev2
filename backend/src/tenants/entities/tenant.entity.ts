@@ -108,30 +108,30 @@ export class Tenant {
   stateOfIncorporation: string;
 
   @Column({
-    // SQLite (test) ortamında enum desteklenmediği için text kullan
-    type: __isTestEnv ? 'text' : 'enum',
-    enum: __isTestEnv ? undefined : SubscriptionPlan,
+    // Sürücüler arası uyumluluk için simple-enum kullan
+    type: 'simple-enum',
+    enum: SubscriptionPlan,
     default: SubscriptionPlan.FREE,
   })
   subscriptionPlan: SubscriptionPlan;
 
   @Column({
-    type: __isTestEnv ? 'text' : 'enum',
-    enum: __isTestEnv ? undefined : TenantStatus,
+    type: 'simple-enum',
+    enum: TenantStatus,
     default: TenantStatus.TRIAL,
   })
   status: TenantStatus;
 
-  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
+  @Column({ nullable: true })
   subscriptionExpiresAt: Date;
 
   @Column({ type: 'int', default: 5 })
   maxUsers: number;
 
-  @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
+  @Column({ type: 'simple-json', nullable: true })
   settings: Record<string, any>;
 
-  @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
+  @Column({ type: 'simple-json', nullable: true })
   features: Record<string, boolean>;
 
   @OneToMany(() => User, (user) => user.tenant)

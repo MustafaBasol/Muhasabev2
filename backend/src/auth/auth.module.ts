@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -7,8 +8,11 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { TenantsModule } from '../tenants/tenants.module';
-import { EmailService } from '../services/email.service';
+import { EmailModule } from '../email/email.module';
 import { SecurityService } from '../common/security.service';
+import { EmailVerificationToken } from './entities/email-verification-token.entity';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -33,9 +37,12 @@ import { SecurityService } from '../common/security.service';
     }),
     UsersModule,
     TenantsModule,
+    TypeOrmModule.forFeature([EmailVerificationToken, PasswordResetToken]),
+    AuditModule,
+    EmailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, EmailService, SecurityService],
+  providers: [AuthService, JwtStrategy, SecurityService],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -207,7 +207,12 @@
     "version": "v{{n}}",
     "passwordPlaceholder": "••••••••",
     "rememberMe": "Beni hatırla",
-    "forgotPassword": "Şifremi unuttum",
+  "forgotPassword": "Şifremi unuttum",
+  "forgotPasswordHelp": "E-postanızı girin, sıfırlama bağlantısı gönderelim.",
+  "resetEmailSent": "Eğer bu e-posta kayıtlıysa sıfırlama bağlantısı gönderildi.",
+  "emailAddress": "E-posta Adresi",
+  "sendResetLink": "Bağlantı Gönder",
+  "resendIn": "Tekrar göndermek için bekleyin: {{seconds}}s",
     "signIn": "Giriş Yap",
     "demoAccount": "Demo Hesap:",
     "email": "E-posta",
@@ -334,6 +339,7 @@
     }
   },
   "common": {
+    "back": "Geri",
     "save": "Kaydet",
     "cancel": "İptal",
     "delete": "Sil",

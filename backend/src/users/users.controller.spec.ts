@@ -8,17 +8,22 @@ import { User } from './entities/user.entity';
 class MockUserRepo {
   private store: any[] = [];
   findOne(opts: any) {
-    return Promise.resolve(this.store.find(u => u.id === opts.where.id));
+    return Promise.resolve(this.store.find((u) => u.id === opts.where.id));
   }
   update(id: string, data: any) {
-    const idx = this.store.findIndex(u => u.id === id);
+    const idx = this.store.findIndex((u) => u.id === id);
     if (idx >= 0) {
       this.store[idx] = { ...this.store[idx], ...data };
     }
     return Promise.resolve();
   }
-  create(data: any) { return data; }
-  save(data: any) { this.store.push(data); return Promise.resolve(data); }
+  create(data: any) {
+    return data;
+  }
+  save(data: any) {
+    this.store.push(data);
+    return Promise.resolve(data);
+  }
 }
 
 describe('UsersController', () => {
@@ -33,16 +38,36 @@ describe('UsersController', () => {
       providers: [
         UsersService,
         { provide: getRepositoryToken(User), useValue: repo },
-        { provide: getRepositoryToken(require('../tenants/entities/tenant.entity').Tenant), useValue: {} },
-        { provide: require('../common/security.service').SecurityService, useValue: { hashPassword: async (p: string) => p } },
-        { provide: require('../common/two-factor.service').TwoFactorService, useValue: { generateTwoFactorSetup: () => ({ secret: 's', backupCodes: [] }) } },
+        {
+          provide: getRepositoryToken(
+            require('../tenants/entities/tenant.entity').Tenant,
+          ),
+          useValue: {},
+        },
+        {
+          provide: require('../common/security.service').SecurityService,
+          useValue: { hashPassword: async (p: string) => p },
+        },
+        {
+          provide: require('../common/two-factor.service').TwoFactorService,
+          useValue: {
+            generateTwoFactorSetup: () => ({ secret: 's', backupCodes: [] }),
+          },
+        },
       ],
     }).compile();
 
     controller = module.get<UsersController>(UsersController);
     service = module.get<UsersService>(UsersService);
     // Seed bir kullanıcı
-    await repo.save({ id: 'u1', email: 'test@example.com', firstName: 'Test', lastName: 'User', tenantId: 't1', notificationPreferences: {} });
+    await repo.save({
+      id: 'u1',
+      email: 'test@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      tenantId: 't1',
+      notificationPreferences: {},
+    });
   });
 
   it('should be defined', () => {

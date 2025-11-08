@@ -3,6 +3,7 @@ import { json, urlencoded } from 'express';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { DataSource } from 'typeorm';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -11,6 +12,7 @@ import { SeedService } from './database/seed.service';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import { randomBytes } from 'crypto';
 
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';
@@ -30,7 +32,10 @@ async function bootstrap() {
   // Body parser kaynaklı "PayloadTooLargeError" hatasını 413 olarak döndür
   // (aksi halde GlobalExceptionFilter altında 500'e dönüşebiliyor)
   app.use((err: any, _req: any, res: any, next: any) => {
-    if (err && (err.type === 'entity.too.large' || err.name === 'PayloadTooLargeError')) {
+    if (
+      err &&
+      (err.type === 'entity.too.large' || err.name === 'PayloadTooLargeError')
+    ) {
       return res.status(413).json({
         statusCode: 413,
         error: 'Payload Too Large',
@@ -57,12 +62,30 @@ async function bootstrap() {
           frameSrc: ["'none'"],
         },
       },
+      hsts: isProd
+        ? { maxAge: 15552000, includeSubDomains: true, preload: false }
+        : false,
+      frameguard: { action: 'deny' },
+      referrerPolicy: { policy: 'no-referrer' },
       crossOriginEmbedderPolicy: false, // API için gerekli
     }),
   );
 
   // Cookie parser for secure cookie handling
   app.use(cookieParser());
+
+  // Opsiyonel: CSP nonce üretimi (SECURITY_ENABLE_CSP_NONCE=true ise)
+  if (String(process.env.SECURITY_ENABLE_CSP_NONCE).toLowerCase() === 'true') {
+    app.use((req, res, next) => {
+      const nonce = randomBytes(16).toString('base64');
+      res.setHeader(
+        'Content-Security-Policy',
+        `default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'nonce-${nonce}'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-src 'none'`,
+      );
+      (res as any).locals = { ...(res as any).locals, cspNonce: nonce };
+      next();
+    });
+  }
 
   // HTTP response compression (gzip/deflate)
   app.use(
@@ -71,7 +94,38 @@ async function bootstrap() {
     }),
   );
 
-  // Seed database if empty
+  // Migrations: production ve development ortamlarında otomatik çalıştır
+  // Test ortamında (in-memory) migration gerekmiyor
+  if (!isProd) {
+    console.log('⚙️  Migration kontrolü (development)...');
+  } else {
+    console.log('⚙️  Migration kontrolü (production)...');
+  }
+  try {
+    const dataSource: DataSource = app.get(DataSource);
+    if (!dataSource.isInitialized) {
+      await dataSource.initialize();
+    }
+    const pendingMigrations = await dataSource.showMigrations();
+    // TypeORM'in showMigrations() sadece boolean döndürüyor (true -> pending var)
+    if (pendingMigrations) {
+      console.log('🚀 Pending migration(lar) bulundu. Çalıştırılıyor...');
+      await dataSource.runMigrations();
+      console.log('✅ Migration(lar) başarıyla uygulandı.');
+    } else {
+      console.log('✅ Uygulanacak migration yok.');
+    }
+  } catch (err) {
+    console.error('❌ Migration çalıştırma hatası:', err);
+    // Üretimde migration hatası kritik; uygulamayı başlatmayı durdur.
+    if (isProd) {
+      throw err;
+    } else {
+      console.warn('⚠️ Development ortamında migration hatası yutuldu. Devam ediliyor.');
+    }
+  }
+
+  // Seed database if empty (migrationlardan sonra)
   const seedService = app.get(SeedService);
   await seedService.seed();
 
