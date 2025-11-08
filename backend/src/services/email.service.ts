@@ -34,6 +34,8 @@ export class EmailService {
   async sendEmail(options: EmailOptions): Promise<boolean> {
     const provider = (process.env.MAIL_PROVIDER || 'log').toLowerCase();
     const from = process.env.MAIL_FROM || 'no-reply@example.com';
+    const replyTo = process.env.MAIL_REPLY_TO || '';
+    const configurationSet = process.env.SES_CONFIGURATION_SET || '';
 
     // Suppression kontrolü (lowercase)
     const normalizedTo = options.to.trim().toLowerCase();
@@ -71,6 +73,8 @@ export class EmailService {
         const command = new SendEmailCommand({
           Destination: { ToAddresses: [options.to] },
           Source: from,
+          ReplyToAddresses: replyTo ? [replyTo] : undefined,
+          ConfigurationSetName: configurationSet || undefined,
           Message: {
             Subject: { Data: options.subject, Charset: 'UTF-8' },
             Body: {
@@ -89,7 +93,7 @@ export class EmailService {
           ? ` meta=${JSON.stringify(options.meta)}`
           : '';
         this.logger.log(
-          `📧 [SES EMAIL SENT] to=${options.to} subject="${options.subject}"${metaStr} messageId=${msgId || 'n/a'}`,
+          `📧 [SES EMAIL SENT] to=${options.to} subject="${options.subject}"${metaStr} messageId=${msgId || 'n/a'}${replyTo ? ` replyTo=${replyTo}` : ''}${configurationSet ? ` configSet=${configurationSet}` : ''}`,
         );
         success = true;
         messageId = msgId;
