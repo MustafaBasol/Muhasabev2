@@ -124,7 +124,10 @@ const CookiePreferencesModal: React.FC = () => {
     rejectAll();
   };
 
-  if (!showModal) return null;
+  if (!showModal) {
+    try { console.debug('[cookie] CookiePreferencesModal hidden (showModal=false)'); } catch {}
+    return null;
+  }
 
   const categories = [
     {

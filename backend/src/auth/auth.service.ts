@@ -154,6 +154,7 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         tenantId: user.tenantId,
+        isEmailVerified: (user as any).isEmailVerified === true,
       },
       tenant: {
         id: tenant.id,
@@ -161,6 +162,9 @@ export class AuthService {
         slug: tenant.slug,
         subscriptionPlan: tenant.subscriptionPlan,
         status: tenant.status,
+        maxUsers: tenant.maxUsers,
+        subscriptionExpiresAt: tenant.subscriptionExpiresAt,
+        cancelAtPeriodEnd: (tenant as any).cancelAtPeriodEnd === true,
       },
       token: this.jwtService.sign(payload),
     };
@@ -235,6 +239,7 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         tenantId: user.tenantId,
+        isEmailVerified: (user as any).isEmailVerified === true,
       },
       tenant: user.tenant
         ? {
@@ -243,6 +248,9 @@ export class AuthService {
             slug: user.tenant.slug,
             subscriptionPlan: user.tenant.subscriptionPlan,
             status: user.tenant.status,
+            maxUsers: (user.tenant as any).maxUsers,
+            subscriptionExpiresAt: (user.tenant as any).subscriptionExpiresAt,
+            cancelAtPeriodEnd: (user.tenant as any).cancelAtPeriodEnd === true,
           }
         : null,
       token: this.jwtService.sign(payload),
@@ -258,6 +266,7 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         tenantId: user.tenantId,
+        isEmailVerified: (user as any).isEmailVerified === true,
       },
       tenant: user.tenant
         ? {
@@ -266,6 +275,9 @@ export class AuthService {
             slug: user.tenant.slug,
             subscriptionPlan: user.tenant.subscriptionPlan,
             status: user.tenant.status,
+            maxUsers: (user.tenant as any).maxUsers,
+            subscriptionExpiresAt: (user.tenant as any).subscriptionExpiresAt,
+            cancelAtPeriodEnd: (user.tenant as any).cancelAtPeriodEnd === true,
           }
         : null,
     };

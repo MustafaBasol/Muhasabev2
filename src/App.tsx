@@ -100,6 +100,8 @@ import PrivacyPolicy from "./components/legal/PrivacyPolicy";
 import SubprocessorsList from "./components/legal/SubprocessorsList";
 import DataProcessingAgreement from "./components/legal/DataProcessingAgreement";
 import CookiePolicy from "./components/legal/CookiePolicy";
+import Imprint from "./components/legal/Imprint";
+import EmailPolicy from "./components/legal/EmailPolicy";
 import HelpCenter from "./components/help/HelpCenter";
 // StatusPage public değil; admin paneli sekmesi içinde kullanılacak
 
@@ -178,6 +180,40 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     console.log('CurrentPage değişti:', currentPage);
   }, [currentPage]);
+
+  // Legal sayfalara geçişte otomatik en üste kaydır (UX düzeltmesi)
+  useEffect(() => {
+    try {
+      if (currentPage.startsWith('legal-')) {
+        // Ani kaydırma: auto + fallback
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        if (window.scrollY > 0) {
+          window.scrollTo(0, 0);
+        }
+      }
+    } catch {}
+  }, [currentPage]);
+
+  // E-posta doğrulaması zorunluysa: doğrulanmamış kullanıcıyı sadece doğrulama sayfalarına ve kamu (landing/about/api/legal) sayfalarına izin ver
+  useEffect(() => {
+    const verificationRequired = String((import.meta as any)?.env?.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
+    const verified = (authUser as any)?.isEmailVerified === true;
+    if (verificationRequired && isAuthenticated && !verified) {
+      const allowed = new Set([
+        'verify-email',
+        'verify-notice',
+        'landing',
+        'about',
+        'api'
+      ]);
+      const isLegal = currentPage.startsWith('legal-');
+      if (!allowed.has(currentPage) && !isLegal) {
+        // Hash tabanlı yönlendirme
+        try { window.location.hash = 'verify-notice'; } catch {}
+        setCurrentPage('verify-notice');
+      }
+    }
+  }, [isAuthenticated, authUser, currentPage]);
 
   // Configure analytics on app startup
   useEffect(() => {
@@ -1438,6 +1474,8 @@ const AppContent: React.FC = () => {
   }, [tenant?.subscriptionPlan]);
 
   const isFreePlan = React.useMemo(() => getNormalizedPlan() === 'free', [getNormalizedPlan]);
+  // Faturalama dönemi metni: Free planda boş, aksi halde 'Aylık' (i18n ileride eklenebilir)
+  // NOT: billingPeriodLabel artık SettingsPage içindeki plan sekmesinde yeniden hesaplandığı için burada tutulmuyor (lint uyarısını engellemek için kaldırıldı)
 
   const countInvoicesThisMonth = React.useCallback(() => {
     const now = new Date();
@@ -4276,6 +4314,10 @@ const AppContent: React.FC = () => {
         return <DataProcessingAgreement />;
       case "legal-cookies":
         return <CookiePolicy />;
+      case "legal-imprint":
+        return <Imprint />;
+      case "legal-email-policy":
+        return <EmailPolicy />;
       case "organization-members":
         return (
           <SettingsPage
@@ -4958,6 +5000,10 @@ const AppContent: React.FC = () => {
           return <DataProcessingAgreement />;
         case "legal-cookies":
           return <CookiePolicy />;
+        case "legal-imprint":
+          return <Imprint />;
+        case "legal-email-policy":
+          return <EmailPolicy />;
         default:
           return <div>Legal page not found</div>;
       }

@@ -184,6 +184,32 @@ export const adminApi = {
     return response.data;
   },
 
+  deleteTenant: async (
+    tenantId: string,
+    options?: { hard?: boolean; backupBefore?: boolean }
+  ) => {
+    const response = await apiClient.patch(
+      `/admin/tenant/${tenantId}/delete`,
+      { confirm: true, hard: options?.hard ?? true, backupBefore: options?.backupBefore ?? false },
+      { headers: getAdminHeaders() }
+    );
+    return response.data;
+  },
+
+  deleteUser: async (
+    userId: string,
+    options?: { hard?: boolean }
+  ) => {
+    const response = await apiClient.delete(
+      `/admin/users/${userId}`,
+      {
+        headers: getAdminHeaders(),
+        data: { confirm: true, hard: options?.hard ?? false }
+      }
+    );
+    return response.data;
+  },
+
   // Plan Limits
   getPlanLimits: async () => {
     const response = await apiClient.get('/admin/plan-limits', {

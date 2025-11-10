@@ -212,18 +212,21 @@ export class TenantsService {
     const updateData: Partial<Tenant> = {
       subscriptionPlan: plan,
       status: TenantStatus.ACTIVE,
+      cancelAtPeriodEnd: false, // plan değişince iptal bayrağını sıfırla
     };
 
     if (expiresAt) {
       updateData.subscriptionExpiresAt = expiresAt;
     }
 
-    // Update max users based on plan (Free:1, Pro:3, Business: unlimited)
+    // Update max users based on plan (Free:1, Basic:1, Pro:3, Enterprise: practically unlimited)
     switch (plan) {
       case SubscriptionPlan.FREE:
         updateData.maxUsers = 1;
         break;
       case SubscriptionPlan.BASIC:
+        updateData.maxUsers = 1;
+        break;
       case SubscriptionPlan.PROFESSIONAL:
         updateData.maxUsers = 3;
         break;
@@ -233,6 +236,57 @@ export class TenantsService {
     }
 
     return this.update(id, updateData);
+  }
+
+  async updateMaxUsers(id: string, maxUsers: number): Promise<Tenant> {
+    // Plan bazlı zorunlu limitleri uygula
+    const tenant = await this.findOne(id);
+    let enforced = maxUsers;
+    switch (tenant.subscriptionPlan) {
+      case SubscriptionPlan.FREE:
+      case SubscriptionPlan.BASIC:
+        enforced = 1; // zorla 1
+        break;
+      case SubscriptionPlan.PROFESSIONAL:
+        if (enforced < 1) enforced = 1;
+        if (enforced > 3) enforced = 3;
+        break;
+      case SubscriptionPlan.ENTERPRISE:
+        if (enforced < 1) enforced = 1;
+        if (enforced > 100000) enforced = 100000;
+        break;
+    }
+    if (tenant.maxUsers !== enforced) {
+      await this.tenantsRepository.update(id, { maxUsers: enforced });
+    }
+    // Döndürmeden önce güncel entity çek
+    const updated = await this.findOne(id);
+    return updated;
+  }
+
+  async enforcePlanLimits(id: string): Promise<Tenant> {
+    const tenant = await this.findOne(id);
+    const before = tenant.maxUsers;
+    let expected = before;
+    switch (tenant.subscriptionPlan) {
+      case SubscriptionPlan.FREE:
+      case SubscriptionPlan.BASIC:
+        expected = 1; break;
+      case SubscriptionPlan.PROFESSIONAL:
+        expected = 3; break;
+      case SubscriptionPlan.ENTERPRISE:
+        expected = 100000; break;
+    }
+    if (expected !== before) {
+      await this.tenantsRepository.update(id, { maxUsers: expected });
+      return this.findOne(id);
+    }
+    return tenant;
+  }
+
+  async setCancelAtPeriodEnd(id: string, value: boolean): Promise<Tenant> {
+    await this.tenantsRepository.update(id, { cancelAtPeriodEnd: value });
+    return this.findOne(id);
   }
 
   private async generateUniqueSlug(name: string): Promise<string> {

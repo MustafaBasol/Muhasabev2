@@ -11,6 +11,7 @@ interface User {
   lastName: string;
   role: string;
   tenantId: string;
+  isEmailVerified?: boolean;
 }
 
 interface Tenant {
@@ -19,6 +20,9 @@ interface Tenant {
   slug: string;
   subscriptionPlan: string;
   status: string;
+  subscriptionExpiresAt?: string;
+  maxUsers?: number;
+  cancelAtPeriodEnd?: boolean;
 }
 
 interface AuthContextType {
@@ -278,6 +282,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // API: { user: {...}, tenant: {...} }
       logger.info("✅ User bilgisi backend'den güncellendi:", res);
       logger.debug('📝 Detay - firstName:', res?.user?.firstName, 'lastName:', res?.user?.lastName);
+  // Email doğrulama durumunu logla
+  try { logger.info('📧 Email doğrulama durumu:', res?.user?.isEmailVerified); } catch {}
 
       // State'i güncelle
       if (res?.user) setUser(res.user);

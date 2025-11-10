@@ -20,6 +20,7 @@
   },
   "contact": {
     "title": "Kontakt",
-    "text": "Bei Fragen erreichen Sie uns unter:"
+    "text": "Bei Fragen erreichen Sie uns unter:",
+    "emailNotice": "Hinweis: Comptario versendet ausschließlich transaktionale und gesetzlich erforderliche E-Mails – keine Marketing- oder Massenwerbung."
   }
 }

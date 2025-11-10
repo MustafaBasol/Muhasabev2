@@ -20,6 +20,7 @@
   },
   "contact": {
     "title": "Contact",
-    "text": "For questions, reach us at:"
+    "text": "For questions, reach us at:",
+    "emailNotice": "Note: Comptario sends transactional and legally required emails only—no marketing or bulk promotional emails."
   }
 }

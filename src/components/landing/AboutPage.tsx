@@ -39,6 +39,7 @@ const AboutPage: React.FC = () => {
             {t('contact.text')}{' '}
             <a className="text-indigo-600 hover:underline" href="mailto:support@comptario.com">support@comptario.com</a>
           </p>
+          <p className="text-slate-500 text-sm mt-3">{t('contact.emailNotice')}</p>
         </section>
       </main>
     </div>

@@ -125,6 +125,10 @@ export class Tenant {
   @Column({ nullable: true })
   subscriptionExpiresAt: Date;
 
+  // Dönem sonunda iptal isteği (true ise abonelik mevcut dönem bitimine kadar aktif kalır, yenilenmez)
+  @Column({ type: 'boolean', default: false })
+  cancelAtPeriodEnd: boolean;
+
   @Column({ type: 'int', default: 5 })
   maxUsers: number;
 

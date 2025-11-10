@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Shield, Eye, Database, Lock, Users, Globe } from 'lucide-react';
+import { COMPANY_LEGAL } from '../../constants/companyLegal';
 
 const PrivacyPolicy: React.FC = () => {
   const { i18n } = useTranslation('common');
@@ -15,6 +16,10 @@ const PrivacyPolicy: React.FC = () => {
         introduction: {
           title: "Giriş",
           content: "Comptario olarak, gizliliğinizi ciddiye alıyoruz. Bu gizlilik politikası, kişisel verilerinizi nasıl topladığımızı, kullandığımızı, paylaştığımızı ve koruduğumuzu açıklar."
+        },
+        dataController: {
+          title: "Veri Sorumlusu",
+          content: `Veri sorumlusu: ${COMPANY_LEGAL.companyName}. Adres: ${COMPANY_LEGAL.address}. İletişim: ${COMPANY_LEGAL.dataProtectionEmail || COMPANY_LEGAL.email || 'privacy@comptario.com'}`
         },
         dataCollection: {
           title: "Topladığımız Veriler",
@@ -56,6 +61,24 @@ const PrivacyPolicy: React.FC = () => {
             "Düzenli veri yedekleme"
           ]
         },
+        legalBases: {
+          title: "İşleme Hukuki Dayanakları (GDPR md. 6)",
+          items: [
+            "Açık rıza (md. 6/1-a)",
+            "Sözleşmenin ifası için gereklilik (md. 6/1-b)",
+            "Hukuki yükümlülüğe uyum (md. 6/1-c)",
+            "Meşru menfaat (md. 6/1-f) – kullanıcı beklentileri ve gizlilikle dengelenmiştir"
+          ]
+        },
+        dataRetention: {
+          title: "Veri Saklama Süreleri",
+          items: [
+            "Hesap ve faturalama verileri: vergi mevzuatı gereği en az 10 yıl",
+            "Destek kayıtları: en fazla 24 ay",
+            "Analitik veriler: 14-26 ay arasında (araç ayarına bağlı)",
+            "Çerez tercihleri: tercih süresi boyunca veya silinene kadar"
+          ]
+        },
         userRights: {
           title: "GDPR Haklarınız",
           content: "GDPR kapsamında aşağıdaki haklara sahipsiniz:",
@@ -66,10 +89,14 @@ const PrivacyPolicy: React.FC = () => {
             "Veri taşınabilirliği hakkı"
           ]
         },
+        complaints: {
+          title: "Şikayet ve Başvuru",
+          content: "Veri koruma haklarınızın ihlal edildiğini düşünüyorsanız, öncelikle bizimle iletişime geçebilirsiniz. Ayrıca ikamet ettiğiniz ülkedeki yetkili veri koruma otoritesine şikayette bulunma hakkına sahipsiniz."
+        },
         contact: {
           title: "İletişim",
           content: "Gizlilik ile ilgili sorularınız için bizimle iletişime geçebilirsiniz:",
-          email: "privacy@comptario.com"
+          email: COMPANY_LEGAL.dataProtectionEmail || "privacy@comptario.com"
         }
       }
     },
@@ -80,6 +107,10 @@ const PrivacyPolicy: React.FC = () => {
         introduction: {
           title: "Introduction",
           content: "At Comptario, we take your privacy seriously. This privacy policy explains how we collect, use, share, and protect your personal data."
+        },
+        dataController: {
+          title: "Data Controller",
+          content: `Data Controller: ${COMPANY_LEGAL.companyName}. Address: ${COMPANY_LEGAL.address}. Contact: ${COMPANY_LEGAL.dataProtectionEmail || COMPANY_LEGAL.email || 'privacy@comptario.com'}`
         },
         dataCollection: {
           title: "Data We Collect",
@@ -121,6 +152,24 @@ const PrivacyPolicy: React.FC = () => {
             "Regular data backups"
           ]
         },
+        legalBases: {
+          title: "Legal Bases for Processing (GDPR Art. 6)",
+          items: [
+            "Consent (Art. 6(1)(a))",
+            "Contract necessity (Art. 6(1)(b))",
+            "Legal obligation (Art. 6(1)(c))",
+            "Legitimate interests (Art. 6(1)(f)) — balanced with user privacy"
+          ]
+        },
+        dataRetention: {
+          title: "Data Retention",
+          items: [
+            "Account and invoicing data: at least 10 years due to tax laws",
+            "Support tickets and communications: up to 24 months",
+            "Analytics data: 14–26 months (tool configuration dependent)",
+            "Cookie preferences: for the duration of your choice or until cleared"
+          ]
+        },
         userRights: {
           title: "Your GDPR Rights",
           content: "Under GDPR, you have the following rights:",
@@ -131,10 +180,14 @@ const PrivacyPolicy: React.FC = () => {
             "Right to data portability"
           ]
         },
+        complaints: {
+          title: "Complaints",
+          content: "If you believe your data protection rights have been violated, please contact us first. You also have the right to lodge a complaint with your local data protection authority."
+        },
         contact: {
           title: "Contact",
           content: "For privacy-related questions, please contact us:",
-          email: "privacy@comptario.com"
+          email: COMPANY_LEGAL.dataProtectionEmail || "privacy@comptario.com"
         }
       }
     },
@@ -145,6 +198,10 @@ const PrivacyPolicy: React.FC = () => {
         introduction: {
           title: "Einführung",
           content: "Bei Comptario nehmen wir Ihre Privatsphäre ernst. Diese Datenschutzrichtlinie erklärt, wie wir Ihre personenbezogenen Daten sammeln, verwenden, teilen und schützen."
+        },
+        dataController: {
+          title: "Verantwortlicher (Controller)",
+          content: `Verantwortlicher: ${COMPANY_LEGAL.companyName}. Adresse: ${COMPANY_LEGAL.address}. Kontakt: ${COMPANY_LEGAL.dataProtectionEmail || COMPANY_LEGAL.email || 'privacy@comptario.com'}`
         },
         dataCollection: {
           title: "Daten, die wir sammeln",
@@ -186,6 +243,24 @@ const PrivacyPolicy: React.FC = () => {
             "Regelmäßige Datensicherungen"
           ]
         },
+        legalBases: {
+          title: "Rechtsgrundlagen der Verarbeitung (Art. 6 DSGVO)",
+          items: [
+            "Einwilligung (Art. 6 Abs. 1 lit. a)",
+            "Vertragserfüllung (Art. 6 Abs. 1 lit. b)",
+            "Rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c)",
+            "Berechtigte Interessen (Art. 6 Abs. 1 lit. f) — unter Wahrung der Privatsphäre"
+          ]
+        },
+        dataRetention: {
+          title: "Aufbewahrungsfristen",
+          items: [
+            "Konto- und Rechnungsdaten: mindestens 10 Jahre (Steuerrecht)",
+            "Support-Kommunikation: bis zu 24 Monate",
+            "Analysedaten: 14–26 Monate (werkzeugspezifisch)",
+            "Cookie-Einstellungen: für die gewählte Dauer bzw. bis zur Löschung"
+          ]
+        },
         userRights: {
           title: "Ihre GDPR-Rechte",
           content: "Unter der GDPR haben Sie folgende Rechte:",
@@ -196,10 +271,14 @@ const PrivacyPolicy: React.FC = () => {
             "Recht auf Datenübertragbarkeit"
           ]
         },
+        complaints: {
+          title: "Beschwerderecht",
+          content: "Wenn Sie der Ansicht sind, dass Ihre Datenschutzrechte verletzt wurden, kontaktieren Sie uns bitte zunächst. Sie haben außerdem das Recht, eine Beschwerde bei der zuständigen Datenschutzaufsichtsbehörde einzureichen."
+        },
         contact: {
           title: "Kontakt",
           content: "Für datenschutzbezogene Fragen kontaktieren Sie uns bitte:",
-          email: "privacy@comptario.com"
+          email: COMPANY_LEGAL.dataProtectionEmail || "privacy@comptario.com"
         }
       }
     },
@@ -210,6 +289,10 @@ const PrivacyPolicy: React.FC = () => {
         introduction: {
           title: "Introduction",
           content: "Chez Comptario, nous prenons votre vie privée au sérieux. Cette politique de confidentialité explique comment nous collectons, utilisons, partageons et protégeons vos données personnelles."
+        },
+        dataController: {
+          title: "Responsable du traitement",
+          content: `Responsable: ${COMPANY_LEGAL.companyName}. Adresse: ${COMPANY_LEGAL.address}. Contact: ${COMPANY_LEGAL.dataProtectionEmail || COMPANY_LEGAL.email || 'privacy@comptario.com'}`
         },
         dataCollection: {
           title: "Données que nous collectons",
@@ -251,6 +334,24 @@ const PrivacyPolicy: React.FC = () => {
             "Sauvegardes régulières des données"
           ]
         },
+        legalBases: {
+          title: "Bases légales du traitement (RGPD art. 6)",
+          items: [
+            "Consentement (art. 6(1)(a))",
+            "Nécessité contractuelle (art. 6(1)(b))",
+            "Obligation légale (art. 6(1)(c))",
+            "Intérêts légitimes (art. 6(1)(f)) — équilibrés avec la vie privée"
+          ]
+        },
+        dataRetention: {
+          title: "Durées de conservation",
+          items: [
+            "Données de compte et de facturation : au moins 10 ans (obligations fiscales)",
+            "Tickets de support : jusqu'à 24 mois",
+            "Données analytiques : 14–26 mois (selon l'outil)",
+            "Préférences cookies : pendant la durée choisie ou jusqu'à suppression"
+          ]
+        },
         userRights: {
           title: "Vos droits GDPR",
           content: "Sous le GDPR, vous avez les droits suivants:",
@@ -261,10 +362,14 @@ const PrivacyPolicy: React.FC = () => {
             "Droit à la portabilité des données"
           ]
         },
+        complaints: {
+          title: "Réclamations",
+          content: "Si vous estimez que vos droits en matière de protection des données ont été violés, veuillez d'abord nous contacter. Vous avez également le droit d'introduire une réclamation auprès de l'autorité de protection des données compétente."
+        },
         contact: {
           title: "Contact",
           content: "Pour les questions liées à la confidentialité, veuillez nous contacter:",
-          email: "privacy@comptario.com"
+          email: COMPANY_LEGAL.dataProtectionEmail || "privacy@comptario.com"
         }
       }
     }
@@ -306,6 +411,17 @@ const PrivacyPolicy: React.FC = () => {
               </h2>
               <p className="text-gray-700 leading-relaxed mb-4">
                 {activeContent.sections.introduction.content}
+              </p>
+            </section>
+
+            {/* Section: Data Controller */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
+                <Users className="h-6 w-6 mr-2 text-blue-600" />
+                {activeContent.sections.dataController.title}
+              </h2>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                {activeContent.sections.dataController.content}
               </p>
             </section>
 
@@ -364,6 +480,32 @@ const PrivacyPolicy: React.FC = () => {
               </ul>
             </section>
 
+            {/* Section: Legal Bases */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
+                <Shield className="h-6 w-6 mr-2 text-green-600" />
+                {activeContent.sections.legalBases.title}
+              </h2>
+              <ul className="list-disc list-inside text-gray-700 space-y-2">
+                {activeContent.sections.legalBases.items.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </section>
+
+            {/* Section: Data Retention */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
+                <Database className="h-6 w-6 mr-2 text-orange-600" />
+                {activeContent.sections.dataRetention.title}
+              </h2>
+              <ul className="list-disc list-inside text-gray-700 space-y-2">
+                {activeContent.sections.dataRetention.items.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </section>
+
             {/* Section 5: Your Rights */}
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
@@ -378,6 +520,17 @@ const PrivacyPolicy: React.FC = () => {
                   <li key={index}>{item}</li>
                 ))}
               </ul>
+            </section>
+
+            {/* Section: Complaints */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
+                <Globe className="h-6 w-6 mr-2 text-blue-600" />
+                {activeContent.sections.complaints.title}
+              </h2>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                {activeContent.sections.complaints.content}
+              </p>
             </section>
 
             {/* Section 6: Contact */}

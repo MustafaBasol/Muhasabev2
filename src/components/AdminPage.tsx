@@ -82,6 +82,10 @@ const AdminPage: React.FC = () => {
     email: '',
     phone: ''
   });
+  // Silme modalı state
+  const [deleteModalUser, setDeleteModalUser] = useState<User | null>(null);
+  const [deleteMode, setDeleteMode] = useState<'soft' | 'hard'>('soft');
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const openEditUser = (u: User) => {
     setEditingUser(u);
     setEditForm({
@@ -739,7 +743,7 @@ const AdminPage: React.FC = () => {
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => alert('Kullanıcı silme özelliği yakında eklenecek. Şimdilik kullanıcıyı pasifleştirebilirsiniz.')}
+                              onClick={() => { setDeleteMode('soft'); setDeleteModalUser(user); }}
                               className="text-red-600 hover:text-red-900"
                               title="Sil"
                             >
@@ -985,6 +989,34 @@ const AdminPage: React.FC = () => {
                           İptal Et
                         </button>
                       </div>
+                      <div className="md:col-span-2">
+                        <h3 className="font-semibold text-gray-800">Tehlikeli Bölge</h3>
+                        <div className="flex flex-wrap gap-3 items-center mt-2">
+                          <button
+                            onClick={async () => {
+                              const name = tenant.companyName || tenant.name;
+                              const confirmed = window.confirm(`DİKKAT: '${name}' hesabını ve tüm verilerini KALICI olarak silmek üzeresiniz. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?`);
+                              if (!confirmed) return;
+                              try {
+                                setLoading(true);
+                                await adminApi.deleteTenant(tenant.id, { hard: true, backupBefore: false });
+                                setTenants(prev => prev.filter(t => t.id !== tenant.id));
+                                setActionMessage('Hesap kalıcı olarak silindi');
+                                setTimeout(() => setActionMessage(''), 2500);
+                              } catch (e) {
+                                console.error('Hesap silinemedi', e);
+                                alert('Hesap silinemedi. Konsolu kontrol edin.');
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                            className="px-4 py-2 border border-red-400 text-white bg-red-600 rounded-lg hover:bg-red-700 text-sm"
+                          >
+                            Hesabı Kalıcı Olarak Sil
+                          </button>
+                          <span className="text-xs text-gray-500">Bu işlem geri alınamaz. Yalnızca yetkili yöneticiler kullanmalıdır.</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1124,6 +1156,82 @@ const AdminPage: React.FC = () => {
                   <button onClick={closeEditUser} className="px-4 py-2 text-sm border rounded-lg">İptal</button>
                   <button onClick={saveEditUser} className="px-4 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700">Kaydet</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Kullanıcı Silme Modalı */}
+        {deleteModalUser && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl w-full max-w-md shadow-xl border border-red-200">
+              <div className="px-5 py-4 border-b border-red-100 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-red-700">Kullanıcıyı Sil</h3>
+                <button
+                  onClick={() => setDeleteModalUser(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >✖</button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="text-sm text-gray-700 leading-relaxed">
+                  <p className="mb-2"><strong>{deleteModalUser.firstName} {deleteModalUser.lastName}</strong> - {deleteModalUser.email}</p>
+                  <p className="mb-2">Bu işlemi dikkatli yapın. Soft silme kullanıcıyı pasif hale getirir ve gerektiğinde geri döndürülebilir. Hard silme kalıcıdır ve kullanıcı kaydı tamamen kaldırılır.</p>
+                  {deleteMode === 'hard' && (
+                    <p className="text-red-600 font-medium">DİKKAT: Hard silme geri alınamaz. İlgili ilişkisel kayıtlar (audit log vb. hariç) cascade ile kaybolabilir.</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="delMode"
+                      value="soft"
+                      checked={deleteMode === 'soft'}
+                      onChange={() => setDeleteMode('soft')}
+                    />
+                    <span>Soft Sil (Pasifleştir)</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="delMode"
+                      value="hard"
+                      checked={deleteMode === 'hard'}
+                      onChange={() => setDeleteMode('hard')}
+                    />
+                    <span className="text-red-600">Hard Sil (Kalıcı)</span>
+                  </label>
+                </div>
+              </div>
+              <div className="px-5 py-4 border-t flex items-center justify-between bg-red-50">
+                <button
+                  onClick={() => setDeleteModalUser(null)}
+                  className="px-4 py-2 text-sm rounded-lg border bg-white hover:bg-gray-50"
+                  disabled={deleteLoading}
+                >İptal</button>
+                <button
+                  onClick={async () => {
+                    if (!deleteModalUser) return;
+                    const hard = deleteMode === 'hard';
+                    const confirmText = hard ? 'Bu kullanıcı kalıcı olarak silinecek. Onaylıyor musunuz?' : 'Kullanıcı pasifleştirilecek. Onaylıyor musunuz?';
+                    if (!window.confirm(confirmText)) return;
+                    try {
+                      setDeleteLoading(true);
+                      await adminApi.deleteUser(deleteModalUser.id, { hard });
+                      setUsers(prev => hard ? prev.filter(u => u.id === deleteModalUser.id ? false : true) : prev.map(u => u.id === deleteModalUser.id ? { ...u, isActive: false } : u));
+                      setActionMessage(hard ? 'Kullanıcı kalıcı olarak silindi' : 'Kullanıcı pasifleştirildi');
+                      setTimeout(() => setActionMessage(''), 2500);
+                      setDeleteModalUser(null);
+                    } catch (e) {
+                      console.error('Silme hatası', e);
+                      alert('Silme başarısız. Konsolu kontrol edin.');
+                    } finally {
+                      setDeleteLoading(false);
+                    }
+                  }}
+                  disabled={deleteLoading}
+                  className={`px-4 py-2 text-sm rounded-lg text-white ${deleteMode === 'hard' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'} disabled:opacity-60`}
+                >{deleteLoading ? 'İşleniyor...' : (deleteMode === 'hard' ? 'Kalıcı Sil' : 'Pasifleştir')}</button>
               </div>
             </div>
           </div>

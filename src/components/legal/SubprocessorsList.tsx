@@ -183,12 +183,12 @@ const SubprocessorsList: React.FC = () => {
           subprocessors: [
             {
               id: '1',
-              name: 'Amazon Web Services (AWS)',
-              purpose: 'Cloud hosting and infrastructure services',
-              region: 'US, EU',
-              dataCategories: ['Technical data', 'User data', 'Transaction data'],
-              dpaLink: 'https://aws.amazon.com/service-terms/',
-              lastUpdated: '2025-10-30'
+              name: 'Amazon Web Services (AWS) - SES (Frankfurt, eu-central-1)',
+              purpose: 'Transactional email delivery and infrastructure (no marketing emails)',
+              region: 'EU (Frankfurt)',
+              dataCategories: ['Email addresses', 'Transactional metadata', 'Technical delivery logs'],
+              dpaLink: 'https://aws.amazon.com/compliance/gdpr-center/',
+              lastUpdated: '2025-11-10'
             },
             {
               id: '2',
@@ -197,43 +197,40 @@ const SubprocessorsList: React.FC = () => {
               region: 'US, EU',
               dataCategories: ['Payment data', 'Transaction data', 'Customer data'],
               dpaLink: 'https://stripe.com/privacy',
-              lastUpdated: '2025-10-30'
+              lastUpdated: '2025-11-10'
             },
             {
               id: '3',
-              name: 'SendGrid Inc.',
-              purpose: 'Email delivery and communication services',
-              region: 'US',
-              dataCategories: ['Email addresses', 'Communication data'],
-              dpaLink: 'https://sendgrid.com/policies/privacy/',
-              lastUpdated: '2025-10-30'
-            },
-            {
-              id: '4',
               name: 'Google Analytics',
               purpose: 'Website analytics and performance monitoring',
               region: 'US, EU',
               dataCategories: ['Usage data', 'Analytics data', 'Technical data'],
               dpaLink: 'https://privacy.google.com/businesses/processorterms/',
-              lastUpdated: '2025-10-30'
+              lastUpdated: '2025-11-10'
             },
             {
-              id: '5',
+              id: '4',
               name: 'Cloudflare Inc.',
               purpose: 'Content delivery network and security services',
               region: 'Global',
               dataCategories: ['Technical data', 'Security logs'],
               dpaLink: 'https://www.cloudflare.com/cloudflare-customer-dpa/',
-              lastUpdated: '2025-10-30'
+              lastUpdated: '2025-11-10'
             }
           ],
-          lastModified: '2025-10-30T10:00:00Z',
-          version: '1.0',
+          lastModified: '2025-11-10T10:00:00Z',
+          version: '1.1',
           changelog: [
             {
               date: '2025-10-30',
               version: '1.0',
               changes: ['Initial subprocessors list created'],
+              author: 'Legal Team'
+            },
+            {
+              date: '2025-11-10',
+              version: '1.1',
+              changes: ['Removed SendGrid (no longer used)', 'Refined AWS SES Frankfurt entry with scope clarification'],
               author: 'Legal Team'
             }
           ]

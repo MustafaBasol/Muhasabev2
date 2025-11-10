@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, Calendar, User, Shield } from 'lucide-react';
+import { TERMS_LAST_UPDATED } from '../../constants/legal';
+import { COMPANY_LEGAL } from '../../constants/companyLegal';
 
 const TermsOfService: React.FC = () => {
   const { i18n } = useTranslation('common');
@@ -11,7 +13,7 @@ const TermsOfService: React.FC = () => {
     tr: {
       title: "Hizmet Şartları",
       subtitle: "Comptario muhasebe hizmetlerini kullanımınız için şartlar ve koşullar",
-      lastUpdated: "Son güncelleme: 1 Ocak 2024",
+  lastUpdated: TERMS_LAST_UPDATED.tr,
       sections: {
         acceptance: {
           title: "Şartların Kabulü",
@@ -27,6 +29,10 @@ const TermsOfService: React.FC = () => {
             multiTenant: "Çoklu müşteri yönetimi"
           }
         },
+        serviceEmails: {
+          title: "Hizmet E-postaları",
+          content: "E-posta iletişimi yalnızca işlem ve hesapla ilgili bildirimler (doğrulama, güvenlik uyarıları, faturalama gibi) için kullanılır. Pazarlama amaçlı toplu e-posta gönderilmez."
+        },
         responsibilities: {
           title: "Kullanıcı Sorumlulukları",
           content: "Hizmetimizi kullanırken aşağıdaki sorumluluklarınız bulunmaktadır:",
@@ -40,6 +46,14 @@ const TermsOfService: React.FC = () => {
         dataProtection: {
           title: "Veri Koruma",
           content: "Kişisel verileriniz GDPR ve KVKK düzenlemelerine uygun olarak işlenir. Detaylı bilgi için gizlilik politikamızı inceleyiniz."
+        },
+        acceptableUse: {
+          title: "Kabul Edilebilir Kullanım",
+          items: [
+            "Hizmet spam, kötü amaçlı yazılım dağıtımı veya yetkisiz veri toplama için kullanılamaz",
+            "Hesap paylaşımı veya sistemin kötüye kullanımı yasaktır",
+            "Hukuka aykırı içerik barındırılamaz veya iletilemez"
+          ]
         },
         liability: {
           title: "Sorumluluk Sınırlaması",
@@ -59,15 +73,15 @@ const TermsOfService: React.FC = () => {
         email: "E-posta",
         address: "Adres",
         company: "Şirket",
-        addressValue: "İstanbul, Türkiye",
-        companyValue: "Comptario Muhasebe Hizmetleri Ltd. Şti."
+        addressValue: COMPANY_LEGAL.address || "Fransa",
+        companyValue: COMPANY_LEGAL.companyName || "Peaknova"
       },
       backToApp: "Uygulamaya Geri Dön"
     },
     en: {
       title: "Terms of Service",
       subtitle: "Terms and conditions for using Comptario accounting services",
-      lastUpdated: "Last updated: January 1, 2024",
+  lastUpdated: TERMS_LAST_UPDATED.en,
       sections: {
         acceptance: {
           title: "Acceptance of Terms",
@@ -83,6 +97,10 @@ const TermsOfService: React.FC = () => {
             multiTenant: "Multi-client management"
           }
         },
+        serviceEmails: {
+          title: "Service Emails",
+          content: "We use email only for transactional and account-related communications (e.g., verification, security alerts, billing). We do not send marketing bulk emails."
+        },
         responsibilities: {
           title: "User Responsibilities",
           content: "When using our service, you have the following responsibilities:",
@@ -96,6 +114,14 @@ const TermsOfService: React.FC = () => {
         dataProtection: {
           title: "Data Protection",
           content: "Your personal data is processed in accordance with GDPR regulations. Please review our privacy policy for detailed information."
+        },
+        acceptableUse: {
+          title: "Acceptable Use",
+          items: [
+            "You may not use the service for spam, malware distribution, or unauthorized data scraping",
+            "Account sharing or abuse of system resources is prohibited",
+            "Illegal content may not be hosted or transmitted"
+          ]
         },
         liability: {
           title: "Limitation of Liability",
@@ -115,15 +141,15 @@ const TermsOfService: React.FC = () => {
         email: "Email",
         address: "Address",
         company: "Company",
-        addressValue: "Istanbul, Turkey",
-        companyValue: "Comptario Accounting Services Ltd."
+        addressValue: COMPANY_LEGAL.address || "France",
+        companyValue: COMPANY_LEGAL.companyName || "Peaknova"
       },
       backToApp: "Back to App"
     },
     de: {
       title: "Nutzungsbedingungen",
       subtitle: "Geschäftsbedingungen für die Nutzung der Comptario Buchhaltungsdienste",
-      lastUpdated: "Zuletzt aktualisiert: 1. Januar 2024",
+  lastUpdated: TERMS_LAST_UPDATED.de,
       sections: {
         acceptance: {
           title: "Annahme der Bedingungen",
@@ -139,6 +165,10 @@ const TermsOfService: React.FC = () => {
             multiTenant: "Multi-Kunden-Management"
           }
         },
+        serviceEmails: {
+          title: "Service-E-Mails",
+          content: "E-Mails werden ausschließlich für transaktionale und kontobezogene Mitteilungen verwendet (z. B. Verifizierung, Sicherheitswarnungen, Abrechnung). Marketing-Massenmails werden nicht versendet."
+        },
         responsibilities: {
           title: "Benutzerverantwortlichkeiten",
           content: "Bei der Nutzung unseres Dienstes haben Sie folgende Verantwortlichkeiten:",
@@ -152,6 +182,14 @@ const TermsOfService: React.FC = () => {
         dataProtection: {
           title: "Datenschutz",
           content: "Ihre personenbezogenen Daten werden gemäß GDPR-Vorschriften verarbeitet. Bitte lesen Sie unsere Datenschutzrichtlinie für detaillierte Informationen."
+        },
+        acceptableUse: {
+          title: "Zulässige Nutzung",
+          items: [
+            "Keine Nutzung für Spam, Malware-Verteilung oder unbefugtes Datenscraping",
+            "Kontoteilung oder Missbrauch von Systemressourcen ist untersagt",
+            "Illegale Inhalte dürfen nicht gehostet oder übertragen werden"
+          ]
         },
         liability: {
           title: "Haftungsbeschränkung",
@@ -171,15 +209,15 @@ const TermsOfService: React.FC = () => {
         email: "E-Mail",
         address: "Adresse",
         company: "Unternehmen",
-        addressValue: "Istanbul, Türkei",
-        companyValue: "Comptario Buchhaltungsdienste GmbH"
+        addressValue: COMPANY_LEGAL.address || "Frankreich",
+        companyValue: COMPANY_LEGAL.companyName || "Peaknova"
       },
       backToApp: "Zurück zur App"
     },
     fr: {
       title: "Conditions d'utilisation",
       subtitle: "Termes et conditions pour l'utilisation des services comptables Comptario",
-      lastUpdated: "Dernière mise à jour : 1er janvier 2024",
+  lastUpdated: TERMS_LAST_UPDATED.fr,
       sections: {
         acceptance: {
           title: "Acceptation des conditions",
@@ -195,6 +233,10 @@ const TermsOfService: React.FC = () => {
             multiTenant: "Gestion multi-clients"
           }
         },
+        serviceEmails: {
+          title: "E-mails de service",
+          content: "Nous utilisons l'e-mail uniquement pour les communications transactionnelles et liées au compte (vérification, alertes de sécurité, facturation). Nous n'envoyons pas d'e-mails marketing en masse."
+        },
         responsibilities: {
           title: "Responsabilités de l'utilisateur",
           content: "Lors de l'utilisation de notre service, vous avez les responsabilités suivantes :",
@@ -208,6 +250,14 @@ const TermsOfService: React.FC = () => {
         dataProtection: {
           title: "Protection des données",
           content: "Vos données personnelles sont traitées conformément aux réglementations GDPR. Veuillez consulter notre politique de confidentialité pour des informations détaillées."
+        },
+        acceptableUse: {
+          title: "Utilisation acceptable",
+          items: [
+            "Le service ne peut pas être utilisé pour le spam, la distribution de logiciels malveillants ou le scraping non autorisé",
+            "Le partage de compte ou l'abus des ressources système est interdit",
+            "Les contenus illégaux ne peuvent pas être hébergés ni transmis"
+          ]
         },
         liability: {
           title: "Limitation de responsabilité",
@@ -227,8 +277,8 @@ const TermsOfService: React.FC = () => {
         email: "Email",
         address: "Adresse",
         company: "Entreprise",
-        addressValue: "Istanbul, Turquie",
-        companyValue: "Comptario Services Comptables SARL"
+        addressValue: COMPANY_LEGAL.address || "France",
+        companyValue: COMPANY_LEGAL.companyName || "Peaknova"
       },
       backToApp: "Retour à l'application"
     }
@@ -271,6 +321,16 @@ const TermsOfService: React.FC = () => {
                 {activeContent.sections.acceptance.content}
               </p>
             </section>
+
+              {/* Section: Service Emails */}
+              <section className="mb-8">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  {activeContent.sections.serviceEmails.title}
+                </h2>
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  {activeContent.sections.serviceEmails.content}
+                </p>
+              </section>
 
             {/* Section 2: Service Description */}
             <section className="mb-8">
@@ -325,6 +385,24 @@ const TermsOfService: React.FC = () => {
               </p>
             </section>
 
+            {/* Section: Acceptable Use */}
+            <section className="mb-8">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                {activeContent.sections.acceptableUse.title}
+              </h2>
+              {Array.isArray((activeContent.sections.acceptableUse as any).items) ? (
+                <ul className="list-disc list-inside text-gray-700 space-y-2">
+                  {(activeContent.sections.acceptableUse as any).items.map((item: string, idx: number) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  {(activeContent.sections.acceptableUse as any).content}
+                </p>
+              )}
+            </section>
+
             {/* Section 6: Termination */}
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -352,7 +430,7 @@ const TermsOfService: React.FC = () => {
               </h2>
               <div className="bg-gray-50 rounded-lg p-6">
                 <p className="text-gray-700 mb-2">
-                  <strong>{activeContent.contact.email}:</strong> legal@comptario.com
+                  <strong>{activeContent.contact.email}:</strong> {COMPANY_LEGAL.email || 'legal@comptario.com'}
                 </p>
                 <p className="text-gray-700 mb-2">
                   <strong>{activeContent.contact.address}:</strong> {activeContent.contact.addressValue}

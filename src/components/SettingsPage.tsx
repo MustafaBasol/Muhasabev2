@@ -17,6 +17,7 @@ import {
   Info,
   ChevronDown,
   ChevronRight,
+  CreditCard,
 } from 'lucide-react';
 import InfoModal from './InfoModal';
 import OrganizationMembersPage from './OrganizationMembersPage';
@@ -47,6 +48,302 @@ interface SettingsPageProps {
   language?: 'tr' | 'en' | 'fr' | 'de';
   initialTab?: string;
 }
+
+// === Plan Tab (hooks ayrı bir bileşene taşındı; SettingsPage içinde koşullu çağrı artık hook sırasını bozmaz) ===
+interface PlanTabProps {
+  tenant: any;
+  currentLanguage: SettingsLanguage;
+  text: SettingsTranslations;
+}
+
+const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
+  const { refreshUser } = useAuth();
+  const planRaw = String(tenant?.subscriptionPlan || '').toLowerCase();
+  const isFree = planRaw === 'free';
+  const planLabelMap: Record<string, string> = {
+    free: 'Free',
+    basic: 'Basic',
+    professional: 'Pro',
+    enterprise: 'Enterprise',
+  };
+  const planText = planLabelMap[planRaw] || (planRaw ? planRaw.toUpperCase() : '—');
+  const periodMap: Record<SettingsLanguage, string> = {
+    tr: 'Aylık',
+    en: 'Monthly',
+    fr: 'Mensuel',
+    de: 'Monatlich',
+  } as const;
+  // Basit: FREE için faturalama yok; diğerleri monthly varsayımı (backend henüz dönmüyor)
+  const periodText = isFree ? '' : (periodMap[currentLanguage] || 'Monthly');
+
+  // --- Local state ---
+  const [desiredPlan, setDesiredPlan] = useState(planRaw || 'free');
+  const [desiredBilling, setDesiredBilling] = useState<'monthly' | 'yearly'>('monthly');
+  const currentMaxUsers = (tenant?.maxUsers as number) || 1;
+  const [desiredUsers, setDesiredUsers] = useState<number>(currentMaxUsers);
+  const [busy, setBusy] = useState(false);
+  const [planMessage, setPlanMessage] = useState<string>('');
+  const [history, setHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  // Ücretli planlarda tüm iptaller dönem sonunda gerçekleşir; kullanıcıya seçenek sunmuyoruz
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState<boolean>(!!tenant?.cancelAtPeriodEnd);
+
+  // Sync desired plan if tenant changes
+  useEffect(() => {
+    setDesiredPlan(planRaw || 'free');
+    setDesiredUsers((tenant?.maxUsers as number) || 1);
+    setCancelAtPeriodEnd(!!tenant?.cancelAtPeriodEnd);
+  }, [planRaw, tenant?.maxUsers, tenant?.cancelAtPeriodEnd]);
+
+  // Mount'ta tenant bilgisini tazele (AuthContext üzerinden)
+  useEffect(() => {
+    refreshUser().catch(() => {});
+  }, []);
+
+  // Fetch mock history
+  useEffect(() => {
+    let mounted = true;
+    const fetchHistory = async () => {
+      setLoadingHistory(true);
+      try {
+        const res = await tenantsApi.getMySubscriptionHistory?.();
+        // Eski API yoksa fallback mock
+        const events = res?.events || [
+          { type: 'plan.current', plan: tenant?.subscriptionPlan, at: tenant?.updatedAt, users: tenant?.maxUsers },
+        ];
+        if (mounted) setHistory(events);
+      } catch {
+        if (mounted) setHistory([]);
+      } finally {
+        if (mounted) setLoadingHistory(false);
+      }
+    };
+    fetchHistory();
+    return () => { mounted = false; };
+  }, [tenant?.subscriptionPlan, tenant?.updatedAt]);
+
+  const saveSubscription = async () => {
+    setBusy(true); setPlanMessage('');
+    try {
+      const payload: any = {
+        plan: desiredPlan !== planRaw ? desiredPlan : undefined,
+        users: desiredUsers,
+        billing: desiredBilling,
+        // Eğer paid plan ve iptal işaretliyse (UI'de checkbox yok ama backend ile uyumlu tutalım)
+        cancelAtPeriodEnd: cancelAtPeriodEnd && !isFree,
+      };
+      const res = await tenantsApi.updateMySubscription(payload);
+      if (res?.success) {
+        setPlanMessage(currentLanguage === 'tr' ? 'Plan güncellendi' : 'Plan updated');
+        setTimeout(() => setPlanMessage(''), 2500);
+      } else {
+        setPlanMessage(currentLanguage === 'tr' ? 'Plan güncellenemedi' : 'Plan update failed');
+      }
+    } catch (e:any) {
+      setPlanMessage(e?.response?.data?.message || 'Hata');
+    } finally { setBusy(false); }
+  };
+
+  const requestCancelAtPeriodEnd = async () => {
+    if (!window.confirm(currentLanguage === 'tr' ? 'Abonelik dönem sonunda iptal edilecek. Onaylıyor musunuz?' : 'Subscription will be cancelled at period end. Confirm?')) return;
+    setBusy(true); setPlanMessage('');
+    try {
+      const res = await tenantsApi.updateMySubscription({ cancelAtPeriodEnd: true });
+      if (res?.success) {
+        setCancelAtPeriodEnd(true);
+        setPlanMessage(currentLanguage === 'tr' ? 'İptal talebi alındı (dönem sonunda).' : 'Cancel at period end set.');
+        setTimeout(() => setPlanMessage(''), 3000);
+      }
+    } catch (e:any) {
+      setPlanMessage(e?.response?.data?.message || 'İptal hata');
+    } finally { setBusy(false); }
+  };
+
+  const renewalDate = tenant?.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt) : null;
+  const renewalStr = renewalDate ? renewalDate.toLocaleDateString() : (currentLanguage === 'tr' ? '—' : '—');
+
+  const canModifySeats = ['professional', 'enterprise'].includes(planRaw);
+  // Basic veya Free için hedef kullanıcı alanını sabitle
+  useEffect(() => {
+    if (!canModifySeats) {
+      setDesiredUsers(1);
+    }
+  }, [canModifySeats]);
+
+  return (
+    <div className="space-y-6">
+      {/* Özet Kartları */}
+      <div className="border border-gray-200 rounded-lg p-4 bg-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{text.tabs.plan || 'Plan'}</h3>
+            <p className="text-sm text-gray-500 mt-1">{currentLanguage === 'tr' ? 'Abonelik ve faturalama bilgileri' : currentLanguage === 'fr' ? 'Abonnement et facturation' : currentLanguage === 'de' ? 'Abo und Abrechnung' : 'Subscription & billing'}</p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
+            <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Mevcut Plan' : currentLanguage === 'fr' ? 'Offre actuelle' : currentLanguage === 'de' ? 'Aktueller Plan' : 'Current Plan'}</span>
+            <span className="inline-flex w-fit items-center text-xs font-semibold px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{planText}</span>
+          </div>
+          <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
+            <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Faturalama Dönemi' : currentLanguage === 'fr' ? 'Période' : currentLanguage === 'de' ? 'Zeitraum' : 'Billing Period'}</span>
+            <span className="text-sm text-gray-900">{periodText || (currentLanguage === 'tr' ? '—' : '—')}</span>
+          </div>
+            <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
+              <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Kullanıcı Limiti' : currentLanguage === 'fr' ? 'Limite Utilisateurs' : currentLanguage === 'de' ? 'Benutzerlimit' : 'User Limit'}</span>
+              <span className="text-sm text-gray-900">{currentMaxUsers}</span>
+            </div>
+          <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
+            <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Yenileme Tarihi' : currentLanguage === 'fr' ? 'Date de renouvellement' : currentLanguage === 'de' ? 'Verlängerungsdatum' : 'Renewal Date'}</span>
+            <span className="text-sm text-gray-900">{renewalStr}</span>
+          </div>
+        </div>
+        {cancelAtPeriodEnd && !isFree && (
+          <div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded">
+            {currentLanguage === 'tr' ? 'Dönem sonunda iptal edilecek.' : 'Will cancel at period end.'}
+          </div>
+        )}
+      </div>
+
+      {/* Plan Değişimi */}
+      <div className="border border-gray-200 rounded-lg p-4 bg-white">
+        <h4 className="text-md font-semibold mb-3">{currentLanguage === 'tr' ? 'Plan Yükselt / Düşür' : currentLanguage === 'fr' ? 'Changer de Plan' : currentLanguage === 'de' ? 'Plan wechseln' : 'Change Plan'}</h4>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Yeni Plan' : currentLanguage === 'fr' ? 'Nouveau Plan' : currentLanguage === 'de' ? 'Neuer Plan' : 'New Plan'}</label>
+            <select
+              value={desiredPlan}
+              onChange={e => setDesiredPlan(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            >
+              <option value="free">Free</option>
+              <option value="basic">Basic</option>
+              <option value="professional">Pro</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Faturalama' : currentLanguage === 'fr' ? 'Facturation' : currentLanguage === 'de' ? 'Abrechnung' : 'Billing'}</label>
+            <select
+              value={desiredBilling}
+              onChange={e => setDesiredBilling(e.target.value as any)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              disabled={desiredPlan === 'free'}
+            >
+              <option value="monthly">{currentLanguage === 'tr' ? 'Aylık' : currentLanguage === 'fr' ? 'Mensuel' : currentLanguage === 'de' ? 'Monatlich' : 'Monthly'}</option>
+              <option value="yearly">{currentLanguage === 'tr' ? 'Yıllık' : currentLanguage === 'fr' ? 'Annuel' : currentLanguage === 'de' ? 'Jährlich' : 'Yearly'}</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Hedef Kullanıcı Sayısı' : currentLanguage === 'fr' ? 'Utilisateurs Cibles' : currentLanguage === 'de' ? 'Ziel Benutzer' : 'Target Users'}</label>
+            <input
+              type="number"
+              min={1}
+              value={desiredUsers}
+              onChange={e => setDesiredUsers(parseInt(e.target.value || '1', 10))}
+              disabled={!canModifySeats}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 disabled:text-gray-400"
+            />
+            {!canModifySeats && (
+              <p className="mt-1 text-[10px] text-gray-500">{currentLanguage === 'tr' ? 'Kullanıcı limiti yalnız Pro+ planlarda ayarlanabilir.' : 'Seat count only adjustable on Pro+ plans.'}</p>
+            )}
+          </div>
+          {/* İptal seçeneği artık checkbox olarak sunulmuyor */}
+          <div className="flex items-end">
+            <button
+              onClick={saveSubscription}
+              disabled={busy}
+              className="w-full px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {busy ? (currentLanguage === 'tr' ? 'İşleniyor…' : 'Saving…') : (currentLanguage === 'tr' ? 'Kaydet' : 'Save')}
+            </button>
+          </div>
+        </div>
+        {planMessage && <div className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded">{planMessage}</div>}
+      </div>
+
+      {/* Kullanıcı Sayısı Hızlı Güncelle (yalnız Pro+) */}
+      {canModifySeats && (
+        <div className="border border-amber-300 rounded-lg p-4 bg-amber-50">
+          <h4 className="text-md font-semibold mb-2">{currentLanguage === 'tr' ? 'Kullanıcı Sayısı Güncelle' : currentLanguage === 'fr' ? 'Utilisateurs' : currentLanguage === 'de' ? 'Benutzer aktualisieren' : 'Adjust Users'}</h4>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={1}
+              value={desiredUsers}
+              onChange={e => setDesiredUsers(parseInt(e.target.value || '1', 10))}
+              className="w-32 px-3 py-2 border border-amber-300 rounded-md text-sm bg-white"
+            />
+            <button
+              onClick={saveSubscription}
+              disabled={busy}
+              className="px-4 py-2 text-sm rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+            >{currentLanguage === 'tr' ? 'Güncelle' : currentLanguage === 'fr' ? 'Mettre à jour' : currentLanguage === 'de' ? 'Aktualisieren' : 'Update'}</button>
+          </div>
+        </div>
+      )}
+
+      {/* İptal Seçenekleri */}
+      {!isFree && (
+        <div className="border border-red-300 rounded-lg p-4 bg-red-50 space-y-3">
+          <h4 className="text-md font-semibold mb-2">{currentLanguage === 'tr' ? 'Abonelik İptali' : currentLanguage === 'fr' ? 'Annulation' : currentLanguage === 'de' ? 'Kündigung' : 'Cancellation'}</h4>
+          <p className="text-xs text-red-700">{currentLanguage === 'tr' ? 'Ücretli planlarda iptal talebi dönem sonunda uygulanır.' : 'On paid plans, cancellation takes effect at period end.'}</p>
+          <button
+            onClick={requestCancelAtPeriodEnd}
+            disabled={busy || cancelAtPeriodEnd}
+            className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+          >{cancelAtPeriodEnd ? (currentLanguage === 'tr' ? 'Dönem Sonu İptal Aktif' : 'Cancel at Period End Active') : (currentLanguage === 'tr' ? 'Dönem Sonunda İptal Et' : 'Cancel at Period End')}</button>
+        </div>
+      )}
+
+      {/* Geçmiş / History */}
+      <div className="border border-gray-200 rounded-lg p-4 bg-white">
+        <h4 className="text-md font-semibold mb-3">{currentLanguage === 'tr' ? 'Faturalama / Plan Geçmişi' : currentLanguage === 'fr' ? 'Historique' : currentLanguage === 'de' ? 'Verlauf' : 'History'}</h4>
+        {loadingHistory && <p className="text-xs text-gray-500">{currentLanguage === 'tr' ? 'Yükleniyor…' : 'Loading…'}</p>}
+        {!loadingHistory && history.length === 0 && (
+          <p className="text-xs text-gray-500">{currentLanguage === 'tr' ? 'Kayıt yok (mock).' : 'No events (mock).'}</p>
+        )}
+        {!loadingHistory && history.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs">
+              <thead>
+                <tr className="text-left text-gray-600">
+                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Tür' : 'Type'}</th>
+                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Plan' : 'Plan'}</th>
+                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Kullanıcı' : 'Users'}</th>
+                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Tarih' : 'Date'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((ev, idx) => {
+                  const at = ev.at ? new Date(ev.at).toLocaleDateString() : '—';
+                  const typeLabel = (() => {
+                    const map: Record<string, Record<string, string>> = {
+                      tr: { 'plan.current': 'Mevcut Plan', 'plan.renewal_due': 'Yenileme Tarihi', 'cancel.at_period_end': 'Dönem Sonunda İptal' },
+                      en: { 'plan.current': 'Current Plan', 'plan.renewal_due': 'Renewal Due', 'cancel.at_period_end': 'Cancel at Period End' },
+                      fr: { 'plan.current': 'Offre actuelle', 'plan.renewal_due': 'Renouvellement', 'cancel.at_period_end': 'Annulation fin de période' },
+                      de: { 'plan.current': 'Aktueller Plan', 'plan.renewal_due': 'Verlängerung', 'cancel.at_period_end': 'Kündigung zum Periodenende' },
+                    };
+                    return (map[currentLanguage] && map[currentLanguage][ev.type]) || ev.type;
+                  })();
+                  return (
+                    <tr key={idx} className="border-t border-gray-100">
+                      <td className="py-1 pr-4">{typeLabel}</td>
+                      <td className="py-1 pr-4">{ev.plan || '—'}</td>
+                      <td className="py-1 pr-4">{ev.users || '—'}</td>
+                      <td className="py-1 pr-4">{at}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-2 text-[10px] text-gray-400">{currentLanguage === 'tr' ? 'Gerçek Stripe geçmişi henüz entegre edilmedi.' : 'Real Stripe history not yet integrated.'}</p>
+      </div>
+    </div>
+  );
+};
 
 // Yalnızca ekranda önizleme için (CompanyProfile + logoFile)
 // Ülke seçimi öncesi boş değer için country alanını genişletiyoruz
@@ -86,6 +383,7 @@ type SettingsTranslations = {
   tabs: {
     profile: string;
     company: string;
+    plan?: string;
     notifications: string;
     organization?: string;
     fiscalPeriods?: string;
@@ -295,6 +593,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
     tabs: {
       profile: 'Profil',
       company: 'Şirket',
+      plan: 'Hesap Planı',
       notifications: 'Bildirimler',
       organization: 'Organizasyon',
       fiscalPeriods: 'Mali Dönemler',
@@ -508,6 +807,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
     tabs: {
       profile: 'Profile',
       company: 'Company',
+      plan: 'Plan',
       notifications: 'Notifications',
       organization: 'Organization',
       fiscalPeriods: 'Fiscal Periods',
@@ -721,6 +1021,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
     tabs: {
       profile: 'Profil',
       company: 'Entreprise',
+      plan: 'Abonnement',
       notifications: 'Notifications',
       organization: 'Organisation',
       fiscalPeriods: 'Périodes fiscales',
@@ -934,6 +1235,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
     tabs: {
       profile: 'Profil',
       company: 'Unternehmen',
+      plan: 'Abo/Plan',
       notifications: 'Benachrichtigungen',
       organization: 'Organisation',
       fiscalPeriods: 'Finanzperioden',
@@ -1158,10 +1460,12 @@ export default function SettingsPage({
   const notificationLabels = text.notifications.labels;
   
   // Auth context - profil güncellemesi için
-  const { refreshUser, user: authUser } = useAuth();
+  const { refreshUser, user: authUser, tenant } = useAuth();
   // Tenant sahibi/ADMİN kontrolü: farklı sistemlerde rol isimleri değişebiliyor
   const roleNorm = (authUser?.role || '').toUpperCase();
-  const isTenantOwner = roleNorm === 'TENANT_ADMIN' || roleNorm === 'OWNER' || roleNorm === 'ADMIN';
+  // Plan sekmesi sadece 'OWNER' benzeri sahiplik rolleri için görünür olmalı.
+  // Bazı kurulumlarda sahip hesap backend'de TENANT_ADMIN olarak dönebildiği için ikisini de kabul ediyoruz.
+  const isOwnerLike = roleNorm === 'OWNER' || roleNorm === 'TENANT_ADMIN';
 
   // Resmi şirket adı (backend tenant.name) için yerel state
   const [officialCompanyName, setOfficialCompanyName] = useState<string>('');
@@ -1175,6 +1479,12 @@ export default function SettingsPage({
           // Resmi şirket adı: kullanıcı ismine otomatik düşmeyelim; companyName yoksa boş kalsın
           setOfficialCompanyName(me?.companyName ?? '');
           setOfficialLoaded(true);
+          try {
+            // Tenant başlangıç bilgisi yoksa plan bilgisini local state'te de saklamaya devam edelim (UI için)
+            if (!tenant?.subscriptionPlan && me?.subscriptionPlan) {
+              // no-op: tenant context zaten planı taşıyorsa ayrıca gerek yok; sadece okunacak
+            }
+          } catch {}
         }
       } catch (e) {
         if (!cancelled) setOfficialLoaded(true);
@@ -1434,16 +1744,25 @@ export default function SettingsPage({
     // backupFrequency: 'daily',
   });
 
-  const tabs = [
-    { id: 'profile', label: text.tabs.profile, icon: User },
-    { id: 'company', label: text.tabs.company, icon: Building2 },
-    { id: 'organization', label: text.tabs.organization || 'Organization', icon: Users },
-    { id: 'fiscal-periods', label: text.tabs.fiscalPeriods || 'Fiscal Periods', icon: Calendar },
-    { id: 'notifications', label: text.tabs.notifications, icon: Bell },
-    // System tab kaldırıldı, ayarları Şirket sekmesine taşındı
-    { id: 'security', label: text.tabs.security, icon: Shield },
-    { id: 'privacy', label: text.tabs.privacy, icon: Lock },
-  ];
+  // Sekmeler: Plan sekmesini sadece sahipler (owner/tenant_admin) görsün
+  const tabs = (() => {
+    const arr: { id: string; label: string; icon: any }[] = [
+      { id: 'profile', label: text.tabs.profile, icon: User },
+      { id: 'company', label: text.tabs.company, icon: Building2 },
+    ];
+    if (isOwnerLike) {
+      arr.push({ id: 'plan', label: text.tabs.plan || 'Plan', icon: CreditCard });
+    }
+    arr.push(
+      { id: 'organization', label: text.tabs.organization || 'Organization', icon: Users },
+      { id: 'fiscal-periods', label: text.tabs.fiscalPeriods || 'Fiscal Periods', icon: Calendar },
+      { id: 'notifications', label: text.tabs.notifications, icon: Bell },
+      // System tab kaldırıldı, ayarları Şirket sekmesine taşındı
+      { id: 'security', label: text.tabs.security, icon: Shield },
+      { id: 'privacy', label: text.tabs.privacy, icon: Lock },
+    );
+    return arr;
+  })();
 
   // initialTab verilirse ilk açılışta ona geç
   useEffect(() => {
@@ -1589,7 +1908,7 @@ export default function SettingsPage({
 
       // Resmi şirket adı değiştiyse ve kullanıcı tenant sahibi ise, backend'e yaz
       try {
-        if (isTenantOwner && officialLoaded) {
+  if (isOwnerLike && officialLoaded) {
           // Değişiklik kontrolü basitçe yapılır; gerçek senaryoda trim/normalize edilebilir
           // Backend tarafı sadece TENANT_ADMIN'e izin veriyor
           // companyData.name markalama alanı, officialCompanyName ise resmi alan
@@ -1645,7 +1964,7 @@ export default function SettingsPage({
         } as any;
 
         // Şirket sahibi değilse kimlik alanını hiç göndermeyelim
-        if (!isTenantOwner) {
+  if (!isOwnerLike) {
           delete payload.companyName;
         }
 
@@ -1794,6 +2113,8 @@ export default function SettingsPage({
   </div>
   );
 
+  // Plan sekmesi eski render fonksiyonu kaldırıldı; yerine ayrı <PlanTab /> bileşeni kullanılıyor.
+
   const renderCompanyTab = () => {
     const hasBanks = bankAccounts.length > 0;
     const selectedBank = bankAccounts.find(b => b.id === companyData.bankAccountId);
@@ -1844,11 +2165,11 @@ export default function SettingsPage({
                   setOfficialCompanyName(e.target.value);
                   setUnsavedChanges(true);
                 }}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isTenantOwner ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
-                disabled={!isTenantOwner}
-                title={!isTenantOwner ? 'Şirket adını yalnızca şirket sahibi veya yönetici güncelleyebilir' : undefined}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isOwnerLike ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
+                disabled={!isOwnerLike}
+                title={!isOwnerLike ? 'Şirket adını yalnızca şirket sahibi veya yönetici güncelleyebilir' : undefined}
               />
-              {!isTenantOwner && (
+              {!isOwnerLike && (
                 <p className="mt-1 text-xs text-gray-500">Bu alan yalnızca şirket sahibi tarafından değiştirilebilir.</p>
               )}
             </div>
@@ -2590,6 +2911,9 @@ export default function SettingsPage({
         <div className="p-6">
           {activeTab === 'profile' && renderProfileTab()}
           {activeTab === 'company' && renderCompanyTab()}
+          {activeTab === 'plan' && isOwnerLike && (
+            <PlanTab tenant={tenant} currentLanguage={currentLanguage} text={text} />
+          )}
           {activeTab === 'organization' && <OrganizationMembersPage />}
           {activeTab === 'fiscal-periods' && <FiscalPeriodsPage />}
           {activeTab === 'notifications' && renderNotificationsTab()}

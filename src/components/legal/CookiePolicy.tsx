@@ -1,12 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Cookie, Settings } from 'lucide-react';
+import { COMPANY_LEGAL } from '../../constants/companyLegal';
 import { useCookieConsent } from '../../contexts/CookieConsentContext';
 
 const CookiePolicy: React.FC = () => {
   const { i18n } = useTranslation('common');
   const { openModal } = useCookieConsent();
   const currentLang = i18n.language;
+
+  // Hash ile doğrudan açılışı bu sayfadan da garantiye al
+  useEffect(() => {
+    try {
+      if (window.location.hash === '#cookie-preferences') { openModal(); }
+      const onHash = () => {
+        const h = window.location.hash;
+        if (h === '#cookie-preferences') { openModal(); }
+      };
+      window.addEventListener('hashchange', onHash);
+      return () => window.removeEventListener('hashchange', onHash);
+    } catch {}
+  }, [openModal]);
 
   // Content by language
   const content = {
@@ -24,6 +38,10 @@ const CookiePolicy: React.FC = () => {
         howWeUse: {
           title: "Çerezleri Nasıl Kullanıyoruz?",
           content: "Comptario olarak çerezleri şu amaçlarla kullanıyoruz: oturum yönetimi, kullanıcı tercihlerini hatırlama, site performansını analiz etme ve güvenliği sağlama."
+        },
+        consentMode: {
+          title: "Onay Modu (Consent Mode)",
+          content: "Google Consent Mode v2 ve benzeri mekanizmaları destekliyoruz. Tercihleriniz doğrultusunda ölçüm/analitik etiketleri uyarlanır; onay verilmeden gerekli olmayan çerezler yerleştirilmez. Tercihlerinizi bu sayfadaki butonla dilediğiniz an güncelleyebilirsiniz."
         },
         thirdParty: {
           title: "Üçüncü Taraf Çerezleri",
@@ -50,7 +68,8 @@ const CookiePolicy: React.FC = () => {
         title: "İletişim",
         email: "E-posta",
         cmp: "Çerez Yönetimi",
-        cmpNote: "Yukarıdaki butonu kullanarak tercihlerinizi değiştirebilirsiniz"
+        cmpNote: "Yukarıdaki butonu kullanarak tercihlerinizi değiştirebilirsiniz",
+        privacyEmail: COMPANY_LEGAL.dataProtectionEmail || 'privacy@comptario.com'
       },
       backToApp: "Uygulamaya Geri Dön"
     },
@@ -68,6 +87,10 @@ const CookiePolicy: React.FC = () => {
         howWeUse: {
           title: "How We Use Cookies?",
           content: "At Comptario, we use cookies for the following purposes: session management, remembering user preferences, analyzing site performance, and ensuring security."
+        },
+        consentMode: {
+          title: "Consent Mode",
+          content: "We support Google Consent Mode v2 and similar frameworks. Measurement/analytics tags adapt to your choices; non-essential cookies are not set before consent. You can update your preferences at any time using the button above."
         },
         thirdParty: {
           title: "Third-Party Cookies",
@@ -94,7 +117,8 @@ const CookiePolicy: React.FC = () => {
         title: "Contact",
         email: "Email",
         cmp: "Cookie Management",
-        cmpNote: "You can change your preferences using the button above"
+        cmpNote: "You can change your preferences using the button above",
+        privacyEmail: COMPANY_LEGAL.dataProtectionEmail || 'privacy@comptario.com'
       },
       backToApp: "Back to App"
     },
@@ -112,6 +136,10 @@ const CookiePolicy: React.FC = () => {
         howWeUse: {
           title: "Wie verwenden wir Cookies?",
           content: "Bei Comptario verwenden wir Cookies für folgende Zwecke: Sitzungsverwaltung, Benutzereinstellungen merken, Site-Performance analysieren und Sicherheit gewährleisten."
+        },
+        consentMode: {
+          title: "Einwilligungsmodus",
+          content: "Wir unterstützen den Google Consent Mode v2 und ähnliche Rahmenwerke. Mess-/Analyse-Tags passen sich Ihren Entscheidungen an; nicht notwendige Cookies werden ohne Einwilligung nicht gesetzt. Sie können Ihre Einstellungen jederzeit über die oben stehende Schaltfläche ändern."
         },
         thirdParty: {
           title: "Drittanbieter-Cookies",
@@ -138,7 +166,8 @@ const CookiePolicy: React.FC = () => {
         title: "Kontakt",
         email: "E-Mail",
         cmp: "Cookie-Verwaltung",
-        cmpNote: "Sie können Ihre Einstellungen über die obige Schaltfläche ändern"
+        cmpNote: "Sie können Ihre Einstellungen über die obige Schaltfläche ändern",
+        privacyEmail: COMPANY_LEGAL.dataProtectionEmail || 'privacy@comptario.com'
       },
       backToApp: "Zurück zur App"
     },
@@ -156,6 +185,10 @@ const CookiePolicy: React.FC = () => {
         howWeUse: {
           title: "Comment utilisons-nous les cookies ?",
           content: "Chez Comptario, nous utilisons les cookies aux fins suivantes : gestion de session, mémorisation des préférences utilisateur, analyse des performances du site et assurance de la sécurité."
+        },
+        consentMode: {
+          title: "Mode de consentement",
+          content: "Nous prenons en charge Google Consent Mode v2 et des cadres similaires. Les balises de mesure/analyse s'adaptent à vos choix ; les cookies non essentiels ne sont pas déposés avant consentement. Vous pouvez mettre à jour vos préférences à tout moment via le bouton ci-dessus."
         },
         thirdParty: {
           title: "Cookies tiers",
@@ -182,7 +215,8 @@ const CookiePolicy: React.FC = () => {
         title: "Contact",
         email: "Email",
         cmp: "Gestion des cookies",
-        cmpNote: "Vous pouvez modifier vos préférences en utilisant le bouton ci-dessus"
+        cmpNote: "Vous pouvez modifier vos préférences en utilisant le bouton ci-dessus",
+        privacyEmail: COMPANY_LEGAL.dataProtectionEmail || 'privacy@comptario.com'
       },
       backToApp: "Retour à l'application"
     }
@@ -219,8 +253,14 @@ const CookiePolicy: React.FC = () => {
               {activeContent.preferencesDescription}
             </p>
             <button
-              onClick={openModal}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              onClick={() => {
+                // Çoklu tetikleme: context + event + hash
+                try { openModal(); } catch {}
+                try { window.dispatchEvent(new Event('open-cookie-preferences')); } catch {}
+                try { window.location.hash = 'cookie-preferences'; } catch {}
+              }}
+              className="relative px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              data-testid="open-cookie-preferences"
             >
               {activeContent.manageButton}
             </button>
@@ -249,6 +289,16 @@ const CookiePolicy: React.FC = () => {
                 {activeContent.sections.howWeUse.content}
               </p>
             </section>
+
+              {/* Section 2.5: Consent Mode */}
+              <section className="mb-8">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  {activeContent.sections.consentMode.title}
+                </h2>
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  {activeContent.sections.consentMode.content}
+                </p>
+              </section>
 
             {/* Section 3: Third-Party Cookies */}
             <section className="mb-8">
@@ -309,6 +359,9 @@ const CookiePolicy: React.FC = () => {
                 </p>
                 <p className="text-gray-700">
                   <strong>{activeContent.contact.cmp}:</strong> {activeContent.contact.cmpNote}
+                </p>
+                <p className="text-gray-700 mb-2">
+                  <strong>{currentLang.startsWith('tr') ? 'Veri Koruma:' : currentLang.startsWith('de') ? 'Datenschutz:' : currentLang.startsWith('fr') ? 'Protection des données :' : 'Data Protection:'}</strong> {activeContent.contact.privacyEmail}
                 </p>
               </div>
             </section>

@@ -8,6 +8,7 @@ import {
   Headers,
   UnauthorizedException,
   Patch,
+  Delete,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import {
@@ -334,4 +335,40 @@ export class AdminController {
     this.checkAdminAuth(headers);
     return this.adminService.updateTenantBasic(tenantId, body);
   }
+
+  // === Tenant Delete (Account Removal) ===
+  @Patch('tenant/:tenantId/delete')
+  @ApiOperation({ summary: 'Delete tenant account (soft or hard)' })
+  @ApiResponse({ status: 200, description: 'Tenant deletion result' })
+  async deleteTenant(
+    @Param('tenantId') tenantId: string,
+    @Body() body: { confirm?: boolean; hard?: boolean; backupBefore?: boolean },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    if (!body?.confirm) {
+      throw new UnauthorizedException('Confirmation required');
+    }
+    return this.adminService.deleteTenant(tenantId, {
+      hard: !!body?.hard,
+      backupBefore: !!body?.backupBefore,
+    });
+  }
+
+  // === User Delete ===
+  @Delete('users/:userId')
+  @ApiOperation({ summary: 'Delete user (soft or hard)' })
+  @ApiResponse({ status: 200, description: 'User deletion result' })
+  async deleteUser(
+    @Param('userId') userId: string,
+    @Body() body: { confirm?: boolean; hard?: boolean },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    if (!body.confirm) {
+      throw new UnauthorizedException('Confirmation required');
+    }
+    return this.adminService.deleteUser(userId, { hard: body?.hard });
+  }
+
 }

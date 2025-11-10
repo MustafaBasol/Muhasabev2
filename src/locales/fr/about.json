@@ -20,6 +20,7 @@
   },
   "contact": {
     "title": "Contact",
-    "text": "Pour toute question, contactez-nous :"
+    "text": "Pour toute question, contactez-nous :",
+    "emailNotice": "Note : Comptario envoie uniquement des e-mails transactionnels ou légalement obligatoires—aucun e-mail marketing ou publicitaire de masse."
   }
 }

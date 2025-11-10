@@ -37,4 +37,12 @@ export const tenantsApi = {
     const res = await apiClient.patch('/tenants/my-tenant', data);
     return res.data;
   },
+  updateMySubscription: async (data: { plan?: string; users?: number; billing?: 'monthly' | 'yearly'; cancel?: boolean; cancelAtPeriodEnd?: boolean }) => {
+    const res = await apiClient.patch('/tenants/my-tenant/subscription', data);
+    return res.data;
+  },
+  async getMySubscriptionHistory(): Promise<any> {
+    const res = await apiClient.get('/tenants/my-tenant/subscription/history');
+    return res.data;
+  },
 };

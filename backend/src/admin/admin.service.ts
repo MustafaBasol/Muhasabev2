@@ -1049,4 +1049,116 @@ export class AdminService {
 
     return this.getTenantLimits(tenantId);
   }
+
+  /**
+   * Tenant silme (hesap silme) işlemi.
+   * Opsiyonel olarak önce yedek alır, sonra tüm ilişkili verileri siler.
+   * hard=true ise geri dönüşü olmayan fiziksel silme yapılır.
+   * Aksi halde tenant kaydı status=SUSPENDED + isPendingDeletion işareti ile soft silinir.
+   */
+  async deleteTenant(
+    tenantId: string,
+    opts: { hard?: boolean; backupBefore?: boolean } = {},
+  ) {
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    // İsteğe bağlı: önce hızlı bir JSON backup (temel veri - minimal)
+    let backupSummary: any = null;
+    if (opts.backupBefore) {
+      try {
+        const users = await this.userRepository.find({ where: { tenantId }, select: ['id', 'email', 'firstName', 'lastName', 'role', 'createdAt'] });
+        const customers = await this.customerRepository.find({ where: { tenantId }, select: ['id', 'name', 'email'] });
+        const suppliers = await this.supplierRepository.find({ where: { tenantId }, select: ['id', 'name', 'email'] });
+        const products = await this.productRepository.find({ where: { tenantId }, select: ['id', 'name', 'price', 'stock'] });
+        const invoices = await this.invoiceRepository.find({ where: { tenantId }, select: ['id', 'invoiceNumber', 'total', 'createdAt'] });
+        const expenses = await this.expenseRepository.find({ where: { tenantId }, select: ['id', 'expenseNumber', 'amount', 'createdAt'] });
+        backupSummary = {
+          timestamp: new Date().toISOString(),
+          tenant: { id: tenant.id, name: tenant.name, plan: tenant.subscriptionPlan },
+          counts: {
+            users: users.length,
+            customers: customers.length,
+            suppliers: suppliers.length,
+            products: products.length,
+            invoices: invoices.length,
+            expenses: expenses.length,
+          },
+        };
+      } catch (e) {
+        // Backup başarısız olsa da silme devam edebilir; sadece logla
+        console.error('Pre-delete backup failed:', e);
+      }
+    }
+
+    if (opts.hard) {
+      // Fiziksel silme: ilişkili tablolar cascade ile siliniyor (foreign key onDelete CASCADE).
+      await this.tenantRepository.remove(tenant);
+      // Audit log
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          tenantId,
+          entity: 'tenant',
+          entityId: tenantId,
+          action: 'DELETE' as any,
+          diff: { hard: true },
+        }),
+      );
+      return { success: true, hard: true, backup: backupSummary };
+    }
+
+    // Soft delete mantığı: status=SUSPENDED ve settings.flag
+    tenant.status = TenantStatus.SUSPENDED;
+    tenant.settings = {
+      ...(tenant.settings || {}),
+      deletionRequestedAt: new Date().toISOString(),
+      isPendingDeletion: true,
+    };
+    await this.tenantRepository.save(tenant);
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        tenantId,
+        entity: 'tenant',
+        entityId: tenantId,
+        action: 'UPDATE' as any,
+        diff: { softDelete: true },
+      }),
+    );
+    return { success: true, hard: false, backup: backupSummary };
+  }
+
+  /**
+   * Kullanıcı silme. hard=true ise fiziksel silme; aksi halde isActive=false ile soft.
+   */
+  async deleteUser(userId: string, opts: { hard?: boolean } = {}) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    if (opts.hard) {
+      await this.userRepository.remove(user);
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          tenantId: user.tenantId,
+          entity: 'user',
+          entityId: userId,
+          action: 'DELETE' as any,
+          diff: { hard: true },
+        }),
+      );
+      return { success: true, hard: true };
+    }
+
+    user.isActive = false;
+    await this.userRepository.save(user);
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        tenantId: user.tenantId,
+        entity: 'user',
+        entityId: userId,
+        action: 'UPDATE' as any,
+        diff: { softDelete: true },
+      }),
+    );
+    return { success: true, hard: false };
+  }
 }

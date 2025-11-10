@@ -26,7 +26,9 @@ const LandingFooter: React.FC = () => {
       privacy: 'Gizlilik Politikası',
       terms: 'Hizmet Şartları',
       cookies: 'Çerez Politikası',
+    emailPolicy: 'E-posta Politikası',
       subprocessors: 'Alt İşleyiciler',
+  imprint: 'Künye',
       description: 'Modern işletmeler için basit, güvenli ön muhasebe yazılımı. Faturaları, giderleri ve KDV\'yi güvenle yönetin.',
       email: 'support@comptario.com',
       languages: '4 dilde mevcut',
@@ -56,7 +58,9 @@ const LandingFooter: React.FC = () => {
       privacy: 'Privacy Policy',
       terms: 'Terms of Service',
       cookies: 'Cookie Policy',
+    emailPolicy: 'Email Policy',
       subprocessors: 'Subprocessors',
+  imprint: 'Imprint',
       description: 'Simple, secure pre-accounting software for modern businesses. Manage invoices, expenses, and VAT with confidence.',
       email: 'support@comptario.com',
       languages: 'Available in 4 languages',
@@ -86,7 +90,9 @@ const LandingFooter: React.FC = () => {
       privacy: 'Datenschutz',
       terms: 'Nutzungsbedingungen',
       cookies: 'Cookie-Richtlinie',
+    emailPolicy: 'E-Mail-Richtlinie',
       subprocessors: 'Unterauftragsverarbeiter',
+  imprint: 'Impressum',
       description: 'Einfache, sichere Vorbuchhaltungssoftware für moderne Unternehmen. Verwalten Sie Rechnungen, Ausgaben und MwSt. mit Vertrauen.',
       email: 'support@comptario.com',
       languages: 'In 4 Sprachen verfügbar',
@@ -116,7 +122,9 @@ const LandingFooter: React.FC = () => {
       privacy: 'Politique de confidentialité',
       terms: 'Conditions de service',
       cookies: 'Politique des cookies',
+    emailPolicy: 'Politique e-mail',
       subprocessors: 'Sous-traitants',
+  imprint: 'Mentions légales',
       description: 'Logiciel de pré-comptabilité simple et sécurisé pour les entreprises modernes. Gérez les factures, les dépenses et la TVA en toute confiance.',
       email: 'support@comptario.com',
       languages: 'Disponible en 4 langues',
@@ -161,8 +169,10 @@ const LandingFooter: React.FC = () => {
         { name: t.privacy, href: '#legal/privacy' },
         { name: t.terms, href: '#legal/terms' },
         { name: t.cookies, href: '#legal/cookies' },
+        { name: t.emailPolicy, href: '#legal/email-policy' },
         { name: 'DPA', href: '#legal/dpa' },
         { name: t.subprocessors, href: '#legal/subprocessors' }
+        ,{ name: t.imprint, href: '#legal/imprint' }
       ]
     }
   ];  const scrollToSection = (href: string) => {

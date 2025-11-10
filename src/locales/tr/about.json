@@ -20,6 +20,7 @@
   },
   "contact": {
     "title": "İletişim",
-    "text": "Sorularınız için bize şu adresten ulaşabilirsiniz:"
+    "text": "Sorularınız için bize şu adresten ulaşabilirsiniz:" ,
+    "emailNotice": "Önemli not: Comptario yalnızca işlem ve yasal zorunluluk içeren e-postalar gönderir; pazarlama veya toplu reklam e-postası gönderilmez."
   }
 }
