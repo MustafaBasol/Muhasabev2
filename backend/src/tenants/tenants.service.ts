@@ -271,11 +271,14 @@ export class TenantsService {
     switch (tenant.subscriptionPlan) {
       case SubscriptionPlan.FREE:
       case SubscriptionPlan.BASIC:
-        expected = 1; break;
+        expected = 1;
+        break;
       case SubscriptionPlan.PROFESSIONAL:
-        expected = 3; break;
+        expected = 3;
+        break;
       case SubscriptionPlan.ENTERPRISE:
-        expected = 100000; break;
+        expected = 100000;
+        break;
     }
     if (expected !== before) {
       await this.tenantsRepository.update(id, { maxUsers: expected });

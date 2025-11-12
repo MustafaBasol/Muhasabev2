@@ -4,7 +4,6 @@ import {
   Settings,
   User,
   Users,
-  Calendar,
   Building2,
   Bell,
   Shield,
@@ -18,17 +17,26 @@ import {
   ChevronDown,
   ChevronRight,
   CreditCard,
+  Calendar,
 } from 'lucide-react';
-import InfoModal from './InfoModal';
-import OrganizationMembersPage from './OrganizationMembersPage';
-import FiscalPeriodsPage from './FiscalPeriodsPage';
 import type { CompanyProfile } from '../utils/pdfGenerator';
-import { useCurrency } from '../contexts/CurrencyContext';
 import { useAuth } from '../contexts/AuthContext';
-import { usersApi } from '../api/users';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { useNotificationPreferences } from '../contexts/NotificationPreferencesContext';
 import { tenantsApi } from '../api/tenants';
+import { usersApi } from '../api/users';
+import {
+  cancelSubscriptionAtPeriodEnd as billingCancel,
+  createAddonCheckout,
+  createPortalSession,
+  updateSeats as billingUpdateSeats,
+  createCheckoutSession,
+  updatePlan,
+} from '../api/billing';
 import { AuditLogComponent } from './AuditLogComponent';
+import OrganizationMembersPage from './OrganizationMembersPage';
+import FiscalPeriodsPage from './FiscalPeriodsPage';
+import InfoModal from './InfoModal';
 
 type BankAccount = {
   id: string;
@@ -60,6 +68,12 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const { refreshUser } = useAuth();
   const planRaw = String(tenant?.subscriptionPlan || '').toLowerCase();
   const isFree = planRaw === 'free';
+  const baseIncludedFor = (planStr: string): number => {
+    const p = String(planStr || '').toLowerCase();
+    if (p === 'professional' || p === 'pro') return 3; // Pro: 3 kullanıcı dahil
+    if (p === 'enterprise' || p === 'business') return 10; // Enterprise: varsayılan 10
+    return 1; // Basic/Free
+  };
   const planLabelMap: Record<string, string> = {
     free: 'Free',
     basic: 'Basic',
@@ -67,31 +81,78 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     enterprise: 'Enterprise',
   };
   const planText = planLabelMap[planRaw] || (planRaw ? planRaw.toUpperCase() : '—');
-  const periodMap: Record<SettingsLanguage, string> = {
-    tr: 'Aylık',
-    en: 'Monthly',
-    fr: 'Mensuel',
-    de: 'Monatlich',
+  const periodMap: Record<SettingsLanguage, { month: string; year: string }> = {
+    tr: { month: 'Aylık', year: 'Yıllık' },
+    en: { month: 'Monthly', year: 'Yearly' },
+    fr: { month: 'Mensuel', year: 'Annuel' },
+    de: { month: 'Monatlich', year: 'Jährlich' },
   } as const;
-  // Basit: FREE için faturalama yok; diğerleri monthly varsayımı (backend henüz dönmüyor)
-  const periodText = isFree ? '' : (periodMap[currentLanguage] || 'Monthly');
+  // Backend tenant nesnesinde varsa billingInterval'ı göster, yoksa varsayılanı kullan
+  const intervalRaw = (tenant as any)?.billingInterval as ('month' | 'year' | undefined);
+  const periodText = isFree
+    ? ''
+    : (intervalRaw ? (periodMap[currentLanguage]?.[intervalRaw] || (intervalRaw === 'year' ? 'Yearly' : 'Monthly')) : (periodMap[currentLanguage]?.month || 'Monthly'));
 
   // --- Local state ---
-  const [desiredPlan, setDesiredPlan] = useState(planRaw || 'free');
+  // Yalnız landing'deki 3 plan gösterilecek: Basic, Pro, Enterprise
+  const allowedPlans = ['basic', 'professional', 'enterprise'] as const;
+  const [desiredPlan, setDesiredPlan] = useState<string>(
+    allowedPlans.includes(planRaw as any) ? planRaw : 'basic'
+  );
   const [desiredBilling, setDesiredBilling] = useState<'monthly' | 'yearly'>('monthly');
   const currentMaxUsers = (tenant?.maxUsers as number) || 1;
-  const [desiredUsers, setDesiredUsers] = useState<number>(currentMaxUsers);
+  // Plan değişimi için hedef toplam kullanıcı sayısı (bağımsız state)
+  const [desiredUsers, setDesiredUsers] = useState<number>(Math.max(currentMaxUsers, 1));
+  // İlave kullanıcı ekleme için bağımsız state (sadece ek sayısı)
+  const [additionalUsersToAdd, setAdditionalUsersToAdd] = useState<number>(1);
   const [busy, setBusy] = useState(false);
   const [planMessage, setPlanMessage] = useState<string>('');
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
+  const [invoiceSearch, setInvoiceSearch] = useState<string>('');
+  const [invoiceDateFrom, setInvoiceDateFrom] = useState<string>('');
+  const [invoiceDateTo, setInvoiceDateTo] = useState<string>('');
+
+  const getFilteredInvoices = () => {
+    return invoices.filter((inv: any) => {
+      const status = String(inv.status || '').toLowerCase();
+      if (invoiceStatusFilter === 'paid' && status !== 'paid') return false;
+      if (invoiceStatusFilter === 'open' && !['open', 'draft'].includes(status)) return false;
+      if (invoiceStatusFilter === 'unpaid' && !['unpaid', 'void', 'uncollectible'].includes(status)) return false;
+      if (invoiceStatusFilter === 'all') {
+        // pass
+      }
+      if (invoiceSearch) {
+        const needle = invoiceSearch.toLowerCase();
+        const hay = (inv.number || inv.id || '').toLowerCase() + ' ' + (inv.currency || '').toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (invoiceDateFrom) {
+        const fromTs = new Date(invoiceDateFrom + 'T00:00:00Z').getTime();
+        const invTs = inv.created ? new Date(inv.created).getTime() : 0;
+        if (invTs < fromTs) return false;
+      }
+      if (invoiceDateTo) {
+        const toTs = new Date(invoiceDateTo + 'T23:59:59Z').getTime();
+        const invTs = inv.created ? new Date(inv.created).getTime() : 0;
+        if (invTs > toTs) return false;
+      }
+      return true;
+    });
+  };
   // Ücretli planlarda tüm iptaller dönem sonunda gerçekleşir; kullanıcıya seçenek sunmuyoruz
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState<boolean>(!!tenant?.cancelAtPeriodEnd);
 
   // Sync desired plan if tenant changes
   useEffect(() => {
-    setDesiredPlan(planRaw || 'free');
-    setDesiredUsers((tenant?.maxUsers as number) || 1);
+    // Eğer mevcut plan dropdown'da yoksa (ör. free), varsayılan olarak 'basic' seçilsin
+    setDesiredPlan(allowedPlans.includes(planRaw as any) ? planRaw : 'basic');
+    const base = baseIncludedFor(planRaw);
+    const current = (tenant?.maxUsers as number) || base;
+    setDesiredUsers(Math.max(current, base));
     setCancelAtPeriodEnd(!!tenant?.cancelAtPeriodEnd);
   }, [planRaw, tenant?.maxUsers, tenant?.cancelAtPeriodEnd]);
 
@@ -100,15 +161,112 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     refreshUser().catch(() => {});
   }, []);
 
+  // Eğer ücretli planda maxUsers, planın baz dahil kullanıcı sayısından az görünüyorsa otomatik Stripe senkronu tetikle
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!['professional', 'enterprise'].includes(planRaw)) return;
+        const base = baseIncludedFor(planRaw);
+        const current = (tenant?.maxUsers as number) || 0;
+        if (current > 0 && current < base) {
+          const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+          if (!tenantId) return;
+          const { syncSubscription } = await import('../api/billing');
+          await syncSubscription(tenantId);
+          await refreshUser();
+        }
+      } catch {}
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planRaw, tenant?.maxUsers]);
+
+  // Checkout başarı dönüşünde manuel Stripe senkronu tetikle
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const success = url.searchParams.get('plan') === 'success' || url.searchParams.get('upgrade') === 'success';
+    if (!success) return;
+    (async () => {
+      try {
+        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        if (!tenantId) return;
+        const { syncSubscription } = await import('../api/billing');
+        await syncSubscription(tenantId);
+        await refreshUser();
+        setPlanMessage(currentLanguage === 'tr' ? 'Abonelik güncellendi.' : 'Subscription updated.');
+        // URL'yi temizle
+        url.searchParams.delete('plan');
+        url.searchParams.delete('upgrade');
+        window.history.replaceState({}, document.title, url.pathname + url.search);
+      } catch {}
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Add-on ödeme dönüşü: seats'i finalize et ve senkronize et
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const addonSuccess = url.searchParams.get('addon') === 'success';
+    if (!addonSuccess) return;
+    (async () => {
+      try {
+        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        if (!tenantId) return;
+        const stored = localStorage.getItem('pending_addon_new_total');
+        if (stored) {
+          const qty = parseInt(stored, 10);
+          if (!isNaN(qty) && qty >= 0) {
+            await billingUpdateSeats(tenantId, qty);
+          }
+        } else {
+          const { syncSubscription } = await import('../api/billing');
+          await syncSubscription(tenantId);
+        }
+        await refreshUser();
+        setPlanMessage(currentLanguage === 'tr' ? 'İlave kullanıcılar eklendi.' : 'Additional users added.');
+      } catch {}
+      finally {
+        localStorage.removeItem('pending_addon_new_total');
+        url.searchParams.delete('addon');
+        window.history.replaceState({}, document.title, url.pathname + url.search);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Portal dönüşünde (manage billing sonrası) manuel sync tetikle
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const fromPortal = url.searchParams.get('portal') === 'return';
+    if (!fromPortal) return;
+    (async () => {
+      try {
+        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        if (!tenantId) return;
+        const { syncSubscription } = await import('../api/billing');
+        await syncSubscription(tenantId);
+        await refreshUser();
+        setPlanMessage(currentLanguage === 'tr' ? 'Portal değişiklikleri senkronize edildi.' : 'Portal changes synchronized.');
+      } catch {}
+      finally {
+        localStorage.removeItem('pending_portal_sync');
+        url.searchParams.delete('portal');
+        window.history.replaceState({}, document.title, url.pathname + url.search);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fetch mock history
   useEffect(() => {
     let mounted = true;
     const fetchHistory = async () => {
       setLoadingHistory(true);
       try {
-        const res = await tenantsApi.getMySubscriptionHistory?.();
-        // Eski API yoksa fallback mock
-        const events = res?.events || [
+        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        if (!tenantId) return;
+        const { listHistory } = await import('../api/billing');
+        const data = await listHistory(tenantId);
+        const events = data?.events || [
           { type: 'plan.current', plan: tenant?.subscriptionPlan, at: tenant?.updatedAt, users: tenant?.maxUsers },
         ];
         if (mounted) setHistory(events);
@@ -122,25 +280,150 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     return () => { mounted = false; };
   }, [tenant?.subscriptionPlan, tenant?.updatedAt]);
 
+  // Faturaları çek
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        setLoadingInvoices(true);
+        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        if (!tenantId) return;
+        const res = await import('../api/billing').then(m => m.listInvoices(tenantId));
+        if (!cancelled) setInvoices(res?.invoices || []);
+      } catch (e) {
+        if (!cancelled) setInvoices([]);
+      } finally {
+        if (!cancelled) setLoadingInvoices(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [tenant?.id, tenant?.subscriptionPlan]);
+
   const saveSubscription = async () => {
     setBusy(true); setPlanMessage('');
     try {
-      const payload: any = {
-        plan: desiredPlan !== planRaw ? desiredPlan : undefined,
-        users: desiredUsers,
-        billing: desiredBilling,
-        // Eğer paid plan ve iptal işaretliyse (UI'de checkbox yok ama backend ile uyumlu tutalım)
-        cancelAtPeriodEnd: cancelAtPeriodEnd && !isFree,
-      };
-      const res = await tenantsApi.updateMySubscription(payload);
-      if (res?.success) {
-        setPlanMessage(currentLanguage === 'tr' ? 'Plan güncellendi' : 'Plan updated');
-        setTimeout(() => setPlanMessage(''), 2500);
-      } else {
-        setPlanMessage(currentLanguage === 'tr' ? 'Plan güncellenemedi' : 'Plan update failed');
+      const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+      if (!tenantId) throw new Error('Tenant bulunamadı');
+
+      const desired = String(desiredPlan || '').toLowerCase();
+      const currentlyPaid = ['professional', 'enterprise', 'pro', 'business'].includes(planRaw);
+      const desiredPaid = ['professional', 'enterprise', 'pro', 'business'].includes(desired);
+      const interval: 'month' | 'year' = desiredBilling === 'yearly' ? 'year' : 'month';
+      const canSeats = ['professional', 'enterprise', 'pro', 'business'].includes(planRaw);
+
+      // 1) Free/Basic hedefi: aktif abonelik varsa dönem sonunda iptal et
+      if (!desiredPaid) {
+        if (currentlyPaid) {
+          await billingCancel(tenantId);
+          setCancelAtPeriodEnd(true);
+          setPlanMessage(currentLanguage === 'tr' ? 'İptal talebi alındı (dönem sonunda geçerli).' : 'Cancellation requested for period end.');
+          await refreshUser();
+        } else {
+          setPlanMessage(currentLanguage === 'tr' ? 'Plan zaten ücretsiz.' : 'Already on free plan.');
+        }
+        return;
       }
-    } catch (e:any) {
-      setPlanMessage(e?.response?.data?.message || 'Hata');
+
+      // 2) Plan/interval karşılaştırması: aynı plan mı? aynı interval mi?
+      const normalizedCurrentPlan = ((): string => {
+        if (planRaw === 'pro') return 'professional';
+        if (planRaw === 'business') return 'enterprise';
+        return planRaw;
+      })();
+      const samePlan = normalizedCurrentPlan === desired;
+      const sameInterval = (intervalRaw || 'month') === interval;
+      const baseDesired = baseIncludedFor(desired);
+      const seatAddon = Math.max(0, Math.floor((desiredUsers || baseDesired) - baseDesired));
+      if (samePlan && sameInterval && canSeats && (desiredUsers !== ((tenant?.maxUsers as number) || 1))) {
+        // Plan/interval değişimi yoksa ve sadece koltuk değişiyorsa Stripe'ta final add-on miktarına ayarla
+        const res = await billingUpdateSeats(tenantId, seatAddon);
+        if (res?.success) {
+          setPlanMessage(currentLanguage === 'tr' ? 'Kullanıcı limiti güncellendi.' : 'Seat count updated.');
+          await refreshUser();
+        }
+        return;
+      }
+
+      // 3) Eğer plan aynı ama interval değişiyorsa: yeni checkout yerine yerinde güncelle (proration uygula)
+      if (samePlan && !sameInterval) {
+        const idem = 'planupd:' + tenantId + ':' + desired + ':' + interval + ':' + seatAddon + ':' + new Date().toISOString().slice(0,10);
+        const resp = await updatePlan(tenantId, { plan: desired as any, interval, seats: seatAddon, chargeNow: true, interactive: true, idempotencyKey: idem });
+        if (resp?.success) {
+          if (resp.invoiceError) {
+            const dictIE = {
+              tr: 'Plan güncellendi ancak fatura oluşturulamadı: ',
+              en: 'Plan updated but invoice failed: ',
+              fr: 'Le plan a été mis à jour mais la facture a échoué : ',
+              de: 'Plan aktualisiert, aber Rechnung fehlgeschlagen: ',
+            } as const;
+            setPlanMessage((dictIE[currentLanguage] || dictIE.tr) + resp.invoiceError);
+            await refreshUser();
+            return;
+          }
+          if (resp.invoiceSkipped) {
+            const dictIS = {
+              tr: 'Plan dönemi güncellendi (ek ücret yok).',
+              en: 'Billing interval updated (no additional charge).',
+              fr: 'Période de facturation mise à jour (aucun frais supplémentaire).',
+              de: 'Abrechnungszeitraum aktualisiert (keine Zusatzkosten).',
+            } as const;
+            setPlanMessage(dictIS[currentLanguage] || dictIS.tr);
+            await refreshUser();
+            return;
+          }
+          if (resp.hostedInvoiceUrl) {
+            try {
+              localStorage.setItem(
+                'pending_billing_payment',
+                JSON.stringify({
+                  type: 'plan-interval',
+                  plan: desired,
+                  interval,
+                  seats: seatAddon,
+                  ts: Date.now(),
+                })
+              );
+            } catch {}
+            const dictRD = {
+              tr: 'Ödeme ekranına yönlendiriliyorsunuz…',
+              en: 'Redirecting to payment…',
+              fr: 'Redirection vers l’écran de paiement…',
+              de: 'Weiterleitung zur Zahlung…',
+            } as const;
+            setPlanMessage(dictRD[currentLanguage] || dictRD.tr);
+            window.location.href = resp.hostedInvoiceUrl;
+            return;
+          }
+          const dictOK = {
+            tr: 'Plan dönemi güncellendi.',
+            en: 'Billing interval updated.',
+            fr: 'Période de facturation mise à jour.',
+            de: 'Abrechnungszeitraum aktualisiert.',
+          } as const;
+          setPlanMessage(dictOK[currentLanguage] || dictOK.tr);
+          await refreshUser();
+          return;
+        }
+      }
+
+      // 4) Plan değişimi: Checkout oluştur ve yönlendir
+      const session = await createCheckoutSession({
+        tenantId,
+        plan: (desired as any),
+        interval,
+        seats: seatAddon,
+        successUrl: window.location.origin + '/settings?plan=success',
+        cancelUrl: window.location.origin + '/settings?plan=cancel',
+      });
+      if (session?.url) {
+        window.location.href = session.url;
+      } else {
+        setPlanMessage(currentLanguage === 'tr' ? 'Ödeme oturumu oluşturulamadı.' : 'Failed to create checkout session.');
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Hata';
+      setPlanMessage(msg);
     } finally { setBusy(false); }
   };
 
@@ -148,11 +431,14 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     if (!window.confirm(currentLanguage === 'tr' ? 'Abonelik dönem sonunda iptal edilecek. Onaylıyor musunuz?' : 'Subscription will be cancelled at period end. Confirm?')) return;
     setBusy(true); setPlanMessage('');
     try {
-      const res = await tenantsApi.updateMySubscription({ cancelAtPeriodEnd: true });
+      const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+      if (!tenantId) throw new Error('Tenant bulunamadı');
+      const res = await billingCancel(tenantId);
       if (res?.success) {
         setCancelAtPeriodEnd(true);
         setPlanMessage(currentLanguage === 'tr' ? 'İptal talebi alındı (dönem sonunda).' : 'Cancel at period end set.');
         setTimeout(() => setPlanMessage(''), 3000);
+        await refreshUser();
       }
     } catch (e:any) {
       setPlanMessage(e?.response?.data?.message || 'İptal hata');
@@ -178,6 +464,30 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{text.tabs.plan || 'Plan'}</h3>
             <p className="text-sm text-gray-500 mt-1">{currentLanguage === 'tr' ? 'Abonelik ve faturalama bilgileri' : currentLanguage === 'fr' ? 'Abonnement et facturation' : currentLanguage === 'de' ? 'Abo und Abrechnung' : 'Subscription & billing'}</p>
+          </div>
+          {/* Stripe Portal button */}
+          <div>
+            <button
+              onClick={async () => {
+                try {
+                  setBusy(true);
+                  const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+                  if (!tenantId) throw new Error('Tenant bulunamadı');
+                  const curr = new URL(window.location.href);
+                  curr.searchParams.set('portal', 'return');
+                  const { url } = await createPortalSession(tenantId, curr.toString());
+                  if (url) {
+                    localStorage.setItem('pending_portal_sync', '1');
+                    window.location.href = url;
+                  }
+                } catch (e: any) {
+                  setPlanMessage(e?.response?.data?.message || e?.message || 'Portal hatası');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="px-3 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+            >{currentLanguage === 'tr' ? 'Ödemeleri Yönet' : currentLanguage === 'fr' ? 'Gérer la facturation' : currentLanguage === 'de' ? 'Abrechnung verwalten' : 'Manage Billing'}</button>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -216,7 +526,6 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
               onChange={e => setDesiredPlan(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
             >
-              <option value="free">Free</option>
               <option value="basic">Basic</option>
               <option value="professional">Pro</option>
               <option value="enterprise">Enterprise</option>
@@ -228,7 +537,8 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
               value={desiredBilling}
               onChange={e => setDesiredBilling(e.target.value as any)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              disabled={desiredPlan === 'free'}
+              // Aylık/Yıllık seçimi yalnız ücretli planlarda aktif
+              disabled={!['professional', 'enterprise', 'pro', 'business'].includes(String(desiredPlan).toLowerCase())}
             >
               <option value="monthly">{currentLanguage === 'tr' ? 'Aylık' : currentLanguage === 'fr' ? 'Mensuel' : currentLanguage === 'de' ? 'Monatlich' : 'Monthly'}</option>
               <option value="yearly">{currentLanguage === 'tr' ? 'Yıllık' : currentLanguage === 'fr' ? 'Annuel' : currentLanguage === 'de' ? 'Jährlich' : 'Yearly'}</option>
@@ -238,7 +548,12 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
             <label className="block text-xs font-medium text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Hedef Kullanıcı Sayısı' : currentLanguage === 'fr' ? 'Utilisateurs Cibles' : currentLanguage === 'de' ? 'Ziel Benutzer' : 'Target Users'}</label>
             <input
               type="number"
-              min={1}
+              min={['professional', 'enterprise', 'pro', 'business'].includes(String(desiredPlan).toLowerCase()) ? ((): number => {
+                const p = String(desiredPlan).toLowerCase();
+                if (p === 'professional' || p === 'pro') return 3;
+                if (p === 'enterprise' || p === 'business') return 10;
+                return 1;
+              })() : 1}
               value={desiredUsers}
               onChange={e => setDesiredUsers(parseInt(e.target.value || '1', 10))}
               disabled={!canModifySeats}
@@ -265,20 +580,79 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       {/* Kullanıcı Sayısı Hızlı Güncelle (yalnız Pro+) */}
       {canModifySeats && (
         <div className="border border-amber-300 rounded-lg p-4 bg-amber-50">
-          <h4 className="text-md font-semibold mb-2">{currentLanguage === 'tr' ? 'Kullanıcı Sayısı Güncelle' : currentLanguage === 'fr' ? 'Utilisateurs' : currentLanguage === 'de' ? 'Benutzer aktualisieren' : 'Adjust Users'}</h4>
+          <h4 className="text-md font-semibold mb-1">{currentLanguage === 'tr' ? 'İlave Kullanıcı Ekle' : currentLanguage === 'fr' ? 'Ajouter des utilisateurs supplémentaires' : currentLanguage === 'de' ? 'Zusätzliche Benutzer hinzufügen' : 'Add Additional Users'}</h4>
+          <p className="text-[11px] text-amber-900 mb-2">{currentLanguage === 'tr' ? 'İlave her kullanıcı aylık 5 € ile ücretlendirilir.' : currentLanguage === 'fr' ? 'Chaque utilisateur supplémentaire est facturé 5 € par mois.' : currentLanguage === 'de' ? 'Jeder zusätzliche Benutzer kostet 5 € pro Monat.' : 'Each additional user is billed at €5 per month.'}</p>
           <div className="flex items-center gap-3">
             <input
               type="number"
               min={1}
-              value={desiredUsers}
-              onChange={e => setDesiredUsers(parseInt(e.target.value || '1', 10))}
+              value={additionalUsersToAdd}
+              onChange={e => setAdditionalUsersToAdd(parseInt(e.target.value || '1', 10))}
               className="w-32 px-3 py-2 border border-amber-300 rounded-md text-sm bg-white"
             />
-            <button
-              onClick={saveSubscription}
-              disabled={busy}
-              className="px-4 py-2 text-sm rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
-            >{currentLanguage === 'tr' ? 'Güncelle' : currentLanguage === 'fr' ? 'Mettre à jour' : currentLanguage === 'de' ? 'Aktualisieren' : 'Update'}</button>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    setBusy(true); setPlanMessage('');
+                    const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+                    if (!tenantId) throw new Error('Tenant bulunamadı');
+                    if (additionalUsersToAdd <= 0) throw new Error('Ek kullanıcı >= 1 olmalı');
+                    const { chargeAddonNow } = await import('../api/billing');
+                    const resp = await chargeAddonNow(tenantId, additionalUsersToAdd);
+                    if (resp?.success) {
+                      const cur = String(resp?.currency || '').toUpperCase();
+                      const amt = typeof resp.amountPaid === 'number' ? (resp.amountPaid/100).toFixed(2) + ' ' + cur : '';
+                      setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar tahsil edildi.' : 'Additional users charged.') + (amt ? ` (${amt})` : ''));
+                      setAdditionalUsersToAdd(1);
+                      await refreshUser();
+                      try {
+                        const { listInvoices } = await import('../api/billing');
+                        const res = await listInvoices(tenantId);
+                        setInvoices(res?.invoices || []);
+                      } catch {}
+                    } else {
+                      setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
+                    }
+                  } catch (e:any) {
+                    setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
+                  } finally { setBusy(false); }
+                }}
+                disabled={busy}
+                className="px-4 py-2 text-sm rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+              >{currentLanguage === 'tr' ? 'Hemen Tahsil Et' : currentLanguage === 'fr' ? 'Encaisser Maintenant' : currentLanguage === 'de' ? 'Jetzt Abbuchen' : 'Charge Now'}</button>
+              <button
+                onClick={async () => {
+                  try {
+                    setBusy(true); setPlanMessage('');
+                    const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+                    if (!tenantId) throw new Error('Tenant bulunamadı');
+                    if (additionalUsersToAdd <= 0) throw new Error('Ek kullanıcı >= 1 olmalı');
+                    const resp = await createAddonCheckout(tenantId, additionalUsersToAdd, '', '');
+                    if (resp?.success) {
+                      const prorationMsg = ((): string => {
+                        const cur = String(resp?.upcomingCurrency || '').toUpperCase();
+                        if (typeof resp?.upcomingProrationTotal === 'number') {
+                          return currentLanguage === 'tr'
+                            ? ` (Bu dönem için ek proration: ${(resp.upcomingProrationTotal/100).toFixed(2)} ${cur} — bir sonraki faturaya eklenecek)`
+                            : ` (Proration for this period: ${(resp.upcomingProrationTotal/100).toFixed(2)} ${cur} — will be added to the next invoice)`;
+                        }
+                        return '';
+                      })();
+                      setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar eklendi.' : 'Additional users added.') + prorationMsg);
+                      setAdditionalUsersToAdd(1);
+                      await refreshUser();
+                    } else {
+                      setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
+                    }
+                  } catch (e:any) {
+                    setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
+                  } finally { setBusy(false); }
+                }}
+                disabled={busy}
+                className="px-4 py-2 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+              >{currentLanguage === 'tr' ? 'Dönem Sonu Faturalandır' : currentLanguage === 'fr' ? 'Facturer à la fin de période' : currentLanguage === 'de' ? 'Am Periodenende berechnen' : 'Invoice Later'}</button>
+            </div>
           </div>
         </div>
       )}
@@ -319,10 +693,42 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                   const at = ev.at ? new Date(ev.at).toLocaleDateString() : '—';
                   const typeLabel = (() => {
                     const map: Record<string, Record<string, string>> = {
-                      tr: { 'plan.current': 'Mevcut Plan', 'plan.renewal_due': 'Yenileme Tarihi', 'cancel.at_period_end': 'Dönem Sonunda İptal' },
-                      en: { 'plan.current': 'Current Plan', 'plan.renewal_due': 'Renewal Due', 'cancel.at_period_end': 'Cancel at Period End' },
-                      fr: { 'plan.current': 'Offre actuelle', 'plan.renewal_due': 'Renouvellement', 'cancel.at_period_end': 'Annulation fin de période' },
-                      de: { 'plan.current': 'Aktueller Plan', 'plan.renewal_due': 'Verlängerung', 'cancel.at_period_end': 'Kündigung zum Periodenende' },
+                      tr: {
+                        'plan.current': 'Mevcut Plan',
+                        'plan.renewal_due': 'Yenileme Tarihi',
+                        'cancel.at_period_end': 'Dönem Sonunda İptal',
+                        'invoice.paid': 'Ödeme Alındı',
+                        'invoice.open': 'Açık Fatura',
+                        'invoice.uncollectible': 'Tahsil Edilemeyen',
+                        'invoice.payment_failed': 'Ödeme Başarısız',
+                      },
+                      en: {
+                        'plan.current': 'Current Plan',
+                        'plan.renewal_due': 'Renewal Due',
+                        'cancel.at_period_end': 'Cancel at Period End',
+                        'invoice.paid': 'Payment Received',
+                        'invoice.open': 'Open Invoice',
+                        'invoice.uncollectible': 'Uncollectible',
+                        'invoice.payment_failed': 'Payment Failed',
+                      },
+                      fr: {
+                        'plan.current': 'Offre actuelle',
+                        'plan.renewal_due': 'Renouvellement',
+                        'cancel.at_period_end': 'Annulation fin de période',
+                        'invoice.paid': 'Paiement reçu',
+                        'invoice.open': 'Facture ouverte',
+                        'invoice.uncollectible': 'Irrécouvrable',
+                        'invoice.payment_failed': 'Paiement échoué',
+                      },
+                      de: {
+                        'plan.current': 'Aktueller Plan',
+                        'plan.renewal_due': 'Verlängerung',
+                        'cancel.at_period_end': 'Kündigung zum Periodenende',
+                        'invoice.paid': 'Zahlung erhalten',
+                        'invoice.open': 'Offene Rechnung',
+                        'invoice.uncollectible': 'Uneinbringlich',
+                        'invoice.payment_failed': 'Zahlung fehlgeschlagen',
+                      },
                     };
                     return (map[currentLanguage] && map[currentLanguage][ev.type]) || ev.type;
                   })();
@@ -340,6 +746,140 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           </div>
         )}
         <p className="mt-2 text-[10px] text-gray-400">{currentLanguage === 'tr' ? 'Gerçek Stripe geçmişi henüz entegre edilmedi.' : 'Real Stripe history not yet integrated.'}</p>
+      </div>
+
+      {/* Stripe Faturaları */}
+      <div className="border border-gray-200 rounded-lg p-4 bg-white">
+        <h4 className="text-md font-semibold mb-3">{currentLanguage === 'tr' ? 'Faturalarım' : currentLanguage === 'fr' ? 'Mes Factures' : currentLanguage === 'de' ? 'Meine Rechnungen' : 'My Invoices'}</h4>
+        {loadingInvoices && <p className="text-xs text-gray-500">{currentLanguage === 'tr' ? 'Yükleniyor…' : 'Loading…'}</p>}
+        {!loadingInvoices && invoices.length === 0 && (
+          <p className="text-xs text-gray-500">{currentLanguage === 'tr' ? 'Fatura bulunamadı.' : 'No invoices found.'}</p>
+        )}
+        {!loadingInvoices && invoices.length > 0 && (
+          <div className="overflow-x-auto">
+            {/* Filtreler */}
+            <div className="mb-3 flex flex-wrap gap-2 items-end">
+              <div className="flex flex-col">
+                <label className="text-[10px] font-medium text-gray-600">{currentLanguage === 'tr' ? 'Durum' : 'Status'}</label>
+                <select
+                  value={invoiceStatusFilter}
+                  onChange={e => setInvoiceStatusFilter(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 rounded-md text-xs"
+                >
+                  <option value="all">{currentLanguage === 'tr' ? 'Tümü' : 'All'}</option>
+                  <option value="paid">Paid</option>
+                  <option value="open">Open/Draft</option>
+                  <option value="unpaid">Unpaid/Void/Uncollectible</option>
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] font-medium text-gray-600">{currentLanguage === 'tr' ? 'Arama' : 'Search'}</label>
+                <input
+                  type="text"
+                  value={invoiceSearch}
+                  onChange={e => setInvoiceSearch(e.target.value)}
+                  placeholder={currentLanguage === 'tr' ? 'Numara / Para Birimi' : 'Number / Currency'}
+                  className="px-2 py-1 border border-gray-300 rounded-md text-xs"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] font-medium text-gray-600">{currentLanguage === 'tr' ? 'Başlangıç' : 'From'}</label>
+                <input
+                  type="date"
+                  value={invoiceDateFrom}
+                  onChange={e => setInvoiceDateFrom(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 rounded-md text-xs"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] font-medium text-gray-600">{currentLanguage === 'tr' ? 'Bitiş' : 'To'}</label>
+                <input
+                  type="date"
+                  value={invoiceDateTo}
+                  onChange={e => setInvoiceDateTo(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 rounded-md text-xs"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] font-medium text-gray-600">&nbsp;</label>
+                <button
+                  onClick={() => {
+                    // CSV export
+                    const rows = getFilteredInvoices().map((inv: any) => ({
+                      id: inv.id,
+                      number: inv.number,
+                      status: inv.status,
+                      currency: inv.currency,
+                      total: typeof inv.total === 'number' ? (inv.total / 100).toFixed(2) : '',
+                      created: inv.created,
+                      hostedInvoiceUrl: inv.hostedInvoiceUrl,
+                      pdf: inv.pdf,
+                    }));
+                    const header = Object.keys(rows[0] || {
+                      id: '', number: '', status: '', currency: '', total: '', created: '', hostedInvoiceUrl: '', pdf: ''
+                    });
+                    const csv = [header.join(','), ...rows.map((r: any) => header.map(h => String((r as any)[h] ?? '')).join(','))].join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `invoices_${new Date().toISOString().slice(0,10)}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  }}
+                  disabled={invoices.length === 0}
+                  className="px-3 py-1 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                >{currentLanguage === 'tr' ? 'CSV İndir' : 'Export CSV'}</button>
+              </div>
+            </div>
+            <table className="min-w-full text-xs">
+              <thead>
+                <tr className="text-left text-gray-600">
+                  <th className="py-1 pr-4">#</th>
+                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Tarih' : 'Date'}</th>
+                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Tutar' : 'Amount'}</th>
+                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Durum' : 'Status'}</th>
+                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'İşlem' : 'Actions'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getFilteredInvoices().map((inv: any) => {
+                  const dateStr = inv.created ? new Date(inv.created).toLocaleDateString() : '—';
+                  const amount = typeof inv.total === 'number' ? (inv.total / 100).toFixed(2) + ' ' + String(inv.currency || '').toUpperCase() : '—';
+                  return (
+                    <tr key={inv.id} className="border-t border-gray-100">
+                      <td className="py-1 pr-4">{inv.number || inv.id}</td>
+                      <td className="py-1 pr-4">{dateStr}</td>
+                      <td className="py-1 pr-4">{amount}</td>
+                      <td className="py-1 pr-4">
+                        <span className={(() => {
+                          const s = String(inv.status || '').toLowerCase();
+                          if (s === 'paid') return 'inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200';
+                          if (s === 'open' || s === 'draft') return 'inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
+                          if (s === 'uncollectible' || s === 'void' || s === 'unpaid') return 'inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200';
+                          return 'inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-700 border border-gray-200';
+                        })()}>
+                          {String(inv.status || '—').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="py-1 pr-4 space-x-2">
+                        {inv.hostedInvoiceUrl && (
+                          <a className="text-indigo-600 hover:underline" href={inv.hostedInvoiceUrl} target="_blank" rel="noreferrer">{currentLanguage === 'tr' ? 'Görüntüle' : 'View'}</a>
+                        )}
+                        {inv.pdf && (
+                          <a className="text-indigo-600 hover:underline" href={inv.pdf} target="_blank" rel="noreferrer">PDF</a>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-2 text-[10px] text-gray-400">{currentLanguage === 'tr' ? 'Bu listede Stripe fatura bağlantıları sunulur.' : 'Stripe invoice links are provided here.'}</p>
       </div>
     </div>
   );
@@ -1491,6 +2031,71 @@ export default function SettingsPage({
       }
     })();
     return () => { cancelled = true; };
+  }, []);
+
+  // Hosted invoice dönüşü (fokus veya sayfa açılışı) başarı modalı
+  useEffect(() => {
+    let disposed = false;
+    const handler = async () => {
+      const raw = localStorage.getItem('pending_billing_payment');
+      if (!raw) return;
+      try {
+        const meta = JSON.parse(raw || '{}');
+        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        if (!tenantId) return;
+        const { syncSubscription, listInvoices } = await import('../api/billing');
+        await syncSubscription(tenantId);
+        const res = await listInvoices(tenantId);
+        const since = typeof meta.ts === 'number' ? (meta.ts - 2 * 60 * 1000) : (Date.now() - 10 * 60 * 1000);
+        const paid = (res?.invoices || []).some((inv: any) => Boolean(inv?.paid) && inv?.created && new Date(inv.created).getTime() >= since);
+        if (paid && !disposed) {
+          const planName = ((): string => {
+            const d = String(meta?.plan || '').toLowerCase();
+            if (d.includes('enterprise') || d.includes('business')) return 'Enterprise';
+            if (d.includes('professional') || d === 'pro') return 'Pro';
+            return 'Plan';
+          })();
+          const lang = currentLanguage || 'tr';
+          const messages = {
+            tr: {
+              title: 'Ödeme Başarılı',
+              basePlan: `İşleminiz başarıyla tamamlandı. Artık ${planName} planın keyfini çıkarabilirsiniz.`,
+              baseGeneric: 'Ödemeniz başarıyla alındı.',
+              extra: (n: number) => ` Ayrıca sisteminize ${n} kullanıcı daha davet edebilirsiniz.`,
+            },
+            en: {
+              title: 'Payment Successful',
+              basePlan: `Your update completed successfully. Enjoy the ${planName} plan!`,
+              baseGeneric: 'Your payment was received successfully.',
+              extra: (n: number) => ` You can now invite ${n} more user${n>1?'s':''} to your system.`,
+            },
+            fr: {
+              title: 'Paiement réussi',
+              basePlan: `Mise à jour terminée avec succès. Profitez du plan ${planName} !`,
+              baseGeneric: 'Votre paiement a été reçu avec succès.',
+              extra: (n: number) => ` Vous pouvez maintenant inviter ${n} utilisateur${n>1?'s':''} supplémentaires.`,
+            },
+            de: {
+              title: 'Zahlung erfolgreich',
+              basePlan: `Aktualisierung erfolgreich. Viel Spaß mit dem ${planName}-Tarif!`,
+              baseGeneric: 'Ihre Zahlung wurde erfolgreich erhalten.',
+              extra: (n: number) => ` Sie können nun ${n} weitere Benutzer einladen.`,
+            },
+          } as const;
+          const dict = messages[lang as 'tr'|'en'|'fr'|'de'] || messages.tr;
+          const baseMsg = meta?.type === 'plan-interval' ? dict.basePlan : dict.baseGeneric;
+          const extraMsg = meta?.seats && meta.seats > 0 ? dict.extra(meta.seats) : '';
+          openInfo(dict.title, baseMsg + extraMsg, 'success');
+          try { localStorage.removeItem('pending_billing_payment'); } catch {}
+          await refreshUser();
+        }
+      } catch {}
+    };
+    handler();
+    const onFocus = () => { handler(); };
+    window.addEventListener('focus', onFocus);
+    return () => { disposed = true; window.removeEventListener('focus', onFocus); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   // Currency context

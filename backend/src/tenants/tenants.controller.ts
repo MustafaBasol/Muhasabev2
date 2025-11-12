@@ -108,7 +108,9 @@ export class TenantsController {
 
   // === Subscription management for tenant owners (mocked integration) ===
   @Patch('my-tenant/subscription')
-  @ApiOperation({ summary: 'Update subscription (plan/users) for current tenant' })
+  @ApiOperation({
+    summary: 'Update subscription (plan/users) for current tenant',
+  })
   async updateMySubscription(
     @Body()
     body: {
@@ -122,7 +124,9 @@ export class TenantsController {
   ) {
     const isOwner = user?.role === UserRole.TENANT_ADMIN;
     if (!isOwner) {
-      throw new BadRequestException('Only tenant owners can manage subscription');
+      throw new BadRequestException(
+        'Only tenant owners can manage subscription',
+      );
     }
 
     const tenantId = user.tenantId;

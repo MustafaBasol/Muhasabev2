@@ -1060,22 +1060,46 @@ export class AdminService {
     tenantId: string,
     opts: { hard?: boolean; backupBefore?: boolean } = {},
   ) {
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
     // İsteğe bağlı: önce hızlı bir JSON backup (temel veri - minimal)
     let backupSummary: any = null;
     if (opts.backupBefore) {
       try {
-        const users = await this.userRepository.find({ where: { tenantId }, select: ['id', 'email', 'firstName', 'lastName', 'role', 'createdAt'] });
-        const customers = await this.customerRepository.find({ where: { tenantId }, select: ['id', 'name', 'email'] });
-        const suppliers = await this.supplierRepository.find({ where: { tenantId }, select: ['id', 'name', 'email'] });
-        const products = await this.productRepository.find({ where: { tenantId }, select: ['id', 'name', 'price', 'stock'] });
-        const invoices = await this.invoiceRepository.find({ where: { tenantId }, select: ['id', 'invoiceNumber', 'total', 'createdAt'] });
-        const expenses = await this.expenseRepository.find({ where: { tenantId }, select: ['id', 'expenseNumber', 'amount', 'createdAt'] });
+        const users = await this.userRepository.find({
+          where: { tenantId },
+          select: ['id', 'email', 'firstName', 'lastName', 'role', 'createdAt'],
+        });
+        const customers = await this.customerRepository.find({
+          where: { tenantId },
+          select: ['id', 'name', 'email'],
+        });
+        const suppliers = await this.supplierRepository.find({
+          where: { tenantId },
+          select: ['id', 'name', 'email'],
+        });
+        const products = await this.productRepository.find({
+          where: { tenantId },
+          select: ['id', 'name', 'price', 'stock'],
+        });
+        const invoices = await this.invoiceRepository.find({
+          where: { tenantId },
+          select: ['id', 'invoiceNumber', 'total', 'createdAt'],
+        });
+        const expenses = await this.expenseRepository.find({
+          where: { tenantId },
+          select: ['id', 'expenseNumber', 'amount', 'createdAt'],
+        });
         backupSummary = {
           timestamp: new Date().toISOString(),
-          tenant: { id: tenant.id, name: tenant.name, plan: tenant.subscriptionPlan },
+          tenant: {
+            id: tenant.id,
+            name: tenant.name,
+            plan: tenant.subscriptionPlan,
+          },
           counts: {
             users: users.length,
             customers: customers.length,

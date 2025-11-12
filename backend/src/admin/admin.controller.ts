@@ -370,5 +370,4 @@ export class AdminController {
     }
     return this.adminService.deleteUser(userId, { hard: body?.hard });
   }
-
 }

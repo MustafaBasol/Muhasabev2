@@ -1,4 +1,10 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  Index,
+} from 'typeorm';
 
 @Entity('email_outbox')
 export class EmailOutbox {
@@ -36,6 +42,8 @@ export class EmailOutbox {
   @Column({ type: 'varchar', length: 32, nullable: true })
   type?: string | null; // verify | verify-resend | reset | deletion | export
 
-  @CreateDateColumn({ type: 'timestamp' })
+  // Not: Test ortamında better-sqlite3 kullanıyoruz; 'timestamp' tipi desteklenmediği için
+  // tip belirtmeden sürücüye göre uygun tip seçilmesine izin veriyoruz.
+  @CreateDateColumn()
   createdAt!: Date;
 }

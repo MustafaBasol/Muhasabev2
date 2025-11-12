@@ -47,7 +47,10 @@ export class EmailService {
     } catch (err: any) {
       // Tablo henüz migration çalıştırılmadığı için yoksa (relation does not exist) gracefully degrade
       const msg = String(err?.message || '').toLowerCase();
-      if (msg.includes('does not exist') || msg.includes('relation') && msg.includes('email_suppression')) {
+      if (
+        msg.includes('does not exist') ||
+        (msg.includes('relation') && msg.includes('email_suppression'))
+      ) {
         this.logger.warn(
           '⚠️ email_suppression tablosu bulunamadı (migration çalıştırılmamış olabilir). Suppression kontrolü devre dışı, gönderim devam ediyor.',
         );
@@ -88,7 +91,9 @@ export class EmailService {
           },
         });
         const result = await ses.send(command);
-        const msgId = (result as any)?.MessageId || (result as any)?.MessageId?.toString?.();
+        const msgId =
+          (result as any)?.MessageId ||
+          (result as any)?.MessageId?.toString?.();
         const metaStr = options.meta
           ? ` meta=${JSON.stringify(options.meta)}`
           : '';
@@ -145,7 +150,9 @@ export class EmailService {
     } catch (err) {
       const msg = String(err?.message || '').toLowerCase();
       if (msg.includes('does not exist') && msg.includes('email_outbox')) {
-        this.logger.warn('⚠️ email_outbox tablosu yok (migration henüz çalışmamış). Outbox kayıt atlandı.');
+        this.logger.warn(
+          '⚠️ email_outbox tablosu yok (migration henüz çalışmamış). Outbox kayıt atlandı.',
+        );
       } else {
         this.logger.error('EmailOutbox kayıt hatası:', err);
       }

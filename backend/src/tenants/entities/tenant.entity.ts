@@ -129,6 +129,21 @@ export class Tenant {
   @Column({ type: 'boolean', default: false })
   cancelAtPeriodEnd: boolean;
 
+  // Stripe entegrasyonu
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  stripeCustomerId: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  stripeSubscriptionId: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+    comment: 'billing interval: month|year',
+  })
+  billingInterval: string | null;
+
   @Column({ type: 'int', default: 5 })
   maxUsers: number;
 

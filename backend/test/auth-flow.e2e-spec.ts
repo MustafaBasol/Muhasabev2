@@ -30,7 +30,9 @@ describe('Auth Flow Extended (e2e)', () => {
         factory: (suppressionRepo: Repository<EmailSuppression>) => ({
           async sendEmail(opts: EmailOptions) {
             const to = (opts.to || '').trim().toLowerCase();
-            const suppressed = await suppressionRepo.findOne({ where: { email: to } });
+            const suppressed = await suppressionRepo.findOne({
+              where: { email: to },
+            });
             if (suppressed) {
               // Bastırılmışsa capture ETME
               return false;
@@ -131,11 +133,14 @@ describe('Auth Flow Extended (e2e)', () => {
 
   it('suppression prevents email send then removal allows resend', async () => {
     // 1) Manuel bastırma ekle (repo üzerinden) - e2e testte direkt erişim
-  const dataSource = app.get(DataSource);
-  const suppressionRepo = dataSource.getRepository(EmailSuppression);
+    const dataSource = app.get(DataSource);
+    const suppressionRepo = dataSource.getRepository(EmailSuppression);
     const supEmail = `blocked-${Date.now()}@example.com`;
     // Suppression kaydı ONCE eklenir (email henüz gönderilmeden)
-    await suppressionRepo.save({ email: supEmail.toLowerCase(), reason: 'manual' });
+    await suppressionRepo.save({
+      email: supEmail.toLowerCase(),
+      reason: 'manual',
+    });
     // Kaydol (ilk doğrulama maili suppression nedeniyle capture edilmemeli)
     await request(server)
       .post('/auth/signup')
@@ -144,11 +149,11 @@ describe('Auth Flow Extended (e2e)', () => {
         password: 'Aa1!AnotherStrong123',
         firstName: 'Blocked',
         lastName: 'User',
-        companyName: 'Blocked Co'
+        companyName: 'Blocked Co',
       })
       .expect(201);
-  const beforeResendVerify = lastVerify; // null veya önceki state
-  // Resend dene (hala suppression aktif)
+    const beforeResendVerify = lastVerify; // null veya önceki state
+    // Resend dene (hala suppression aktif)
     await request(server)
       .post('/auth/resend-verification')
       .send({ email: supEmail })
@@ -159,11 +164,11 @@ describe('Auth Flow Extended (e2e)', () => {
     await request(server)
       .delete(`/admin/suppression/${encodeURIComponent(supEmail)}`)
       .expect(200)
-      .expect(r => expect(r.body.success).toBe(true));
+      .expect((r) => expect(r.body.success).toBe(true));
     // Tekrar resend
-  // Cooldown'ı minimize et: 1 saniye ve kısa bekleme
-  process.env.RESEND_COOLDOWN_SECONDS = '1';
-  await new Promise((r) => setTimeout(r, 1100));
+    // Cooldown'ı minimize et: 1 saniye ve kısa bekleme
+    process.env.RESEND_COOLDOWN_SECONDS = '1';
+    await new Promise((r) => setTimeout(r, 1100));
     await request(server)
       .post('/auth/resend-verification')
       .send({ email: supEmail })

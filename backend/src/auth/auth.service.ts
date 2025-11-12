@@ -130,8 +130,8 @@ export class AuthService {
           tenantId: user.tenantId,
           tokenId: evt.id,
           correlationId: crypto.randomUUID(),
-          type: 'verify'
-        }
+          type: 'verify',
+        },
       });
     } catch (err) {
       // no-op: E-posta gönderimi başarısız olsa bile kayıt akışı devam eder
@@ -266,7 +266,7 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         tenantId: user.tenantId,
-        isEmailVerified: (user as any).isEmailVerified === true,
+        isEmailVerified: user.isEmailVerified === true,
       },
       tenant: user.tenant
         ? {
@@ -275,9 +275,9 @@ export class AuthService {
             slug: user.tenant.slug,
             subscriptionPlan: user.tenant.subscriptionPlan,
             status: user.tenant.status,
-            maxUsers: (user.tenant as any).maxUsers,
-            subscriptionExpiresAt: (user.tenant as any).subscriptionExpiresAt,
-            cancelAtPeriodEnd: (user.tenant as any).cancelAtPeriodEnd === true,
+            maxUsers: user.tenant.maxUsers,
+            subscriptionExpiresAt: user.tenant.subscriptionExpiresAt,
+            cancelAtPeriodEnd: user.tenant.cancelAtPeriodEnd === true,
           }
         : null,
     };
@@ -356,8 +356,8 @@ export class AuthService {
         tenantId: user.tenantId,
         tokenId: evt.id,
         correlationId: crypto.randomUUID(),
-        type: 'verify-resend'
-      }
+        type: 'verify-resend',
+      },
     });
     // Cooldown damgası
     this.resendCooldown.set(key, now);
@@ -513,8 +513,8 @@ export class AuthService {
           tenantId: user.tenantId,
           tokenId: prt.id,
           correlationId: crypto.randomUUID(),
-          type: 'reset'
-        }
+          type: 'reset',
+        },
       });
     } catch (err) {
       // Mail gönderimi başarısız olsa bile kullanıcıya başarı döndür (hesap varlığını ortaya çıkarmamak için)

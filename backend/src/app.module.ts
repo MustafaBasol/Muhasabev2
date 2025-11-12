@@ -1,4 +1,5 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import * as path from 'path';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
@@ -23,6 +24,7 @@ import { AuditModule } from './audit/audit.module';
 import { FiscalPeriodsModule } from './fiscal-periods/fiscal-periods.module';
 import { CommonModule } from './common/common.module';
 import { QuotesModule } from './quotes/quotes.module';
+import { BillingModule } from './billing/billing.module';
 import { SubprocessorsModule } from './subprocessors/subprocessors.module';
 import { EmailModule } from './email/email.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
@@ -48,16 +50,36 @@ import { CSRFMiddleware } from './common/csrf.middleware';
         const isTest =
           process.env.NODE_ENV === 'test' ||
           typeof process.env.JEST_WORKER_ID !== 'undefined';
+        const useSqlite =
+          process.env.DB_SQLITE === 'true' ||
+          process.env.DATABASE_TYPE === 'sqlite' ||
+          // Yerel geliştirmede Postgres ayarı yoksa otomatik SQLite'a düş
+          (!process.env.DATABASE_HOST && !process.env.DATABASE_URL);
 
         // Use in-memory SQLite for tests to avoid external DB dependency
+        // Test ortamı: her zaman memory SQLite kullan (hızlı ve bağımsız)
         if (isTest) {
+          // Test ortamında sqlite kullan (sqlite3 sürücüsü) - timestamp uyumsuzluklarını azaltır
           return {
-            type: 'better-sqlite3',
+            type: 'sqlite',
             database: ':memory:',
             entities: [__dirname + '/**/*.entity{.ts,.js}'],
             synchronize: true,
             dropSchema: true,
             logging: false,
+          } as const;
+        }
+
+        // Geliştirme ortamı: varsayılan olarak yerel SQLite dosyası kullan.
+        // Postgres'e bağlanmak isterseniz .env'de DATABASE_HOST vb. değerleri verin veya DB_SQLITE=false yapın.
+        if (!isProd && useSqlite) {
+          const sqlitePath = path.join(__dirname, '..', 'dev.db');
+          return {
+            type: 'sqlite',
+            database: sqlitePath,
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            synchronize: true,
+            logging: process.env.NODE_ENV === 'development',
           } as const;
         }
 
@@ -78,6 +100,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
           );
         }
 
+        // Prod veya bilinçli Postgres konfigürasyonu: Postgres'e bağlan
         return {
           type: 'postgres',
           host,
@@ -112,6 +135,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
     SubprocessorsModule,
     EmailModule,
     WebhooksModule,
+    BillingModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

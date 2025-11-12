@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { json, urlencoded } from 'express';
+import { json, urlencoded, raw } from 'express';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -23,6 +23,9 @@ async function bootstrap() {
     // Nest'in varsayılan body-parser'ını devre dışı bırakıyoruz; kendi limitlerimizi uygulayacağız
     bodyParser: false,
   });
+
+  // Stripe webhook için raw body gerekiyor; bunu body parser'lardan ÖNCE ekleyin
+  app.use('/api/webhooks/stripe', raw({ type: '*/*' }));
 
   // Increase body size limits to support base64-encoded logos and larger payloads
   // Not: Base64 veri gerçek dosyadan ~%33 daha büyük olur; 10mb güvenli sınır.
@@ -82,7 +85,7 @@ async function bootstrap() {
         'Content-Security-Policy',
         `default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'nonce-${nonce}'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-src 'none'`,
       );
-      (res as any).locals = { ...(res as any).locals, cspNonce: nonce };
+      res.locals = { ...res.locals, cspNonce: nonce };
       next();
     });
   }
@@ -121,7 +124,9 @@ async function bootstrap() {
     if (isProd) {
       throw err;
     } else {
-      console.warn('⚠️ Development ortamında migration hatası yutuldu. Devam ediliyor.');
+      console.warn(
+        '⚠️ Development ortamında migration hatası yutuldu. Devam ediliyor.',
+      );
     }
   }
 

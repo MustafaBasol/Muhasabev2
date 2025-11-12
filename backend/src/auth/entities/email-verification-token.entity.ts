@@ -34,10 +34,10 @@ export class EmailVerificationToken {
   @Index('idx_evt_expires_at')
   expiresAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: __isTestEnv ? 'datetime' : 'timestamp', nullable: true })
   usedAt: Date | null;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({ type: __isTestEnv ? 'datetime' : 'timestamp' })
   createdAt: Date;
 
   @Column({ type: 'varchar', length: 45, nullable: true })
