@@ -1643,6 +1643,8 @@
       "role": "Rôle",
       "statusLabel": "Statut", 
       "actions": "Actions",
+      "inviteButton": "Envoyer l'Invitation",
+      "sending": "Envoi en cours...",
       "table": {
         "name": "Nom",
         "email": "Email",
@@ -1662,7 +1664,10 @@
         "owner": "Propriétaire",
         "admin": "Administrateur", 
         "member": "Membre",
-        "viewer": "Observateur"
+          "viewer": "Observateur",
+        "OWNER": "Propriétaire",
+        "ADMIN": "Administrateur",
+        "MEMBER": "Membre"
       },
       "status": {
         "active": "Actif",

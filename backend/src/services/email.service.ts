@@ -37,6 +37,12 @@ export class EmailService {
     const replyTo = process.env.MAIL_REPLY_TO || '';
     const configurationSet = process.env.SES_CONFIGURATION_SET || '';
 
+    // Başlangıç tanılama logu
+    try {
+      const maskedKey = (process.env.AWS_ACCESS_KEY_ID || '').slice(0, 6) + (process.env.AWS_ACCESS_KEY_ID ? '***' : '');
+      this.logger.debug(`[EMAIL INIT] provider=${provider} from=${from} replyTo=${replyTo || 'n/a'} region=${process.env.AWS_REGION || process.env.SES_REGION || 'default'} awsKey=${maskedKey || 'n/a'} confSet=${configurationSet || 'n/a'}`);
+    } catch (_) {}
+
     // Suppression kontrolü (lowercase)
     const normalizedTo = options.to.trim().toLowerCase();
     let suppressed: EmailSuppression | null = null;
@@ -69,45 +75,37 @@ export class EmailService {
     let messageId: string | undefined;
 
     if (provider === 'ses') {
-      try {
-        const region =
-          process.env.AWS_REGION || process.env.SES_REGION || 'us-east-1';
-        const ses = new SESClient({ region });
-        const command = new SendEmailCommand({
-          Destination: { ToAddresses: [options.to] },
-          Source: from,
-          ReplyToAddresses: replyTo ? [replyTo] : undefined,
-          ConfigurationSetName: configurationSet || undefined,
-          Message: {
-            Subject: { Data: options.subject, Charset: 'UTF-8' },
-            Body: {
-              Html: options.html
-                ? { Data: options.html, Charset: 'UTF-8' }
-                : undefined,
-              Text: options.text
-                ? { Data: options.text, Charset: 'UTF-8' }
-                : undefined,
+      const region = process.env.AWS_REGION || process.env.SES_REGION || 'us-east-1';
+      if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+        this.logger.warn('⚠️ MAIL_PROVIDER=ses ancak AWS kimlik bilgileri tanımlı değil; log fallback kullanılacak.');
+      } else {
+        try {
+          const ses = new SESClient({ region });
+          const command = new SendEmailCommand({
+            Destination: { ToAddresses: [options.to] },
+            Source: from,
+            ReplyToAddresses: replyTo ? [replyTo] : undefined,
+            ConfigurationSetName: configurationSet || undefined,
+            Message: {
+              Subject: { Data: options.subject, Charset: 'UTF-8' },
+              Body: {
+                Html: options.html ? { Data: options.html, Charset: 'UTF-8' } : undefined,
+                Text: options.text ? { Data: options.text, Charset: 'UTF-8' } : undefined,
+              },
             },
-          },
-        });
-        const result = await ses.send(command);
-        const msgId =
-          (result as any)?.MessageId ||
-          (result as any)?.MessageId?.toString?.();
-        const metaStr = options.meta
-          ? ` meta=${JSON.stringify(options.meta)}`
-          : '';
-        this.logger.log(
-          `📧 [SES EMAIL SENT] to=${options.to} subject="${options.subject}"${metaStr} messageId=${msgId || 'n/a'}${replyTo ? ` replyTo=${replyTo}` : ''}${configurationSet ? ` configSet=${configurationSet}` : ''}`,
-        );
-        success = true;
-        messageId = msgId;
-      } catch (err) {
-        this.logger.error(
-          'SES send failed, falling back to log provider:',
-          err,
-        );
-        // Fall through to log provider
+          });
+          const result = await ses.send(command);
+          const msgId = (result as any)?.MessageId || (result as any)?.MessageId?.toString?.();
+          const metaStr = options.meta ? ` meta=${JSON.stringify(options.meta)}` : '';
+          this.logger.log(`📧 [SES EMAIL SENT] to=${options.to} subject="${options.subject}"${metaStr} messageId=${msgId || 'n/a'} region=${region}${replyTo ? ` replyTo=${replyTo}` : ''}${configurationSet ? ` configSet=${configurationSet}` : ''}`);
+          success = true;
+          messageId = msgId;
+        } catch (err: any) {
+          const code = err?.Code || err?.code || 'UnknownError';
+          const msg = err?.message || String(err);
+          this.logger.error(`❌ [SES SEND FAILED] code=${code} message=${msg} → log fallback`);
+          // log fallback below
+        }
       }
     }
 
@@ -122,7 +120,7 @@ export class EmailService {
     // Default / fallback: log simulated email
     const metaStr = options.meta ? ` meta=${JSON.stringify(options.meta)}` : '';
     this.logger.log(
-      `📧 [LOG EMAIL] to=${options.to} subject="${options.subject}" provider=${provider}${metaStr}`,
+      `📧 [LOG EMAIL] to=${options.to} subject="${options.subject}" provider=${provider}${metaStr}${success && messageId ? ` (originalId=${messageId})` : ''}`,
     );
     if (options.html) {
       this.logger.debug(options.html.substring(0, 500));

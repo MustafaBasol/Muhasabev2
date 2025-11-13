@@ -1760,6 +1760,7 @@
         "ADMIN": "Yönetici", 
         "MEMBER": "Üye"
       },
+      "inviteButton": "Davet Gönder",
       "status": {
         "active": "Aktif",
         "pending": "Bekliyor"

@@ -16,6 +16,7 @@ import {
 } from './dto/organization.dto';
 import { InviteUserDto, UpdateMemberRoleDto } from './dto/member.dto';
 import { Role, Plan } from '../common/enums/organization.enum';
+import { SubscriptionPlan } from '../tenants/entities/tenant.entity';
 import { PlanLimitService } from '../common/plan-limits.service';
 import { EmailService } from '../services/email.service';
 import { randomBytes } from 'crypto';
@@ -152,23 +153,57 @@ export class OrganizationsService {
       throw new NotFoundException('Organization not found');
     }
 
-    // Check plan limits for adding a new member (include pending invites)
-    const currentMemberCount = await this.memberRepository.count({
-      where: { organizationId },
-    });
-
-    const pendingInviteCount = await this.inviteRepository.count({
-      where: { organizationId, acceptedAt: IsNull() },
-    });
-
+    // === Plan limit hesaplaması (tenant aboneliği ile genişlet) ===
+    // Mevcut üyeler + bekleyen davetler
+    const currentMemberCount = await this.memberRepository.count({ where: { organizationId } });
+    const pendingInviteCount = await this.inviteRepository.count({ where: { organizationId, acceptedAt: IsNull() } });
     const totalCount = currentMemberCount + pendingInviteCount;
 
-    const canAdd = PlanLimitService.canAddMember(totalCount, organization.plan);
+    // Organizasyon düzeyi planı normalize et
+    let normalizedPlan: Plan = (organization.plan === 'PRO' || organization.plan === 'BUSINESS' || organization.plan === 'STARTER')
+      ? organization.plan
+      : Plan.STARTER;
+
+    // Organizasyon planından gelen temel limit
+    let effectiveMax = PlanLimitService.getMaxMembers(normalizedPlan);
+
+    // Davet eden kullanıcının tenant abonelik planını al (daha yüksek ise override)
+    const inviterUser = await this.userRepository.findOne({ where: { id: inviterId }, relations: ['tenant'] });
+    if (inviterUser?.tenant) {
+      const subPlan = inviterUser.tenant.subscriptionPlan;
+      const tenantMaxUsers = inviterUser.tenant.maxUsers; // -1 sınırsız
+
+      // Tenant planını organizasyon planına map et (sadece görünür plan değil, limit amacıyla)
+      const mapTenantPlanToOrgPlan = (p: SubscriptionPlan): Plan => {
+        if (p === SubscriptionPlan.PROFESSIONAL) return Plan.PRO;
+        if (p === SubscriptionPlan.ENTERPRISE) return Plan.BUSINESS;
+        return Plan.STARTER; // FREE / BASIC => STARTER
+      };
+
+      const mappedOrgPlan = mapTenantPlanToOrgPlan(subPlan);
+      // Eğer mapped plan organizasyon planından daha üst ise güncelle
+      const planRank = (p: Plan) => (p === Plan.STARTER ? 1 : p === Plan.PRO ? 2 : 3);
+      if (planRank(mappedOrgPlan) > planRank(normalizedPlan)) {
+        normalizedPlan = mappedOrgPlan;
+        // Organizasyon kaydını geriye dönük güncellemiyoruz (görsel override) fakat limit hesaplamasında kullanıyoruz
+      }
+
+      // Tenant maxUsers değeri organizasyon limitinden büyükse override et
+      if (tenantMaxUsers === -1) {
+        effectiveMax = -1; // sınırsız
+      } else if (tenantMaxUsers > effectiveMax) {
+        effectiveMax = tenantMaxUsers;
+      }
+    }
+
+    const canAdd = effectiveMax === -1 ? true : totalCount < effectiveMax;
     if (!canAdd) {
-      const errorMessage = PlanLimitService.getMemberLimitError(
-        organization.plan,
-      );
-      throw new BadRequestException(errorMessage);
+      // Hata mesajını organizasyon planı yerine efektif plan üzerinden ver
+      if (effectiveMax === -1) {
+        // Teorik olarak buraya düşmez ama korunma amaçlı
+        throw new BadRequestException('No member limit for Business plan');
+      }
+      throw new BadRequestException(`${normalizedPlan} plan is limited to ${effectiveMax} member${effectiveMax !== 1 ? 's' : ''}. Please upgrade your plan to add more members.`);
     }
 
     // Check if user is already a member
@@ -580,18 +615,37 @@ MoneyFlow Accounting System
       where: { organizationId },
     });
 
-    const maxMembers = PlanLimitService.getMaxMembers(organization.plan);
-    const canAddMore = PlanLimitService.canAddMember(
-      currentMembers,
-      organization.plan,
-    );
+    // Organizasyon planını normalize et
+    let normalizedPlan: Plan = (organization.plan === 'PRO' || organization.plan === 'BUSINESS' || organization.plan === 'STARTER')
+      ? organization.plan
+      : Plan.STARTER;
+    let effectiveMax = PlanLimitService.getMaxMembers(normalizedPlan);
 
-    return {
-      currentMembers,
-      maxMembers,
-      canAddMore,
-      plan: organization.plan,
-    };
+    // Kullanıcının tenant aboneliğine göre override
+    const userWithTenant = await this.userRepository.findOne({ where: { id: userId }, relations: ['tenant'] });
+    if (userWithTenant?.tenant) {
+      const subPlan = userWithTenant.tenant.subscriptionPlan;
+      const tenantMaxUsers = userWithTenant.tenant.maxUsers;
+      const mapTenantPlanToOrgPlan = (p: SubscriptionPlan): Plan => {
+        if (p === SubscriptionPlan.PROFESSIONAL) return Plan.PRO;
+        if (p === SubscriptionPlan.ENTERPRISE) return Plan.BUSINESS;
+        return Plan.STARTER;
+      };
+      const mappedOrgPlan = mapTenantPlanToOrgPlan(subPlan);
+      const rank = (p: Plan) => (p === Plan.STARTER ? 1 : p === Plan.PRO ? 2 : 3);
+      if (rank(mappedOrgPlan) > rank(normalizedPlan)) {
+        normalizedPlan = mappedOrgPlan;
+      }
+      if (tenantMaxUsers === -1) {
+        effectiveMax = -1;
+      } else if (tenantMaxUsers > effectiveMax) {
+        effectiveMax = tenantMaxUsers;
+      }
+    }
+
+    const canAddMore = effectiveMax === -1 ? true : currentMembers < effectiveMax;
+
+    return { currentMembers, maxMembers: effectiveMax, canAddMore, plan: normalizedPlan };
   }
 
   async cancelInvite(

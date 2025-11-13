@@ -1653,6 +1653,8 @@
       "role": "Role",
       "statusLabel": "Status", 
       "actions": "Actions",
+      "inviteButton": "Send Invitation",
+      "sending": "Sending...",
       "table": {
         "name": "Name",
         "email": "Email",
@@ -1674,7 +1676,10 @@
         "owner": "Owner",
         "admin": "Administrator", 
         "member": "Member",
-        "viewer": "Viewer"
+        "viewer": "Viewer",
+        "OWNER": "Owner",
+        "ADMIN": "Administrator",
+        "MEMBER": "Member"
       },
       "status": {
         "active": "Active",

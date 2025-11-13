@@ -333,18 +333,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
         }
       });
     
-    // If no real data, add some demo data
-    if (customerMap.size === 0) {
-      const demoCustomers = [
-        { name: 'ABC Teknoloji', total: 25000, count: 3, lastPurchase: '2024-12-01' },
-        { name: 'XYZ Şirketi', total: 18000, count: 2, lastPurchase: '2024-11-15' },
-        { name: 'DEF Ltd.', total: 12000, count: 4, lastPurchase: '2024-11-20' }
-      ];
-      
-      demoCustomers.forEach(customer => {
-        customerMap.set(customer.name, customer);
-      });
-    }
+    // Demo veri ekleme kaldırıldı: yalnızca gerçek veriler gösterilir
     
     return Array.from(customerMap.values())
       .sort((a, b) => b.total - a.total)
@@ -847,18 +836,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                       supplierMap.set(expense.supplier, existing);
                     });
                   
-                  // If no real data, add demo suppliers
-                  if (supplierMap.size === 0) {
-                    const demoSuppliers = [
-                      { name: 'Elektrik Şirketi', total: 8500, count: 6, lastExpense: '2024-12-01' },
-                      { name: 'İnternet Sağlayıcısı', total: 1800, count: 6, lastExpense: '2024-11-30' },
-                      { name: 'Ofis Malzemeleri A.Ş.', total: 2500, count: 4, lastExpense: '2024-11-25' }
-                    ];
-                    
-                    demoSuppliers.forEach(supplier => {
-                      supplierMap.set(supplier.name, supplier);
-                    });
-                  }
+                  // Demo tedarikçi ekleme kaldırıldı: yalnızca gerçek veriler gösterilir
                   
                   return Array.from(supplierMap.values())
                     .sort((a, b) => b.total - a.total)
