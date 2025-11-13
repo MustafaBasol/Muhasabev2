@@ -49,4 +49,12 @@ export const usersApi = {
     const response = await apiClient.put('/users/me/notification-preferences', prefs);
     return response.data;
   },
+
+  /**
+   * Şifre değiştir
+   */
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const response = await apiClient.put('/users/me/password', { currentPassword, newPassword });
+    return response.data;
+  },
 };

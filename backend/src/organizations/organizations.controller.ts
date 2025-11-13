@@ -137,6 +137,15 @@ export class OrganizationsController {
     );
   }
 
+  @Get('invites/validate/:token')
+  @ApiOperation({ summary: 'Validate invitation token and return invite details' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Invite details returned' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Invalid invite token' })
+  validateInvite(@Param('token') token: string) {
+    // Note: Guard requires auth; we do not enforce email match here.
+    return this.organizationsService.validateInvite(token);
+  }
+
   @Get(':id/members')
   @ApiOperation({ summary: 'Get organization members' })
   @ApiResponse({

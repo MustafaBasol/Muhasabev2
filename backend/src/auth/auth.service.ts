@@ -20,7 +20,10 @@ import { EmailVerificationToken } from './entities/email-verification-token.enti
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import * as crypto from 'crypto';
 import { AuditService } from '../audit/audit.service';
+import { OrganizationsService } from '../organizations/organizations.service';
+import { Inject, forwardRef } from '@nestjs/common';
 import { AuditAction } from '../audit/entities/audit-log.entity';
+import { Role } from '../common/enums/organization.enum';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +38,8 @@ export class AuthService {
     @InjectRepository(PasswordResetToken)
     private prtRepo: Repository<PasswordResetToken>,
     private auditService: AuditService,
+    @Inject(forwardRef(() => OrganizationsService))
+    private organizationsService: OrganizationsService,
   ) {}
   private getNumberEnv(name: string, def: number): number {
     const raw = (process.env[name] || '').trim();
@@ -223,6 +228,31 @@ export class AuthService {
     // Update last login
     await this.usersService.updateLastLogin(user.id);
 
+    // === Organizasyon Tenant Senkronizasyonu ===
+    // Senaryo: Kullanıcının kişisel tenant'ında veri yok; başka bir organizasyonda MEMBER/ADMIN ise
+    // dashboard verilerini OWNER'ın tenantId'si üzerinden görmek istiyor.
+    // Mevcut mantık: İlk non-OWNER organizasyon için OWNER tenantId'sini benimse.
+    try {
+      const orgs = await this.organizationsService.getUserOrganizations(user.id);
+      if (Array.isArray(orgs) && orgs.length > 0) {
+        // Kullanıcının OWNER olmadığı ilk organizasyonu seç
+        const targetMembership = orgs.find(o => o.role !== Role.OWNER);
+        if (targetMembership) {
+          const ownerTid = await (this.organizationsService as any).getOwnerTenantId(targetMembership.organization.id);
+          if (ownerTid && ownerTid !== user.tenantId) {
+            await this.usersService.update(user.id, { tenantId: ownerTid });
+            (user as any).tenantId = ownerTid;
+            try {
+              const ownerTenant = await this.tenantsService.findOne(ownerTid);
+              (user as any).tenant = ownerTenant;
+            } catch {}
+          }
+        }
+      }
+    } catch {
+      // Sessiz geç
+    }
+
     // Generate JWT token
     const payload = {
       sub: user.id,
@@ -301,6 +331,89 @@ export class AuthService {
       token: this.jwtService.sign(payload),
       expiresIn: '15m',
     };
+  }
+
+  /**
+   * Public flow: Complete invitation by setting a password.
+   * - Validates invite token
+   * - Creates user + personal tenant if not exists, or updates password if exists
+   * - Marks email as verified
+   * - Accepts invite (adds membership)
+   * Returns minimal success payload; frontend will login afterwards.
+   */
+  async registerViaInvite(
+    token: string,
+    password: string,
+  ): Promise<{ success: true; email: string }>
+  {
+    if (!token || !password) {
+      throw new BadRequestException('token and password are required');
+    }
+
+    // 1) Validate invite and ensure not expired/accepted
+    const invite = await this.organizationsService.validateInvite(token);
+    if (!invite) throw new NotFoundException('Invalid invite token');
+    if (invite.acceptedAt) {
+      return { success: true, email: invite.email }; // idempotent
+    }
+    if (invite.expiresAt && new Date(invite.expiresAt).getTime() < Date.now()) {
+      throw new BadRequestException('Invitation has expired');
+    }
+
+    // 2) Find or create user for invited email
+    let user = await this.usersService.findByEmail(invite.email);
+
+    // Resolve target tenant as the OWNER's tenant of the invited organization
+    let targetTenantId: string | null = null;
+    try {
+      const ownerTid = await this.organizationsService.getOwnerTenantId(
+        invite.organization?.id || (invite as any).organizationId,
+      );
+      targetTenantId = ownerTid || null;
+    } catch {
+      targetTenantId = null;
+    }
+
+    if (!user) {
+      // IMPORTANT: Do NOT create a personal tenant for invited users.
+      // Create the user directly and attach to the owner's tenant if resolvable.
+      const localPart = (invite.email || '').split('@')[0] || 'Kullanıcı';
+      user = await this.usersService.create({
+        email: invite.email,
+        password,
+        firstName: localPart,
+        lastName: '',
+        tenantId: targetTenantId || null as any,
+      });
+    } else {
+      // Update password for existing user and align tenant if needed
+      await this.usersService.update(user.id, {
+        password,
+        ...(targetTenantId && user.tenantId !== targetTenantId
+          ? { tenantId: targetTenantId }
+          : {}),
+      });
+      user = await this.usersService.findOne(user.id);
+    }
+
+    // 3) Mark email verified (invite proves ownership)
+    if (!user.isEmailVerified) {
+      await this.usersService.update(user.id, {
+        isEmailVerified: true,
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null as unknown as any,
+      });
+    }
+
+    // 4) Accept invite and set current org (also ensures tenant sync if not set above)
+    await this.organizationsService.acceptInvite(token, user.id);
+    try {
+      await (this.usersService as any).userRepository.update(user.id, {
+        currentOrgId: invite.organization?.id || invite.organizationId,
+      });
+    } catch {}
+
+    return { success: true, email: invite.email };
   }
 
   async resendVerification(email: string) {

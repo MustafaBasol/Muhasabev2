@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>API Debug Test</title>
+  <title>API Debug (Same-Origin)</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
@@ -16,10 +16,20 @@
       input { max-width: 100%; }
     }
   </style>
+  <script>
+    // Aynı origin üzerinde çalışalım ki CORS/CSP sorunları olmasın
+    const API_BASE = `${window.location.origin}/api`;
+  </script>
+  <script>
+    async function safeJson(res) {
+      const txt = await res.text();
+      try { return JSON.parse(txt); } catch { return txt; }
+    }
+  </script>
 </head>
 <body>
-  <h1>API Debug Test</h1>
-  
+  <h1>API Debug (Same-Origin)</h1>
+
   <div class="section">
     <h3>1. API Sağlık Kontrolü</h3>
     <button onclick="checkHealth()">GET /health</button>
@@ -27,7 +37,7 @@
   </div>
 
   <div class="section">
-    <h3>2. Giriş Testi</h3>
+    <h3>2. Kullanıcı Giriş Testi</h3>
     <input type="email" id="email" placeholder="Email" value="admin@test.com">
     <input type="password" id="password" placeholder="Password" value="Test123456">
     <button onclick="login()">POST /auth/login</button>
@@ -36,8 +46,8 @@
 
   <div class="section">
     <h3>3. Admin Giriş Testi</h3>
-    <input type="text" id="adminUsername" placeholder="Username" value="admin">
-    <input type="password" id="adminPassword" placeholder="Password" value="admin123">
+    <input type="text" id="adminUsername" placeholder="Username" value="owner">
+    <input type="password" id="adminPassword" placeholder="Password" value="Z3rdeS-9hQm2!7pK">
     <button onclick="adminLogin()">POST /admin/login</button>
     <pre id="adminLoginResult"></pre>
   </div>
@@ -87,8 +97,6 @@
   </div>
 
   <script>
-    const API_BASE = 'https://damp-wraith-7q9x5r7j6qrcgg6-3001.app.github.dev/api';
-    
     async function checkHealth() {
       try {
         const response = await fetch(`${API_BASE}/health`);
@@ -98,21 +106,18 @@
         document.getElementById('healthResult').textContent = `Error: ${error.message}`;
       }
     }
-    
+
     async function login() {
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
-      
       try {
         const response = await fetch(`${API_BASE}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
-        
         const result = await response.json();
         document.getElementById('loginResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
-        
         if (result.access_token) {
           document.getElementById('token').value = result.access_token;
         }
@@ -120,21 +125,18 @@
         document.getElementById('loginResult').textContent = `Error: ${error.message}`;
       }
     }
-    
+
     async function adminLogin() {
       const username = document.getElementById('adminUsername').value;
       const password = document.getElementById('adminPassword').value;
-      
       try {
         const response = await fetch(`${API_BASE}/admin/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
         });
-        
         const result = await response.json();
         document.getElementById('adminLoginResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
-
         if (result.adminToken) {
           document.getElementById('adminToken').value = result.adminToken;
         }
@@ -145,16 +147,11 @@
 
     async function adminListUsers() {
       const adminToken = document.getElementById('adminToken').value;
-      if (!adminToken) {
-        alert('Lütfen önce admin login yapıp token girin');
-        return;
-      }
+      if (!adminToken) { alert('Lütfen önce admin login yapıp token girin'); return; }
       try {
-        const response = await fetch(`${API_BASE}/admin/users`, {
-          headers: { 'admin-token': adminToken }
-        });
-        const result = await response.json();
-        document.getElementById('adminUsersResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
+        const response = await fetch(`${API_BASE}/admin/users`, { headers: { 'admin-token': adminToken } });
+        const result = await safeJson(response);
+        document.getElementById('adminUsersResult').textContent = `Status: ${response.status}\n${typeof result === 'string' ? result : JSON.stringify(result, null, 2)}`;
       } catch (error) {
         document.getElementById('adminUsersResult').textContent = `Error: ${error.message}`;
       }
@@ -163,17 +160,14 @@
     async function adminSendPasswordReset() {
       const adminToken = document.getElementById('adminToken').value;
       const userId = document.getElementById('targetUserId').value;
-      if (!adminToken || !userId) {
-        alert('Admin token ve userId gerekli');
-        return;
-      }
+      if (!adminToken || !userId) { alert('Admin token ve userId gerekli'); return; }
       try {
         const response = await fetch(`${API_BASE}/admin/users/${encodeURIComponent(userId)}/password-reset`, {
           method: 'POST',
           headers: { 'admin-token': adminToken }
         });
-        const result = await response.json();
-        document.getElementById('adminActionResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
+        const result = await safeJson(response);
+        document.getElementById('adminActionResult').textContent = `Status: ${response.status}\n${typeof result === 'string' ? result : JSON.stringify(result, null, 2)}`;
       } catch (error) {
         document.getElementById('adminActionResult').textContent = `Error: ${error.message}`;
       }
@@ -181,14 +175,9 @@
 
     async function adminListOrganizations() {
       const adminToken = document.getElementById('adminToken').value;
-      if (!adminToken) {
-        alert('Lütfen admin token girin');
-        return;
-      }
+      if (!adminToken) { alert('Lütfen admin token girin'); return; }
       try {
-        const response = await fetch(`${API_BASE}/admin/organizations`, {
-          headers: { 'admin-token': adminToken }
-        });
+        const response = await fetch(`${API_BASE}/admin/organizations`, { headers: { 'admin-token': adminToken } });
         const result = await response.json();
         document.getElementById('adminOrgsResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
         if (Array.isArray(result) && result.length > 0 && result[0].id) {
@@ -202,16 +191,10 @@
     async function adminListOrgMembers() {
       const adminToken = document.getElementById('adminToken').value;
       const orgId = document.getElementById('orgId').value;
-      if (!adminToken || !orgId) {
-        alert('Admin token ve orgId gerekli');
-        return;
-      }
+      if (!adminToken || !orgId) { alert('Admin token ve orgId gerekli'); return; }
       try {
-        const response = await fetch(`${API_BASE}/admin/organizations/${encodeURIComponent(orgId)}/members`, {
-          headers: { 'admin-token': adminToken }
-        });
+        const response = await fetch(`${API_BASE}/admin/organizations/${encodeURIComponent(orgId)}/members`, { headers: { 'admin-token': adminToken } });
         const result = await response.json();
-        // Emailleri ve rolleri özetle
         const summary = Array.isArray(result) ? result.map(x => `${x?.user?.email || '?'} (${x?.role || '?'})`).join('\n') : result;
         document.getElementById('adminOrgMembersResult').textContent = `Status: ${response.status}\n${summary ? summary : JSON.stringify(result, null, 2)}`;
       } catch (error) {
@@ -222,54 +205,34 @@
     async function adminListOrgInvites() {
       const adminToken = document.getElementById('adminToken').value;
       const orgId = document.getElementById('orgId').value;
-      if (!adminToken || !orgId) {
-        alert('Admin token ve orgId gerekli');
-        return;
-      }
+      if (!adminToken || !orgId) { alert('Admin token ve orgId gerekli'); return; }
       try {
-        const response = await fetch(`${API_BASE}/admin/organizations/${encodeURIComponent(orgId)}/invites`, {
-          headers: { 'admin-token': adminToken }
-        });
+        const response = await fetch(`${API_BASE}/admin/organizations/${encodeURIComponent(orgId)}/invites`, { headers: { 'admin-token': adminToken } });
         const result = await response.json();
-        // Email ve accepted/expires özetle
         const summary = Array.isArray(result) ? result.map(x => `${x?.email || '?'} | acceptedAt=${x?.acceptedAt} | expiresAt=${x?.expiresAt}`).join('\n') : result;
         document.getElementById('adminOrgInvitesResult').textContent = `Status: ${response.status}\n${summary ? summary : JSON.stringify(result, null, 2)}`;
       } catch (error) {
         document.getElementById('adminOrgInvitesResult').textContent = `Error: ${error.message}`;
       }
     }
-    
+
     async function testToken() {
       const token = document.getElementById('token').value;
-      if (!token) {
-        alert('Please enter a token');
-        return;
-      }
-      
+      if (!token) { alert('Please enter a token'); return; }
       try {
-        const response = await fetch(`${API_BASE}/auth/me`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
+        const response = await fetch(`${API_BASE}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } });
         const result = await response.json();
         document.getElementById('tokenResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
       } catch (error) {
         document.getElementById('tokenResult').textContent = `Error: ${error.message}`;
       }
     }
-    
+
     async function getTenant() {
       const token = document.getElementById('token').value;
-      if (!token) {
-        alert('Please enter a token first');
-        return;
-      }
-      
+      if (!token) { alert('Please enter a token first'); return; }
       try {
-        const response = await fetch(`${API_BASE}/tenants/my-tenant`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
+        const response = await fetch(`${API_BASE}/tenants/my-tenant`, { headers: { 'Authorization': `Bearer ${token}` } });
         const result = await response.json();
         document.getElementById('tenantResult').textContent = `Status: ${response.status}\n${JSON.stringify(result, null, 2)}`;
       } catch (error) {

@@ -162,15 +162,21 @@ export const organizationsApi = {
     invite?: Invite;
     error?: string;
   }> {
+    // Public endpoint'i doğrudan kullan: 401 gürültüsünü engelle
     try {
-      const response = await apiClient.get(`/organizations/invites/validate/${token}`);
-      return { valid: true, invite: response.data };
-    } catch (error: any) {
-      return { 
-        valid: false, 
-        error: error.response?.data?.message || 'Invalid or expired invite token'
-      };
+      const pub = await apiClient.get(`/public/invites/${token}`);
+      if ((pub.data as any)?.status && (pub.data as any).status !== 'valid' && (pub.data as any).status !== 'accepted') {
+        return { valid: false, error: 'Invalid or expired invite token' };
+      }
+      return { valid: true, invite: pub.data };
+    } catch (e2: any) {
+      return { valid: false, error: e2.response?.data?.message || 'Invalid or expired invite token' };
     }
+  },
+
+  async completeInviteWithPassword(token: string, password: string): Promise<{ success: boolean; email: string }> {
+    const response = await apiClient.post(`/public/invites/${token}/register`, { password });
+    return response.data;
   }
 };
 

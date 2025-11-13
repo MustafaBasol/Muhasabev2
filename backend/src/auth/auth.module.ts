@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -13,6 +13,7 @@ import { SecurityService } from '../common/security.service';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { AuditModule } from '../audit/audit.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AuditModule } from '../audit/audit.module';
     TypeOrmModule.forFeature([EmailVerificationToken, PasswordResetToken]),
     AuditModule,
     EmailModule,
+    forwardRef(() => OrganizationsModule),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, SecurityService],

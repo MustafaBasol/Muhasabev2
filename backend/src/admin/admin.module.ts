@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -25,10 +25,12 @@ import { PlanLimitsService } from './plan-limits.service';
 import { PlanLimitsLoader } from './plan-limits.loader';
 import { SuppressionAdminController } from './suppression.controller';
 import { BillingModule } from '../billing/billing.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
   imports: [
     EmailModule,
+    forwardRef(() => OrganizationsModule),
     TypeOrmModule.forFeature([
       User,
       Tenant,

@@ -7,6 +7,9 @@ import {
   Patch,
   Body,
   Delete,
+  Post,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +17,7 @@ import { AdminService } from './admin.service';
 import { Organization } from '../organizations/entities/organization.entity';
 import { OrganizationMember } from '../organizations/entities/organization-member.entity';
 import { Invite } from '../organizations/entities/invite.entity';
+import { OrganizationsService } from '../organizations/organizations.service';
 
 @Controller('admin/organizations')
 export class AdminOrganizationsController {
@@ -25,6 +29,7 @@ export class AdminOrganizationsController {
     private readonly memberRepo: Repository<OrganizationMember>,
     @InjectRepository(Invite)
     private readonly inviteRepo: Repository<Invite>,
+    private readonly organizationsService: OrganizationsService,
   ) {}
 
   private checkAdminAuth(headers: any) {
@@ -92,5 +97,57 @@ export class AdminOrganizationsController {
     }
     await this.memberRepo.remove(member);
     return { success: true };
+  }
+
+  @Post(':orgId/invite')
+  async adminCreateInvite(
+    @Param('orgId') orgId: string,
+    @Body() body: { email: string; role: string },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    if (!body?.email || !body?.role) {
+      throw new BadRequestException('email and role are required');
+    }
+    const org = await this.orgRepo.findOne({ where: { id: orgId } });
+    if (!org) throw new NotFoundException('Organization not found');
+
+    // Bir owner veya admin üyeyi davet eden olarak kullan
+    const inviter = await this.memberRepo.findOne({
+      where: { organizationId: orgId },
+      order: { createdAt: 'ASC' } as any,
+    });
+    if (!inviter) throw new BadRequestException('No inviter member found');
+
+    const invite = await this.organizationsService.inviteUser(
+      orgId,
+      { email: body.email, role: body.role } as any,
+      inviter.userId,
+    );
+    return invite;
+  }
+
+  @Post(':orgId/invites/:inviteId/resend')
+  async adminResendInvite(
+    @Param('orgId') orgId: string,
+    @Param('inviteId') inviteId: string,
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    const org = await this.orgRepo.findOne({ where: { id: orgId } });
+    if (!org) throw new NotFoundException('Organization not found');
+
+    const inviter = await this.memberRepo.findOne({
+      where: { organizationId: orgId },
+      order: { createdAt: 'ASC' } as any,
+    });
+    if (!inviter) throw new BadRequestException('No inviter member found');
+
+    const updated = await this.organizationsService.resendInvite(
+      orgId,
+      inviteId,
+      inviter.userId,
+    );
+    return updated;
   }
 }

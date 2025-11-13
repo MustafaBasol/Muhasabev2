@@ -2027,6 +2027,10 @@ export default function SettingsPage({
   const roleNorm = (authUser?.role || '').toUpperCase();
   // Plan sekmesi sadece 'OWNER' benzeri sahiplik rolleri için görünür olmalı.
   // Bazı kurulumlarda sahip hesap backend'de TENANT_ADMIN olarak dönebildiği için ikisini de kabul ediyoruz.
+  // İstek: Tenant kullanıcıları (owner olmayan roller) tüm uygulama verilerini görüp işlem yapabilsin,
+  // Ayarlar sayfasında ise sadece Profil sekmesini görecekler. Mevcut mantık zaten bunu sağlıyor;
+  // ancak bazı kurulumlarda ek roller (ACCOUNTANT, USER) "isOwnerLike" içine yanlışlıkla dahil edilirse
+  // genişleme olmasın diye koşulu dar tutuyoruz.
   const isOwnerLike = roleNorm === 'OWNER' || roleNorm === 'TENANT_ADMIN';
 
   // Resmi şirket adı (backend tenant.name) için yerel state
@@ -2453,22 +2457,23 @@ export default function SettingsPage({
 
   // Sekmeler: Plan sekmesini sadece sahipler (owner/tenant_admin) görsün
   const tabs = (() => {
-    const arr: { id: string; label: string; icon: any }[] = [
+    // İş gereksinimi: Ayarlar sekmeleri yalnız sahibi (OWNER / TENANT_ADMIN) görebilsin.
+    // Diğer roller sadece profil sekmesini görür; şirket / organizasyon / plan vb. tenant düzeyindeki ayarlar gizlenir.
+    if (!isOwnerLike) {
+      return [
+        { id: 'profile', label: text.tabs.profile, icon: User },
+      ];
+    }
+    return [
       { id: 'profile', label: text.tabs.profile, icon: User },
       { id: 'company', label: text.tabs.company, icon: Building2 },
-    ];
-    if (isOwnerLike) {
-      arr.push({ id: 'plan', label: text.tabs.plan || 'Plan', icon: CreditCard });
-    }
-    arr.push(
+      { id: 'plan', label: text.tabs.plan || 'Plan', icon: CreditCard },
       { id: 'organization', label: text.tabs.organization || 'Organization', icon: Users },
       { id: 'fiscal-periods', label: text.tabs.fiscalPeriods || 'Fiscal Periods', icon: Calendar },
       { id: 'notifications', label: text.tabs.notifications, icon: Bell },
-      // System tab kaldırıldı, ayarları Şirket sekmesine taşındı
       { id: 'security', label: text.tabs.security, icon: Shield },
       { id: 'privacy', label: text.tabs.privacy, icon: Lock },
-    );
-    return arr;
+    ];
   })();
 
   // initialTab verilirse ilk açılışta ona geç
@@ -2598,7 +2603,69 @@ export default function SettingsPage({
       } catch (refreshError) {
         console.error('⚠️ refreshUser() hatası (normal, localStorage güncel):', refreshError);
       }
-      
+      // 🔐 Şifre değişimi alanları doluysa burada işleme al
+      const pwCurrent = profileData.currentPassword.trim();
+      const pwNew = profileData.newPassword.trim();
+      const pwConfirm = profileData.confirmPassword.trim();
+      if (pwCurrent || pwNew || pwConfirm) {
+        if (!pwCurrent || !pwNew || !pwConfirm) {
+          openInfo(
+            currentLanguage === 'tr' ? 'Şifre Alanları Eksik' : 'Missing Password Fields',
+            currentLanguage === 'tr' ? 'Mevcut, yeni ve tekrar şifre alanlarının tümü doldurulmalı.' : 'All password fields (current, new, confirm) must be filled.',
+            'error'
+          );
+          return;
+        }
+        if (pwNew !== pwConfirm) {
+          openInfo(
+            currentLanguage === 'tr' ? 'Şifre Eşleşmiyor' : 'Password Mismatch',
+            currentLanguage === 'tr' ? 'Yeni şifre ile tekrar şifre aynı değil.' : 'New password and confirmation do not match.',
+            'error'
+          );
+          return;
+        }
+        if (pwNew.length < 8) {
+          openInfo(
+            currentLanguage === 'tr' ? 'Şifre Çok Kısa' : 'Password Too Short',
+            currentLanguage === 'tr' ? 'Yeni şifre en az 8 karakter olmalı.' : 'New password must be at least 8 characters.',
+            'error'
+          );
+          return;
+        }
+        try {
+          console.log('🔄 usersApi.changePassword çağrılıyor...');
+          const resp = await usersApi.changePassword(pwCurrent, pwNew);
+          if (resp?.success) {
+            openInfo(
+              currentLanguage === 'tr' ? 'Şifre Güncellendi' : 'Password Updated',
+              currentLanguage === 'tr' ? 'Şifreniz başarıyla değiştirildi.' : 'Your password has been changed successfully.',
+              'success'
+            );
+            setProfileData(prev => ({
+              ...prev,
+              currentPassword: '',
+              newPassword: '',
+              confirmPassword: '',
+            }));
+          } else {
+            openInfo(
+              currentLanguage === 'tr' ? 'Şifre Değiştirilemedi' : 'Password Change Failed',
+              currentLanguage === 'tr' ? 'İşlem sırasında hata oluştu.' : 'An error occurred during password change.',
+              'error'
+            );
+            return; // diğer kayıtları sürdürme
+          }
+        } catch (e:any) {
+          const msg = e?.response?.data?.message || e?.message || 'Hata';
+          openInfo(
+            currentLanguage === 'tr' ? 'Şifre Değiştirilemedi' : 'Password Change Failed',
+            msg,
+            'error'
+          );
+          return; // hata durumunda kalan işlemleri atla
+        }
+      }
+
       // UI update için App.tsx'e bildir (opsiyonel - zaten refreshUser yapıyor)
       if (onUserUpdate) {
         const userToUpdate = {
@@ -3591,26 +3658,30 @@ export default function SettingsPage({
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="flex space-x-2 border-b border-gray-200 mt-6 sticky top-16 z-20 bg-white">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="font-medium text-sm">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Tabs: Owner dışındaki roller sadece Profil sekmesini otomatik alıyor (tabs fonksiyonu).
+            Ek güvenlik için burada koşulu kaldırıp her zaman render ediyoruz; non-owner için zaten
+            tabs dizisi yalnızca profile içeriyor. Böylece boş alan kalmıyor ve tutarlılık artıyor. */}
+        {(
+          <div className="flex space-x-2 border-b border-gray-200 mt-6 sticky top-16 z-20 bg-white">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="font-medium text-sm">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Content */}

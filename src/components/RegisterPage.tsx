@@ -7,14 +7,18 @@ import LegalHeader from './LegalHeader';
 export default function RegisterPage() {
   const { register, isLoading } = useAuth();
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    company: '',
-    phone: '',
-    address: ''
+  const [formData, setFormData] = useState(() => {
+    let prefill = '';
+    try { prefill = sessionStorage.getItem('prefill_email') || localStorage.getItem('prefill_email') || ''; } catch {}
+    return {
+      name: '',
+      email: prefill,
+      password: '',
+      confirmPassword: '',
+      company: '',
+      phone: '',
+      address: ''
+    };
   });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -28,6 +32,9 @@ export default function RegisterPage() {
 
   // Mount olduğunda eğer daha önce başlatılmış bir doğrulama süreci varsa banner'ı tekrar göster
   useEffect(() => {
+    // Join sayfasından gelen e-posta prefill'i bir kez kullanıldıysa temizle
+    try { sessionStorage.removeItem('prefill_email'); } catch {}
+    try { localStorage.removeItem('prefill_email'); } catch {}
     try {
       const pending = sessionStorage.getItem('pending_verification_email');
       const verificationRequired = String(import.meta.env.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
@@ -235,7 +242,8 @@ export default function RegisterPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  disabled={Boolean(sessionStorage.getItem('pending_invite_token') || localStorage.getItem('pending_invite_token'))}
+                  className={`w-full pl-10 pr-4 py-3 border ${(sessionStorage.getItem('pending_invite_token') || localStorage.getItem('pending_invite_token')) ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'border-gray-300'} rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                   placeholder={t('auth.emailPlaceholder', 'ornek@email.com')}
                   required
                 />

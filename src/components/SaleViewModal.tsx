@@ -213,7 +213,7 @@ export default function SaleViewModal({
                           {formatAmount(item.unitPrice)}
                         </td>
                         <td className="px-4 py-3 text-right font-medium text-gray-900">
-                          {formatAmount(item.total)}
+                          {formatAmount((item.total && toNumber(item.total) > 0) ? item.total : toNumber(item.unitPrice) * toNumber(item.quantity))}
                         </td>
                       </tr>
                     ))}
@@ -221,10 +221,10 @@ export default function SaleViewModal({
                   <tfoot className="bg-gray-50 border-t-2 border-gray-300">
                     <tr>
                       <td colSpan={3} className="px-4 py-4 text-right font-semibold text-gray-900">
-                        Genel Toplam:
+                        Genel Toplam (KDV Hariç):
                       </td>
                       <td className="px-4 py-4 text-right font-bold text-green-600 text-lg">
-                        {formatAmount(sale.amount)}
+                        {formatAmount(sale.items.reduce((sum, it) => sum + toNumber(it.unitPrice) * toNumber(it.quantity), 0))}
                       </td>
                     </tr>
                   </tfoot>
@@ -242,6 +242,8 @@ export default function SaleViewModal({
                     <span>Miktar: {sale.quantity}</span>
                     <span className="mx-2">•</span>
                     <span>Birim Fiyat: {formatAmount(sale.unitPrice)}</span>
+                    <span className="mx-2">•</span>
+                    <span>Toplam (KDV Hariç): {formatAmount(toNumber(sale.unitPrice) * toNumber(sale.quantity))}</span>
                   </div>
                 )}
               </div>
@@ -254,9 +256,9 @@ export default function SaleViewModal({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Tutar Bilgileri</h3>
               <div className="bg-green-50 rounded-lg p-6 border border-green-200">
                 <div className="flex justify-between items-center">
-                  <span className="text-green-800 font-medium text-lg">Toplam Tutar:</span>
+                  <span className="text-green-800 font-medium text-lg">Toplam Tutar (KDV Hariç):</span>
                   <span className="text-2xl font-bold text-green-600">
-                    {formatAmount(sale.amount)}
+                    {formatAmount(toNumber(sale.unitPrice) * toNumber(sale.quantity))}
                   </span>
                 </div>
               </div>

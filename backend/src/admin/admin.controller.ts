@@ -137,6 +137,21 @@ export class AdminController {
     return this.adminService.sendPasswordReset(userId);
   }
 
+  @Patch('users/:userId/tenant')
+  @ApiOperation({ summary: 'Update user tenantId (admin only)' })
+  @ApiResponse({ status: 200, description: 'User tenant updated' })
+  async updateUserTenant(
+    @Param('userId') userId: string,
+    @Body() body: { tenantId: string },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    if (!body?.tenantId) {
+      throw new UnauthorizedException('tenantId is required');
+    }
+    return this.adminService.updateUserTenant(userId, body.tenantId);
+  }
+
   @Get('user/:userId/data')
   @ApiOperation({ summary: 'Get all data for a specific user' })
   @ApiResponse({ status: 200, description: 'User data' })

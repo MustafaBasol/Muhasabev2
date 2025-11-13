@@ -512,6 +512,27 @@ const AppContent: React.FC = () => {
   const [infoModal, setInfoModal] = useState<{ title: string; message: string; tone?: 'success' | 'error' | 'info'; confirmLabel?: string; onConfirm?: () => void; cancelLabel?: string; onCancel?: () => void } | null>(null);
   const [publicQuoteId, setPublicQuoteId] = useState<string | null>(null);
 
+  // Customers state değiştiğinde localStorage cache güncelle (PDF ve diğer offline ihtiyaçlar için)
+  useEffect(() => {
+    try {
+      const tid = (localStorage.getItem('tenantId') || '').toString();
+      const key = tid ? `customers_cache_${tid}` : 'customers_cache';
+      // Minimal alanlar + gerekli opsiyoneller
+      const serialized = JSON.stringify(customers.map(c => ({
+        id: c.id,
+        name: c.name,
+        email: c.email || '',
+        phone: c.phone || '',
+        address: c.address || '',
+        taxNumber: c.taxNumber || '',
+        company: c.company || ''
+      })));
+      localStorage.setItem(key, serialized);
+    } catch (e) {
+      console.warn('customers_cache yazılamadı', e);
+    }
+  }, [customers]);
+
   // Load data from backend on mount
   useEffect(() => {
     // Public link path detection (no auth required)
@@ -728,7 +749,7 @@ const AppContent: React.FC = () => {
     };
 
     loadData();
-  }, [isAuthenticated]); // isAuthenticated değiştiğinde tekrar yükle
+  }, [isAuthenticated, tenant?.id, authUser?.tenantId]); // isAuthenticated veya tenant ID değiştiğinde tekrar yükle (tenant ID login sonrası geç gelirse boş dashboard sorunu oluşuyordu)
 
   // Save Bank accounts cache to localStorage (tenant-scoped)
   useEffect(() => {
@@ -953,7 +974,8 @@ const AppContent: React.FC = () => {
       try {
         const { bankAccountsApi } = await import('./api/bank-accounts');
         const remote = await bankAccountsApi.list();
-        setBankAccounts(remote.map((b:any)=>({ ...b, id: String(b.id) })));
+        // Backend'den gelen 'name' alanını frontend'de kullanılan 'accountName' ile eşle
+        setBankAccounts(remote.map((b:any)=>({ ...b, id: String(b.id), accountName: b.name })));
         try { localStorage.setItem(bankKey, JSON.stringify(remote)); } catch {}
       } catch (e) {
         console.warn('Bank accounts fetch failed, cache ile devam', e);
@@ -1325,6 +1347,28 @@ const AppContent: React.FC = () => {
     
     return () => clearTimeout(timeout);
   }, [invoices, expenses, products, isAuthenticated, prefs]);
+
+  // Ürün kategorileri başka bir componentten güncellendiğinde (create/update/delete)
+  // ProductList global bir 'product-categories-updated' eventi dispatch eder; burada dinleyip yeniden yükleriz.
+  useEffect(() => {
+    const onCategoriesUpdated = () => {
+      (async () => {
+        try {
+          const { productCategoriesApi } = await import('./api/product-categories');
+          const data = await productCategoriesApi.getAll();
+          setProductCategoryObjects(data);
+          setProductCategories(prev => {
+            const combined = new Set<string>([...prev, ...data.map(c => c.name.trim()).filter(Boolean)]);
+            return Array.from(combined).sort((a,b)=>a.localeCompare(b,'tr-TR'));
+          });
+        } catch (e) {
+          console.warn('Kategori güncelleme yeniden yükleme hatası:', e);
+        }
+      })();
+    };
+    window.addEventListener('product-categories-updated', onCategoriesUpdated as EventListener);
+    return () => window.removeEventListener('product-categories-updated', onCategoriesUpdated as EventListener);
+  }, []);
 
   // Teklif (quote) hatırlatma bildirimi: süresi dolmak üzere / doldu
   useEffect(() => {
@@ -1761,6 +1805,7 @@ const AppContent: React.FC = () => {
         phone: customerData.phone?.trim() || undefined,
         address: customerData.address?.trim() || undefined,
         taxNumber: customerData.taxNumber?.trim() || undefined,
+        company: customerData.company?.trim() || undefined,
       };
       
       if (customerData.id) {
@@ -3388,21 +3433,25 @@ const AppContent: React.FC = () => {
       const { bankAccountsApi } = await import('./api/bank-accounts');
       if (bankData.id) {
         const updated = await bankAccountsApi.update(String(bankData.id), {
-          name: bankData.name,
+          // Backend 'name' alanını frontend'deki 'accountName' ile eşle
+          name: bankData.accountName,
           iban: bankData.iban,
           bankName: bankData.bankName,
           currency: bankData.currency,
         });
-        setBankAccounts(prev => prev.map(bank => String(bank.id) === String(updated.id) ? { ...bank, ...updated } : bank));
+        // Frontend listesi için 'accountName' alanını doldur
+        setBankAccounts(prev => prev.map(bank => String(bank.id) === String(updated.id)
+          ? { ...bank, ...updated, accountName: updated.name }
+          : bank));
         showToast('Banka hesabı güncellendi', 'success');
       } else {
         const created = await bankAccountsApi.create({
-          name: bankData.name,
+          name: bankData.accountName,
           iban: bankData.iban,
           bankName: bankData.bankName,
           currency: bankData.currency,
         });
-        setBankAccounts(prev => [...prev, { ...created, id: String(created.id) }]);
+        setBankAccounts(prev => [...prev, { ...created, id: String(created.id), accountName: created.name }]);
         showToast('Banka hesabı eklendi', 'success');
       }
     } catch (e: any) {
@@ -5106,6 +5155,29 @@ const AppContent: React.FC = () => {
     return <LoginPage />;
   }
 
+  // Join organization is publicly viewable (accept requires auth)
+  if (!isAuthenticated && typeof currentPage === 'string' && currentPage.startsWith('join-organization:')) {
+    const token = currentPage.replace('join-organization:', '');
+    return (
+      <JoinOrganizationPage
+        token={token}
+        onJoinSuccess={() => {
+          // Success after login+accept -> dashboard
+          setCurrentPage('dashboard');
+          window.location.hash = '';
+        }}
+        onNavigateHome={() => {
+          setCurrentPage('landing');
+          window.location.hash = '';
+        }}
+        onNavigateDashboard={() => {
+          setCurrentPage('dashboard');
+          window.location.hash = '';
+        }}
+      />
+    );
+  }
+
   // Forgot/Reset/Verify pages (public)
   if (!isAuthenticated && currentPage === 'forgot-password') {
     return <ForgotPasswordPage />;
@@ -5146,6 +5218,12 @@ const AppContent: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50">
         <LegalHeader />
+        {/* Cookie consent banner & modal must also be available on public legal pages.
+            Previously these were not rendered due to the early return, so the
+            "Çerez Tercihlerini Yönet" button on the Cookie Policy page could not
+            open the preferences modal when user is logged out. */}
+        <CookieConsentBanner />
+        <CookiePreferencesModal />
         {renderLegalContent()}
       </div>
     );

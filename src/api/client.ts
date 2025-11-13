@@ -30,7 +30,9 @@ apiClient.interceptors.request.use(
     }
     
     const token = localStorage.getItem('auth_token');
-    if (token && config.headers) {
+    const url = config.url || '';
+    const isPublic = typeof url === 'string' && (url.startsWith('/public/') || url.startsWith('/auth/public') || url.includes('/public/'));
+    if (token && config.headers && !isPublic) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 

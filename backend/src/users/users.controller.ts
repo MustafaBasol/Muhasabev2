@@ -10,6 +10,8 @@ import {
   HttpStatus,
   Res,
   Param,
+  BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -102,6 +104,33 @@ export class UsersController {
     return this.usersService.update(userId, {
       notificationPreferences: body,
     });
+  }
+
+  /**
+   * Mevcut kullanıcının şifresini değiştir
+   */
+  @Put('me/password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Request() req,
+    @Body()
+    body: { currentPassword?: string; newPassword?: string },
+  ) {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = body || {};
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException('currentPassword ve newPassword zorunlu');
+    }
+    if (newPassword.length < 8) {
+      throw new BadRequestException('Yeni şifre en az 8 karakter olmalı');
+    }
+    const user = await this.usersService.findOne(userId);
+    const valid = await this.usersService.validatePassword(user, currentPassword);
+    if (!valid) {
+      throw new UnauthorizedException('Mevcut şifre hatalı');
+    }
+    await this.usersService.update(userId, { password: newPassword } as any);
+    return { success: true };
   }
 
   /**

@@ -233,6 +233,15 @@ export class AdminService {
     return { success: true };
   }
 
+  async updateUserTenant(userId: string, tenantId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    await this.userRepository.update(userId, { tenantId: tenant.id } as any);
+    return { success: true, userId, tenantId: tenant.id };
+  }
+
   async updateTenantBasic(
     tenantId: string,
     payload: { name?: string; companyName?: string },

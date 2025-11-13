@@ -168,6 +168,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tenantId: data.user?.tenantId,
       tenant: data.tenant?.name
     });
+
+    // Davet akışı: login sonrası pending_invite_token varsa otomatik kabul et
+    try {
+      const pendingToken = sessionStorage.getItem('pending_invite_token') || localStorage.getItem('pending_invite_token');
+      if (pendingToken) {
+        // import dynamically to avoid circular deps
+        import('../api/organizations').then(async (m) => {
+          try {
+            await m.organizationsApi.acceptInvite({ token: pendingToken });
+            sessionStorage.removeItem('pending_invite_token');
+            localStorage.removeItem('pending_invite_token');
+            // Profil/tenant bilgilerini tazele
+            try { await refreshUser(); } catch {}
+            // İsteğe bağlı: dashboard'a yönlendir
+            try { window.dispatchEvent(new Event('org-invite-accepted')); } catch {}
+          } catch (e) {
+            // Hata olursa token'ı koru, kullanıcı tekrar deneyebilir
+            console.error('Invite accept after login failed:', e);
+          }
+        });
+      }
+    } catch (e) {
+      // ignore
+    }
   };
 
   const login = async (email: string, password: string) => {

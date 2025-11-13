@@ -338,20 +338,69 @@ MoneyFlow Accounting System
       );
     }
 
-    // Check plan limits before accepting the invite
+    // Check plan limits before accepting the invite (respect tenant subscription overrides)
     const currentMemberCount = await this.memberRepository.count({
       where: { organizationId: invite.organizationId },
     });
 
-    const canAdd = PlanLimitService.canAddMember(
-      currentMemberCount,
-      invite.organization.plan,
-    );
+    // Base plan from organization
+    let normalizedPlan: Plan = (invite.organization.plan === 'PRO' || invite.organization.plan === 'BUSINESS' || invite.organization.plan === 'STARTER')
+      ? invite.organization.plan
+      : Plan.STARTER;
+    let effectiveMax = PlanLimitService.getMaxMembers(normalizedPlan);
+
+    // Try to override using the tenant of an organization owner (represents subscription)
+    const ownerMember = await this.memberRepository.findOne({ where: { organizationId: invite.organizationId, role: Role.OWNER } });
+    if (ownerMember) {
+      const ownerUser = await this.userRepository.findOne({ where: { id: ownerMember.userId }, relations: ['tenant'] });
+      if (ownerUser?.tenant) {
+        const subPlan = ownerUser.tenant.subscriptionPlan;
+        const tenantMaxUsers = ownerUser.tenant.maxUsers;
+
+        const mapTenantPlanToOrgPlan = (p: SubscriptionPlan): Plan => {
+          if (p === SubscriptionPlan.PROFESSIONAL) return Plan.PRO;
+          if (p === SubscriptionPlan.ENTERPRISE) return Plan.BUSINESS;
+          return Plan.STARTER; // FREE/BASIC
+        };
+
+        const mapped = mapTenantPlanToOrgPlan(subPlan);
+        const rank = (p: Plan) => (p === Plan.STARTER ? 1 : p === Plan.PRO ? 2 : 3);
+        if (rank(mapped) > rank(normalizedPlan)) {
+          normalizedPlan = mapped;
+        }
+        if (tenantMaxUsers === -1) {
+          effectiveMax = -1;
+        } else if (tenantMaxUsers > effectiveMax) {
+          effectiveMax = tenantMaxUsers;
+        }
+      }
+    }
+
+    const canAdd = effectiveMax === -1 ? true : currentMemberCount < effectiveMax;
     if (!canAdd) {
-      const errorMessage = PlanLimitService.getMemberLimitError(
-        invite.organization.plan,
-      );
-      throw new BadRequestException(errorMessage);
+      if (effectiveMax === -1) {
+        throw new BadRequestException('No member limit for Business plan');
+      }
+      throw new BadRequestException(`${normalizedPlan} plan is limited to ${effectiveMax} member${effectiveMax !== 1 ? 's' : ''}. Please upgrade your plan to add more members.`);
+    }
+
+    // === Tenant eşitleme (organizasyon sahibi tenant'ı) ===
+    // Davet edilen kullanıcı farklı bir kişisel tenant ile gelmiş olabilir.
+    // İş gereksinimine göre: organizasyona katıldığında aynı muhasebe verilerini görmesi için
+    // sahibin (OWNER) tenant'ına taşınır.
+    try {
+      const ownerMember = await this.memberRepository.findOne({ where: { organizationId: invite.organizationId, role: Role.OWNER } });
+      if (ownerMember) {
+        const ownerUser = await this.userRepository.findOne({ where: { id: ownerMember.userId } });
+        if (ownerUser && ownerUser.tenantId && user.tenantId !== ownerUser.tenantId) {
+          // Kullanıcının tenantId'sini OWNER'ın tenantId'sine güncelle
+          await this.userRepository.update(user.id, { tenantId: ownerUser.tenantId });
+          // Güncel user nesnesini yeniden çek (ilişki verisi gerekirse)
+          user = await this.userRepository.findOne({ where: { id: user.id } });
+        }
+      }
+    } catch (e) {
+      // Sessiz: tenant eşitleme başarısız olsa bile davet kabul akışı devam etsin
     }
 
     // Create organization member
@@ -368,6 +417,20 @@ MoneyFlow Accounting System
     await this.inviteRepository.save(invite);
 
     return savedMember;
+  }
+
+  async validateInvite(token: string): Promise<Invite> {
+    // Return invite with organization relation if exists. Do not throw for expiry; frontend handles it.
+    const invite = await this.inviteRepository.findOne({
+      where: { token },
+      relations: ['organization'],
+    });
+
+    if (!invite) {
+      throw new NotFoundException('Invalid invite token');
+    }
+
+    return invite;
   }
 
   async getMembers(
@@ -387,6 +450,18 @@ MoneyFlow Accounting System
       where: { organizationId },
       relations: ['user'],
     });
+  }
+
+  /**
+   * Organizasyon sahibinin (OWNER) tenantId'sini döner.
+   * Üyelerin login sırasında tenant senkronu için kullanılır.
+   */
+  async getOwnerTenantId(organizationId: string): Promise<string | null> {
+    const ownerMember = await this.memberRepository.findOne({
+      where: { organizationId, role: Role.OWNER },
+      relations: ['user'],
+    });
+    return ownerMember?.user?.tenantId || null;
   }
 
   async updateMemberRole(

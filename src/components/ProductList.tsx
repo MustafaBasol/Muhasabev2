@@ -340,6 +340,7 @@ export default function ProductList({
         // Kategori listesini yenile
         const updatedCategories = await (await loadProductCategoriesApi()).getAll();
         setCategoryObjects(updatedCategories);
+        try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
         
         // Modal'ı kapat
         setIsCategoryModalOpen(false);
@@ -386,6 +387,7 @@ export default function ProductList({
       // Kategori listesini yenile
       const updatedCategories = await (await loadProductCategoriesApi()).getAll();
       setCategoryObjects(updatedCategories);
+      try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
       
       // İsim değiştiyse parent component'i bilgilendir
       if (updated !== currentName) {
@@ -443,6 +445,7 @@ export default function ProductList({
             await api.delete(categoryObj.id);
             const updatedCategories = await (await loadProductCategoriesApi()).getAll();
             setCategoryObjects(updatedCategories);
+            try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
           }
           onDeleteCategory(category);
         } catch (error: any) {

@@ -14,6 +14,88 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { organizationsApi, Invite } from '../api/organizations';
 
+// Ayrı alt bileşen: Şifre belirleme formu (hooks burada güvenli)
+const InvitePasswordForm: React.FC<{
+  invite: Invite;
+  token: string;
+  onJoinSuccess?: () => void;
+}> = ({ invite, token, onJoinSuccess }) => {
+  const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSetPassword = async () => {
+    if (!password || password.length < 6) {
+      setError('Şifre en az 6 karakter olmalıdır');
+      return;
+    }
+    try {
+      setSubmitting(true);
+      await organizationsApi.completeInviteWithPassword(token, password);
+      try { sessionStorage.removeItem('pending_invite_token'); } catch {}
+      try { localStorage.removeItem('pending_invite_token'); } catch {}
+      // Otomatik giriş yap
+      try {
+        const { authService } = await import('../api/auth');
+        await authService.login({ email: invite.email, password });
+        try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: 'Davet kabul edildi. Hoş geldiniz!', tone: 'success' } })); } catch {}
+        onJoinSuccess?.();
+      } catch (e) {
+        // Login başarısız olursa login sayfasına yönlendir
+        try { sessionStorage.setItem('prefill_email', invite.email); } catch {}
+        try { localStorage.setItem('prefill_email', invite.email); } catch {}
+        window.location.hash = 'login';
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'İşlem başarısız';
+      setError(msg);
+      try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: msg, tone: 'error' } })); } catch {}
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+        <Users className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Şifre Belirleyin</h2>
+        <p className="text-gray-600 mb-6">{invite.email} için hesabınızı oluşturmak üzere bir şifre belirleyin. E-posta doğrulaması gerekmez.</p>
+
+        <div className="text-left space-y-2 mb-4">
+          <label className="block text-sm font-medium text-gray-700">Şifre</label>
+          <div className="relative">
+            <input
+              type={showPw ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="En az 6 karakter"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw(!showPw)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-gray-500"
+            >
+              {showPw ? 'Gizle' : 'Göster'}
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={handleSetPassword}
+          disabled={submitting}
+          className="w-full px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+        >
+          {submitting ? 'Kaydediliyor...' : 'Hesap Oluştur ve Katıl'}
+        </button>
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      </div>
+    </div>
+  );
+};
+
 interface JoinOrganizationPageProps {
   token: string;
   onJoinSuccess?: () => void;
@@ -28,7 +110,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
   onNavigateDashboard,
 }) => {
   const { t } = useTranslation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [status, setStatus] = useState<'validating' | 'valid' | 'invalid' | 'expired' | 'accepting' | 'success' | 'error' | 'already_member'>('validating');
@@ -255,26 +337,14 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
 
   // Valid invite - show accept/decline options
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <Users className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Giriş Yapın
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Daveti kabul etmek için önce giriş yapmanız gerekiyor.
-          </p>
-          
-          <button
-            onClick={onNavigateHome}
-            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Giriş Yap
-          </button>
+    if (!invite) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div>Geçersiz davet veya yükleniyor...</div>
         </div>
-      </div>
-    );
+      );
+    }
+    return <InvitePasswordForm invite={invite} token={token} onJoinSuccess={onJoinSuccess} />;
   }
 
   return (
@@ -332,6 +402,30 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
                   <strong>Uyarı:</strong> Bu davet {invite.email} adresine gönderilmiş, 
                   ancak siz {user.email} ile giriş yapmışsınız.
                 </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try { sessionStorage.setItem('prefill_email', invite.email); } catch {}
+                      await logout();
+                      try { window.location.hash = 'login'; } catch { window.location.href = '#login'; }
+                    }}
+                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    {invite.email} ile giriş yap
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try { sessionStorage.setItem('prefill_email', invite.email); } catch {}
+                      await logout();
+                      try { window.location.hash = 'register'; } catch { window.location.href = '#register'; }
+                    }}
+                    className="px-3 py-2 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+                  >
+                    {invite.email} ile kayıt ol
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -340,7 +434,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
         <div className="space-y-3">
           <button
             onClick={handleAcceptInvite}
-            disabled={status === 'accepting'}
+            disabled={status === 'accepting' || (user && invite && user.email !== invite.email)}
             className="flex items-center justify-center space-x-2 w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {status === 'accepting' ? (

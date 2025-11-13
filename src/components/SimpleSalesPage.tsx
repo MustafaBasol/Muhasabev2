@@ -125,6 +125,15 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     
     // Create invoice if requested
     if (createInvoice && onCreateInvoice) {
+      // Varsayılan vergi oranı (ürün üzerinde yoksa)
+      const defaultTaxRate = 18;
+      const saleTaxRate = (pendingSale as any)?.taxRate ?? defaultTaxRate;
+      const qty = pendingSale.quantity || 1;
+      const grossTotal = pendingSale.total; // KDV dahil tutar
+      const grossUnit = pendingSale.unitPrice || (grossTotal / qty);
+      // Net (KDV hariç) birim fiyat
+      const netUnit = grossUnit / (1 + saleTaxRate / 100);
+      const netLineTotal = netUnit * qty;
       const invoiceData = {
         id: `inv-${Date.now()}`,
         invoiceNumber: `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
@@ -138,13 +147,13 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         items: [{
           id: '1',
           description: pendingSale.productName,
-          quantity: pendingSale.quantity || 1,
-          unitPrice: pendingSale.unitPrice || pendingSale.total,
-          total: pendingSale.total
+          quantity: qty,
+          unitPrice: netUnit,      // KDV hariç birim fiyat
+          total: netLineTotal       // KDV hariç toplam
         }],
-        subtotal: pendingSale.total / 1.18,
-        taxAmount: pendingSale.total - (pendingSale.total / 1.18),
-        total: pendingSale.total,
+        subtotal: netLineTotal,
+        taxAmount: grossTotal - netLineTotal,
+        total: grossTotal,
         notes: `Bu fatura ${pendingSale.saleNumber || `SAL-${pendingSale.id}`} numaralı satıştan otomatik oluşturulmuştur.`
       };
       
@@ -218,8 +227,22 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     return new Date(dateString).toLocaleDateString('tr-TR');
   };
 
-  const totalSales = sales.reduce((sum, sale) => sum + toNumber(sale.amount ?? sale.total ?? (toNumber(sale.quantity) * toNumber(sale.unitPrice))), 0);
+  // Net toplam (KDV Hariç): her satış için kalemler varsa unitPrice*quantity toplamı; yoksa tek ürün çarpımı
+  const totalSales = sales.reduce((sum, sale) => {
+    if (Array.isArray(sale.items) && sale.items.length > 0) {
+      const net = sale.items.reduce((s, it) => s + toNumber(it.unitPrice) * toNumber(it.quantity), 0);
+      return sum + net;
+    }
+    return sum + (toNumber(sale.unitPrice) * toNumber(sale.quantity));
+  }, 0);
   const completedSales = sales.filter(sale => sale.status === 'completed').length;
+
+  // Dil bazlı net satış etiketi suffix'i
+  const lang = (i18n.language || '').toLowerCase();
+  const netSuffix = lang.startsWith('tr') ? ' (KDV Hariç)' :
+    lang.startsWith('en') ? ' (Net of VAT)' :
+    lang.startsWith('fr') ? ' (HT)' :
+    lang.startsWith('de') ? ' (netto)' : '';
 
   const filteredSales = sales
     .filter(sale => {
@@ -494,10 +517,14 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         });
       }
 
+      const taxRate = matchedProduct?.taxRate ?? 18;
+      // totalAmount KDV DAHİL; net birim fiyatı hesapla
+      const netUnitPrice = quantity > 0 ? (unitPriceWithTax / (1 + taxRate / 100)) : unitPriceWithTax;
+      const netLineTotal = netUnitPrice * quantity;
       const invoiceData = {
-        saleId: sale.id, // Satış ID'sini ekle
-        customerId: String(customerToUse.id), // Backend için customerId gerekli
-        type: invoiceType, // Fatura türü (product/service)
+        saleId: sale.id,
+        customerId: String(customerToUse.id),
+        type: invoiceType,
         issueDate: new Date().toISOString().split('T')[0],
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'sent',
@@ -507,12 +534,14 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             productName: matchedProduct?.name || sale.productName,
             description: matchedProduct?.name || sale.productName,
             quantity,
-            unitPrice: unitPriceWithTax, // KDV DAHİL fiyat (InvoiceModal ile tutarlı)
-            total: totalAmount, // KDV DAHİL toplam (InvoiceModal ile tutarlı)
-            taxRate: matchedProduct?.taxRate ?? 18, // Ürünün KDV oranı veya varsayılan %18
+            unitPrice: netUnitPrice, // KDV hariç birim fiyat
+            total: netLineTotal,     // KDV hariç toplam
+            taxRate,
           },
         ],
-        // subtotal ve taxAmount'u backend hesaplayacak (App.tsx'deki mantık)
+        subtotal: netLineTotal,
+        taxAmount: totalAmount - netLineTotal,
+        total: totalAmount,
         notes: 'Bu fatura ' + (sale.saleNumber || ('SAL-' + sale.id)) + ' numaralı satıştan oluşturulmuştur.',
       };
 
@@ -600,7 +629,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             <div className="flex items-center">
               <DollarSign className="w-8 h-8 text-green-600 mr-3" />
               <div>
-                <p className="text-sm text-green-600">{t('sales.totalSales')}</p>
+                <p className="text-sm text-green-600">{t('sales.totalSales') + netSuffix}</p>
                 <p className="text-xl font-bold text-green-700">{formatAmount(totalSales)}</p>
               </div>
             </div>
@@ -811,7 +840,11 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                             className="text-sm font-semibold text-green-600 cursor-pointer hover:bg-green-50 rounded p-1 transition-colors"
                             title="Tutarı düzenlemek için tıklayın"
                           >
-                            {formatAmount(sale.amount ?? sale.total ?? (toNumber(sale.quantity) * toNumber(sale.unitPrice)))}
+                            {formatAmount(
+                              sale.items && sale.items.length > 0
+                                ? sale.items.reduce((sum, it) => sum + toNumber(it.unitPrice) * toNumber(it.quantity), 0)
+                                : toNumber(sale.unitPrice) * toNumber(sale.quantity)
+                            )}
                           </span>
                         )}
                       </td>

@@ -93,6 +93,27 @@ const formatDate = (date: string | number | Date, locale?: string): string => {
   try { return new Date(date).toLocaleDateString(locale || undefined); } catch { return String(date); }
 };
 
+// Uzun adresleri okunabilir satırlara böler (otomatik satır sonu ekleme)
+const formatMultilineAddress = (addr?: string): string => {
+  if (!addr) return '';
+  const original = String(addr).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  if (!original) return '';
+  // Eğer zaten kullanıcı manuel satır sonu koymuşsa koru
+  if (original.includes('\n')) return original;
+  const maxLen = 55; // bir satır için hedef maksimum
+  let remaining = original;
+  const lines: string[] = [];
+  while (remaining.length > maxLen) {
+    // maxLen sınırından önceki son boşlukta kır, yoksa tam maxLen'de kır
+    let breakPos = remaining.lastIndexOf(' ', maxLen);
+    if (breakPos < Math.floor(maxLen * 0.4)) breakPos = maxLen; // çok erken boşluk yoksa düz kır
+    lines.push(remaining.slice(0, breakPos).trim());
+    remaining = remaining.slice(breakPos).trim();
+  }
+  if (remaining) lines.push(remaining.trim());
+  return lines.join('\n');
+};
+
 // PDF açılış seçenekleri
 export interface OpenOpts {
   filename?: string;
@@ -422,7 +443,9 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
   // Teklif PDF'indeki müşteri düzeni ile aynı görünüm ve zenginleştirme
   let invCustomerEmail = invoice.customerEmail || '';
   let invCustomerPhone = '' as string;
-  let invCustomerAddress = invoice.customerAddress || '';
+  let invCustomerAddress = invoice.customerAddress ? formatMultilineAddress(invoice.customerAddress) : '';
+  let invCustomerCompany = '' as string;
+  let invCustomerTaxNumber = '' as string;
   try {
     const tid = (localStorage.getItem('tenantId') || '') as string;
     const key = tid ? `customers_cache_${tid}` : 'customers_cache';
@@ -436,17 +459,33 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
     if (found) {
       if (!invCustomerEmail) invCustomerEmail = found.email || '';
       invCustomerPhone = found.phone || '';
-      if (!invCustomerAddress) invCustomerAddress = found.address || '';
+      if (!invCustomerAddress) invCustomerAddress = formatMultilineAddress(found.address || '');
+      invCustomerCompany = found.company || '';
+      invCustomerTaxNumber = found.taxNumber || '';
     }
   } catch {}
+
+  // Çok dilli alan etiketleri
+  const invoiceFieldLabels = {
+    tr: { company: 'Şirket', email: 'E-posta', phone: 'Tel', address: 'Adres', tax: 'Vergi No' },
+    en: { company: 'Company', email: 'Email', phone: 'Phone', address: 'Address', tax: 'Tax Number' },
+    fr: { company: 'Société', email: 'Email', phone: 'Téléphone', address: 'Adresse', tax: 'Numéro TVA' },
+    de: { company: 'Firma', email: 'Email', phone: 'Telefon', address: 'Adresse', tax: 'Steuernummer' },
+  }[activeLang];
+
+  const invoiceCustomerFields: { key: keyof typeof invoiceFieldLabels; value: string; preLine?: boolean }[] = [
+    invCustomerCompany ? { key: 'company', value: invCustomerCompany } : null,
+    invCustomerEmail ? { key: 'email', value: invCustomerEmail } : null,
+    invCustomerPhone ? { key: 'phone', value: invCustomerPhone } : null,
+    invCustomerAddress ? { key: 'address', value: invCustomerAddress, preLine: true } : null,
+    invCustomerTaxNumber ? { key: 'tax', value: invCustomerTaxNumber } : null,
+  ].filter(Boolean) as any;
 
   const customerBlock = `
     <div style="text-align:right;">
       <h3 style="color:#1F2937;margin:0 0 6px 0;">${tf('pdf.invoice.customerInfo')}</h3>
-      <div style="font-weight:700;margin-bottom:2px;">${invoice.customerName ?? ''}</div>
-      ${invCustomerEmail ? `<div style="font-size:12px;margin-top:2px;">${invCustomerEmail}</div>` : ''}
-      ${invCustomerPhone ? `<div style="font-size:12px;margin-top:2px;">${invCustomerPhone}</div>` : ''}
-      ${invCustomerAddress ? `<div style="font-size:12px;margin-top:2px;white-space:pre-line;">${invCustomerAddress}</div>` : ''}
+      <div style="font-weight:700;margin-bottom:4px;">${invoice.customerName ?? ''}</div>
+      ${invoiceCustomerFields.length ? `<div style=\"font-size:11px;color:#374151;\">${invoiceCustomerFields.map(f => `<div${f.preLine ? ' style=\\"white-space:pre-line;\\"' : ''}><strong>${invoiceFieldLabels[f.key]}:</strong> ${f.value}</div>`).join('')}</div>` : ''}
     </div>
   `;
 
@@ -603,6 +642,14 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
   const payName = sale.paymentMethod ? ({ cash: tf('pdf.sale.paymentMethods.cash'), card: tf('pdf.sale.paymentMethods.card'), transfer: tf('pdf.sale.paymentMethods.transfer'), check: tf('pdf.sale.paymentMethods.check') } as Record<NonNullable<Sale['paymentMethod']>, string>)[sale.paymentMethod] : undefined;
   const activeCurrency: Currency = currency ?? getSelectedCurrency();
   const fmt = makeCurrencyFormatter(activeCurrency);
+
+  // Net tutar KDV'siz: Çoklu ürün varsa her item için unitPrice*quantity; yoksa tek ürün unitPrice*quantity
+  const hasItems = Array.isArray(sale.items) && sale.items.length > 0;
+  const computedNet = hasItems
+    ? sale.items.reduce((sum, it) => sum + (toNum(it.unitPrice) * toNum(it.quantity)), 0)
+    : (toNum(sale.unitPrice) * toNum(sale.quantity));
+  // Satır toplamı fallback'i: item.total yok veya 0 ise unitPrice*quantity
+  const renderRowTotal = (it: any) => fmt((toNum(it.total) > 0) ? toNum(it.total) : (toNum(it.unitPrice) * toNum(it.quantity)));
   return `
   <div style="max-width: 170mm; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #10B981; padding-bottom: 20px;">
@@ -634,17 +681,21 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
             <span style="color: #6B7280;">${tf('pdf.sale.quantity')}:</span>
             <span style="font-weight: bold;">${sale.quantity}</span>
           </div>
-          <div style="display: flex; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
             <span style="color: #6B7280;">${tf('pdf.sale.unitPrice')}:</span>
-             <span style="font-weight: bold;">${fmt(sale.unitPrice)}</span>
+            <span style="font-weight: bold;">${fmt(sale.unitPrice)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: #6B7280;">${activeLang==='tr'?'Toplam (KDV Hariç)':'Net Total'}:</span>
+            <span style="font-weight: bold;">${fmt(computedNet)}</span>
           </div>
         ` : ''}
       </div>
     </div>
     <div style="background-color: #ECFDF5; border: 2px solid #BBF7D0; border-radius: 12px; padding: 25px; margin-bottom: 30px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="color: #065F46; font-size: 20px; font-weight: bold;">${tf('pdf.sale.totalAmount')}:</span>
-          <span style="color: #10B981; font-size: 32px; font-weight: bold;">${fmt(sale.amount)}</span>
+        <span style="color: #065F46; font-size: 20px; font-weight: bold;">${activeLang==='tr'?'Toplam (KDV Hariç)':'Net Total'}:</span>
+          <span style="color: #10B981; font-size: 32px; font-weight: bold;">${fmt(computedNet)}</span>
       </div>
     </div>
     <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
@@ -750,10 +801,12 @@ const buildQuoteHtml = (
     </div>
   `;
 
-  // Müşteri bilgilerini customers_cache üzerinden zenginleştir
+  // Müşteri bilgilerini customers_cache üzerinden zenginleştir (tüm alanlar)
   let customerEmail = '';
   let customerPhone = '';
   let customerAddress = '';
+  let customerTaxNumber = '';
+  let customerCompany = '';
   try {
     const tid = (localStorage.getItem('tenantId') || '') as string;
     const key = tid ? `customers_cache_${tid}` : 'customers_cache';
@@ -763,17 +816,34 @@ const buildQuoteHtml = (
     if (found) {
       customerEmail = found.email || '';
       customerPhone = found.phone || '';
-      customerAddress = found.address || '';
+      customerAddress = formatMultilineAddress(found.address || '');
+      customerTaxNumber = found.taxNumber || '';
+      customerCompany = found.company || '';
     }
   } catch {}
+
+  // Dinamik etiketler (diller) – müşteri alanları
+  const fieldLabels = {
+    tr: { company: 'Şirket', email: 'E-posta', phone: 'Tel', address: 'Adres', tax: 'Vergi No' },
+    en: { company: 'Company', email: 'Email', phone: 'Phone', address: 'Address', tax: 'Tax Number' },
+    fr: { company: 'Société', email: 'Email', phone: 'Téléphone', address: 'Adresse', tax: 'Numéro TVA' },
+    de: { company: 'Firma', email: 'Email', phone: 'Telefon', address: 'Adresse', tax: 'Steuernummer' },
+  }[activeLang];
+
+  // Genel alan listesi (sıralı gösterim)
+  const customerFields: { key: keyof typeof fieldLabels; value: string; preLine?: boolean }[] = [
+    customerCompany ? { key: 'company', value: customerCompany } : null,
+    customerEmail ? { key: 'email', value: customerEmail } : null,
+    customerPhone ? { key: 'phone', value: customerPhone } : null,
+    customerAddress ? { key: 'address', value: customerAddress, preLine: true } : null,
+    customerTaxNumber ? { key: 'tax', value: customerTaxNumber } : null,
+  ].filter(Boolean) as any;
 
   const customerBlock = `
     <div style="text-align:right;">
       <h3 style="color:#1F2937;margin:0 0 6px 0;">${L.customerInfo}</h3>
-      <div style="font-weight:700;margin-bottom:2px;">${quote.customerName}</div>
-      ${customerEmail ? `<div style="font-size:12px;margin-top:2px;">${customerEmail}</div>` : ''}
-  ${customerPhone ? `<div style="font-size:12px;margin-top:2px;">${customerPhone}</div>` : ''}
-      ${customerAddress ? `<div style="font-size:12px;margin-top:2px;white-space:pre-line;">${customerAddress}</div>` : ''}
+      <div style="font-weight:700;margin-bottom:4px;">${quote.customerName}</div>
+      ${customerFields.length ? `<div style="font-size:11px;color:#374151;">${customerFields.map(f => `<div${f.preLine ? ' style=\"white-space:pre-line;\"' : ''}><strong>${fieldLabels[f.key]}:</strong> ${f.value}</div>`).join('')}</div>` : ''}
     </div>
   `;
 

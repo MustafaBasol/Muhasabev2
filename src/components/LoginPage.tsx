@@ -8,9 +8,13 @@ import { authService } from '../api/auth';
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+  const [formData, setFormData] = useState(() => {
+    let prefill = '';
+    try {
+      prefill = sessionStorage.getItem('prefill_email') || localStorage.getItem('prefill_email') || '';
+      if (prefill) { try { sessionStorage.removeItem('prefill_email'); } catch {} try { localStorage.removeItem('prefill_email'); } catch {} }
+    } catch {}
+    return { email: prefill, password: '' };
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
