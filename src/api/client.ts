@@ -63,12 +63,20 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    logger.error('❌ API Error:', {
-      message: error.message,
-      code: error.code,
-      url: error.config?.url,
-      status: error.response?.status,
-    });
+    // Gürültüyü azalt: Admin fatura 404'lerini loglama (UI fallback ile yönetiliyor)
+    const url = error.config?.url || '';
+    const status = error.response?.status;
+    const suppressLog =
+      status === 404 && typeof url === 'string' && /^\/admin\/tenant\/.+\/invoices/.test(url);
+
+    if (!suppressLog) {
+      logger.error('❌ API Error:', {
+        message: error.message,
+        code: error.code,
+        url: error.config?.url,
+        status: error.response?.status,
+      });
+    }
 
     // Handle network errors - NO RETRY for now to stop spam
     if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
@@ -84,7 +92,7 @@ apiClient.interceptors.response.use(
 
     // Plan limiti hatalarını kullanıcıya hızlıca göster (400 + belirli mesaj)
     try {
-      const status = error.response?.status;
+  const status = error.response?.status;
       const serverMsg = (error.response?.data as any)?.message;
       if (typeof window !== 'undefined' && status === 400 && typeof serverMsg === 'string') {
         if (serverMsg.includes('Plan limitine ulaşıldı')) {
@@ -95,18 +103,33 @@ apiClient.interceptors.response.use(
       }
     } catch {}
 
-    // Handle authentication errors - sadece zaten login olmuş kullanıcılar için
-    if (error.response?.status === 401 && localStorage.getItem('auth_token')) {
-      // Login/register endpoint'lerinde redirect yapma
-      if (!error.config?.url?.includes('/auth/')) {
-        if (import.meta.env.DEV) {
-          logger.info('🔐 Authentication error, clearing token...');
+    // Handle authentication errors (user JWT)
+    if (error.response?.status === 401) {
+      const url = error.config?.url || '';
+      // Admin endpoints: admin-token iptal
+      if (url.startsWith('/admin')) {
+        try {
+          localStorage.removeItem('admin-token');
+          // Admin sayfası dinleyebilsin diye özel event yayınla
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('adminAuthExpired'));
+          }
+        } catch {}
+      }
+
+      // User endpoints: sadece zaten login olmuş kullanıcılar için
+      if (localStorage.getItem('auth_token')) {
+        // Login/register endpoint'lerinde redirect yapma
+        if (!url.includes('/auth/')) {
+          if (import.meta.env.DEV) {
+            logger.info('🔐 Authentication error, clearing token...');
+          }
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('tenant');
+          if (typeof window !== 'undefined') window.location.href = '/';
+          return Promise.reject(error);
         }
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('tenant');
-        window.location.href = '/';
-        return Promise.reject(error);
       }
     }
 

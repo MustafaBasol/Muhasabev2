@@ -49,13 +49,25 @@ Tam dokümantasyon: Swagger — `http://localhost:3002/api`
 - Birim test: `cd backend && npm test`
 - Not: E2E testleri plan limitlerini (müşteri/tedarikçi/fatura/gider ve banka hesabı) doğrular.
 
-## 🧩 Plan Limitleri (Free/Pro/Business)
+## 🧩 Planlar ve Limitler (Starter / Pro / Business)
 
-- Free: sınırlı (örn. banka hesabı: 1, aylık fatura/gider limitleri)
-- Pro/Business: genişletilmiş/sınırsız
-- Limit aşımlarında API 400 döner ve frontend’de toast ile kullanıcı bilgilendirilir.
+- Starter (Free):
+	- Kullanıcı: 1
+	- Müşteri: 1, Tedarikçi: 1
+	- Banka Hesabı: 1
+	- Aylık Fatura: 5, Aylık Gider: 5
+- Pro (Professional):
+	- Kullanıcı: 3 dahildir (ek kullanıcılar Stripe add-on ile artar)
+	- Müşteri/Tedarikçi/Banka Hesabı: Sınırsız
+	- Aylık Fatura/Gider: Sınırsız
+- Business (Enterprise):
+	- Tüm limitler: Sınırsız (kullanıcı dahil)
 
-Ayrıntılar: `backend/src/common/tenant-plan-limits.service.ts`
+Notlar:
+- Stripe aboneliği varsa, efektif kullanıcı limiti Stripe’taki koltuk (seat) toplamına göre belirlenir.
+- Limit aşımlarında API, uygun hata mesajı ile 400 döner; frontend kullanıcıyı bilgilendirir.
+
+Teknik kaynak: `backend/src/common/tenant-plan-limits.service.ts`
 
 ## 🛠️ Geliştirme Komutları
 

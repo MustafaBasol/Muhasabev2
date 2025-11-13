@@ -12,7 +12,15 @@ NC='\033[0m' # No Color
 
 # Mevcut process'leri temizle
 echo -e "${YELLOW}🧹 Mevcut process'ler temizleniyor...${NC}"
-pkill -f "nest start|vite" 2>/dev/null || true
+pkill -f "nest start|vite|dist/main|dist/src/main.js" 2>/dev/null || true
+# Port 3001 dinleyen kalmış süreç varsa öldür
+if command -v lsof >/dev/null 2>&1; then
+    PIDS=$(lsof -t -i:3001 2>/dev/null || true)
+    if [ -n "$PIDS" ]; then
+        echo -e "${YELLOW}🔪 Port 3001 kullanan süreçler sonlandırılıyor: $PIDS${NC}"
+        kill -9 $PIDS 2>/dev/null || true
+    fi
+fi
 sleep 2
 
 # Docker kontrol
@@ -37,6 +45,13 @@ fi
 # Backend loglarını dosyaya yaz
 export NODE_ENV=development
 export PORT=3001
+# Development'ta Postgres kullan (docker-compose ile gelen servis)
+export DATABASE_HOST=localhost
+export DATABASE_PORT=5433
+export DATABASE_USER=moneyflow
+export DATABASE_PASSWORD=moneyflow123
+export DATABASE_NAME=moneyflow_dev
+echo -e "${BLUE}🗄️  DB: $DATABASE_USER@$DATABASE_HOST:$DATABASE_PORT/$DATABASE_NAME${NC}"
 npm run start:dev > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 

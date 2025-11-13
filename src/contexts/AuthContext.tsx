@@ -254,6 +254,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('invoices_cache');
     localStorage.removeItem('expenses_cache');
     localStorage.removeItem('bankAccounts');
+    try {
+      const prefixes = [
+        'customers_cache_', 'suppliers_cache_', 'products_cache_', 'invoices_cache_', 'expenses_cache_',
+        'sales_', 'sales_cache_', 'sales_backup_', 'sales_last_seen_ts_', 'bankAccounts_', 'quotes_cache_'
+      ];
+      const keys = Object.keys(localStorage);
+      for (const k of keys) {
+        if (prefixes.some(p => k.startsWith(p))) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch {}
   };
 
   const logout = async () => {

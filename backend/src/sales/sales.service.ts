@@ -1,15 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
 import { Sale, SaleStatus } from './entities/sale.entity';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { UpdateSaleDto } from './dto/update-sale.dto';
+import { Customer } from '../customers/entities/customer.entity';
 
 @Injectable()
 export class SalesService {
   constructor(
     @InjectRepository(Sale)
     private readonly salesRepository: Repository<Sale>,
+    @InjectRepository(Customer)
+    private readonly customerRepository: Repository<Customer>,
   ) {}
 
   private async generateSaleNumber(tenantId: string, dateStr: string) {
@@ -69,10 +72,43 @@ export class SalesService {
     const saleNumber =
       dto.saleNumber || (await this.generateSaleNumber(tenantId, dto.saleDate));
 
+    let customerId: string | null = dto.customerId ?? null;
+    // Otomatik müşteri oluşturma: ID yok ama isim varsa
+    if (!customerId && dto.customerName) {
+      const nameLc = dto.customerName.trim().toLowerCase();
+      const emailLc = (dto.customerEmail || '').trim().toLowerCase();
+      // Aynı tenant içinde isim veya email eşleşmesi
+      const existingCustomer = await this.customerRepository.findOne({
+        where: emailLc
+          ? { tenantId, email: dto.customerEmail }
+          : { tenantId, name: dto.customerName },
+      });
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+      } else {
+        const created = this.customerRepository.create({
+          tenantId,
+          name: dto.customerName,
+          email: dto.customerEmail || null,
+          isActive: true,
+        } as any);
+        try {
+          const savedCustomer = await this.customerRepository.save(created as any);
+          customerId = Array.isArray(savedCustomer) ? savedCustomer[0]?.id : savedCustomer.id;
+        } catch (e: any) {
+          // race veya unique çakışması durumunda yumuşak fallback: tekrar ara
+          const fallback = await this.customerRepository.findOne({
+            where: { tenantId, name: dto.customerName },
+          });
+            if (fallback) customerId = fallback.id;
+        }
+      }
+    }
+
     const sale = this.salesRepository.create({
       tenantId,
       saleNumber,
-      customerId: dto.customerId ?? null,
+      customerId,
       saleDate: new Date(dto.saleDate),
       items,
       subtotal,
@@ -85,7 +121,17 @@ export class SalesService {
       status: SaleStatus.CREATED,
     });
 
-    return this.salesRepository.save(sale);
+    try {
+      return await this.salesRepository.save(sale);
+    } catch (err: any) {
+      const isUniqueViolation =
+        err?.code === '23505' ||
+        (typeof err?.message === 'string' && err.message.includes('UNIQUE constraint failed'));
+      if (isUniqueViolation) {
+        throw new BadRequestException('Bu ay için oluşturulan satış numarası zaten kullanılıyor. Lütfen tekrar deneyin.');
+      }
+      throw err;
+    }
   }
 
   async findAll(tenantId: string): Promise<Sale[]> {
@@ -144,5 +190,12 @@ export class SalesService {
   async remove(tenantId: string, id: string): Promise<void> {
     const sale = await this.findOne(tenantId, id);
     await this.salesRepository.remove(sale);
+  }
+
+  async purgeTenant(tenantId: string): Promise<{ deleted: number }> {
+    const existing = await this.salesRepository.find({ where: { tenantId } });
+    if (existing.length === 0) return { deleted: 0 };
+    await this.salesRepository.remove(existing);
+    return { deleted: existing.length };
   }
 }

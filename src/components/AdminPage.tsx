@@ -8,6 +8,7 @@ import PlanLimitsPage from './admin/PlanLimitsPage';
 import TenantConsolePage from './admin/TenantConsolePage';
 import { useAuth } from '../contexts/AuthContext';
 import StatusPage from './status/StatusPage';
+import { BillingInvoiceDTO, listInvoices as userListInvoices } from '../api/billing';
 
 interface User {
   id: string;
@@ -133,6 +134,33 @@ const AdminPage: React.FC = () => {
   const [editingStatusIds, setEditingStatusIds] = useState<Set<string>>(new Set());
   const [editingBillingIds, setEditingBillingIds] = useState<Set<string>>(new Set());
 
+  // Tenant detayları: limitler + fatura geçmişi
+  const [openTenantDetails, setOpenTenantDetails] = useState<Set<string>>(new Set());
+  const [tenantOverviewMap, setTenantOverviewMap] = useState<Record<string, any>>({});
+  const [tenantInvoicesMap, setTenantInvoicesMap] = useState<Record<string, BillingInvoiceDTO[]>>({});
+  // Her tenant için fatura tablosunda "tümünü göster" durumu
+  const [showAllInvoicesMap, setShowAllInvoicesMap] = useState<Record<string, boolean>>({});
+
+  // Plan label normalize (4 planı 3’e indir): STARTER / PRO / BUSINESS
+  const normalizePlanLabel = (plan?: string) => {
+    const p = (plan || '').toLowerCase();
+    if (p.includes('enterprise') || p.includes('business')) return 'BUSINESS';
+    if (p.includes('professional') || p === 'pro') return 'PRO';
+    // free ve basic => STARTER
+    return 'STARTER';
+  };
+  const planDisplayToApi = (display: string) => {
+    const d = display.toUpperCase();
+    if (d === 'BUSINESS') return 'enterprise';
+    if (d === 'PRO') return 'professional';
+    return 'basic'; // STARTER
+  };
+  const planFilterToApi = (display: string) => {
+    // Filtrede STARTER => basic, PRO => professional, BUSINESS => enterprise
+    if (!display) return '';
+    return planDisplayToApi(display);
+  };
+
   // Yardımcılar (gerekirse kullanılabilir)
   // const isEditingPlan = (id: string) => editingPlanIds.has(id);
   // const isEditingStatus = (id: string) => editingStatusIds.has(id);
@@ -180,6 +208,16 @@ const AdminPage: React.FC = () => {
   loadAllData(def !== 'all' ? def : undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Admin token süresi dolduğunda login ekranına dön
+  useEffect(() => {
+    const onExpired = () => {
+      setIsAuthenticated(false);
+      setError('Admin oturumunuz sona erdi. Lütfen yeniden giriş yapın.');
+    };
+    window.addEventListener('adminAuthExpired', onExpired as any);
+    return () => window.removeEventListener('adminAuthExpired', onExpired as any);
   }, []);
 
   // Tenant filtresi değiştiğinde tablo verilerini yeniden yükle
@@ -276,7 +314,7 @@ const AdminPage: React.FC = () => {
       setLoading(true);
       const data = await adminApi.getTenants({
         status: tenantFilters.status || undefined,
-        plan: tenantFilters.plan || undefined,
+        plan: tenantFilters.plan ? planFilterToApi(tenantFilters.plan) : undefined,
         startFrom: tenantFilters.startFrom || undefined,
         startTo: tenantFilters.startTo || undefined,
       });
@@ -359,8 +397,9 @@ const AdminPage: React.FC = () => {
   };
 
   const calculateStats = () => {
+    const activeUsers = users.filter(u => u.isActive).length;
     return {
-      users: users.length,
+      users: activeUsers,
       customers: tableData.customers.length,
       suppliers: tableData.suppliers.length,
       products: tableData.products.length,
@@ -803,10 +842,9 @@ const AdminPage: React.FC = () => {
                         className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                       >
                         <option value="">Tümü</option>
-                        <option value="free">Ücretsiz</option>
-                        <option value="basic">Basic</option>
-                        <option value="professional">Professional</option>
-                        <option value="enterprise">Enterprise</option>
+                        <option value="STARTER">STARTER</option>
+                        <option value="PRO">PRO</option>
+                        <option value="BUSINESS">BUSINESS</option>
                       </select>
                     </div>
                     <div className="flex flex-col">
@@ -871,19 +909,20 @@ const AdminPage: React.FC = () => {
                             className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200"
                             title="Düzenlemek için tıklayın"
                           >
-                            {tenant.subscriptionPlan || '-'}
+                            {normalizePlanLabel(tenant.subscriptionPlan) || '-'}
                           </button>
                         ) : (
                           <select
                             autoFocus
-                            defaultValue={tenant.subscriptionPlan || 'free'}
+                            defaultValue={normalizePlanLabel(tenant.subscriptionPlan)}
                             onBlur={() => toggleEditSet(setEditingPlanIds, tenant.id, false)}
                             onChange={(e) => {
-                              const newPlan = e.target.value;
-                              if (!window.confirm(`${tenant.companyName || tenant.name} için planı '${newPlan}' olarak güncellemek istediğinize emin misiniz?`)) return;
-                              adminApi.updateTenantSubscription(tenant.id, { plan: newPlan })
+                              const displayPlan = e.target.value;
+                              const apiPlan = planDisplayToApi(displayPlan);
+                              if (!window.confirm(`${tenant.companyName || tenant.name} için planı '${displayPlan}' olarak güncellemek istediğinize emin misiniz?`)) return;
+                              adminApi.updateTenantSubscription(tenant.id, { plan: apiPlan })
                                 .then(() => {
-                                  setTenants(prev => prev.map(x => x.id === tenant.id ? { ...x, subscriptionPlan: newPlan } : x));
+                                  setTenants(prev => prev.map(x => x.id === tenant.id ? { ...x, subscriptionPlan: apiPlan } : x));
                                   setActionMessage('Plan güncellendi');
                                   setTimeout(() => setActionMessage(''), 2000);
                                 })
@@ -892,10 +931,9 @@ const AdminPage: React.FC = () => {
                             }}
                             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                           >
-                            <option value="free">Ücretsiz</option>
-                            <option value="basic">Basic</option>
-                            <option value="professional">Professional</option>
-                            <option value="enterprise">Enterprise</option>
+                            <option value="STARTER">STARTER</option>
+                            <option value="PRO">PRO</option>
+                            <option value="BUSINESS">BUSINESS</option>
                           </select>
                         )}
                       </div>
@@ -1017,12 +1055,160 @@ const AdminPage: React.FC = () => {
                           <span className="text-xs text-gray-500">Bu işlem geri alınamaz. Yalnızca yetkili yöneticiler kullanmalıdır.</span>
                         </div>
                       </div>
+                      <div className="md:col-span-2 border-t pt-3 mt-2">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-gray-800">Detaylar</h3>
+                          <button
+                            onClick={async () => {
+                              const next = new Set(openTenantDetails);
+                              if (next.has(tenant.id)) {
+                                next.delete(tenant.id);
+                                setOpenTenantDetails(next);
+                                return;
+                              }
+                              next.add(tenant.id);
+                              setOpenTenantDetails(next);
+                              // Lazy-load overview and invoices
+                              try {
+                                const [overviewRes, invoicesRes] = await Promise.all([
+                                  adminApi.getTenantOverview(tenant.id).catch(() => null),
+                                  adminApi.getTenantInvoices(tenant.id).catch(() => null),
+                                ]);
+                                if (overviewRes) {
+                                  setTenantOverviewMap(prev => ({ ...prev, [tenant.id]: overviewRes }));
+                                }
+                                if (invoicesRes && Array.isArray(invoicesRes.invoices) && invoicesRes.invoices.length > 0) {
+                                  setTenantInvoicesMap(prev => ({ ...prev, [tenant.id]: invoicesRes.invoices as BillingInvoiceDTO[] }));
+                                } else {
+                                  // Fallback: aynı tenant'a kullanıcı olarak da giriş yapılmışsa user endpointi ile dene
+                                  try {
+                                    const meTenant = (() => {
+                                      try { const t = localStorage.getItem('tenant'); return t ? JSON.parse(t) : null; } catch { return null; }
+                                    })();
+                                    if (meTenant?.id && meTenant.id === tenant.id) {
+                                      const u = await userListInvoices(tenant.id);
+                                      if (Array.isArray(u?.invoices) && u.invoices.length > 0) {
+                                        setTenantInvoicesMap(prev => ({ ...prev, [tenant.id]: u.invoices as BillingInvoiceDTO[] }));
+                                      }
+                                    }
+                                  } catch {}
+                                }
+                              } catch (e) {
+                                // Sessizce geç
+                              }
+                            }}
+                            className="px-3 py-1 text-sm rounded-md border border-gray-300 hover:bg-gray-50"
+                          >
+                            {openTenantDetails.has(tenant.id) ? 'Gizle' : 'Göster'}
+                          </button>
+                        </div>
+                        {openTenantDetails.has(tenant.id) && (
+                          <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div className="bg-gray-50 rounded-md p-3 border">
+                              <h4 className="font-medium text-gray-800 mb-2">Plan ve Limitler</h4>
+                              <div className="text-sm text-gray-700 space-y-1">
+                                <div>
+                                  <span className="text-gray-500">Plan: </span>
+                                  <span className="font-medium">{normalizePlanLabel(tenant.subscriptionPlan)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Kullanıcı Limiti (maxUsers): </span>
+                                  <span className="font-medium">{
+                                    (() => {
+                                      const val = tenantOverviewMap[tenant.id]?.maxUsers ?? tenantOverviewMap[tenant.id]?.limits?.maxUsers;
+                                      if (val === undefined || val === null) return '-';
+                                      if (val === -1) return '∞';
+                                      return val;
+                                    })()
+                                  }</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 rounded-md p-3 border">
+                              <h4 className="font-medium text-gray-800 mb-2">Fatura Geçmişi</h4>
+                              {Array.isArray(tenantInvoicesMap[tenant.id]) && tenantInvoicesMap[tenant.id].length > 0 ? (
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-full text-sm">
+                                    <thead>
+                                      <tr className="text-left text-gray-500">
+                                        <th className="py-1 pr-4">Numara</th>
+                                        <th className="py-1 pr-4">Tarih</th>
+                                        <th className="py-1 pr-4">Tutar</th>
+                                        <th className="py-1 pr-4">Durum</th>
+                                        <th className="py-1 pr-4">Bağlantılar</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {tenantInvoicesMap[tenant.id]
+                                        .slice(0, showAllInvoicesMap[tenant.id] ? tenantInvoicesMap[tenant.id].length : 6)
+                                        .map((inv) => {
+                                          const status = inv.status || (inv.paid ? 'paid' : 'unknown');
+                                          const statusClass = (() => {
+                                            switch (status) {
+                                              case 'paid': return 'bg-green-100 text-green-700 border border-green-200';
+                                              case 'open': return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+                                              case 'draft': return 'bg-blue-100 text-blue-700 border border-blue-200';
+                                              case 'uncollectible': return 'bg-orange-100 text-orange-700 border border-orange-200';
+                                              case 'void': return 'bg-gray-200 text-gray-600 border border-gray-300';
+                                              case 'upcoming': return 'bg-purple-100 text-purple-700 border border-purple-200';
+                                              default: return 'bg-gray-100 text-gray-700 border border-gray-200';
+                                            }
+                                          })();
+                                          return (
+                                            <tr key={inv.id} className="border-t">
+                                              <td className="py-1 pr-4">{inv.number || inv.id}</td>
+                                              <td className="py-1 pr-4">{inv.created ? new Date(inv.created).toLocaleDateString() : '-'}</td>
+                                              <td className="py-1 pr-4">{typeof inv.total === 'number' ? `${(inv.total / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })} ${inv.currency?.toUpperCase()}` : '-'}</td>
+                                              <td className="py-1 pr-4">
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-block ${statusClass}`}>{status}</span>
+                                              </td>
+                                              <td className="py-1 pr-4 space-x-2">
+                                                {inv.hostedInvoiceUrl && (
+                                                  <a className="text-blue-600 hover:underline" href={inv.hostedInvoiceUrl} target="_blank" rel="noreferrer">Görüntüle</a>
+                                                )}
+                                                {inv.pdf && (
+                                                  <a className="text-blue-600 hover:underline" href={inv.pdf} target="_blank" rel="noreferrer">PDF</a>
+                                                )}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                    </tbody>
+                                  </table>
+                                  {tenantInvoicesMap[tenant.id].length > 6 && (
+                                    <div className="mt-2 text-center">
+                                      <button
+                                        onClick={() => setShowAllInvoicesMap(prev => ({ ...prev, [tenant.id]: !prev[tenant.id] }))}
+                                        className="text-xs px-3 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50"
+                                      >
+                                        {showAllInvoicesMap[tenant.id] ? 'Daha az göster' : `Tümünü göster (${tenantInvoicesMap[tenant.id].length})`}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-gray-500">
+                                  Fatura bulunamadı.
+                                  {tenantOverviewMap[tenant.id] && !tenantOverviewMap[tenant.id].stripeCustomerId && (
+                                    <span className="ml-1 text-xs text-gray-400">(Stripe müşteri ID yok – ilk abonelik/fatura işlemi sonrası oluşur)</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
+        )}
+
+        {/* Tenants detay alanı: Limitler + Fatura geçmişi */}
+        {activeTab === 'tenants' && (
+          <div className="mt-2" />
         )}
 
         {activeTab === 'data' && (

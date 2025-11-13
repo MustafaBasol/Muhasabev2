@@ -424,7 +424,9 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
   let invCustomerPhone = '' as string;
   let invCustomerAddress = invoice.customerAddress || '';
   try {
-    const raw = localStorage.getItem('customers_cache');
+    const tid = (localStorage.getItem('tenantId') || '') as string;
+    const key = tid ? `customers_cache_${tid}` : 'customers_cache';
+    const raw = localStorage.getItem(key);
     const arr = raw ? (JSON.parse(raw) as any[]) : [];
     const found = Array.isArray(arr)
       ? arr.find((c: any) => (invoice as any)?.customerId
@@ -753,7 +755,9 @@ const buildQuoteHtml = (
   let customerPhone = '';
   let customerAddress = '';
   try {
-    const raw = localStorage.getItem('customers_cache');
+    const tid = (localStorage.getItem('tenantId') || '') as string;
+    const key = tid ? `customers_cache_${tid}` : 'customers_cache';
+    const raw = localStorage.getItem(key);
     const arr = raw ? (JSON.parse(raw) as any[]) : [];
     const found = Array.isArray(arr) ? arr.find((c: any) => (quote.customerId && String(c.id) === String(quote.customerId)) || (c.name === quote.customerName)) : null;
     if (found) {

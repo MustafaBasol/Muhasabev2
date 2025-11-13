@@ -55,12 +55,16 @@ export class BillingService {
       case SubscriptionPlan.PROFESSIONAL:
         return 3; // Pro planda 3 kullanıcı dahildir
       case SubscriptionPlan.ENTERPRISE:
-        return 10; // Enterprise için varsayılan 10 (gerekirse ayarlanabilir)
+        return 0; // Business (Enterprise) sınırsız: baz koltuk kavramı anlamlı değil, -1 ile işaretlenecek
       case SubscriptionPlan.BASIC:
       case SubscriptionPlan.FREE:
       default:
         return 1; // Ücretsiz/Basic planlarda 1 kullanıcı
     }
+  }
+
+  private isUnlimitedPlan(plan: SubscriptionPlan): boolean {
+    return plan === SubscriptionPlan.ENTERPRISE; // Business sınırsız
   }
 
   private ensurePriceId(id: string, label: string) {
@@ -75,7 +79,8 @@ export class BillingService {
     const p = plan.toLowerCase();
     if (p === 'professional' || p === 'pro')
       return SubscriptionPlan.PROFESSIONAL;
-    if (p === 'basic' || p === 'starter') return SubscriptionPlan.BASIC;
+    if (p === 'basic') return SubscriptionPlan.BASIC; // legacy
+    if (p === 'starter' || p === 'free') return SubscriptionPlan.FREE;
     if (p === 'enterprise' || p === 'business')
       return SubscriptionPlan.ENTERPRISE;
     return SubscriptionPlan.FREE;
@@ -270,8 +275,12 @@ export class BillingService {
     // Yerel tenant durumunu güncelle
     tenant.subscriptionPlan = desiredEnum;
     tenant.billingInterval = params.interval;
-    const baseIncluded = this.baseIncludedUsers(desiredEnum);
-    tenant.maxUsers = baseIncluded + (addonItem?.quantity ?? nextAddonQty);
+    if (this.isUnlimitedPlan(desiredEnum)) {
+      tenant.maxUsers = -1; // sınırsız
+    } else {
+      const baseIncluded = this.baseIncludedUsers(desiredEnum);
+      tenant.maxUsers = baseIncluded + (addonItem?.quantity ?? nextAddonQty);
+    }
     tenant.cancelAtPeriodEnd = false;
     await this.tenantRepo.save(tenant);
 
@@ -380,8 +389,12 @@ export class BillingService {
     }
 
     // Tenant maxUsers güncelle
-    const base = this.baseIncludedUsers(tenant.subscriptionPlan);
-    tenant.maxUsers = base + newAddonQty;
+    if (this.isUnlimitedPlan(tenant.subscriptionPlan)) {
+      tenant.maxUsers = -1;
+    } else {
+      const base = this.baseIncludedUsers(tenant.subscriptionPlan);
+      tenant.maxUsers = base + newAddonQty;
+    }
     await this.tenantRepo.save(tenant);
 
     // Upcoming invoice içindeki PRORATION satırlarını topla (sadece ek ücretleri göster)
@@ -436,11 +449,22 @@ export class BillingService {
   }
 
   async listInvoices(tenantId: string) {
-    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    let tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) {
+      // Bazı çağrılarda slug gönderilmiş olabilir: slug ile tekrar dene
+      tenant = await this.tenantRepo.findOne({ where: { slug: tenantId } });
+    }
     if (!tenant) throw new NotFoundException('Tenant not found');
+    // Otomatik müşteri oluştur (fatura geçmişi talep edildiğinde) böylece ilk upgrade öncesi bile müşteri kaydı oluşsun
     if (!tenant.stripeCustomerId) {
-      // Hiç müşteri oluşturulmamışsa fatura yoktur
-      return { invoices: [] };
+      try {
+        const created = await this.ensureStripeCustomer(tenant);
+        tenant.stripeCustomerId = created;
+        await this.tenantRepo.save(tenant);
+      } catch (_) {
+        // Müşteri oluşturulamazsa yine boş dön (UI nedenleri gösterebilir)
+        return { invoices: [] };
+      }
     }
     const invoices = await this.stripe.invoices.list({
       customer: tenant.stripeCustomerId,
@@ -505,8 +529,12 @@ export class BillingService {
     }
 
     // 2) Yerel maxUsers güncelle
-    const base = this.baseIncludedUsers(tenant.subscriptionPlan);
-    tenant.maxUsers = base + newAddonQty;
+    if (this.isUnlimitedPlan(tenant.subscriptionPlan)) {
+      tenant.maxUsers = -1;
+    } else {
+      const base = this.baseIncludedUsers(tenant.subscriptionPlan);
+      tenant.maxUsers = base + newAddonQty;
+    }
     await this.tenantRepo.save(tenant);
 
     // 3) Bekleyen proration kalemlerini hemen faturala ve tahsil et
@@ -590,8 +618,12 @@ export class BillingService {
     }
 
     // Also store seat limit locally
-    const base = this.baseIncludedUsers(tenant.subscriptionPlan);
-    tenant.maxUsers = Math.max(base, base + nextQty);
+    if (this.isUnlimitedPlan(tenant.subscriptionPlan)) {
+      tenant.maxUsers = -1;
+    } else {
+      const base = this.baseIncludedUsers(tenant.subscriptionPlan);
+      tenant.maxUsers = Math.max(base, base + nextQty);
+    }
     await this.tenantRepo.save(tenant);
     return { success: true, maxUsers: tenant.maxUsers };
   }
@@ -679,8 +711,12 @@ export class BillingService {
       );
     }
     // Baz kullanıcı + eklenti koltukları
-    const base = this.baseIncludedUsers(nextPlan);
-    tenant.maxUsers = base + Math.max(0, seats ?? 0);
+    if (this.isUnlimitedPlan(nextPlan)) {
+      tenant.maxUsers = -1;
+    } else {
+      const base = this.baseIncludedUsers(nextPlan);
+      tenant.maxUsers = base + Math.max(0, seats ?? 0);
+    }
 
     await this.tenantRepo.save(tenant);
   }
@@ -803,6 +839,106 @@ export class BillingService {
       maxUsers: updated?.maxUsers ?? null,
       cancelAtPeriodEnd: updated?.cancelAtPeriodEnd ?? null,
       subscriptionExpiresAt: updated?.subscriptionExpiresAt ?? null,
+    };
+  }
+
+  /**
+   * Admin için ham abonelik verilerini döndür: subscription items (id, price, quantity) ve hesaplanan koltuk sayısı.
+   */
+  async getSubscriptionRaw(tenantId: string) {
+    let tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) {
+      // slug fallback
+      tenant = await this.tenantRepo.findOne({ where: { slug: tenantId } });
+    }
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    // Aboneliği seç
+    let sub: Stripe.Subscription | null = null;
+    if (tenant.stripeSubscriptionId) {
+      try {
+        sub = (await this.stripe.subscriptions.retrieve(
+          tenant.stripeSubscriptionId,
+          { expand: ['items'] },
+        )) as Stripe.Subscription;
+      } catch (_) {
+        sub = null;
+      }
+    }
+    if (!sub && tenant.stripeCustomerId) {
+      const list = await this.stripe.subscriptions.list({
+        customer: tenant.stripeCustomerId,
+        status: 'all',
+        limit: 20,
+        expand: ['data.items'],
+      });
+      if (list.data && list.data.length > 0) {
+        const preferred = new Set<Stripe.Subscription.Status>([
+          'active',
+          'trialing',
+          'past_due',
+          'unpaid',
+          'incomplete',
+        ]);
+        const sorted = [...list.data].sort(
+          (a, b) => (b.created || 0) - (a.created || 0),
+        );
+        sub = sorted.find((s) => preferred.has(s.status)) || sorted[0] || null;
+      }
+    }
+
+    if (!sub) {
+      return {
+        subscriptionId: null,
+        status: null,
+        interval: null,
+        items: [],
+        baseIncluded: this.baseIncludedUsers(tenant.subscriptionPlan),
+        addonQty: 0,
+        computedSeats: this.baseIncludedUsers(tenant.subscriptionPlan),
+        plan: tenant.subscriptionPlan,
+      };
+    }
+
+    const addonPriceIds = [
+      this.priceMap.ADDON_USER.month,
+      this.priceMap.ADDON_USER.year,
+    ].filter(Boolean);
+    const items = sub.items.data.map((it) => ({
+      id: it.id,
+      priceId: it.price.id,
+      quantity: it.quantity ?? 0,
+      interval: it.price?.recurring?.interval ?? null,
+      product: typeof it.price.product === 'string' ? it.price.product : (it.price.product as any)?.id ?? null,
+    }));
+    const baseItem = sub.items.data.find((it) => !addonPriceIds.includes(it.price.id));
+    const addonItem = sub.items.data.find((it) => addonPriceIds.includes(it.price.id));
+    const interval = baseItem?.price?.recurring?.interval === 'year' ? 'year' : 'month';
+
+    // Planı base price id üzerinden tahmin et
+    const basePriceId = baseItem?.price.id || '';
+    let plan = tenant.subscriptionPlan;
+    if (basePriceId === this.priceMap.PRO.month || basePriceId === this.priceMap.PRO.year) {
+      plan = SubscriptionPlan.PROFESSIONAL;
+    } else if (basePriceId === this.priceMap.BUSINESS.month || basePriceId === this.priceMap.BUSINESS.year) {
+      plan = SubscriptionPlan.ENTERPRISE;
+    }
+
+    const baseIncluded = this.baseIncludedUsers(plan);
+    const addonQty = addonItem?.quantity ?? 0;
+    const computedSeats = this.isUnlimitedPlan(plan)
+      ? -1
+      : baseIncluded + Math.max(0, addonQty);
+
+    return {
+      subscriptionId: sub.id,
+      status: sub.status,
+      interval,
+      items,
+      baseIncluded: this.isUnlimitedPlan(plan) ? -1 : baseIncluded,
+      addonQty: this.isUnlimitedPlan(plan) ? -1 : addonQty,
+      computedSeats,
+      plan,
     };
   }
 }

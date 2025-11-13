@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
   Patch,
   Delete,
+  Logger,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import {
@@ -23,6 +24,10 @@ import {
 } from '../tenants/entities/tenant.entity';
 import { UserRole } from '../users/entities/user.entity';
 import { PlanLimitsService } from './plan-limits.service';
+import { BillingService } from '../billing/billing.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Tenant } from '../tenants/entities/tenant.entity';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -30,7 +35,11 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly planLimitsService: PlanLimitsService,
+    private readonly billingService: BillingService,
+    @InjectRepository(Tenant) private readonly tenantRepo: Repository<Tenant>,
   ) {}
+
+  private readonly logger = new Logger('AdminController');
 
   private checkAdminAuth(headers: any) {
     const adminToken = headers['admin-token'];
@@ -324,6 +333,18 @@ export class AdminController {
     return this.adminService.getTenantOverview(tenantId);
   }
 
+  // Opsiyonel: Stripe subscription ham bilgileri
+  @Get('tenant/:tenantId/subscription-raw')
+  @ApiOperation({ summary: 'Get raw Stripe subscription items and computed seats' })
+  @ApiResponse({ status: 200, description: 'Subscription raw details' })
+  async getSubscriptionRaw(
+    @Param('tenantId') tenantId: string,
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    return this.billingService.getSubscriptionRaw(tenantId);
+  }
+
   @Patch('tenant/:tenantId')
   @ApiOperation({ summary: 'Update tenant basic fields (name/companyName)' })
   @ApiResponse({ status: 200, description: 'Tenant updated' })
@@ -334,6 +355,101 @@ export class AdminController {
   ) {
     this.checkAdminAuth(headers);
     return this.adminService.updateTenantBasic(tenantId, body);
+  }
+
+  // === Tenant faturaları (Stripe) ===
+  @Get('tenant/:tenantId/invoices')
+  @ApiOperation({ summary: 'List Stripe invoices for a tenant (admin)' })
+  @ApiResponse({ status: 200, description: 'Tenant invoices' })
+  async listTenantInvoices(
+    @Param('tenantId') tenantId: string,
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) {
+      this.logger.warn(`invoices: tenant not found id=${tenantId}`);
+      return { invoices: [] };
+    }
+    try {
+  let res = await this.billingService.listInvoices(tenant.id);
+  let source: 'admin' | 'admin-sync' | 'user-fallback' = 'admin';
+      let count = res?.invoices?.length ?? 0;
+      this.logger.debug(
+        `invoices: tenant=${tenant.id} stripeCustomerId=${tenant.stripeCustomerId} count=${count}`,
+      );
+      // Reconciler: müşteri var ve fatura sayısı 0 ise Stripe ile senkron tetikle, sonra tekrar dene
+      if (tenant.stripeCustomerId && count === 0) {
+        this.logger.verbose(
+          JSON.stringify({
+            tag: 'ADMIN_SYNC',
+            tenantId: tenant.id,
+            reason: 'invoice-empty',
+          }),
+        );
+        try {
+          await this.billingService.syncFromStripe(tenant.id);
+          res = await this.billingService.listInvoices(tenant.id);
+          count = res?.invoices?.length ?? 0;
+          source = 'admin-sync';
+          this.logger.verbose(
+            JSON.stringify({
+              tag: 'ADMIN_SYNC',
+              tenantId: tenant.id,
+              status: 'success',
+              invoiceCount: count,
+            }),
+          );
+        } catch (e: any) {
+          this.logger.warn(
+            JSON.stringify({
+              tag: 'ADMIN_SYNC',
+              tenantId: tenant.id,
+              status: 'error',
+              message: e?.message || String(e),
+            }),
+          );
+        }
+      }
+      return { ...res, source } as any;
+    } catch (e: any) {
+      this.logger.error(
+        `invoices: error tenant=${tenant.id} msg=${e?.message || e}`,
+      );
+      return { invoices: [] };
+    }
+  }
+
+  @Get('tenant/:tenantId/debug')
+  @ApiOperation({ summary: 'Debug tenant billing + limits' })
+  async debugTenant(
+    @Param('tenantId') tenantId: string,
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) return { found: false };
+    // Use adminService for counts to avoid duplicating logic
+    try {
+      const base = await this.adminService.getTenantLimits(tenantId);
+      const inv = await this.billingService
+        .listInvoices(tenant.id)
+        .catch(() => ({ invoices: [] }));
+      return {
+        found: true,
+        tenant: base.tenant,
+        effectiveMaxUsers: base?.limits?.effective?.maxUsers ?? null,
+        usageUsers: base?.usage?.users ?? null,
+        stripeCustomerId: (base.tenant as any)?.stripeCustomerId ?? tenant.stripeCustomerId,
+        stripeSubscriptionId:
+          (base.tenant as any)?.stripeSubscriptionId ?? tenant.stripeSubscriptionId,
+        invoiceCount: inv?.invoices?.length ?? 0,
+        invoiceSample: (inv?.invoices || []).slice(0, 1),
+      };
+    } catch (e: any) {
+      this.logger.error(`debugTenant error id=${tenantId} ${e?.message || e}`);
+      return { found: true, error: e?.message || String(e) };
+    }
   }
 
   // === Tenant Delete (Account Removal) ===
@@ -353,6 +469,22 @@ export class AdminController {
       hard: !!body?.hard,
       backupBefore: !!body?.backupBefore,
     });
+  }
+
+  // === Demo Purge (DEV only) ===
+  @Delete('tenant/:tenantId/purge-demo')
+  @ApiOperation({ summary: 'Purge ALL demo data for a tenant (dev only)' })
+  @ApiResponse({ status: 200, description: 'Purge result summary' })
+  async purgeTenantDemo(
+    @Param('tenantId') tenantId: string,
+    @Body() body: { confirm?: boolean },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    if (!body?.confirm) {
+      throw new UnauthorizedException('Confirmation required');
+    }
+    return this.adminService.purgeTenantDemo(tenantId);
   }
 
   // === User Delete ===

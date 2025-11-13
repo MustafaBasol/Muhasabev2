@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mail, UserPlus } from 'lucide-react';
 import { organizationsApi, InviteMemberData, MembershipStats } from '../api/organizations';
+import { useAuth } from '../contexts/AuthContext';
 
 interface InviteFormProps {
   organizationId: string;
@@ -17,6 +18,11 @@ const InviteForm: React.FC<InviteFormProps> = ({
   membershipStats,
 }) => {
   const { t } = useTranslation();
+  const { tenant, refreshUser } = useAuth(); // tenant ve refreshUser ileride tekrar deneme/senkron için kullanılacak
+  const tt = (key: string, fallback: string) => {
+    const v = t(key);
+    return v && v !== key ? v : fallback;
+  };
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<InviteMemberData>({
@@ -47,8 +53,33 @@ const InviteForm: React.FC<InviteFormProps> = ({
 
     setLoading(true);
     
-    try {
+    const attemptInvite = async () => {
       await organizationsApi.inviteMember(organizationId, formData);
+    };
+    try {
+      try {
+        await attemptInvite();
+      } catch (err: any) {
+        // Plan limiti / senkron gecikmesi kaynaklı 400 ise bir kez sync edip yeniden dene
+        const status = err?.response?.status;
+        const msg: string = err?.response?.data?.message || '';
+        const looksLimit = status === 400 && /limit|plan|member|STARTER/i.test(msg);
+        if (looksLimit) {
+          try {
+            const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+            if (tenantId) {
+              const { syncSubscription } = await import('../api/billing');
+              await syncSubscription(tenantId);
+              await refreshUser();
+            }
+            await attemptInvite(); // ikinci deneme
+          } catch {
+            throw err; // orijinal hatayı fırlat
+          }
+        } else {
+          throw err;
+        }
+      }
       
       // Reset form
       setFormData({ email: '', role: 'MEMBER' });
@@ -114,13 +145,13 @@ const InviteForm: React.FC<InviteFormProps> = ({
               ? 'bg-blue-600 text-white hover:bg-blue-700'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
-          title={!membershipStats.canAddMore ? t('org.members.invite.limitReached') : ''}
+          title={!membershipStats.canAddMore ? tt('org.members.invite.limitReached', 'Üye limiti dolu') : ''}
         >
           <UserPlus className="w-4 h-4" />
           <span>
             {!membershipStats.canAddMore 
-              ? t('org.members.limitFull')
-              : t('org.members.invite.button')
+              ? tt('org.members.limitFull', 'Üye limiti dolu')
+              : tt('org.members.invite.button', 'Üye Davet Et')
             }
           </span>
         </button>
@@ -130,7 +161,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4 border-t border-gray-200 pt-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              {t('org.members.invite.form.email')}
+              {tt('org.members.invite.form.email', 'E-posta Adresi')}
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -140,7 +171,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
                 required
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                placeholder={t('org.members.invite.form.emailPlaceholder')}
+                placeholder={tt('org.members.invite.form.emailPlaceholder', 'E-posta adresi')}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -148,7 +179,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
 
           <div>
             <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-              {t('org.members.invite.form.role')}
+              {tt('org.members.invite.form.role', 'Rol')}
             </label>
             <select
               id="role"
@@ -158,7 +189,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
             >
               {availableRoles.map((role) => (
                 <option key={role} value={role}>
-                  {t(`org.members.roles.${role}`)}
+                  {tt(`org.members.roles.${role}` as any, role === 'ADMIN' ? 'Yönetici' : role === 'MEMBER' ? 'Üye' : role)}
                 </option>
               ))}
             </select>
@@ -170,7 +201,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
               onClick={() => setIsOpen(false)}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
-              {t('org.members.cancel')}
+              {tt('org.members.cancel', 'İptal')}
             </button>
             <button
               type="submit"
@@ -182,7 +213,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
               ) : (
                 <Mail className="w-4 h-4" />
               )}
-              <span>{loading ? t('org.members.sending') : t('org.members.inviteButton')}</span>
+              <span>{loading ? tt('org.members.sending', 'Gönderiliyor…') : tt('org.members.inviteButton', 'Davet Gönder')}</span>
             </button>
           </div>
         </form>

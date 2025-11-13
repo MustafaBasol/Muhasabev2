@@ -147,7 +147,9 @@ export default function CustomerHistoryPage() {
         // Müşteri bilgisi
         let cust: any = null;
         try {
-          const listRaw = localStorage.getItem('customers_cache');
+          const tid = (localStorage.getItem('tenantId') || '') as string;
+          const cKey = tid ? `customers_cache_${tid}` : 'customers_cache';
+          const listRaw = localStorage.getItem(cKey);
           if (listRaw) {
             const list = JSON.parse(listRaw);
             if (Array.isArray(list)) {
@@ -163,18 +165,29 @@ export default function CustomerHistoryPage() {
         // Faturalar
         let invoices: any[] = [];
         try { invoices = await invoicesApi.getInvoices(); } catch {}
-        // Satışlar: localStorage'tan yükle (API zorunlu değil)
+        // Satışlar: ÖNCE API'den dene; yalnızca başarısız olursa ve tenantId biliniyorsa tenant'a özel cache'ten oku
         let sales: any[] = [];
         try {
-          const tid = localStorage.getItem('tenantId') || '';
-          const sKey = tid ? `sales_${tid}` : 'sales';
-          const sCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-          const rawA = localStorage.getItem(sKey);
-          const rawB = localStorage.getItem(sCacheKey);
-          const arrA = rawA ? JSON.parse(rawA) : [];
-          const arrB = rawB ? JSON.parse(rawB) : [];
-          sales = [...(Array.isArray(arrA)?arrA:[]), ...(Array.isArray(arrB)?arrB:[])];
-        } catch {}
+          sales = await salesApi.getSales();
+        } catch {
+          try {
+            const tid = localStorage.getItem('tenantId') || '';
+            if (tid) {
+              const sKey = `sales_${tid}`;
+              const sCacheKey = `sales_cache_${tid}`;
+              const rawA = localStorage.getItem(sKey);
+              const rawB = localStorage.getItem(sCacheKey);
+              const arrA = rawA ? JSON.parse(rawA) : [];
+              const arrB = rawB ? JSON.parse(rawB) : [];
+              sales = [...(Array.isArray(arrA) ? arrA : []), ...(Array.isArray(arrB) ? arrB : [])];
+            } else {
+              // tenantId bilinmiyorsa, veri sızıntısını önlemek için satışları yükleme
+              sales = [];
+            }
+          } catch {
+            sales = [];
+          }
+        }
         // Teklifler
         let quotes: any[] = [];
         try {

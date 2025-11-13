@@ -6,10 +6,12 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 
 @Entity('products')
+@Unique(['tenantId', 'code'])
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -17,7 +19,8 @@ export class Product {
   @Column()
   name: string;
 
-  @Column({ unique: true })
+  // Kodun benzersizliği tenant bazlıdır (sınıf düzeyinde @Unique ile tanımlandı)
+  @Column()
   code: string;
 
   @Column({ type: 'text', nullable: true })

@@ -60,4 +60,14 @@ export class SalesController {
   async remove(@Param('id') id: string, @User() user: any) {
     return this.salesService.remove(user.tenantId, id);
   }
+
+  @Delete('purge/all')
+  @ApiOperation({ summary: 'Delete ALL sales for current tenant (dev only)' })
+  async purgeAll(@User() user: any) {
+    if (process.env.NODE_ENV === 'production') {
+      // Ek güvenlik: production ortamında kapalı
+      throw new Error('Not allowed in production');
+    }
+    return this.salesService.purgeTenant(user.tenantId);
+  }
 }

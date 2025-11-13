@@ -313,20 +313,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
           <div className="text-right text-sm text-gray-800">
             <div className="text-gray-700 font-semibold mb-1">{L.customerInfo}</div>
             <div className="font-medium">{quote.customerName}</div>
-            {(() => {
-              try {
-                const raw = localStorage.getItem('customers_cache');
-                const arr = raw ? JSON.parse(raw) : [];
-                const found = Array.isArray(arr) ? arr.find((c: any) => c.name === quote.customerName || String(c.id) === (quote as any).customerId) : null;
-                return found ? (
-                  <>
-                    {found.email ? <div className="text-gray-600">{found.email}</div> : null}
-                    {found.phone ? <div className="text-gray-600">{found.phone}</div> : null}
-                    {found.address ? <div className="text-gray-600 whitespace-pre-line">{found.address}</div> : null}
-                  </>
-                ) : null;
-              } catch { return null; }
-            })()}
+            {/* Güvenlik: Public sayfada localStorage müşteri cache'i kullanılmıyor (tenant sızıntısını önlemek için) */}
           </div>
         </div>
 

@@ -54,6 +54,16 @@ export class CreateSaleDto {
   @IsUUID()
   customerId?: string;
 
+  @ApiProperty({ required: false, description: 'Müşteri adı (ID yoksa otomatik oluşturma için)' })
+  @IsOptional()
+  @IsString()
+  customerName?: string;
+
+  @ApiProperty({ required: false, description: 'Müşteri e-posta (otomatik oluşturma için opsiyonel)' })
+  @IsOptional()
+  @IsString()
+  customerEmail?: string;
+
   @ApiProperty({ description: 'Satış tarihi (YYYY-MM-DD)' })
   @IsDateString()
   saleDate: string;

@@ -50,18 +50,31 @@ export default function InfoModal({
   tone = 'info',
   autoCloseMs,
 }: InfoModalProps) {
+  // Hooks MUST be called unconditionally. Define IDs/refs/effects first.
+  const titleId = React.useId();
+  const descId = React.useId();
+  const modalRef = React.useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
     if (!isOpen || !autoCloseMs) return;
     const t = window.setTimeout(() => onClose(), autoCloseMs);
     return () => window.clearTimeout(t);
   }, [isOpen, autoCloseMs, onClose]);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      // Basit odak yakalama: modal açıldığında modale odak ver
+      modalRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  // Early return AFTER hooks to keep hook order stable
   if (!isOpen) return null;
 
   const styles = toneStyles[tone];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descId}>
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* Backdrop */}
         <div
@@ -70,7 +83,7 @@ export default function InfoModal({
         />
 
         {/* Modal */}
-        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div ref={modalRef} tabIndex={-1} className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6 outline-none">
           {/* Close button */}
           <button
             onClick={onClose}
@@ -90,12 +103,12 @@ export default function InfoModal({
           </div>
 
           {/* Title */}
-          <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+          <h3 id={titleId} className="text-lg font-semibold text-gray-900 text-center mb-2">
             {title}
           </h3>
 
           {/* Message */}
-          <p className="text-sm text-gray-600 text-center mb-6">
+          <p id={descId} className="text-sm text-gray-600 text-center mb-6">
             {message}
           </p>
 

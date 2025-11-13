@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Customer } from '../../customers/entities/customer.entity';
@@ -21,12 +22,13 @@ export enum SaleStatus {
 }
 
 @Entity('sales')
+@Unique(['tenantId', 'saleNumber'])
 export class Sale {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // İnsan okunur satış numarası (ör. SAL-2025-11-001)
-  @Column({ type: 'varchar', length: 32, unique: true })
+  // İnsan okunur satış numarası (ör. SAL-2025-11-001) — benzersizlik tenant bazlıdır
+  @Column({ type: 'varchar', length: 32 })
   saleNumber: string;
 
   @Column({ type: 'uuid' })

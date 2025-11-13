@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { adminApi } from '../../api/admin';
+import type { BillingInvoiceDTO } from '../../api/billing';
+import { listInvoices as userListInvoices } from '../../api/billing';
 
 // A unified admin console per-tenant
 const TenantConsolePage: React.FC = () => {
@@ -22,6 +24,26 @@ const TenantConsolePage: React.FC = () => {
   type Overrides = Partial<Omit<Limits, 'monthly'>> & { monthly?: Partial<Limits['monthly']> };
   const [overrideLimits, setOverrideLimits] = useState<Overrides>({});
   const [clearKeys, setClearKeys] = useState<string[]>([]);
+  const [invoices, setInvoices] = useState<BillingInvoiceDTO[]>([]);
+  const [showAllInvoices, setShowAllInvoices] = useState(false);
+  const [subRaw, setSubRaw] = useState<any>(null);
+  // Seçili tenant'ı son durum olarak takip etmek ve yarış durumlarını engellemek için ref
+  const selectedIdRef = useRef<string>('');
+
+  // Plan label normalize: 3'lü model (STARTER / PRO / BUSINESS)
+  const normalizePlanLabel = (plan?: string): 'STARTER' | 'PRO' | 'BUSINESS' => {
+    if (!plan) return 'STARTER';
+    const p = String(plan).toLowerCase();
+    if (p.includes('enterprise') || p === 'business') return 'BUSINESS';
+    if (p.includes('professional') || p === 'pro') return 'PRO';
+    return 'STARTER';
+  };
+  const planDisplayToApi = (display: string): 'basic' | 'professional' | 'enterprise' => {
+    const d = String(display).toUpperCase();
+    if (d === 'BUSINESS') return 'enterprise';
+    if (d === 'PRO') return 'professional';
+    return 'basic';
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -29,8 +51,13 @@ const TenantConsolePage: React.FC = () => {
         setLoading(true);
         const data = await adminApi.getTenants();
         setTenants(data || []);
-      } catch (e) {
-        setError('Şirket listesi alınamadı');
+      } catch (e: any) {
+        const status = e?.response?.status;
+        if (status === 401) {
+          setError('Admin girişi gerekli. Lütfen admin panelde oturum açın.');
+        } else {
+          setError('Şirket listesi alınamadı');
+        }
       } finally {
         setLoading(false);
       }
@@ -43,7 +70,7 @@ const TenantConsolePage: React.FC = () => {
     if (!q) return tenants;
     return tenants.filter((t) =>
       ((t.companyName || t.name || '').toLowerCase().includes(q)) ||
-      (t.subscriptionPlan || '').toLowerCase().includes(q)
+      normalizePlanLabel(t.subscriptionPlan).toLowerCase().includes(q)
     );
   }, [tenants, search]);
 
@@ -52,18 +79,83 @@ const TenantConsolePage: React.FC = () => {
     try {
       setLoading(true);
       const o = await adminApi.getTenantOverview(tenantId);
+      if (selectedIdRef.current !== tenantId) return; // tenant değişti, bu sonucu yok say
       setOverview(o);
       // initialize override edit state from payload
       setOverrideLimits(o?.limits?.overrides || {});
       setClearKeys([]);
-    } catch (e) {
-      setError('Özet alınamadı');
+      // Stripe abonelik ham verisi (plan + koltuk)
+      try {
+        const raw = await adminApi.getTenantSubscriptionRaw(tenantId);
+        if (selectedIdRef.current !== tenantId) return; // tenant değişti
+        setSubRaw(raw);
+      } catch (e) {
+        setSubRaw(null);
+      }
+      // load invoices
+      try {
+        const inv = await adminApi.getTenantInvoices(tenantId);
+        if (selectedIdRef.current !== tenantId) return; // tenant değişti
+        if (Array.isArray(inv?.invoices) && inv.invoices.length > 0) {
+          setInvoices(inv.invoices);
+        } else {
+          // Fallback: yalnızca seçilen tenant aktif kullanıcı tenant'ı ise dene
+          try {
+            const hasUserToken = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
+            const meTenant = (() => { try { const t = localStorage.getItem('tenant'); return t ? JSON.parse(t) : null; } catch { return null; } })();
+            if (hasUserToken && meTenant?.id === tenantId) {
+              const alt = await userListInvoices(tenantId);
+              if (selectedIdRef.current !== tenantId) return; // tenant değişti
+              setInvoices(Array.isArray(alt?.invoices) ? alt.invoices : []);
+            } else {
+              setInvoices([]);
+            }
+          } catch {
+            setInvoices([]);
+          }
+        }
+      } catch (_) {
+        // Son çare: kullanıcı endpointini yalnızca aynı tenant ise dene
+        try {
+          const hasUserToken = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
+          const meTenant = (() => { try { const t = localStorage.getItem('tenant'); return t ? JSON.parse(t) : null; } catch { return null; } })();
+          if (hasUserToken && meTenant?.id === tenantId) {
+            const alt = await userListInvoices(tenantId);
+            if (selectedIdRef.current !== tenantId) return; // tenant değişti
+            setInvoices(Array.isArray(alt?.invoices) ? alt.invoices : []);
+          } else {
+            setInvoices([]);
+          }
+        } catch {
+          setInvoices([]);
+        }
+      }
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const url = e?.config?.url || e?.response?.config?.url;
+      if (typeof window !== 'undefined') {
+        // Hatanın nedenini hızlı teşhis için konsola yaz
+        console.error('Admin tenant overview error:', { status, url, data: e?.response?.data });
+      }
+      if (status === 401) {
+        setError('Admin girişi gerekli. Lütfen admin panelde oturum açın.');
+      } else {
+        setError(`Özet alınamadı${status ? ` (HTTP ${status})` : ''}`);
+      }
     } finally {
-      setLoading(false);
+      // Yalnızca aktif tenant için loading'i kapat
+      if (selectedIdRef.current === tenantId) setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Ref'i güncelle, eski veriyi temizle ve yeni tenant için yüklemeyi başlat
+    selectedIdRef.current = selectedTenantId;
+    setOverview(null);
+    setInvoices([]);
+    setSubRaw(null);
+    setError('');
+    setMessage('');
     if (selectedTenantId) loadOverview(selectedTenantId);
   }, [selectedTenantId]);
 
@@ -79,7 +171,7 @@ const TenantConsolePage: React.FC = () => {
   useEffect(() => {
     if (tenant) {
       setEditTenantName(tenant.companyName || tenant.name || '');
-      setEditTenantPlan(tenant.subscriptionPlan || 'free');
+      setEditTenantPlan(normalizePlanLabel(tenant.subscriptionPlan));
       setEditTenantStatus(tenant.status || 'trial');
     }
   }, [tenant?.id]);
@@ -92,7 +184,7 @@ const TenantConsolePage: React.FC = () => {
       await adminApi.updateTenantDetails(selectedTenantId, { companyName: editTenantName });
       // Update plan/status
       await adminApi.updateTenantSubscription(selectedTenantId, {
-        plan: editTenantPlan,
+        plan: planDisplayToApi(editTenantPlan),
         status: editTenantStatus,
       });
       setMessage('Şirket bilgileri güncellendi');
@@ -245,7 +337,7 @@ const TenantConsolePage: React.FC = () => {
               className={`w-full text-left px-2 py-2 hover:bg-gray-50 ${selectedTenantId===t.id?'bg-gray-100':''}`}
             >
               <div className="font-medium text-sm">{t.companyName || t.name}</div>
-              <div className="text-xs text-gray-500">{t.subscriptionPlan} · {t.status}</div>
+              <div className="text-xs text-gray-500">{normalizePlanLabel(t.subscriptionPlan)} · {t.status}</div>
             </button>
           ))}
         </div>
@@ -273,10 +365,9 @@ const TenantConsolePage: React.FC = () => {
                     onChange={(e)=>setEditTenantPlan(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded"
                   >
-                    <option value="free">free</option>
-                    <option value="basic">basic</option>
-                    <option value="professional">professional</option>
-                    <option value="enterprise">enterprise</option>
+                    <option value="STARTER">STARTER</option>
+                    <option value="PRO">PRO</option>
+                    <option value="BUSINESS">BUSINESS</option>
                   </select>
                   <select
                     value={editTenantStatus}
@@ -290,7 +381,7 @@ const TenantConsolePage: React.FC = () => {
                   </select>
                   <button onClick={saveTenantHeader} className="px-3 py-2 bg-blue-600 text-white rounded">Kaydet</button>
                 </div>
-                <div className="text-xs text-gray-600">Plan: {tenant?.subscriptionPlan} · Durum: {tenant?.status}</div>
+                <div className="text-xs text-gray-600">Plan: {normalizePlanLabel(tenant?.subscriptionPlan)} · Durum: {tenant?.status}</div>
               </div>
               {message && (
                 <div className="text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-1 rounded">{message}</div>
@@ -305,6 +396,29 @@ const TenantConsolePage: React.FC = () => {
               <Info title="Banka" value={usage?.bankAccounts} max={limits?.effective?.maxBankAccounts} />
               <Info title="Fatura (Ay)" value={usage?.monthly?.invoices} max={limits?.effective?.monthly?.maxInvoices} />
               <Info title="Gider (Ay)" value={usage?.monthly?.expenses} max={limits?.effective?.monthly?.maxExpenses} />
+            </div>
+
+            {/* Stripe abonelik özeti (teşhis için) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card title="Stripe Abonelik Özeti">
+                {subRaw ? (
+                  <div className="text-xs text-gray-700 space-y-1">
+                    <div><span className="text-gray-500">subscriptionId:</span> {subRaw.subscriptionId || '—'}</div>
+                    <div><span className="text-gray-500">status:</span> {subRaw.status || '—'}</div>
+                    <div><span className="text-gray-500">interval:</span> {subRaw.interval || '—'}</div>
+                    <div><span className="text-gray-500">plan (remote):</span> {String(subRaw.plan || '').toUpperCase() || '—'}</div>
+                    <div><span className="text-gray-500">baseIncluded:</span> {subRaw.baseIncluded ?? '—'}</div>
+                    <div><span className="text-gray-500">addonQty:</span> {subRaw.addonQty ?? 0}</div>
+                    <div><span className="text-gray-500">computedSeats (remote):</span> <span className="font-semibold">{subRaw.computedSeats ?? '—'}</span></div>
+                    <div className="mt-2 border-t pt-2">
+                      <div><span className="text-gray-500">stripeCustomerId:</span> {overview?.tenant?.stripeCustomerId || '—'}</div>
+                      <div><span className="text-gray-500">stripeSubscriptionId:</span> {overview?.tenant?.stripeSubscriptionId || '—'}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">Stripe abonelik bilgisi alınamadı.</div>
+                )}
+              </Card>
             </div>
 
             {/* Limits: edit overrides */}
@@ -398,6 +512,71 @@ const TenantConsolePage: React.FC = () => {
                 </table>
               </div>
             </div>
+
+            {/* Fatura Geçmişi */}
+            <div className="bg-white border border-gray-200 rounded-lg">
+              <div className="px-3 py-2 border-b font-medium">Fatura Geçmişi</div>
+              <div className="overflow-x-auto">
+                {invoices.length === 0 ? (
+                  <div className="p-3 text-sm text-gray-600 space-y-2">
+                    <div className="font-medium text-gray-700">Fatura bulunamadı</div>
+                    <div>Olası nedenler:</div>
+                    <ul className="list-disc pl-5 space-y-1 text-xs">
+                      <li>Henüz Stripe müşteri oluşturulmadı (ilk upgrade / ödeme işlemi yapılmadı).</li>
+                      <li>Aktif abonelik yok: subscription planı test veya başlangıç aşamasında olabilir.</li>
+                      <li>Test modunda hiç fatura kesilmedi; yalnızca proration oluşmuş olabilir.</li>
+                      <li>Stripe API'den boş döndü; dashboarddan manuel kontrol edin.</li>
+                    </ul>
+                    <div className="text-xs mt-2 border-t pt-2">
+                      <div><span className="font-semibold">stripeCustomerId:</span> {overview?.tenant?.stripeCustomerId || '—'}</div>
+                      <div><span className="font-semibold">stripeSubscriptionId:</span> {overview?.tenant?.stripeSubscriptionId || '—'}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Numara</th>
+                        <th className="px-3 py-2 text-left">Tarih</th>
+                        <th className="px-3 py-2 text-left">Tutar</th>
+                        <th className="px-3 py-2 text-left">Durum</th>
+                        <th className="px-3 py-2 text-left">Bağlantılar</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(showAllInvoices ? invoices : invoices.slice(0,8)).map((inv) => (
+                        <tr key={inv.id} className="border-t">
+                          <td className="px-3 py-2">{inv.number || inv.id}</td>
+                          <td className="px-3 py-2">{inv.created ? new Date(inv.created).toLocaleDateString() : '-'}</td>
+                          <td className="px-3 py-2">{typeof inv.total === 'number' ? `${(inv.total/100).toLocaleString(undefined,{ minimumFractionDigits:2 })} ${String(inv.currency||'').toUpperCase()}` : '-'}</td>
+                          <td className="px-3 py-2">
+                            <span className={(() => {
+                              const s = String(inv.status||'').toLowerCase();
+                              if (s === 'paid') return 'inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200';
+                              if (s === 'open' || s === 'draft') return 'inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
+                              if (s === 'uncollectible' || s === 'void' || s === 'unpaid') return 'inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200';
+                              return 'inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-700 border border-gray-200';
+                            })()}>{(inv.status || (inv.paid ? 'paid' : '-')).toUpperCase()}</span>
+                          </td>
+                          <td className="px-3 py-2 space-x-2">
+                            {inv.hostedInvoiceUrl && <a href={inv.hostedInvoiceUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Görüntüle</a>}
+                            {inv.pdf && <a href={inv.pdf} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">PDF</a>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              {invoices.length > 8 && (
+                <div className="p-3 border-t flex justify-center">
+                  <button
+                    onClick={()=> setShowAllInvoices(prev=>!prev)}
+                    className="px-4 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700"
+                  >{showAllInvoices? 'Daralt' : 'Tümü'}</button>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
         {error && <div className="mt-3 p-2 bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
@@ -413,12 +592,15 @@ const Card: React.FC<{ title: string; children: React.ReactNode }> = ({ title, c
   </div>
 );
 
-const Info: React.FC<{ title: string; value: number; max?: number }> = ({ title, value, max }) => (
-  <div className="border rounded p-3 text-center">
-    <div className="text-xl font-semibold">{value ?? 0}{typeof max==='number' ? ` / ${max}`: ''}</div>
-    <div className="text-xs text-gray-600">{title}</div>
-  </div>
-);
+const Info: React.FC<{ title: string; value: number; max?: number }> = ({ title, value, max }) => {
+  const displayMax = typeof max === 'number' ? (max < 0 ? '∞' : max) : undefined;
+  return (
+    <div className="border rounded p-3 text-center">
+      <div className="text-xl font-semibold">{value ?? 0}{displayMax !== undefined ? ` / ${displayMax}`: ''}</div>
+      <div className="text-xs text-gray-600">{title}</div>
+    </div>
+  );
+};
 
 export default TenantConsolePage;
 

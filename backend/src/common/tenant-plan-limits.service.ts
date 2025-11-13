@@ -22,12 +22,12 @@ export type UpdateTenantPlanLimits = Partial<
 // Tenant bazlı override için kısmi tip
 export type TenantPlanOverrides = UpdateTenantPlanLimits;
 
-// Not: Var olan SubscriptionPlan enum: FREE | BASIC | PROFESSIONAL | ENTERPRISE
-// İstenen iş kuralları:
-// - Free: 1 kullanıcı, 1 müşteri, 1 tedarikçi, 1 banka hesabı, ayda 5 gelir (fatura) + 5 gider
-// - Pro: 1 şirket (tenant), en fazla 3 kullanıcı, diğerleri sınırsız
-// - Business: sınırsız, fiyat yerine "iletişime geçin"
-// Bu koddaki haritalamada BASIC/PROFESSIONAL -> Pro eşdeğeri kabul edilmiştir.
+// SubscriptionPlan enum: FREE | BASIC (legacy) | PROFESSIONAL | ENTERPRISE
+// Yeni iş kuralları (landing page ile hizalı):
+// - Starter (FREE): 1 kullanıcı, 1 müşteri, 1 tedarikçi, 1 banka hesabı, ayda 5 fatura + 5 gider
+// - Pro (PROFESSIONAL & BASIC legacy): 3 kullanıcı (koltuk), diğer varlıklar sınırsız, aylık sınır yok
+// - Business (ENTERPRISE): sınırsız (tüm sayısal limitler -1)
+// Not: BASIC geçmiş uyumluluk için tutulur ve PROFESSIONAL ile aynı limitleri paylaşır.
 export const TENANT_PLAN_LIMITS: Record<SubscriptionPlan, TenantPlanLimits> = {
   [SubscriptionPlan.FREE]: {
     maxUsers: 1,
@@ -40,7 +40,7 @@ export const TENANT_PLAN_LIMITS: Record<SubscriptionPlan, TenantPlanLimits> = {
     },
   },
   [SubscriptionPlan.BASIC]: {
-    // "Pro" eşdeğeri kabul edilmiştir
+    // Legacy: Pro ile aynı
     maxUsers: 3,
     maxCustomers: -1,
     maxSuppliers: -1,
@@ -51,7 +51,6 @@ export const TENANT_PLAN_LIMITS: Record<SubscriptionPlan, TenantPlanLimits> = {
     },
   },
   [SubscriptionPlan.PROFESSIONAL]: {
-    // "Pro" eşdeğeri kabul edilmiştir
     maxUsers: 3,
     maxCustomers: -1,
     maxSuppliers: -1,
@@ -62,7 +61,6 @@ export const TENANT_PLAN_LIMITS: Record<SubscriptionPlan, TenantPlanLimits> = {
     },
   },
   [SubscriptionPlan.ENTERPRISE]: {
-    // Business: sınırsız
     maxUsers: -1,
     maxCustomers: -1,
     maxSuppliers: -1,

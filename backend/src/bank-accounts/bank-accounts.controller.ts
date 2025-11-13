@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Patch, Param, Delete } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BankAccountsService } from './bank-accounts.service';
 import { CreateBankAccountDto } from './dto/create-bank-account.dto';
@@ -24,5 +24,21 @@ export class BankAccountsController {
   })
   async findAll(@User() user: any) {
     return this.bankAccountsService.findAll(user.tenantId);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Banka hesabını güncelle' })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateBankAccountDto>,
+    @User() user: any,
+  ) {
+    return this.bankAccountsService.update(id, dto, user.tenantId);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Banka hesabını sil' })
+  async remove(@Param('id') id: string, @User() user: any) {
+    return this.bankAccountsService.remove(id, user.tenantId);
   }
 }

@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, Between } from 'typeorm';
@@ -17,6 +18,8 @@ import { Supplier } from '../suppliers/entities/supplier.entity';
 import { Product } from '../products/entities/product.entity';
 import { Invoice } from '../invoices/entities/invoice.entity';
 import { Expense } from '../expenses/entities/expense.entity';
+import { Sale } from '../sales/entities/sale.entity';
+import { BankAccount } from '../bank-accounts/entities/bank-account.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
 import { AuditLog } from '../audit/entities/audit-log.entity';
 import * as fs from 'fs';
@@ -25,10 +28,16 @@ import { spawn } from 'child_process';
 import { SecurityService } from '../common/security.service';
 import { EmailService } from '../services/email.service';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
+import { BillingService } from '../billing/billing.service';
 
 @Injectable()
 export class AdminService {
   private activeAdminTokens: Set<string> = new Set();
+  private readonly logger = new Logger('AdminService');
+  // Basit throttle: aynı tenant için 15 sn içinde tekrar sync tetikleme
+  private lastAdminSyncTrigger: Map<string, number> = new Map();
+  // Stripe tarafını gereksiz yere sık çağırmamak için hafif kontrol throttling'i
+  private lastAdminStripeCheck: Map<string, number> = new Map();
 
   constructor(
     @InjectRepository(User)
@@ -45,6 +54,10 @@ export class AdminService {
     private invoiceRepository: Repository<Invoice>,
     @InjectRepository(Expense)
     private expenseRepository: Repository<Expense>,
+  @InjectRepository(Sale)
+  private salesRepository: Repository<Sale>,
+  @InjectRepository(BankAccount)
+  private bankAccountRepository: Repository<BankAccount>,
     @InjectRepository(ProductCategory)
     private productCategoryRepository: Repository<ProductCategory>,
     @InjectRepository(AuditLog)
@@ -52,6 +65,7 @@ export class AdminService {
     private dataSource: DataSource,
     private securityService: SecurityService,
     private emailService: EmailService,
+    private readonly billingService: BillingService,
   ) {}
 
   async adminLogin(username: string, password: string) {
@@ -863,9 +877,13 @@ export class AdminService {
 
   // === Tenant bazlı plan limitleri: oku/güncelle ===
   async getTenantLimits(tenantId: string) {
-    const tenant = await this.tenantRepository.findOne({
+    let tenant = await this.tenantRepository.findOne({
       where: { id: tenantId },
     });
+    // UI yanlışlıkla slug gönderebilir; slug ile de dene
+    if (!tenant) {
+      tenant = await this.tenantRepository.findOne({ where: { slug: tenantId } as any });
+    }
     if (!tenant) throw new NotFoundException('Tenant not found');
 
     // Usage stats
@@ -879,7 +897,8 @@ export class AdminService {
       invoicesThisMonth,
       expensesThisMonth,
     ] = await Promise.all([
-      this.userRepository.count({ where: { tenantId } }),
+      // Yalnız aktif kullanıcıları say: UI tarafıyla tutarlılık
+      this.userRepository.count({ where: { tenantId, isActive: true } as any }),
       this.customerRepository.count({ where: { tenantId } }),
       this.supplierRepository.count({ where: { tenantId } }),
       // bank accounts table/entity name is bank_accounts
@@ -910,15 +929,151 @@ export class AdminService {
         .catch(() => 0),
     ]);
 
-    // Limits
-    const defaultLimits = TenantPlanLimitService.getLimits(
+    // Limits - BEFORE effective overrides with tenant.maxUsers (sync tanılama için)
+    const defaultLimitsBefore = TenantPlanLimitService.getLimits(
       tenant.subscriptionPlan,
     );
     const overrides = (tenant.settings as any)?.planOverrides || null;
+    const effectiveBefore = TenantPlanLimitService.mergeWithOverrides(
+      defaultLimitsBefore,
+      overrides,
+    );
+
+    // Otomatik senkron koşulları (ADMIN_SYNC planı)
+    const stripeCustomerExists = !!tenant.stripeCustomerId;
+    const tenantHasSub = !!tenant.stripeSubscriptionId;
+    const tenantMaxVal = Math.max(0, Number(tenant.maxUsers ?? 0));
+    const effBeforeMax = Math.max(
+      0,
+      Number((effectiveBefore as any)?.maxUsers ?? 0),
+    );
+    let needSync =
+      stripeCustomerExists &&
+      (!tenantHasSub || usersCount > tenantMaxVal || effBeforeMax < tenantMaxVal);
+
+    // Ek kural: Webhook kaçırıldıysa Stripe üzerinde koltuk sayısı/plan değişmiş olabilir.
+    // Çok sık çağrılmaması için 60sn'de bir Stripe abonelik özetini kontrol edelim.
+    if (!needSync && stripeCustomerExists) {
+      const nowMs = Date.now();
+      const lastCheck = this.lastAdminStripeCheck.get(tenant.id) || 0;
+      const withinCheckThrottle = nowMs - lastCheck < 60_000; // 60s
+      if (!withinCheckThrottle) {
+        this.lastAdminStripeCheck.set(tenant.id, nowMs);
+        try {
+          const raw = await this.billingService.getSubscriptionRaw(tenant.id);
+          if (raw && raw.subscriptionId) {
+            const remoteSeats = Math.max(0, Number(raw.computedSeats ?? 0));
+            const localBase = Math.max(
+              0,
+              Number(
+                // local maxUsers yoksa plan bazındaki default'u baz alalım
+                (tenant.maxUsers ?? (effectiveBefore as any)?.maxUsers ?? 0) as number,
+              ),
+            );
+            const planMismatch = !!raw.plan && raw.plan !== tenant.subscriptionPlan;
+            const seatMismatch = remoteSeats > 0 && remoteSeats !== localBase;
+            if (planMismatch || seatMismatch) {
+              this.logger.verbose(
+                JSON.stringify({
+                  tag: 'ADMIN_SYNC',
+                  tenantId,
+                  reason: planMismatch ? 'plan-mismatch' : 'seats-mismatch',
+                  observed: {
+                    remoteSeats,
+                    localBase,
+                    remotePlan: raw.plan,
+                    localPlan: tenant.subscriptionPlan,
+                  },
+                }),
+              );
+              needSync = true;
+            }
+          }
+        } catch (e: any) {
+          // Stripe kontrolü başarısız olabilir; sessiz geç ve mevcut kurallarla devam et
+          this.logger.debug(`stripe raw check failed tenant=${tenant.id} ${e?.message || e}`);
+        }
+      }
+    }
+
+    if (needSync) {
+      const nowMs = Date.now();
+      const last = this.lastAdminSyncTrigger.get(tenant.id) || 0;
+      const withinThrottle = nowMs - last < 15_000; // 15s throttle
+      if (!withinThrottle) {
+        // Structured log: trigger
+        this.logger.verbose(
+          JSON.stringify({
+            tag: 'ADMIN_SYNC',
+            tenantId,
+            reason: !tenantHasSub
+              ? 'missing-sub'
+              : usersCount > tenantMaxVal
+                ? 'mismatch-usage'
+                : 'mismatch-effective-or-remote',
+            before: {
+              maxUsers: tenant.maxUsers ?? null,
+              usageUsers: usersCount,
+              effectiveMax: effBeforeMax,
+              stripeCustomerId: tenant.stripeCustomerId,
+              stripeSubscriptionId: tenant.stripeSubscriptionId,
+            },
+          }),
+        );
+        this.lastAdminSyncTrigger.set(tenant.id, nowMs);
+        try {
+          await this.billingService.syncFromStripe(tenant.id);
+          tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+          this.logger.verbose(
+            JSON.stringify({
+              tag: 'ADMIN_SYNC',
+              tenantId,
+              status: 'success',
+              after: {
+                maxUsers: tenant?.maxUsers ?? null,
+                stripeSubscriptionId: tenant?.stripeSubscriptionId ?? null,
+              },
+            }),
+          );
+        } catch (e: any) {
+          this.logger.warn(
+            JSON.stringify({
+              tag: 'ADMIN_SYNC',
+              tenantId,
+              status: 'error',
+              message: e?.message || String(e),
+            }),
+          );
+        }
+      }
+    }
+
+    // Limits - AFTER: tenant.maxUsers ile efektif değeri belirle (UI için)
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    const defaultLimits = TenantPlanLimitService.getLimits(
+      tenant.subscriptionPlan,
+    );
     const effective = TenantPlanLimitService.mergeWithOverrides(
       defaultLimits,
       overrides,
     );
+    // Seat bazlı maxUsers gerçek değerini yansıt (Stripe addon + base dahil)
+    // Kural:
+    // - Eğer tenant Stripe aboneliğine sahipse, efektif limit Stripe koltuk sayısıdır (tenant.maxUsers)
+    //   Böylece global plan varsayılan/override'ları (örn. PRO=10) Stripe'ın daha düşük koltuklarına baskın çıkmaz.
+    // - Stripe yoksa önceki mantık geçerli kalır (plan varsayılanları ve olası tenant.maxUsers birlikte değerlendirilir).
+    const tenantMax = Number.isFinite(tenant.maxUsers as any)
+      ? (tenant.maxUsers as number)
+      : undefined;
+    const effMax = (effective as any)?.maxUsers as number | undefined;
+    if (tenant.stripeSubscriptionId && typeof tenantMax === 'number') {
+      (effective as any).maxUsers = tenantMax;
+    } else if (tenantMax !== undefined) {
+      (effective as any).maxUsers = Math.max(
+        typeof effMax === 'number' ? effMax : 0,
+        tenantMax,
+      );
+    }
 
     return {
       success: true,
@@ -928,6 +1083,9 @@ export class AdminService {
         companyName: tenant.companyName,
         subscriptionPlan: tenant.subscriptionPlan,
         status: tenant.status,
+        maxUsers: tenant.maxUsers,
+        stripeCustomerId: tenant.stripeCustomerId,
+        stripeSubscriptionId: tenant.stripeSubscriptionId,
       },
       limits: {
         default: defaultLimits,
@@ -1184,5 +1342,90 @@ export class AdminService {
       }),
     );
     return { success: true, hard: false };
+  }
+
+  /**
+   * DEV AMAÇLI: Bir tenant içindeki demo/veri temizliği.
+   * Production ortamında çalışması engellenir.
+   * Sıra: satışlar -> faturalar -> giderler -> bank hesapları -> ürünler -> kategoriler -> müşteriler -> tedarikçiler
+   * (cascading ilişkiler göz önüne alınarak daha bağımlı olanlar önce silinir)
+   */
+  async purgeTenantDemo(tenantId: string) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new UnauthorizedException('Purge is disabled in production');
+    }
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const summary: Record<string, number> = {
+      sales: 0,
+      invoices: 0,
+      expenses: 0,
+      bankAccounts: 0,
+      products: 0,
+      productCategories: 0,
+      customers: 0,
+      suppliers: 0,
+    };
+
+    await this.dataSource.transaction(async (manager) => {
+      const sales = await manager.find(Sale, { where: { tenantId } });
+      if (sales.length) {
+        summary.sales = sales.length;
+        await manager.remove(Sale, sales);
+      }
+      const invoices = await manager.find(Invoice, { where: { tenantId } });
+      if (invoices.length) {
+        summary.invoices = invoices.length;
+        await manager.remove(Invoice, invoices);
+      }
+      const expenses = await manager.find(Expense, { where: { tenantId } });
+      if (expenses.length) {
+        summary.expenses = expenses.length;
+        await manager.remove(Expense, expenses);
+      }
+      const bankAccounts = await manager.find(BankAccount, { where: { tenantId } });
+      if (bankAccounts.length) {
+        summary.bankAccounts = bankAccounts.length;
+        await manager.remove(BankAccount, bankAccounts);
+      }
+      const products = await manager.find(Product, { where: { tenantId } });
+      if (products.length) {
+        summary.products = products.length;
+        await manager.remove(Product, products);
+      }
+      const productCategories = await manager.find(ProductCategory, { where: { tenantId } });
+      if (productCategories.length) {
+        summary.productCategories = productCategories.length;
+        await manager.remove(ProductCategory, productCategories);
+      }
+      const customers = await manager.find(Customer, { where: { tenantId } });
+      if (customers.length) {
+        summary.customers = customers.length;
+        await manager.remove(Customer, customers);
+      }
+      const suppliers = await manager.find(Supplier, { where: { tenantId } });
+      if (suppliers.length) {
+        summary.suppliers = suppliers.length;
+        await manager.remove(Supplier, suppliers);
+      }
+    });
+
+    // Audit log kaydı (hafif)
+    try {
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          tenantId,
+          entity: 'tenant_demo_purge',
+          entityId: tenantId,
+          action: 'DELETE' as any,
+          diff: summary,
+        }),
+      );
+    } catch (e) {
+      this.logger.warn('Purge audit log failed: ' + (e as any)?.message);
+    }
+
+    return { success: true, summary };
   }
 }

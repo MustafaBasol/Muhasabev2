@@ -71,14 +71,14 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const baseIncludedFor = (planStr: string): number => {
     const p = String(planStr || '').toLowerCase();
     if (p === 'professional' || p === 'pro') return 3; // Pro: 3 kullanıcı dahil
-    if (p === 'enterprise' || p === 'business') return 10; // Enterprise: varsayılan 10
+    if (p === 'enterprise' || p === 'business') return 0; // Business: sınırsız, baz anlamsız
     return 1; // Basic/Free
   };
   const planLabelMap: Record<string, string> = {
-    free: 'Free',
-    basic: 'Basic',
+    free: 'Starter',
+    basic: 'Basic', // legacy
     professional: 'Pro',
-    enterprise: 'Enterprise',
+    enterprise: 'Business',
   };
   const planText = planLabelMap[planRaw] || (planRaw ? planRaw.toUpperCase() : '—');
   const periodMap: Record<SettingsLanguage, { month: string; year: string }> = {
@@ -94,19 +94,20 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     : (intervalRaw ? (periodMap[currentLanguage]?.[intervalRaw] || (intervalRaw === 'year' ? 'Yearly' : 'Monthly')) : (periodMap[currentLanguage]?.month || 'Monthly'));
 
   // --- Local state ---
-  // Yalnız landing'deki 3 plan gösterilecek: Basic, Pro, Enterprise
-  const allowedPlans = ['basic', 'professional', 'enterprise'] as const;
+  // Yalnız landing'deki 3 plan: Starter(Free), Pro, Business(Enterprise)
+  const allowedPlans = ['free', 'professional', 'enterprise'] as const;
   const [desiredPlan, setDesiredPlan] = useState<string>(
-    allowedPlans.includes(planRaw as any) ? planRaw : 'basic'
+    allowedPlans.includes(planRaw as any) ? planRaw : 'free'
   );
   const [desiredBilling, setDesiredBilling] = useState<'monthly' | 'yearly'>('monthly');
   const currentMaxUsers = (tenant?.maxUsers as number) || 1;
-  // Plan değişimi için hedef toplam kullanıcı sayısı (bağımsız state)
-  const [desiredUsers, setDesiredUsers] = useState<number>(Math.max(currentMaxUsers, 1));
+  // Plan değişiminde hedef kullanıcı alanı kaldırıldı; koltuk artışı yalnız add-on akışından yapılır
   // İlave kullanıcı ekleme için bağımsız state (sadece ek sayısı)
   const [additionalUsersToAdd, setAdditionalUsersToAdd] = useState<number>(1);
   const [busy, setBusy] = useState(false);
   const [planMessage, setPlanMessage] = useState<string>('');
+  // Add-on onay modali durumu
+  const [addonConfirm, setAddonConfirm] = useState<{ open: boolean; mode: 'now' | 'later'; count: number }>({ open: false, mode: 'now', count: 1 });
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -148,11 +149,9 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
 
   // Sync desired plan if tenant changes
   useEffect(() => {
-    // Eğer mevcut plan dropdown'da yoksa (ör. free), varsayılan olarak 'basic' seçilsin
-    setDesiredPlan(allowedPlans.includes(planRaw as any) ? planRaw : 'basic');
-    const base = baseIncludedFor(planRaw);
-    const current = (tenant?.maxUsers as number) || base;
-    setDesiredUsers(Math.max(current, base));
+    // Eğer mevcut plan dropdown'da yoksa varsayılan 'free' seçilsin
+    setDesiredPlan(allowedPlans.includes(planRaw as any) ? planRaw : 'free');
+  // Kullanıcı hedef alanı kaldırıldığı için burada ayrı bir senkron gerekmiyor
     setCancelAtPeriodEnd(!!tenant?.cancelAtPeriodEnd);
   }, [planRaw, tenant?.maxUsers, tenant?.cancelAtPeriodEnd]);
 
@@ -310,7 +309,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       const currentlyPaid = ['professional', 'enterprise', 'pro', 'business'].includes(planRaw);
       const desiredPaid = ['professional', 'enterprise', 'pro', 'business'].includes(desired);
       const interval: 'month' | 'year' = desiredBilling === 'yearly' ? 'year' : 'month';
-      const canSeats = ['professional', 'enterprise', 'pro', 'business'].includes(planRaw);
+  // Seat güncellemesi UI'dan kaldırıldığı için (Hedef Kullanıcı Sayısı) burada kullanılmıyor
 
       // 1) Free/Basic hedefi: aktif abonelik varsa dönem sonunda iptal et
       if (!desiredPaid) {
@@ -333,17 +332,8 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       })();
       const samePlan = normalizedCurrentPlan === desired;
       const sameInterval = (intervalRaw || 'month') === interval;
-      const baseDesired = baseIncludedFor(desired);
-      const seatAddon = Math.max(0, Math.floor((desiredUsers || baseDesired) - baseDesired));
-      if (samePlan && sameInterval && canSeats && (desiredUsers !== ((tenant?.maxUsers as number) || 1))) {
-        // Plan/interval değişimi yoksa ve sadece koltuk değişiyorsa Stripe'ta final add-on miktarına ayarla
-        const res = await billingUpdateSeats(tenantId, seatAddon);
-        if (res?.success) {
-          setPlanMessage(currentLanguage === 'tr' ? 'Kullanıcı limiti güncellendi.' : 'Seat count updated.');
-          await refreshUser();
-        }
-        return;
-      }
+      // Hedef kullanıcı alanı kaldırıldığı için plan değişiminde ek koltuk belirlenmez
+      const seatAddon = 0;
 
       // 3) Eğer plan aynı ama interval değişiyorsa: yeni checkout yerine yerinde güncelle (proration uygula)
       if (samePlan && !sameInterval) {
@@ -448,13 +438,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const renewalDate = tenant?.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt) : null;
   const renewalStr = renewalDate ? renewalDate.toLocaleDateString() : (currentLanguage === 'tr' ? '—' : '—');
 
-  const canModifySeats = ['professional', 'enterprise'].includes(planRaw);
-  // Basic veya Free için hedef kullanıcı alanını sabitle
-  useEffect(() => {
-    if (!canModifySeats) {
-      setDesiredUsers(1);
-    }
-  }, [canModifySeats]);
+  const canModifySeats = planRaw === 'professional' || planRaw === 'pro';
 
   return (
     <div className="space-y-6">
@@ -501,7 +485,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           </div>
             <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
               <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Kullanıcı Limiti' : currentLanguage === 'fr' ? 'Limite Utilisateurs' : currentLanguage === 'de' ? 'Benutzerlimit' : 'User Limit'}</span>
-              <span className="text-sm text-gray-900">{currentMaxUsers}</span>
+              <span className="text-sm text-gray-900">{currentMaxUsers < 0 ? (currentLanguage === 'tr' ? 'Sınırsız' : currentLanguage === 'fr' ? 'Illimité' : currentLanguage === 'de' ? 'Unbegrenzt' : 'Unlimited') : currentMaxUsers}</span>
             </div>
           <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
             <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Yenileme Tarihi' : currentLanguage === 'fr' ? 'Date de renouvellement' : currentLanguage === 'de' ? 'Verlängerungsdatum' : 'Renewal Date'}</span>
@@ -518,7 +502,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       {/* Plan Değişimi */}
       <div className="border border-gray-200 rounded-lg p-4 bg-white">
         <h4 className="text-md font-semibold mb-3">{currentLanguage === 'tr' ? 'Plan Yükselt / Düşür' : currentLanguage === 'fr' ? 'Changer de Plan' : currentLanguage === 'de' ? 'Plan wechseln' : 'Change Plan'}</h4>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Yeni Plan' : currentLanguage === 'fr' ? 'Nouveau Plan' : currentLanguage === 'de' ? 'Neuer Plan' : 'New Plan'}</label>
             <select
@@ -526,9 +510,17 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
               onChange={e => setDesiredPlan(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
             >
-              <option value="basic">Basic</option>
-              <option value="professional">Pro</option>
-              <option value="enterprise">Enterprise</option>
+              <option value="professional">{currentLanguage === 'tr' ? 'Pro' : currentLanguage === 'fr' ? 'Pro' : currentLanguage === 'de' ? 'Pro' : 'Pro'}</option>
+              <option value="enterprise">{currentLanguage === 'tr' ? 'Business' : currentLanguage === 'fr' ? 'Business' : currentLanguage === 'de' ? 'Business' : 'Business'}</option>
+              <option value="free">
+                {currentLanguage === 'tr'
+                  ? 'Starter (Ücretsiz)'
+                  : currentLanguage === 'fr'
+                  ? 'Starter (Gratuit)'
+                  : currentLanguage === 'de'
+                  ? 'Starter (Kostenlos)'
+                  : 'Starter (Free)'}
+              </option>
             </select>
           </div>
           <div>
@@ -544,25 +536,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
               <option value="yearly">{currentLanguage === 'tr' ? 'Yıllık' : currentLanguage === 'fr' ? 'Annuel' : currentLanguage === 'de' ? 'Jährlich' : 'Yearly'}</option>
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Hedef Kullanıcı Sayısı' : currentLanguage === 'fr' ? 'Utilisateurs Cibles' : currentLanguage === 'de' ? 'Ziel Benutzer' : 'Target Users'}</label>
-            <input
-              type="number"
-              min={['professional', 'enterprise', 'pro', 'business'].includes(String(desiredPlan).toLowerCase()) ? ((): number => {
-                const p = String(desiredPlan).toLowerCase();
-                if (p === 'professional' || p === 'pro') return 3;
-                if (p === 'enterprise' || p === 'business') return 10;
-                return 1;
-              })() : 1}
-              value={desiredUsers}
-              onChange={e => setDesiredUsers(parseInt(e.target.value || '1', 10))}
-              disabled={!canModifySeats}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 disabled:text-gray-400"
-            />
-            {!canModifySeats && (
-              <p className="mt-1 text-[10px] text-gray-500">{currentLanguage === 'tr' ? 'Kullanıcı limiti yalnız Pro+ planlarda ayarlanabilir.' : 'Seat count only adjustable on Pro+ plans.'}</p>
-            )}
-          </div>
+          
           {/* İptal seçeneği artık checkbox olarak sunulmuyor */}
           <div className="flex items-end">
             <button
@@ -592,62 +566,17 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
             />
             <div className="flex gap-2">
               <button
-                onClick={async () => {
-                  try {
-                    setBusy(true); setPlanMessage('');
-                    const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-                    if (!tenantId) throw new Error('Tenant bulunamadı');
-                    if (additionalUsersToAdd <= 0) throw new Error('Ek kullanıcı >= 1 olmalı');
-                    const { chargeAddonNow } = await import('../api/billing');
-                    const resp = await chargeAddonNow(tenantId, additionalUsersToAdd);
-                    if (resp?.success) {
-                      const cur = String(resp?.currency || '').toUpperCase();
-                      const amt = typeof resp.amountPaid === 'number' ? (resp.amountPaid/100).toFixed(2) + ' ' + cur : '';
-                      setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar tahsil edildi.' : 'Additional users charged.') + (amt ? ` (${amt})` : ''));
-                      setAdditionalUsersToAdd(1);
-                      await refreshUser();
-                      try {
-                        const { listInvoices } = await import('../api/billing');
-                        const res = await listInvoices(tenantId);
-                        setInvoices(res?.invoices || []);
-                      } catch {}
-                    } else {
-                      setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
-                    }
-                  } catch (e:any) {
-                    setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
-                  } finally { setBusy(false); }
+                onClick={() => {
+                  if (additionalUsersToAdd <= 0) { setPlanMessage(currentLanguage === 'tr' ? 'Ek kullanıcı >= 1 olmalı' : 'Additional users must be >= 1'); return; }
+                  setAddonConfirm({ open: true, mode: 'now', count: additionalUsersToAdd });
                 }}
                 disabled={busy}
                 className="px-4 py-2 text-sm rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
               >{currentLanguage === 'tr' ? 'Hemen Tahsil Et' : currentLanguage === 'fr' ? 'Encaisser Maintenant' : currentLanguage === 'de' ? 'Jetzt Abbuchen' : 'Charge Now'}</button>
               <button
-                onClick={async () => {
-                  try {
-                    setBusy(true); setPlanMessage('');
-                    const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-                    if (!tenantId) throw new Error('Tenant bulunamadı');
-                    if (additionalUsersToAdd <= 0) throw new Error('Ek kullanıcı >= 1 olmalı');
-                    const resp = await createAddonCheckout(tenantId, additionalUsersToAdd, '', '');
-                    if (resp?.success) {
-                      const prorationMsg = ((): string => {
-                        const cur = String(resp?.upcomingCurrency || '').toUpperCase();
-                        if (typeof resp?.upcomingProrationTotal === 'number') {
-                          return currentLanguage === 'tr'
-                            ? ` (Bu dönem için ek proration: ${(resp.upcomingProrationTotal/100).toFixed(2)} ${cur} — bir sonraki faturaya eklenecek)`
-                            : ` (Proration for this period: ${(resp.upcomingProrationTotal/100).toFixed(2)} ${cur} — will be added to the next invoice)`;
-                        }
-                        return '';
-                      })();
-                      setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar eklendi.' : 'Additional users added.') + prorationMsg);
-                      setAdditionalUsersToAdd(1);
-                      await refreshUser();
-                    } else {
-                      setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
-                    }
-                  } catch (e:any) {
-                    setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
-                  } finally { setBusy(false); }
+                onClick={() => {
+                  if (additionalUsersToAdd <= 0) { setPlanMessage(currentLanguage === 'tr' ? 'Ek kullanıcı >= 1 olmalı' : 'Additional users must be >= 1'); return; }
+                  setAddonConfirm({ open: true, mode: 'later', count: additionalUsersToAdd });
                 }}
                 disabled={busy}
                 className="px-4 py-2 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
@@ -656,6 +585,99 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           </div>
         </div>
       )}
+      {/* Add-on onay modali */}
+      <InfoModal
+        isOpen={addonConfirm.open}
+        onClose={() => setAddonConfirm(p => ({ ...p, open: false }))}
+        title={addonConfirm.mode === 'now'
+          ? (currentLanguage === 'tr' ? 'Hemen Tahsil Onayı' : currentLanguage === 'fr' ? "Confirmation d'encaissement" : currentLanguage === 'de' ? 'Sofortige Abbuchung Bestätigen' : 'Immediate Charge Confirmation')
+          : (currentLanguage === 'tr' ? 'Faturalandırma Onayı' : currentLanguage === 'fr' ? 'Confirmation de facturation' : currentLanguage === 'de' ? 'Rechnungsstellung Bestätigen' : 'Invoice Confirmation')}
+        message={((): string => {
+          const count = addonConfirm.count;
+          const unitPrice = 5; // €5 per additional user per month
+          const total = (count * unitPrice).toFixed(2);
+          if (addonConfirm.mode === 'now') {
+            return currentLanguage === 'tr'
+              ? `${count} ilave kullanıcı için hemen ${total} € tahsil edilecek. Onaylıyor musunuz?`
+              : currentLanguage === 'fr'
+              ? `Encaisser maintenant ${total} € pour ${count} utilisateur(s) supplémentaire(s). Confirmez-vous ?`
+              : currentLanguage === 'de'
+              ? `${count} zusätzliche(r) Benutzer wird/werden jetzt mit ${total} € belastet. Bestätigen?`
+              : `Charge ${total} € now for ${count} additional user(s). Do you confirm?`;
+          }
+          return currentLanguage === 'tr'
+            ? `${count} ilave kullanıcı eklenecek ve dönem sonunda faturalandırılacak. Onaylıyor musunuz?`
+            : currentLanguage === 'fr'
+            ? `${count} utilisateur(s) supplémentaire(s) sera/seront ajouté(s) et facturé(s) à la fin de la période. Confirmez-vous ?`
+            : currentLanguage === 'de'
+            ? `${count} zusätzliche(r) Benutzer wird/werden hinzugefügt und am Periodenende abgerechnet. Bestätigen?`
+            : `${count} additional user(s) will be added and invoiced at period end. Do you confirm?`;
+        })()}
+        confirmLabel={currentLanguage === 'tr' ? 'Onayla' : currentLanguage === 'fr' ? 'Confirmer' : currentLanguage === 'de' ? 'Bestätigen' : 'Confirm'}
+        cancelLabel={currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel'}
+        onConfirm={() => {
+          const mode = addonConfirm.mode;
+          setAddonConfirm(p => ({ ...p, open: false }));
+          if (mode === 'now') {
+            (async () => {
+              try {
+                setBusy(true);
+                const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+                if (!tenantId) throw new Error('Tenant bulunamadı');
+                if (additionalUsersToAdd <= 0) throw new Error('Ek kullanıcı >= 1 olmalı');
+                const { chargeAddonNow, listInvoices } = await import('../api/billing');
+                const toAdd = additionalUsersToAdd;
+                const resp = await chargeAddonNow(tenantId, toAdd);
+                if (resp?.success) {
+                  const cur = String(resp?.currency || '').toUpperCase();
+                  const amt = typeof resp.amountPaid === 'number' ? (resp.amountPaid/100).toFixed(2) + ' ' + cur : '';
+                  setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar tahsil edildi.' : 'Additional users charged.') + (amt ? ` (${amt})` : ''));
+                  setAdditionalUsersToAdd(1);
+                  await refreshUser();
+                  try { const res = await listInvoices(tenantId); setInvoices(res?.invoices || []); } catch {}
+                  try { window.dispatchEvent(new CustomEvent('billingSuccess', { detail: { type: 'addon', seats: toAdd, ts: Date.now() } })); } catch {}
+                } else {
+                  setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
+                }
+              } catch (e:any) {
+                setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
+              } finally { setBusy(false); }
+            })();
+          } else {
+            (async () => {
+              try {
+                setBusy(true);
+                const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+                if (!tenantId) throw new Error('Tenant bulunamadı');
+                if (additionalUsersToAdd <= 0) throw new Error('Ek kullanıcı >= 1 olmalı');
+                const toAdd = additionalUsersToAdd;
+                const resp = await createAddonCheckout(tenantId, toAdd, '', '');
+                if (resp?.success) {
+                  const prorationMsg = ((): string => {
+                    const cur = String(resp?.upcomingCurrency || '').toUpperCase();
+                    if (typeof resp?.upcomingProrationTotal === 'number') {
+                      return currentLanguage === 'tr'
+                        ? ` (Bu dönem için ek proration: ${(resp.upcomingProrationTotal/100).toFixed(2)} ${cur} — bir sonraki faturaya eklenecek)`
+                        : ` (Proration for this period: ${(resp.upcomingProrationTotal/100).toFixed(2)} ${cur} — will be added to the next invoice)`;
+                    }
+                    return '';
+                  })();
+                  setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar eklendi.' : 'Additional users added.') + prorationMsg);
+                  setAdditionalUsersToAdd(1);
+                  await refreshUser();
+                  try { window.dispatchEvent(new CustomEvent('billingSuccess', { detail: { type: 'addon', seats: toAdd, ts: Date.now() } })); } catch {}
+                } else {
+                  setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
+                }
+              } catch (e:any) {
+                setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
+              } finally { setBusy(false); }
+            })();
+          }
+        }}
+        onCancel={() => setAddonConfirm(p => ({ ...p, open: false }))}
+        tone="info"
+      />
 
       {/* İptal Seçenekleri */}
       {!isFree && (
@@ -1976,7 +1998,7 @@ export default function SettingsPage({
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showSaveError, setShowSaveError] = useState(false);
-  const [infoModal, setInfoModal] = useState<{ open: boolean; title: string; message: string; tone: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', tone: 'info' });
+  const [infoModal, setInfoModal] = useState<{ open: boolean; title: string; message: string; tone: 'success' | 'error' | 'info'; confirmLabel?: string; onConfirm?: () => void; cancelLabel?: string; onCancel?: () => void }>({ open: false, title: '', message: '', tone: 'info' });
   const openInfo = (title: string, message: string, tone: 'success' | 'error' | 'info' = 'info') => setInfoModal({ open: true, title, message, tone });
   
   // Privacy tab states
@@ -1985,7 +2007,7 @@ export default function SettingsPage({
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // i18next entegrasyonu
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   
   // i18next dilini kullan (tr/en/fr/de formatında)
   const i18nLanguage = i18n.language.toLowerCase().substring(0, 2);
@@ -2048,7 +2070,7 @@ export default function SettingsPage({
         const res = await listInvoices(tenantId);
         const since = typeof meta.ts === 'number' ? (meta.ts - 2 * 60 * 1000) : (Date.now() - 10 * 60 * 1000);
         const paid = (res?.invoices || []).some((inv: any) => Boolean(inv?.paid) && inv?.created && new Date(inv.created).getTime() >= since);
-        if (paid && !disposed) {
+  if (paid && !disposed) {
           const planName = ((): string => {
             const d = String(meta?.plan || '').toLowerCase();
             if (d.includes('enterprise') || d.includes('business')) return 'Enterprise';
@@ -2085,7 +2107,38 @@ export default function SettingsPage({
           const dict = messages[lang as 'tr'|'en'|'fr'|'de'] || messages.tr;
           const baseMsg = meta?.type === 'plan-interval' ? dict.basePlan : dict.baseGeneric;
           const extraMsg = meta?.seats && meta.seats > 0 ? dict.extra(meta.seats) : '';
-          openInfo(dict.title, baseMsg + extraMsg, 'success');
+          // Owner ise "Kullanıcı Davet Et" kısa yolu ekle, değilse basit başarı mesajı
+          if (isOwnerLike) {
+            const labels = {
+              tr: { invite: 'Kullanıcı Davet Et', close: 'Kapat' },
+              en: { invite: 'Invite Users', close: 'Close' },
+              fr: { invite: 'Inviter des utilisateurs', close: 'Fermer' },
+              de: { invite: 'Benutzer einladen', close: 'Schließen' },
+            } as const;
+            const L = labels[lang as 'tr'|'en'|'fr'|'de'] || labels.tr;
+            setInfoModal({
+              open: true,
+              title: dict.title,
+              message: baseMsg + extraMsg,
+              tone: 'success',
+              confirmLabel: L.invite,
+              onConfirm: () => { 
+                setInfoModal(m => ({ ...m, open: false })); 
+                (async () => { 
+                  try { 
+                    const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+                    if (tenantId) { const { syncSubscription } = await import('../api/billing'); await syncSubscription(tenantId); }
+                    await refreshUser(); 
+                  } catch {}
+                  setActiveTab('organization'); 
+                })();
+              },
+              cancelLabel: L.close,
+              onCancel: () => setInfoModal(m => ({ ...m, open: false })),
+            });
+          } else {
+            openInfo(dict.title, baseMsg + extraMsg, 'success');
+          }
           try { localStorage.removeItem('pending_billing_payment'); } catch {}
           await refreshUser();
         }
@@ -2093,7 +2146,56 @@ export default function SettingsPage({
     };
     handler();
     const onFocus = () => { handler(); };
+    // Add-on başarıları için anlık event dinleyicisi
+    const onBillingSuccess = (ev: Event) => {
+      try {
+        const anyEv = ev as CustomEvent<any>;
+        const meta = anyEv?.detail || {};
+        if (!meta || disposed) return;
+        const lang = currentLanguage || 'tr';
+        const messages = {
+          tr: { title: 'İşlem Başarılı', base: 'İşleminiz başarıyla tamamlandı.', extra: (n:number) => ` Ayrıca sisteminize ${n} kullanıcı daha davet edebilirsiniz.` },
+          en: { title: 'Success', base: 'Your operation completed successfully.', extra: (n:number) => ` You can now invite ${n} more user${n>1?'s':''}.` },
+          fr: { title: 'Succès', base: 'Votre opération s’est terminée avec succès.', extra: (n:number) => ` Vous pouvez maintenant inviter ${n} utilisateur${n>1?'s':''} supplémentaires.` },
+          de: { title: 'Erfolg', base: 'Ihr Vorgang wurde erfolgreich abgeschlossen.', extra: (n:number) => ` Sie können nun ${n} weitere Benutzer einladen.` },
+        } as const;
+        const dict = messages[lang as 'tr'|'en'|'fr'|'de'] || messages.tr;
+        const extra = meta?.seats && meta.seats > 0 ? dict.extra(meta.seats) : '';
+        if (isOwnerLike) {
+          const labels = {
+            tr: { invite: 'Kullanıcı Davet Et', close: 'Kapat' },
+            en: { invite: 'Invite Users', close: 'Close' },
+            fr: { invite: 'Inviter des utilisateurs', close: 'Fermer' },
+            de: { invite: 'Benutzer einladen', close: 'Schließen' },
+          } as const;
+          const L = labels[lang as 'tr'|'en'|'fr'|'de'] || labels.tr;
+          setInfoModal({
+            open: true,
+            title: dict.title,
+            message: dict.base + extra,
+            tone: 'success',
+            confirmLabel: L.invite,
+            onConfirm: () => { 
+              setInfoModal(m => ({ ...m, open: false })); 
+              (async () => { 
+                try { 
+                  const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+                  if (tenantId) { const { syncSubscription } = await import('../api/billing'); await syncSubscription(tenantId); }
+                  await refreshUser();
+                } catch {}
+                setActiveTab('organization'); 
+              })();
+            },
+            cancelLabel: L.close,
+            onCancel: () => setInfoModal(m => ({ ...m, open: false })),
+          });
+        } else {
+          openInfo(dict.title, dict.base + extra, 'success');
+        }
+      } catch {}
+    };
     window.addEventListener('focus', onFocus);
+    window.addEventListener('billingSuccess', onBillingSuccess as EventListener);
     return () => { disposed = true; window.removeEventListener('focus', onFocus); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -3534,7 +3636,7 @@ export default function SettingsPage({
         onClose={() => setShowSaveSuccess(false)}
         title={text.modals.saveSuccess.title}
         message={text.modals.saveSuccess.message}
-        confirmLabel={text.modals.saveSuccess.confirm}
+        confirmLabel={t('common.ok')}
         tone="success"
         autoCloseMs={1800}
       />
@@ -3543,7 +3645,7 @@ export default function SettingsPage({
         onClose={() => setShowSaveError(false)}
         title={text.modals.saveError.title}
         message={text.modals.saveError.message}
-        confirmLabel={text.modals.saveError.confirm}
+        confirmLabel={t('common.ok')}
         tone="error"
       />
       <InfoModal
@@ -3551,7 +3653,10 @@ export default function SettingsPage({
         onClose={() => setInfoModal(m => ({ ...m, open: false }))}
         title={infoModal.title}
         message={infoModal.message}
-        confirmLabel={text.modals.saveSuccess.confirm}
+        confirmLabel={infoModal.confirmLabel || t('common.ok')}
+        cancelLabel={infoModal.cancelLabel}
+        onConfirm={infoModal.onConfirm}
+        onCancel={infoModal.onCancel}
         tone={infoModal.tone}
       />
     </div>

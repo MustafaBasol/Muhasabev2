@@ -12,6 +12,8 @@ import { Supplier } from '../suppliers/entities/supplier.entity';
 import { Product } from '../products/entities/product.entity';
 import { Invoice } from '../invoices/entities/invoice.entity';
 import { Expense } from '../expenses/entities/expense.entity';
+import { Sale } from '../sales/entities/sale.entity';
+import { BankAccount } from '../bank-accounts/entities/bank-account.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
 import { AuditLog } from '../audit/entities/audit-log.entity';
 import { Organization } from '../organizations/entities/organization.entity';
@@ -22,6 +24,7 @@ import { EmailModule } from '../email/email.module';
 import { PlanLimitsService } from './plan-limits.service';
 import { PlanLimitsLoader } from './plan-limits.loader';
 import { SuppressionAdminController } from './suppression.controller';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
@@ -34,12 +37,15 @@ import { SuppressionAdminController } from './suppression.controller';
       Product,
       ProductCategory,
       Invoice,
-      Expense,
+  Expense,
+  Sale,
+  BankAccount,
       AuditLog,
       Organization,
       OrganizationMember,
       Invite,
     ]),
+    BillingModule,
   ],
   controllers: [
     AdminController,

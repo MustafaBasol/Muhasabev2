@@ -218,7 +218,7 @@ export const adminApi = {
     return response.data;
   },
   updatePlanLimits: async (
-    plan: 'free' | 'basic' | 'professional' | 'enterprise',
+    plan: 'free' | 'professional' | 'enterprise',
     payload: {
       maxUsers?: number;
       maxCustomers?: number;
@@ -262,5 +262,26 @@ export const adminApi = {
       headers: getAdminHeaders(),
     });
     return response.data;
+  },
+  // Tenant Stripe subscription raw details (koltuk hesaplaması, addon qty vb.)
+  getTenantSubscriptionRaw: async (tenantId: string) => {
+    const response = await apiClient.get(`/admin/tenant/${tenantId}/subscription-raw`, {
+      headers: getAdminHeaders(),
+    });
+    return response.data;
+  },
+  // Tenant invoice history (Stripe invoices)
+  getTenantInvoices: async (tenantId: string) => {
+    try {
+      const response = await apiClient.get(`/admin/tenant/${tenantId}/invoices`, {
+        headers: getAdminHeaders(),
+      });
+      return response.data;
+    } catch (e: any) {
+      // 404 durumunda UI'yı kırmayalım; boş liste döndür
+      const status = e?.response?.status;
+      if (status === 404) return { invoices: [] };
+      throw e;
+    }
   },
 };

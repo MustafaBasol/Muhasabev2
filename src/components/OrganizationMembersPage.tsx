@@ -14,7 +14,7 @@ import {
 
 const OrganizationMembersPage: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, tenant } = useAuth();
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<Invite[]>([]);
@@ -25,7 +25,26 @@ const OrganizationMembersPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.subscriptionPlan, tenant?.maxUsers]);
+
+  // Billing başarılarında davet kapasitesi artmış olabilir; yeniden yükle
+  useEffect(() => {
+    const onBillingSuccess = () => {
+      try { loadData(); } catch {}
+    };
+    window.addEventListener('billingSuccess', onBillingSuccess as EventListener);
+    return () => { window.removeEventListener('billingSuccess', onBillingSuccess as EventListener); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const normalizePlanLabel = (plan?: string): 'STARTER' | 'PRO' | 'BUSINESS' => {
+    if (!plan) return 'STARTER';
+    const p = plan.toLowerCase();
+    if (p.includes('enterprise') || p === 'business') return 'BUSINESS';
+    if (p.includes('professional') || p === 'pro') return 'PRO';
+    return 'STARTER';
+  };
 
   const loadData = async () => {
     try {
@@ -44,7 +63,7 @@ const OrganizationMembersPage: React.FC = () => {
         return;
       }
 
-      const org = organizations[0]; // Use first organization for now
+  let org = organizations[0]; // Use first organization for now
       console.log('✅ Selected organization:', org);
 
       if (!org || !org.id) {
@@ -53,6 +72,16 @@ const OrganizationMembersPage: React.FC = () => {
         return;
       }
 
+      // Frontend düzeltmesi: Organizasyon planı STARTER ama tenant ücretli ise gösterimi eşitle
+      try {
+        if (org && tenant?.subscriptionPlan) {
+          const mapped = normalizePlanLabel(tenant.subscriptionPlan);
+          // Sadece görüntüsel override
+          if (mapped !== org.plan) {
+            org = { ...org, plan: mapped };
+          }
+        }
+      } catch {}
       setCurrentOrganization(org);
 
       console.log('🔄 Loading members, invites, and stats for org:', org.id);
@@ -72,7 +101,28 @@ const OrganizationMembersPage: React.FC = () => {
 
       setMembers(membersData);
       setPendingInvites(invitesData);
-      setMembershipStats(statsData);
+      const patchedStats = statsData ? { ...statsData } : null;
+      if (patchedStats && tenant?.subscriptionPlan) {
+        const mapped = normalizePlanLabel(tenant.subscriptionPlan);
+        if (mapped !== patchedStats.plan) patchedStats.plan = mapped;
+        // Tercihen tenant.maxUsers'ı esas al
+        if (typeof tenant.maxUsers === 'number' && tenant.maxUsers > 0) {
+          patchedStats.maxMembers = tenant.maxUsers;
+        } else {
+          // Backend 1 dönerse minimum eşikler uygula
+          if (patchedStats.maxMembers <= 1) {
+            if (mapped === 'PRO' && patchedStats.maxMembers < 3) patchedStats.maxMembers = 3;
+            if (mapped === 'BUSINESS' && patchedStats.maxMembers < 10) patchedStats.maxMembers = 10;
+          }
+        }
+        // canAddMore yeniden hesapla
+        if (patchedStats.maxMembers !== -1) {
+          patchedStats.canAddMore = patchedStats.currentMembers < patchedStats.maxMembers;
+        } else {
+          patchedStats.canAddMore = true;
+        }
+      }
+      setMembershipStats(patchedStats);
 
       // Find current user's role
       const currentMember = membersData.find(m => m.user.id === user?.id);
@@ -107,8 +157,26 @@ const OrganizationMembersPage: React.FC = () => {
         organizationsApi.getMembershipStats(currentOrganization.id)
       ])
         .then(([invites, stats]) => {
+          const patchedStats2 = stats ? { ...stats } : null;
+          if (patchedStats2 && tenant?.subscriptionPlan) {
+            const mapped = normalizePlanLabel(tenant.subscriptionPlan);
+            if (mapped !== patchedStats2.plan) patchedStats2.plan = mapped;
+            if (typeof tenant.maxUsers === 'number' && tenant.maxUsers > 0) {
+              patchedStats2.maxMembers = tenant.maxUsers;
+            } else {
+              if (patchedStats2.maxMembers <= 1) {
+                if (mapped === 'PRO' && patchedStats2.maxMembers < 3) patchedStats2.maxMembers = 3;
+                if (mapped === 'BUSINESS' && patchedStats2.maxMembers < 10) patchedStats2.maxMembers = 10;
+              }
+            }
+            if (patchedStats2.maxMembers !== -1) {
+              patchedStats2.canAddMore = patchedStats2.currentMembers < patchedStats2.maxMembers;
+            } else {
+              patchedStats2.canAddMore = true;
+            }
+          }
           setPendingInvites(invites);
-          setMembershipStats(stats);
+          setMembershipStats(patchedStats2);
         })
         .catch(console.error);
     }

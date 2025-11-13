@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../../api/admin';
 
-// Basit bir düzenleme UI'si: 4 plan için limitleri gösterir ve güncellemeyi sağlar
+// Basit bir düzenleme UI'si: 3 plan için limitleri gösterir ve güncellemeyi sağlar
 // -1 "Sınırsız" anlamına gelir.
 
-type PlanKey = 'free' | 'basic' | 'professional' | 'enterprise';
+type PlanKey = 'free' | 'professional' | 'enterprise';
 
 type Limits = {
   maxUsers: number;
@@ -15,10 +15,9 @@ type Limits = {
 };
 
 const PLAN_TITLES: Record<PlanKey, string> = {
-  free: 'Ücretsiz',
-  basic: 'Basic',
-  professional: 'Professional',
-  enterprise: 'Enterprise',
+  free: 'Starter',
+  professional: 'Pro',
+  enterprise: 'Business',
 };
 
 const NumberField: React.FC<{
@@ -145,7 +144,7 @@ const PlanLimitsPage: React.FC = () => {
       <p className="text-sm text-gray-600 mb-4">Plan limitlerini burada görüntüleyebilir ve düzenleyebilirsiniz. Değişiklikler anında geçerlidir ve sunucu yeniden başlatıldığında config/plan-limits.json dosyasından yüklenir.</p>
       {loading && <div className="text-sm text-gray-500 mb-3">Yükleniyor…</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {(['free','basic','professional','enterprise'] as PlanKey[]).map(renderPlanCard)}
+        {(['free','professional','enterprise'] as PlanKey[]).map(renderPlanCard)}
       </div>
     </div>
   );

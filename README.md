@@ -700,10 +700,21 @@ VITE_API_URL=http://localhost:3002
 ```
 
 ## 📖 Dökümanlar
+ [Multi-User Roadmap](./MULTI_USER_ROADMAP.md) - Çoklu kullanıcı özellik haritası
 
-- [Backend Durum](./BACKEND_STATUS.md) - Backend geliştirme durumu
-- [Frontend Entegrasyon](./FRONTEND_INTEGRATION.md) - Frontend-backend entegrasyon rehberi
-- [Multi-User Roadmap](./MULTI_USER_ROADMAP.md) - Çoklu kullanıcı özellik haritası
+### Planlar (Starter / Pro / Business)
+
+| Plan | Kullanıcı | Müşteri | Tedarikçi | Banka Hesabı | Aylık Fatura | Aylık Gider |
+|------|-----------|---------|----------|--------------|--------------|-------------|
+| Starter (Free) | 1 | 1 | 1 | 1 | 5 | 5 |
+| Pro (Professional) | 3 dahildir (+ Stripe add-on ile artırılabilir) | Sınırsız | Sınırsız | Sınırsız | Sınırsız | Sınırsız |
+| Business (Enterprise) | Sınırsız | Sınırsız | Sınırsız | Sınırsız | Sınırsız | Sınırsız |
+
+Notlar:
+- Stripe aboneliği aktif ise kullanıcı limiti Stripe koltuk toplamından alınır.
+- Pro planında ek kullanıcılar (addon) Stripe üzerinden quantity artırılarak faturalandırılır.
+- Business planında koltuk kavramı sınırsız olduğundan ayrı seat satın alma işlemi yoktur.
+- Legacy `basic` referansları artık Pro ile aynı anlamdadır (geçiş uyumluluğu için tutulur).
 - [Güvenlik İyileştirmeleri](./SECURITY_IMPROVEMENTS.md) - Güvenlik önlemleri
 - [Email Doğrulama & Şifre Sıfırlama Akışları](./backend/EMAIL_FLOW.md) - SES sandbox ile test ve yapılandırma
 - [SES Bounce/Complaint Entegrasyonu](./backend/SES_SNS_BOUNCE_COMPLAINT.md) - SNS topic + suppression listesi

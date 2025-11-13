@@ -10,6 +10,8 @@ export interface SaleItemDto {
 
 export interface CreateSaleDto {
   customerId?: string;
+  customerName?: string;
+  customerEmail?: string;
   saleDate: string; // YYYY-MM-DD
   items: SaleItemDto[];
   discountAmount?: number;

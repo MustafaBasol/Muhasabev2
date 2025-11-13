@@ -698,12 +698,20 @@ const AppContent: React.FC = () => {
         // Debug: log a sample of expenses to inspect status/amount values
         console.log('🔎 Loaded expenses sample (first 10):', mappedExpenses.slice(0, 10).map(e => ({ id: e.id, amount: e.amount, status: e.status, expenseDate: e.expenseDate })));
         
-        // Cache all data to localStorage for persistence
-        localStorage.setItem('customers_cache', JSON.stringify(safeCustomersData));
-        localStorage.setItem('suppliers_cache', JSON.stringify(safeSuppliersData));
-        localStorage.setItem('products_cache', JSON.stringify(mappedProducts));
-        localStorage.setItem('invoices_cache', JSON.stringify(safeInvoicesData));
-        localStorage.setItem('expenses_cache', JSON.stringify(safeExpensesData));
+        // Cache all data to localStorage for persistence (tenant-scoped)
+        try {
+          const tidScoped = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const cKey = tidScoped ? `customers_cache_${tidScoped}` : 'customers_cache';
+          const sKey = tidScoped ? `suppliers_cache_${tidScoped}` : 'suppliers_cache';
+          const pKey = tidScoped ? `products_cache_${tidScoped}` : 'products_cache';
+          const iKey = tidScoped ? `invoices_cache_${tidScoped}` : 'invoices_cache';
+          const eKey = tidScoped ? `expenses_cache_${tidScoped}` : 'expenses_cache';
+          localStorage.setItem(cKey, JSON.stringify(safeCustomersData));
+          localStorage.setItem(sKey, JSON.stringify(safeSuppliersData));
+          localStorage.setItem(pKey, JSON.stringify(mappedProducts));
+          localStorage.setItem(iKey, JSON.stringify(safeInvoicesData));
+          localStorage.setItem(eKey, JSON.stringify(safeExpensesData));
+        } catch {}
         if (Array.isArray(salesData)) {
           const tid = localStorage.getItem('tenantId') || '';
           const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
@@ -722,12 +730,14 @@ const AppContent: React.FC = () => {
     loadData();
   }, [isAuthenticated]); // isAuthenticated değiştiğinde tekrar yükle
 
-  // Save Bank, Sales, and Invoices cache to localStorage
+  // Save Bank accounts cache to localStorage (tenant-scoped)
   useEffect(() => {
-    if (bankAccounts.length > 0) {
-      localStorage.setItem('bankAccounts', JSON.stringify(bankAccounts));
-    }
-  }, [bankAccounts]);
+    try {
+      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+      const key = tid ? `bankAccounts_${tid}` : 'bankAccounts';
+      localStorage.setItem(key, JSON.stringify(bankAccounts));
+    } catch {}
+  }, [bankAccounts, tenant?.id, authUser?.tenantId]);
 
   // Logout sırasında storage'ı yanlışlıkla boş listeyle ezmemek için bayrak
   const suppressSalesPersistenceRef = React.useRef(false);
@@ -748,23 +758,24 @@ const AppContent: React.FC = () => {
     } catch {}
   }, [sales, tenant?.id, authUser?.tenantId]);
 
-  // Satışlar için geriye dönük göç: mevcut tenant anahtarında veri yoksa diğer anahtarlardaki satışları içeri al
+  // Satışlar için geriye dönük göç: yalnızca hiç anahtar OLUŞTURULMAMIŞSA (null) eski GENEL anahtarlardan bir kerelik taşı
   useEffect(() => {
     try {
+      // Authenticated kullanıcıda eski genel anahtarlardan göç yapma — tenant izolasyonunu koru
+      if (isAuthenticated) return;
       const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
       const currentKey = tid ? `sales_${tid}` : 'sales';
       const currentCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-      const hasCurrent = (() => {
-        const a = localStorage.getItem(currentKey);
-        const b = localStorage.getItem(currentCacheKey);
-        const arrA = a ? JSON.parse(a) : [];
-        const arrB = b ? JSON.parse(b) : [];
-        return (Array.isArray(arrA) && arrA.length > 0) || (Array.isArray(arrB) && arrB.length > 0);
-      })();
-      if (hasCurrent) return; // mevcut tenant için veri var
+      // Eğer anahtar daha önce oluşturulmuşsa (boş bile olsa) GÖÇ YAPMA
+      const keyExists = localStorage.getItem(currentKey) !== null || localStorage.getItem(currentCacheKey) !== null;
+      if (keyExists) return;
+
+      // Göç yalnızca bir kez çalışmalı
+      const migrateFlagKey = tid ? `sales_migration_done_${tid}` : 'sales_migration_done';
+      if (localStorage.getItem(migrateFlagKey)) return;
 
       const collected: any[] = [];
-      // Eski genel anahtarlar
+      // Sadece ESKİ GENEL anahtarlardan taşı (tenant'lar arası sızıntıyı engelle)
       try {
         const legacyA = localStorage.getItem('sales');
         if (legacyA) {
@@ -779,18 +790,6 @@ const AppContent: React.FC = () => {
           if (Array.isArray(arr)) collected.push(...arr);
         }
       } catch {}
-      // Diğer tenant anahtarları
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i) || '';
-        if (!(k.startsWith('sales_') || k.startsWith('sales_cache_'))) continue;
-        if (k === currentKey || k === currentCacheKey) continue;
-        try {
-          const raw = localStorage.getItem(k);
-          if (!raw) continue;
-          const arr = JSON.parse(raw);
-          if (Array.isArray(arr)) collected.push(...arr);
-        } catch {}
-      }
       if (collected.length === 0) return;
       // Tekilleştir (saleNumber,id)
       const uniq = new Map<string, any>();
@@ -804,13 +803,22 @@ const AppContent: React.FC = () => {
       if (!Array.isArray(sales) || sales.length === 0) {
         setSales(migrated);
       }
+      // Bayrağı yaz ve eski genel anahtarları temizle (ileride yanlış geri yükleme olmasın)
+      try { localStorage.setItem(migrateFlagKey, '1'); } catch {}
+      // Eski genel anahtarları silmek güvenli: yalnızca ilk göçte çalışır
+      try { localStorage.removeItem('sales'); } catch {}
+      try { localStorage.removeItem('sales_cache'); } catch {}
     } catch {}
-  // Bu efekt sadece tenant veya auth kullanıcısı değiştiğinde çalışsın
-  }, [tenant?.id, authUser?.tenantId]);
+  // Bu efekt sadece tenant veya auth kullanıcısı veya auth durumu değiştiğinde çalışsın
+  }, [tenant?.id, authUser?.tenantId, isAuthenticated]);
   
   useEffect(() => {
     if (invoices.length > 0) {
-      localStorage.setItem('invoices_cache', JSON.stringify(invoices));
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
+        localStorage.setItem(iKey, JSON.stringify(invoices));
+      } catch {}
     }
   }, [invoices]);
 
@@ -885,11 +893,12 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // Cache yükleme: Auth yoksa da satışları kaybetmemek için en azından sales'i yükle
+  // Cache yükleme: Sadece gerçekten OTURUM YOKSA offline sales'i yükle
     useEffect(() => {
     // Authentication kontrolü - token yoksa veya authenticated değilse ÇIKIŞ
     const token = localStorage.getItem('auth_token');
-    if (!token || !isAuthenticated) {
+    // Eğer token varsa ama isAuthenticated henüz false ise, offline veriyi yükleme (yanlış grafik/istatistik parlamasını önlemek için bekle)
+    if (!token && !isAuthenticated) {
       console.log('🔒 Kullanıcı authenticated değil - offline sales yükleniyor');
       try {
         const savedSales = localStorage.getItem('sales');
@@ -907,31 +916,51 @@ const AppContent: React.FC = () => {
       return;
     }
 
+  // YALNIZCA GERÇEK OTURUM TENANT ID'sini kullan; localStorage fallback KULLANMA (yanlış tenant sızıntısını önlemek için)
+  const tid = (tenant?.id || authUser?.tenantId || '') as string;
   console.log('📂 localStorage cache yükleniyor (authenticated user)...');
-  const savedBanks = localStorage.getItem('bankAccounts');
-  const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+  const bankKey = tid ? `bankAccounts_${tid}` : 'bankAccounts';
+  const savedBanks = localStorage.getItem(bankKey);
+  if (!tid) {
+    // Tenant ID henüz belli değilse cache yüklemeyi ertele
+    setIsLoadingData(false);
+    return;
+  }
   const salesKey = tid ? `sales_${tid}` : 'sales';
   const salesCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
   // Authenticated kullanıcıda backup'tan otomatik geri yükleme yapmayacağız
   const savedSales = localStorage.getItem(salesKey);
   const savedSalesCache = localStorage.getItem(salesCacheKey);
-    const savedCustomers = localStorage.getItem('customers_cache');
-    const savedSuppliers = localStorage.getItem('suppliers_cache');
-    const savedProducts = localStorage.getItem('products_cache');
-  const savedInvoices = localStorage.getItem('invoices_cache');
-  const savedExpenses = localStorage.getItem('expenses_cache');
+    const savedCustomers = localStorage.getItem(tid ? `customers_cache_${tid}` : 'customers_cache');
+    const savedSuppliers = localStorage.getItem(tid ? `suppliers_cache_${tid}` : 'suppliers_cache');
+    const savedProducts = localStorage.getItem(tid ? `products_cache_${tid}` : 'products_cache');
+  const savedInvoices = localStorage.getItem(tid ? `invoices_cache_${tid}` : 'invoices_cache');
+  const savedExpenses = localStorage.getItem(tid ? `expenses_cache_${tid}` : 'expenses_cache');
     
     if (savedBanks) {
       try {
         const banks = JSON.parse(savedBanks);
-        console.log('✅ Bankalar cache\'den yüklendi:', banks.length);
-        setBankAccounts(banks);
+        if (Array.isArray(banks)) {
+          console.log('✅ Bankalar cache\'den yüklendi:', banks.length);
+          setBankAccounts(banks.map((b:any)=>({ ...b, id: String(b.id) })));
+        }
       } catch (e) {
         console.error('Error loading banks:', e);
       }
     }
+    // Ardından backend'den bankalar çekilip cache güncellensin
+    (async () => {
+      try {
+        const { bankAccountsApi } = await import('./api/bank-accounts');
+        const remote = await bankAccountsApi.list();
+        setBankAccounts(remote.map((b:any)=>({ ...b, id: String(b.id) })));
+        try { localStorage.setItem(bankKey, JSON.stringify(remote)); } catch {}
+      } catch (e) {
+        console.warn('Bank accounts fetch failed, cache ile devam', e);
+      }
+    })();
     
-    if (savedSales || savedSalesCache) {
+  if (savedSales || savedSalesCache) {
       try {
         const salesDataA = savedSales ? JSON.parse(savedSales) : [];
         const salesDataB = savedSalesCache ? JSON.parse(savedSalesCache) : [];
@@ -1098,7 +1127,22 @@ const AppContent: React.FC = () => {
         console.error('Error loading expenses cache:', e);
       }
     }
-  }, [isAuthenticated]); // isAuthenticated değiştiğinde tekrar kontrol et
+  }, [isAuthenticated, tenant?.id, authUser?.tenantId]); // tenant ID hazır olduğunda çalıştır
+
+  // Tenant değiştiğinde eski state'i anında temizle (eski tenant verisinin bir an bile görünmemesi için)
+  useEffect(() => {
+    const currTid = tenant?.id || authUser?.tenantId;
+    if (!isAuthenticated || !currTid) return;
+    // State temizliği; API yüklemesi kısa süre sonra dolduracak
+    setCustomers([]);
+    setSuppliers([]);
+    setProducts([]);
+    setInvoices([]);
+    setExpenses([]);
+    setSales([]);
+    setBankAccounts([]);
+  // Bu temizlik, tenant id değiştiğinde bir defa tetiklenir
+  }, [tenant?.id, authUser?.tenantId]);
 
   // 🗑️ Okunmuş bildirimleri 1 gün sonra otomatik temizle (persistent olanları hariç)
   useEffect(() => {
@@ -1578,7 +1622,11 @@ const AppContent: React.FC = () => {
       setInvoices(prev => {
         const next = prev.map(inv => String(inv.id) === String(saved.id) ? saved : inv);
         // Cache'i güncelle
-        try { localStorage.setItem('invoices_cache', JSON.stringify(next)); } catch {}
+        try {
+          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
+          localStorage.setItem(iKey, JSON.stringify(next));
+        } catch {}
         return next;
       });
       showToast('Fatura güncellendi', 'success');
@@ -2195,7 +2243,7 @@ const AppContent: React.FC = () => {
         // Frontend state'i güncelle ve cache'e yaz
         if (created.length > 0) {
           // Backend Product -> Frontend Product mapping
-          const mapped = created.map((p: any) => ({
+            const mapped = created.map((p: any) => ({
             ...p,
             sku: p.code,
             unitPrice: Number(p.price) || 0,
@@ -2207,7 +2255,11 @@ const AppContent: React.FC = () => {
           }));
           setProducts(prev => {
             const next = [...prev, ...mapped];
-            try { localStorage.setItem('products_cache', JSON.stringify(next)); } catch {}
+            try {
+              const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+              const pKey = tid ? `products_cache_${tid}` : 'products_cache';
+              localStorage.setItem(pKey, JSON.stringify(next));
+            } catch {}
             return next;
           });
         }
@@ -2369,7 +2421,11 @@ const AppContent: React.FC = () => {
         const updated = await invoicesApi.updateInvoice(String(invoiceData.id), cleanData);
         const newInvoices = invoices.map(i => i.id === updated.id ? updated : i);
         setInvoices(newInvoices);
-        localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
+        try {
+          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
+          localStorage.setItem(iKey, JSON.stringify(newInvoices));
+        } catch {}
         console.log('💾 Fatura cache güncellendi (update)');
         showToast('Fatura güncellendi', 'success');
         return updated; // Güncellenen faturayı return et
@@ -2535,7 +2591,11 @@ const AppContent: React.FC = () => {
             
             const newSales = [...sales, newSale];
             setSales(newSales);
-            localStorage.setItem('sales', JSON.stringify(newSales));
+            try {
+              const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+              const salesKey = tid ? `sales_${tid}` : 'sales';
+              localStorage.setItem(salesKey, JSON.stringify(newSales));
+            } catch {}
             
             console.log('✅ Otomatik satış oluşturuldu:', {
               id: newSale.id,
@@ -2571,7 +2631,11 @@ const AppContent: React.FC = () => {
         
         const newInvoices = [...invoices, created];
         setInvoices(newInvoices);
-        localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
+        try {
+          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
+          localStorage.setItem(iKey, JSON.stringify(newInvoices));
+        } catch {}
         console.log('💾 Fatura cache güncellendi (create)');
         showToast('Fatura ve satış oluşturuldu', 'success');
         
@@ -2604,7 +2668,11 @@ const AppContent: React.FC = () => {
       // Sadece backend'den başarılı response gelirse cache'i güncelle
       const newInvoices = invoices.filter(invoice => String(invoice.id) !== String(invoiceId));
       setInvoices(newInvoices);
-      localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
+        localStorage.setItem(iKey, JSON.stringify(newInvoices));
+      } catch {}
       console.log('💾 Fatura cache güncellendi (delete)');
       showToast(t('invoices.deleteSuccess'), 'success');
     } catch (error: any) {
@@ -2632,7 +2700,11 @@ const AppContent: React.FC = () => {
           : invoice
       );
       setInvoices(updatedInvoices);
-      localStorage.setItem('invoices_cache', JSON.stringify(updatedInvoices));
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
+        localStorage.setItem(iKey, JSON.stringify(updatedInvoices));
+      } catch {}
       showToast('Fatura iptal edildi', 'success');
     } catch (error: any) {
       console.error('Invoice void error:', error);
@@ -2649,7 +2721,11 @@ const AppContent: React.FC = () => {
           : invoice
       );
       setInvoices(updatedInvoices);
-      localStorage.setItem('invoices_cache', JSON.stringify(updatedInvoices));
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
+        localStorage.setItem(iKey, JSON.stringify(updatedInvoices));
+      } catch {}
       showToast('Fatura geri yüklendi', 'success');
     } catch (error: any) {
       console.error('Invoice restore error:', error);
@@ -2701,7 +2777,11 @@ const AppContent: React.FC = () => {
         };
         const newExpenses = expenses.map(e => e.id === mappedUpdated.id ? mappedUpdated : e);
         setExpenses(newExpenses);
-        localStorage.setItem('expenses_cache', JSON.stringify(newExpenses));
+        try {
+          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
+          localStorage.setItem(eKey, JSON.stringify(newExpenses));
+        } catch {}
         showToast('Gider güncellendi', 'success');
       } else {
         const created = await expensesApi.createExpense(cleanData);
@@ -2713,7 +2793,11 @@ const AppContent: React.FC = () => {
         };
         const newExpenses = [...expenses, mappedCreated];
         setExpenses(newExpenses);
-        localStorage.setItem('expenses_cache', JSON.stringify(newExpenses));
+        try {
+          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
+          localStorage.setItem(eKey, JSON.stringify(newExpenses));
+        } catch {}
         showToast('Gider eklendi', 'success');
         
         // 🔔 Bildirim ekle
@@ -2743,7 +2827,11 @@ const AppContent: React.FC = () => {
       // Sadece backend'den başarılı response gelirse cache'i güncelle
       const newExpenses = expenses.filter(expense => String(expense.id) !== String(expenseId));
       setExpenses(newExpenses);
-      localStorage.setItem('expenses_cache', JSON.stringify(newExpenses));
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
+        localStorage.setItem(eKey, JSON.stringify(newExpenses));
+      } catch {}
       console.log('💾 Gider cache güncellendi (delete)');
       showToast(t('expenses.deleteSuccess'), 'success');
     } catch (error: any) {
@@ -2771,7 +2859,11 @@ const AppContent: React.FC = () => {
           : expense
       );
       setExpenses(updatedExpenses);
-      localStorage.setItem('expenses_cache', JSON.stringify(updatedExpenses));
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
+        localStorage.setItem(eKey, JSON.stringify(updatedExpenses));
+      } catch {}
       showToast('Gider iptal edildi', 'success');
     } catch (error: any) {
       console.error('Expense void error:', error);
@@ -2788,7 +2880,11 @@ const AppContent: React.FC = () => {
           : expense
       );
       setExpenses(updatedExpenses);
-      localStorage.setItem('expenses_cache', JSON.stringify(updatedExpenses));
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
+        localStorage.setItem(eKey, JSON.stringify(updatedExpenses));
+      } catch {}
       showToast('Gider geri yüklendi', 'success');
     } catch (error: any) {
       console.error('Expense restore error:', error);
@@ -2843,6 +2939,8 @@ const AppContent: React.FC = () => {
 
       const dto: salesApi.CreateSaleDto = {
         customerId,
+        customerName: !customerId ? saleData.customerName : undefined,
+        customerEmail: !customerId ? saleData.customerEmail : undefined,
         saleDate: saleData?.date || saleData?.saleDate || new Date().toISOString().split('T')[0],
         items: [
           {
@@ -2881,8 +2979,11 @@ const AppContent: React.FC = () => {
 
         setSales(prev => {
           const next = [...prev, mapped];
-          localStorage.setItem('sales', JSON.stringify(next));
-          try { localStorage.setItem('sales_cache', JSON.stringify(next)); } catch {}
+          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const key = tid ? `sales_${tid}` : 'sales';
+          const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+          localStorage.setItem(key, JSON.stringify(next));
+          try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
           return next;
         });
         showToast('Satış kaydedildi', 'success');
@@ -2906,8 +3007,11 @@ const AppContent: React.FC = () => {
             items: Array.isArray(updated.items) ? updated.items : s.items,
             notes: updated.notes ?? s.notes,
           } : s);
-          localStorage.setItem('sales', JSON.stringify(next));
-          try { localStorage.setItem('sales_cache', JSON.stringify(next)); } catch {}
+          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const key = tid ? `sales_${tid}` : 'sales';
+          const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+          localStorage.setItem(key, JSON.stringify(next));
+          try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
           return next;
         });
         showToast('Satış güncellendi', 'success');
@@ -2925,8 +3029,11 @@ const AppContent: React.FC = () => {
         };
         const existsIdx = prev.findIndex(p => String(p.id) === String(newItem.id));
         const next = existsIdx >= 0 ? prev.map((p, i) => i === existsIdx ? newItem : p) : [...prev, newItem];
-        localStorage.setItem('sales', JSON.stringify(next));
-        try { localStorage.setItem('sales_cache', JSON.stringify(next)); } catch {}
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const key = tid ? `sales_${tid}` : 'sales';
+        const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+        localStorage.setItem(key, JSON.stringify(next));
+        try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
         return next;
       });
       showToast(getErrorMessage(err) || 'Satış yerel olarak kaydedildi (offline)', 'info');
@@ -2980,25 +3087,27 @@ const AppContent: React.FC = () => {
     if (!confirm('Bu satışı silmek istediğinizden emin misiniz?')) {
       return;
     }
-    
-    console.log('🗑️ Satış siliniyor:', saleId);
+    console.log('🗑️ Satış silme talebi:', saleId);
+    const prevSnapshot = [...sales];
     try {
       await salesApi.deleteSale(String(saleId));
-    } catch (err) {
-      console.warn('Backend silme başarısız, yerel silmeye devam:', err);
+    } catch (err: any) {
+      console.error('❌ Satış backend üzerinde silinemedi:', err);
+      showToast(getErrorMessage(err) || 'Satış silinemedi', 'error');
+      return; // Başarısızsa yerel olarak silme, veri tutarlılığı korunur
     }
-
     setSales(prev => {
       const filtered = prev.filter(sale => String(sale.id) !== String(saleId));
-      const tid = localStorage.getItem('tenantId') || '';
-      const key = tid ? `sales_${tid}` : 'sales';
-      const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-      localStorage.setItem(key, JSON.stringify(filtered));
-      try { localStorage.setItem(cacheKey, JSON.stringify(filtered)); } catch {}
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const key = tid ? `sales_${tid}` : 'sales';
+        const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+        localStorage.setItem(key, JSON.stringify(filtered));
+        localStorage.setItem(cacheKey, JSON.stringify(filtered));
+      } catch {}
       console.log('✅ Satış silindi, kalan satış sayısı:', filtered.length);
       return filtered;
     });
-    
     showToast('Satış başarıyla silindi', 'success');
     setShowSaleViewModal(false);
     setSelectedSale(null);
@@ -3008,10 +3117,12 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     if (suppressSalesPersistenceRef.current) return;
     try {
-      localStorage.setItem('sales_cache', JSON.stringify(sales));
+      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+      const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+      localStorage.setItem(cacheKey, JSON.stringify(sales));
       window.dispatchEvent(new Event('sales-cache-updated'));
     } catch {}
-  }, [sales]);
+  }, [sales, tenant?.id, authUser?.tenantId]);
 
   const upsertProduct = async (productData: Partial<Product>) => {
     try {
@@ -3272,30 +3383,45 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const upsertBank = (bankData: any) => {
-    if (bankData.id) {
-      // Update existing
-      setBankAccounts(prev => prev.map(bank => 
-        String(bank.id) === String(bankData.id) ? { ...bank, ...bankData } : bank
-      ));
-      showToast('Banka hesabı güncellendi', 'success');
-    } else {
-      // Create new
-      const newBank = {
-        ...bankData,
-        id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
-        balance: Number(bankData.balance ?? 0),
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-      setBankAccounts(prev => [...prev, newBank]);
-      showToast('Banka hesabı eklendi', 'success');
+  const upsertBank = async (bankData: any) => {
+    try {
+      const { bankAccountsApi } = await import('./api/bank-accounts');
+      if (bankData.id) {
+        const updated = await bankAccountsApi.update(String(bankData.id), {
+          name: bankData.name,
+          iban: bankData.iban,
+          bankName: bankData.bankName,
+          currency: bankData.currency,
+        });
+        setBankAccounts(prev => prev.map(bank => String(bank.id) === String(updated.id) ? { ...bank, ...updated } : bank));
+        showToast('Banka hesabı güncellendi', 'success');
+      } else {
+        const created = await bankAccountsApi.create({
+          name: bankData.name,
+          iban: bankData.iban,
+          bankName: bankData.bankName,
+          currency: bankData.currency,
+        });
+        setBankAccounts(prev => [...prev, { ...created, id: String(created.id) }]);
+        showToast('Banka hesabı eklendi', 'success');
+      }
+    } catch (e: any) {
+      console.error('Bank upsert failed:', e);
+      showToast(e?.response?.data?.message || 'Banka işlemi başarısız', 'error');
     }
   };
 
-  const deleteBank = (bankId: string | number) => {
+  const deleteBank = async (bankId: string | number) => {
     if (!confirmAction("Bu banka hesabını silmek istediğinizden emin misiniz?")) return;
-    setBankAccounts(prev => prev.filter(bank => String(bank.id) !== String(bankId)));
-    showToast('Banka hesabı silindi', 'success');
+    try {
+      const { bankAccountsApi } = await import('./api/bank-accounts');
+      await bankAccountsApi.remove(String(bankId));
+      setBankAccounts(prev => prev.filter(bank => String(bank.id) !== String(bankId)));
+      showToast('Banka hesabı silindi', 'success');
+    } catch (e: any) {
+      console.error('Bank delete failed:', e);
+      showToast(e?.response?.data?.message || 'Banka silinemedi', 'error');
+    }
   };
 
   const openCustomerModal = (customer?: any) => {
@@ -3452,7 +3578,11 @@ const AppContent: React.FC = () => {
         : created;
       const newInvoices = [...invoices, createdWithLink];
       setInvoices(newInvoices);
-      localStorage.setItem('invoices_cache', JSON.stringify(newInvoices));
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
+        localStorage.setItem(iKey, JSON.stringify(newInvoices));
+      } catch {}
       
       // 🔗 Satışa invoiceId ekle
       if (selectedSaleForInvoice) {
@@ -3465,9 +3595,13 @@ const AppContent: React.FC = () => {
           s.id === selectedSaleForInvoice.id ? updatedSale : s
         );
         setSales(updatedSales);
-        localStorage.setItem('sales_cache', JSON.stringify(updatedSales));
-        // Kalıcılık için ana anahtar olan 'sales' de güncellensin
-        try { localStorage.setItem('sales', JSON.stringify(updatedSales)); } catch {}
+        try {
+          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const salesKey = tid ? `sales_${tid}` : 'sales';
+          const salesCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+          localStorage.setItem(salesCacheKey, JSON.stringify(updatedSales));
+          localStorage.setItem(salesKey, JSON.stringify(updatedSales));
+        } catch {}
         console.log('🔗 Satış fatura ile ilişkilendirildi:', {
           saleId: selectedSaleForInvoice.id,
           invoiceId: created.id
@@ -5047,7 +5181,9 @@ const AppContent: React.FC = () => {
         const found = customers.find((c: any) => String(c.id) === String(cid));
         if (found?.name) return String(found.name);
         try {
-          const raw = localStorage.getItem('customers_cache');
+          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+          const key = tid ? `customers_cache_${tid}` : 'customers_cache';
+          const raw = localStorage.getItem(key);
           if (raw) {
             const arr = JSON.parse(raw);
             if (Array.isArray(arr)) {

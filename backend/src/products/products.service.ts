@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
@@ -55,7 +55,20 @@ export class ProductsService {
       tenantId,
     });
 
-    const saved = await this.productsRepository.save(product);
+    let saved: Product;
+    try {
+      saved = await this.productsRepository.save(product);
+    } catch (err: any) {
+      // SQLite: err.message includes 'SQLITE_CONSTRAINT: UNIQUE constraint failed'
+      // Postgres: err.code === '23505'
+      const isUniqueViolation =
+        err?.code === '23505' ||
+        (typeof err?.message === 'string' && err.message.includes('UNIQUE constraint failed'));
+      if (isUniqueViolation) {
+        throw new BadRequestException('Bu ürün kodu zaten kullanılıyor. Lütfen farklı bir kod deneyin.');
+      }
+      throw err;
+    }
 
     console.log('✅ Backend: Ürün kaydedildi:', {
       id: saved.id,

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BankAccount } from './entities/bank-account.entity';
@@ -14,6 +14,7 @@ export class BankAccountsService {
     @InjectRepository(Tenant)
     private readonly tenantsRepo: Repository<Tenant>,
   ) {}
+  private readonly logger = new Logger('BankAccountsService');
 
   async create(dto: CreateBankAccountDto, tenantId: string) {
     const tenant = await this.tenantsRepo.findOne({ where: { id: tenantId } });
@@ -45,9 +46,44 @@ export class BankAccountsService {
   }
 
   async findAll(tenantId: string) {
-    return this.bankAccountsRepo.find({
-      where: { tenantId },
-      order: { createdAt: 'DESC' },
+    try {
+      const list = await this.bankAccountsRepo.find({
+        where: { tenantId },
+        order: { createdAt: 'DESC' },
+      });
+      return list.map(b => ({ ...b }));
+    } catch (e: any) {
+      this.logger.error(`findAll failed tenant=${tenantId} err=${e?.message || e}`);
+      throw e;
+    }
+  }
+
+  async update(id: string, dto: Partial<CreateBankAccountDto>, tenantId: string) {
+    const entity = await this.bankAccountsRepo.findOne({ where: { id, tenantId } });
+    if (!entity) throw new BadRequestException('Bank account not found');
+    Object.assign(entity, {
+      name: dto.name ?? entity.name,
+      iban: dto.iban ?? entity.iban,
+      bankName: dto.bankName ?? entity.bankName,
+      currency: dto.currency ?? entity.currency,
     });
+    try {
+      return await this.bankAccountsRepo.save(entity);
+    } catch (e: any) {
+      this.logger.error(`update failed id=${id} tenant=${tenantId} err=${e?.message || e}`);
+      throw e;
+    }
+  }
+
+  async remove(id: string, tenantId: string) {
+    const entity = await this.bankAccountsRepo.findOne({ where: { id, tenantId } });
+    if (!entity) throw new BadRequestException('Bank account not found');
+    try {
+      await this.bankAccountsRepo.remove(entity);
+    } catch (e: any) {
+      this.logger.error(`remove failed id=${id} tenant=${tenantId} err=${e?.message || e}`);
+      throw e;
+    }
+    return { success: true } as const;
   }
 }

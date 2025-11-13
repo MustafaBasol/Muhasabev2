@@ -127,7 +127,8 @@ export class TenantsService {
       subscriptionPlan: SubscriptionPlan.FREE,
       status: TenantStatus.TRIAL,
       subscriptionExpiresAt: trialExpiresAt,
-      maxUsers: 5,
+      // Starter/Free plan başlangıç kullanıcı limiti 1 olmalı
+      maxUsers: 1,
       settings: {},
       features: {
         multiUser: true,
