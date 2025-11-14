@@ -12,6 +12,11 @@ interface Sale {
   quantity?: number;
   unitPrice?: number;
   amount: number;
+  // Backend'ten gelen alanlar (her zaman mevcut olmayabilir)
+  subtotal?: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  items?: Array<{ quantity?: number; unitPrice?: number; total?: number }>;
   date: string;
   paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
   notes?: string;
@@ -63,6 +68,33 @@ export default function ExistingSaleSelectionModal({
   };
 
   if (!isOpen) return null;
+
+  // Görselde gösterilecek tutar: KDV Hariç (satış sayfasıyla aynı mantık)
+  const getDisplayAmountExclVAT = (sale: Sale): number => {
+    const s: any = sale as any;
+    // 1) Backend subtotal varsa doğrudan kullan (KDV hariç toplam)
+    const subtotal = Number(s.subtotal);
+    if (Number.isFinite(subtotal) && subtotal > 0) return subtotal;
+    // 2) Kalemlerden hesapla: quantity * unitPrice
+    if (Array.isArray(s.items) && s.items.length > 0) {
+      const sum = s.items.reduce((acc: number, it: any) => {
+        const qty = Number(it?.quantity) || 0;
+        const price = Number(it?.unitPrice) || 0;
+        const total = Number(it?.total);
+        // total alanı KDV içeriyor olabilir; güvenli taraf: qty*price
+        return acc + (qty * price || 0);
+      }, 0);
+      if (Number.isFinite(sum) && sum > 0) return sum;
+    }
+    // 3) total (amount) ve taxAmount varsa: total - taxAmount
+    const total = Number(s.amount ?? s.total);
+    const tax = Number(s.taxAmount);
+    if (Number.isFinite(total) && Number.isFinite(tax)) {
+      return total - tax;
+    }
+    // 4) Son çare: mevcut amount'ı dön (geriye uyumluluk)
+    return Number(s.amount) || 0;
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -165,7 +197,7 @@ export default function ExistingSaleSelectionModal({
                     <div className="text-right">
                       <div className="flex items-center text-lg font-bold text-green-600 mb-2">
                         <DollarSign className="w-5 h-5 mr-1" />
-                        {formatCurrency(sale.amount)}
+                        {formatCurrency(getDisplayAmountExclVAT(sale))}
                       </div>
                       
                       <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">

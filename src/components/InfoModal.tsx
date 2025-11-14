@@ -74,7 +74,7 @@ export default function InfoModal({
   const styles = toneStyles[tone];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descId}>
+    <div className="fixed inset-0 z-[90] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descId}>
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* Backdrop */}
         <div

@@ -164,6 +164,7 @@ export class AdminService {
         isActive: true,
         lastLoginAt: true,
         createdAt: true,
+        tenantId: true,
         tenant: {
           id: true,
           name: true,
@@ -240,6 +241,113 @@ export class AdminService {
     if (!tenant) throw new NotFoundException('Tenant not found');
     await this.userRepository.update(userId, { tenantId: tenant.id } as any);
     return { success: true, userId, tenantId: tenant.id };
+  }
+
+  /**
+   * Admin: Doğrulamasız kullanıcı ekle/ata
+   * - Eğer email mevcutsa kullanıcıyı hedef tenant'a taşır/günceller
+   * - Yoksa yeni kullanıcı oluşturur
+   * - E-posta doğrulamasını atlar (isEmailVerified=true)
+   * - Şifre body.password varsa onu hash’ler, yoksa güçlü geçici bir parola üretir
+   * - Plan kullanıcı limiti kontrolü yapar (Stripe koltuk/override ve plan varsayılanları dikkate alınır)
+   */
+  async addUserToTenant(
+    tenantId: string,
+    payload: {
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      role?: string;
+      password?: string;
+      autoPassword?: boolean;
+      activate?: boolean;
+    },
+  ) {
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const currentActiveUsers = await this.userRepository.count({ where: { tenantId, isActive: true } as any });
+
+    // Efektif kullanıcı limiti: Stripe aboneliği varsa tenant.maxUsers, yoksa plan+override
+    let effectiveMaxUsers: number;
+    if (tenant.stripeSubscriptionId && Number.isFinite(tenant.maxUsers as any)) {
+      effectiveMaxUsers = Math.max(0, Number(tenant.maxUsers));
+    } else {
+      const limits = TenantPlanLimitService.getLimitsForTenant(tenant);
+      effectiveMaxUsers = limits.maxUsers;
+    }
+
+    const canAdd = effectiveMaxUsers === -1 || currentActiveUsers < effectiveMaxUsers;
+    if (!canAdd) {
+      const limits = tenant.stripeSubscriptionId && Number.isFinite(tenant.maxUsers as any)
+        ? { maxUsers: effectiveMaxUsers, monthly: { maxInvoices: -1, maxExpenses: -1 }, maxCustomers: -1, maxSuppliers: -1, maxBankAccounts: -1 }
+        : TenantPlanLimitService.getLimitsForTenant(tenant);
+      const msg = TenantPlanLimitService.errorMessageForWithLimits('user', limits as any);
+      throw new BadRequestException(msg || 'Plan limitine ulaşıldı: Kullanıcı eklenemiyor');
+    }
+
+    const email = String(payload.email).trim().toLowerCase();
+    let user = await this.userRepository.findOne({ where: { email } });
+
+    const now = new Date();
+    let tempPassword: string | undefined;
+    let passwordHash: string | undefined;
+    if (payload.password && payload.password.length >= 8) {
+      passwordHash = await this.securityService.hashPassword(payload.password);
+    } else {
+      // Otomatik güçlü parola üret
+      tempPassword = this.securityService.generateRandomString(12);
+      passwordHash = await this.securityService.hashPassword(tempPassword);
+    }
+
+    const role = (payload.role as any) || UserRole.USER;
+    const firstName = payload.firstName || '';
+    const lastName = payload.lastName || '';
+    const activate = payload.activate !== false; // varsayılan true
+
+    if (user) {
+      // Mevcut kullanıcıyı güncelle ve tenant'a ata
+      await this.userRepository.update(user.id, {
+        tenantId: tenant.id,
+        firstName,
+        lastName,
+        role: (Object.values(UserRole) as string[]).includes(role) ? (role as any) : UserRole.USER,
+        isActive: activate,
+        isEmailVerified: true,
+        emailVerifiedAt: now,
+        password: passwordHash || user.password,
+      } as any);
+      return {
+        success: true,
+        userId: user.id,
+        email: user.email,
+        tenantId: tenant.id,
+        tempPassword,
+        updated: true,
+      };
+    }
+
+    // Yeni kullanıcı oluştur
+    const created = this.userRepository.create({
+      email,
+      password: passwordHash!,
+      firstName,
+      lastName,
+      role: (Object.values(UserRole) as string[]).includes(role) ? (role as any) : UserRole.USER,
+      isActive: activate,
+      isEmailVerified: true,
+      emailVerifiedAt: now,
+      tenantId: tenant.id,
+    } as any);
+    const savedUser = await this.userRepository.save(created as any as User);
+    return {
+      success: true,
+      userId: (savedUser as User).id,
+      email: (savedUser as User).email,
+      tenantId: tenant.id,
+      tempPassword,
+      created: true,
+    };
   }
 
   async updateTenantBasic(
@@ -443,12 +551,23 @@ export class AdminService {
         'SELECT o.* FROM organizations o ORDER BY o."createdAt" DESC LIMIT 20',
       );
       organizations = orgs || [];
+      // Davetleri tenant'a göre filtrele: OWNER üyesinin tenantId'si bu tenant olan organizasyonların davetleri
       const inv = await this.dataSource.query(
-        'SELECT i.* FROM invites i ORDER BY i."createdAt" DESC LIMIT 100',
+        `
+        SELECT i.*, o.name as "organizationName"
+        FROM invites i
+        JOIN organizations o ON o.id = i."organizationId"
+        JOIN organization_members m ON m."organizationId" = i."organizationId" AND m.role = 'OWNER'
+        JOIN users u ON u.id = m."userId"
+        WHERE u."tenantId" = $1
+        ORDER BY i."createdAt" DESC
+        LIMIT 200
+        `,
+        [tenantId],
       );
       invites = inv || [];
     } catch (_) {
-      // organizations table may not exist in some setups; ignore softly
+      // organizations veya invites tabloları yoksa sessizce geç
     }
 
     return {
@@ -1283,18 +1402,117 @@ export class AdminService {
     }
 
     if (opts.hard) {
-      // Fiziksel silme: ilişkili tablolar cascade ile siliniyor (foreign key onDelete CASCADE).
-      await this.tenantRepository.remove(tenant);
-      // Audit log
-      await this.auditLogRepository.save(
-        this.auditLogRepository.create({
-          tenantId,
-          entity: 'tenant',
-          entityId: tenantId,
-          action: 'DELETE' as any,
-          diff: { hard: true },
-        }),
-      );
+      // Fiziksel silme: Bazı tablolar onDelete CASCADE değil (invoices/expenses gibi).
+      // Güvenli sıra ile bağlı verileri temizleyip tenant'ı kaldır.
+      // Ön kontrol: opsiyonel tablolar mevcut mu?
+      const hasTable = async (table: string) => {
+        const res = await this.dataSource.query(
+          "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1) AS exists",
+          [table],
+        );
+        const v = res?.[0]?.exists;
+        return v === true || v === 't' || v === 1;
+      };
+      const [hasQuotesTable, hasAuditLogsTable] = await Promise.all([
+        hasTable('quotes'),
+        hasTable('audit_logs'),
+      ]);
+
+      await this.dataSource.transaction(async (manager) => {
+        // Satışlar -> Faturalar -> Giderler -> Banka Hesapları -> Ürünler -> Kategoriler -> Müşteriler -> Tedarikçiler -> Kullanıcılar -> Audit loglar -> Tenant
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('sales')
+          .where('"tenantId" = :tenantId', { tenantId })
+          .execute();
+
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('invoices')
+          .where('"tenantId" = :tenantId', { tenantId })
+          .execute();
+
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('expenses')
+          .where('"tenantId" = :tenantId', { tenantId })
+          .execute();
+
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('bank_accounts')
+          .where('"tenantId" = :tenantId', { tenantId })
+          .execute();
+
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('products')
+          .where('"tenantId" = :tenantId', { tenantId })
+          .execute();
+
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('product_categories')
+          .where('"tenantId" = :tenantId', { tenantId })
+          .execute();
+
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('customers')
+          .where('"tenantId" = :tenantId', { tenantId })
+          .execute();
+
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('suppliers')
+          .where('"tenantId" = :tenantId', { tenantId })
+          .execute();
+
+        // Quotes ve audit_logs olası bağımlılıklar (tablo varsa sil)
+        if (hasQuotesTable) {
+          await manager
+            .createQueryBuilder()
+            .delete()
+            .from('quotes')
+            .where('"tenantId" = :tenantId', { tenantId })
+            .execute();
+        }
+
+        if (hasAuditLogsTable) {
+          await manager
+            .createQueryBuilder()
+            .delete()
+            .from('audit_logs')
+            .where('"tenantId" = :tenantId', { tenantId })
+            .execute();
+        }
+
+        // Kullanıcılar (bazı ortamlarda CASCADE olabilir, yine de güvenli temizle)
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('users')
+          .where('"tenantId" = :tenantId', { tenantId })
+          .execute();
+
+        // Son olarak tenant kaydını kaldır
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from('tenants')
+          .where('id = :tenantId', { tenantId })
+          .execute();
+      });
+      // Hard delete sonrası audit_log tablosu tenant FK'sine bağlı olduğundan
+      // kayıt eklemiyoruz (FK hatası oluşur veya hemen silinir). Sistem logu yeterli.
       return { success: true, hard: true, backup: backupSummary };
     }
 

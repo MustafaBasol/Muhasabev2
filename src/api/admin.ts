@@ -188,12 +188,19 @@ export const adminApi = {
     tenantId: string,
     options?: { hard?: boolean; backupBefore?: boolean }
   ) => {
-    const response = await apiClient.patch(
-      `/admin/tenant/${tenantId}/delete`,
-      { confirm: true, hard: options?.hard ?? true, backupBefore: options?.backupBefore ?? false },
-      { headers: getAdminHeaders() }
-    );
-    return response.data;
+    try {
+      const response = await apiClient.patch(
+        `/admin/tenant/${tenantId}/delete`,
+        { confirm: true, hard: options?.hard ?? true, backupBefore: options?.backupBefore ?? false },
+        { headers: getAdminHeaders() }
+      );
+      return response.data;
+    } catch (e: any) {
+      // 404 veya diğer durumlarda hata detayını yukarı aktar
+      const status = e?.response?.status;
+      const msg = e?.response?.data?.message || e?.message;
+      throw new Error(`Silme hatası${status ? ` (HTTP ${status})` : ''}: ${msg || 'Bilinmeyen'}`);
+    }
   },
 
   deleteUser: async (
@@ -283,5 +290,15 @@ export const adminApi = {
       if (status === 404) return { invoices: [] };
       throw e;
     }
+  },
+  // Add user to tenant (no email verification)
+  addUserToTenant: async (
+    tenantId: string,
+    payload: { email: string; firstName?: string; lastName?: string; role?: string; password?: string; autoPassword?: boolean; activate?: boolean }
+  ) => {
+    const response = await apiClient.post(`/admin/tenant/${tenantId}/users`, payload, {
+      headers: getAdminHeaders(),
+    });
+    return response.data;
   },
 };

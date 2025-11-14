@@ -9,6 +9,8 @@ import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 import { Sale, SaleStatus } from '../sales/entities/sale.entity';
+import { Product } from '../products/entities/product.entity';
+import { ProductCategory } from '../products/entities/product-category.entity';
 
 @Injectable()
 export class InvoicesService {
@@ -19,7 +21,63 @@ export class InvoicesService {
     private tenantRepository: Repository<Tenant>,
     @InjectRepository(Sale)
     private salesRepository: Repository<Sale>,
+    @InjectRepository(Product)
+    private productsRepository: Repository<Product>,
+    @InjectRepository(ProductCategory)
+    private categoriesRepository: Repository<ProductCategory>,
   ) {}
+
+  private async resolveTaxRate(
+    tenantId: string,
+    item: any,
+  ): Promise<number> {
+    // 1) Satırda açıkça taxRate varsa onu kullan (satır bazlı override)
+    if (
+      item != null &&
+      Object.prototype.hasOwnProperty.call(item, 'taxRate') &&
+      item.taxRate !== undefined &&
+      item.taxRate !== null &&
+      item.taxRate !== ''
+    ) {
+      const v = Number(item.taxRate);
+      if (Number.isFinite(v) && v >= 0) return v;
+    }
+
+    // 2) Ürün üzerinden belirle
+    if (item?.productId) {
+      const product = await this.productsRepository.findOne({
+        where: { id: item.productId, tenantId },
+      });
+      if (product) {
+        // 2a) Ürüne özel override tanımlıysa (kategori KDV'sini ezer)
+        if (
+          product.categoryTaxRateOverride !== null &&
+          product.categoryTaxRateOverride !== undefined
+        ) {
+          const v = Number(product.categoryTaxRateOverride);
+          if (Number.isFinite(v) && v >= 0) return v;
+        }
+        // 2b) Kategori adı belirtilmişse kategorinin KDV'sini kullan
+        if (product.category) {
+          const category = await this.categoriesRepository.findOne({
+            where: { name: product.category, tenantId },
+          });
+          if (category) {
+            const v = Number(category.taxRate);
+            if (Number.isFinite(v) && v >= 0) return v;
+          }
+        }
+        // 2c) Eski alan: ürün.taxRate (mevcutsa, son çare)
+        if (product.taxRate !== undefined && product.taxRate !== null) {
+          const v = Number(product.taxRate);
+          if (Number.isFinite(v) && v >= 0) return v;
+        }
+      }
+    }
+
+    // 3) Varsayılan: %18
+    return 18;
+  }
 
   async create(tenantId: string, createInvoiceDto: any): Promise<Invoice> {
     // Plan limiti: Aylık fatura sayısı kontrolü
@@ -96,10 +154,11 @@ export class InvoicesService {
     let subtotal = 0; // KDV HARİÇ toplam
     let taxAmount = 0; // KDV tutarı
 
-    items.forEach((item: any) => {
+    for (const item of items) {
       const itemTotal =
         (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0); // KDV HARİÇ
-      const itemTaxRate = Number(item.taxRate ?? 18) / 100; // %18 -> 0.18
+      const effectiveRate = await this.resolveTaxRate(tenantId, item);
+      const itemTaxRate = Number(effectiveRate) / 100; // % => oran
       const itemTax = itemTotal * itemTaxRate; // KDV tutarı
 
       console.log('  📌 Item:', {
@@ -107,13 +166,13 @@ export class InvoicesService {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         itemTotal,
-        taxRate: item.taxRate ?? 18,
+        taxRate: effectiveRate,
         itemTax,
       });
 
       subtotal += itemTotal; // KDV HARİÇ toplam
       taxAmount += itemTax; // KDV toplamı
-    });
+    }
 
     const discountAmount = Number(createInvoiceDto.discountAmount) || 0;
     const total = subtotal + taxAmount - discountAmount; // KDV DAHİL toplam
@@ -215,15 +274,16 @@ export class InvoicesService {
       let subtotal = 0; // KDV HARİÇ toplam
       let taxAmount = 0; // KDV tutarı
 
-      items.forEach((item: any) => {
+      for (const item of items) {
         const itemTotal =
           (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0); // KDV HARİÇ
-        const itemTaxRate = Number(item.taxRate ?? 18) / 100; // %18 -> 0.18
+        const effectiveRate = await this.resolveTaxRate(tenantId, item);
+        const itemTaxRate = Number(effectiveRate) / 100; // % => oran
         const itemTax = itemTotal * itemTaxRate; // KDV tutarı
 
         subtotal += itemTotal; // KDV HARİÇ toplam
         taxAmount += itemTax; // KDV toplamı
-      });
+      }
 
       const discountAmount =
         Number(updateInvoiceDto.discountAmount ?? invoice.discountAmount) || 0;

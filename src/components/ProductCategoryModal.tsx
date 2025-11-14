@@ -26,9 +26,14 @@ interface ProductCategoryModalProps {
   categories: string[];
   categoryObjects?: ProductCategory[];
   editingCategory?: {
+    id: string;
     name: string;
     taxRate: number;
+    isActive: boolean;
+    isProtected?: boolean;
   } | null;
+  onArchive?: (id: string) => void | Promise<void>;
+  onRestore?: (id: string) => void | Promise<void>;
 }
 
 export default function ProductCategoryModal({
@@ -38,6 +43,8 @@ export default function ProductCategoryModal({
   categories,
   categoryObjects = [],
   editingCategory,
+  onArchive,
+  onRestore,
 }: ProductCategoryModalProps) {
   const { t } = useTranslation();
   const [name, setName] = React.useState('');
@@ -221,7 +228,32 @@ export default function ProductCategoryModal({
           {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
+        <div className="flex items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
+          {isEditMode && editingCategory && !editingCategory.isProtected && (
+            <div className="flex items-center gap-2">
+              {editingCategory.isActive ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!editingCategory?.id) return;
+                    const ok = window.confirm(t('products.archiveConfirm'));
+                    if (ok) onArchive?.(editingCategory.id);
+                  }}
+                  className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                >
+                  {t('products.archive')}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => editingCategory?.id && onRestore?.(editingCategory.id)}
+                  className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50"
+                >
+                  {t('products.activate')}
+                </button>
+              )}
+            </div>
+          )}
           <button
             type="button"
             onClick={onClose}

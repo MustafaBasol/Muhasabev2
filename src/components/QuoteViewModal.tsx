@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, Mail, RefreshCw, Lock } from 'lucide-react';
+import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, Mail, RefreshCw, Lock, Link as LinkIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
 import ConfirmModal from './ConfirmModal';
@@ -72,16 +72,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
     return diff;
   }, [quote?.validUntil]);
 
-  // Görüntülendi olarak işaretleme: taslak veya gönderildi ise modal açıldığında 'viewed'
-  useEffect(() => {
-    if (!isOpen || !quote) return;
-    if (!onChangeStatus) return;
-    if (quote.status === 'draft' || quote.status === 'sent') {
-      onChangeStatus(quote, 'viewed');
-    }
-    // yalnızca isOpen/quote değişiminde çalışır; üst state güncellenince koşul zaten sağlanmayacak
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, quote?.id]);
+  // Not: Artık modal açılınca otomatik 'viewed' yapılmaz. 'viewed' yalnızca public sayfada tetiklenir.
 
   if (!isOpen || !quote) return null;
 
@@ -197,14 +188,22 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {(quote.items || []).map((it) => (
-                      <tr key={it.id}>
-                        <td className="px-3 py-2 text-sm text-gray-800">{it.description}</td>
-                        <td className="px-3 py-2 text-sm text-right text-gray-700">{it.quantity}</td>
-                        <td className="px-3 py-2 text-sm text-right text-gray-700">{formatCurrency(it.unitPrice, quote.currency)}</td>
-                        <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{formatCurrency(it.total, quote.currency)}</td>
-                      </tr>
-                    ))}
+                    {(quote.items || []).map((raw) => {
+                      const anyIt = raw as any;
+                      const description = anyIt.description ?? anyIt.name ?? anyIt.productName ?? '';
+                      const quantity = Number(anyIt.quantity ?? anyIt.qty ?? 0);
+                      const unitPrice = Number(anyIt.unitPrice ?? anyIt.price ?? anyIt.unit_price ?? 0);
+                      const total = Number(anyIt.total ?? (quantity * unitPrice) ?? 0);
+                      const key = String(anyIt.id ?? `${description}-${unitPrice}-${total}`);
+                      return (
+                        <tr key={key}>
+                          <td className="px-3 py-2 text-sm text-gray-800">{description}</td>
+                          <td className="px-3 py-2 text-sm text-right text-gray-700">{quantity}</td>
+                          <td className="px-3 py-2 text-sm text-right text-gray-700">{formatCurrency(unitPrice, quote.currency)}</td>
+                          <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{formatCurrency(total, quote.currency)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -314,6 +313,36 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
               <FileDown className="w-4 h-4" />
               <span className="text-sm font-medium">{t('quotes.actions.downloadPdf')}</span>
             </button>
+
+            {/* Public paylaşım linkini kopyalama */}
+            {quote.publicId && (
+              <button
+                onClick={async () => {
+                  try {
+                    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                    const url = `${origin}/public/quote/${encodeURIComponent(String(quote.publicId))}`;
+                    await navigator.clipboard.writeText(url);
+                    try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: t('quotes.actions.copyPublicLinkSuccess', { defaultValue: 'Bağlantı kopyalandı.' }) as string, tone: 'success' } })); } catch {}
+                    // İlk kez paylaşım yapılıyorsa taslak statüsünü 'sent' yap
+                    if (onChangeStatus && (quote.status === 'draft')) {
+                      onChangeStatus(quote, 'sent');
+                    }
+                  } catch (err) {
+                    console.warn('Clipboard copy failed, showing fallback', err);
+                    try {
+                      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                      const url = `${origin}/public/quote/${encodeURIComponent(String(quote.publicId))}`;
+                      alert(url);
+                    } catch {}
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                title={t('quotes.actions.copyPublicLink', { defaultValue: 'Public Link Kopyala' })}
+              >
+                <LinkIcon className="w-4 h-4" />
+                <span className="text-sm font-medium">{t('quotes.actions.copyPublicLink', { defaultValue: 'Public Link Kopyala' })}</span>
+              </button>
+            )}
 
             {(quote.status === 'sent' || quote.status === 'viewed') && (
               <button

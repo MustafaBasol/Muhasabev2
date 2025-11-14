@@ -486,6 +486,31 @@ export class AdminController {
     });
   }
 
+  // === Add user to tenant (no email verification) ===
+  @Post('tenant/:tenantId/users')
+  @ApiOperation({ summary: 'Create or attach a user to a tenant without email verification' })
+  @ApiResponse({ status: 200, description: 'User created/attached' })
+  async addUserToTenant(
+    @Param('tenantId') tenantId: string,
+    @Body()
+    body: {
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      role?: string;
+      password?: string;
+      autoPassword?: boolean;
+      activate?: boolean;
+    },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    if (!body?.email) {
+      throw new UnauthorizedException('email is required');
+    }
+    return this.adminService.addUserToTenant(tenantId, body);
+  }
+
   // === Demo Purge (DEV only) ===
   @Delete('tenant/:tenantId/purge-demo')
   @ApiOperation({ summary: 'Purge ALL demo data for a tenant (dev only)' })

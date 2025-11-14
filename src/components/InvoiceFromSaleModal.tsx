@@ -12,6 +12,12 @@ interface Sale {
   quantity?: number;
   unitPrice?: number;
   amount: number;
+  // Backend'ten gelen alanlar (varsa)
+  subtotal?: number; // KDV hariç toplam
+  taxAmount?: number; // KDV tutarı
+  total?: number; // KDV dahil toplam
+  productId?: string;
+  items?: Array<{ productId?: string; productName?: string; description?: string; quantity?: number; unitPrice?: number; taxRate?: number; total?: number }>; // satış kalemleri
   date: string;
   paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
   notes?: string;
@@ -63,6 +69,70 @@ export default function InvoiceFromSaleModal({
     }
 
     // Satıştan fatura verisini hazırla
+    const qty = Number(sale.quantity || 1);
+    // Unit price KDV HARIÇ olmalı; yoksa amount/subtotal üzerinden tahmin et
+    let unitPriceExcl = Number(sale.unitPrice || 0);
+    if (!Number.isFinite(unitPriceExcl) || unitPriceExcl <= 0) {
+      const subtotalGuess = Number((sale as any).subtotal ?? 0);
+      if (Number.isFinite(subtotalGuess) && subtotalGuess > 0 && qty > 0) {
+        unitPriceExcl = subtotalGuess / qty;
+      } else if (Number.isFinite(sale.amount) && qty > 0) {
+        // Varsayılan oran bilinmiyorsa %18 varsayımıyla yaklaşıkla (son çare, backend yine hesaplayacak)
+        unitPriceExcl = (sale.amount / 1.18) / qty;
+      }
+    }
+
+    // Items listesi varsa her bir kalemi KDV hariç şekilde geçir; yoksa tek satır oluştur
+    const originalItems: any[] = Array.isArray((sale as any).items) ? (sale as any).items : [];
+    const lineItems = (originalItems.length > 0)
+      ? originalItems.map((it) => {
+          const q = Number(it.quantity) || 1;
+          const up = Number(it.unitPrice) || unitPriceExcl;
+          const tx = Number(it.taxRate);
+          return {
+            productId: it.productId ?? sale.productId,
+            description: it.productName || it.description || sale.productName,
+            quantity: q,
+            unitPrice: up,
+            taxRate: Number.isFinite(tx) && tx >= 0 ? tx : undefined,
+            total: q * up,
+          };
+        })
+      : [{
+          productId: (sale as any).productId,
+          description: sale.productName,
+          quantity: qty,
+          unitPrice: unitPriceExcl,
+          total: qty * unitPriceExcl,
+          taxRate: (originalItems[0] && Number.isFinite(Number(originalItems[0].taxRate))) ? Number(originalItems[0].taxRate) : undefined,
+        }];
+
+    // Preview subtotal (KDV hariç)
+    const previewSubtotal = (() => {
+      const explicit = Number((sale as any).subtotal);
+      if (Number.isFinite(explicit) && explicit > 0) return explicit;
+      return lineItems.reduce((sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0);
+    })();
+    // Preview total (KDV dahil) - sale.total/amount öncelik
+    const previewTotal = (() => {
+      const explicitTotal = Number((sale as any).total);
+      if (Number.isFinite(explicitTotal) && explicitTotal > 0) return explicitTotal;
+      const amount = Number((sale as any).amount);
+      if (Number.isFinite(amount) && amount > 0) return amount;
+      // Hesapla: subtotal + vergi
+      return previewSubtotal + (Number((sale as any).taxAmount) || 0);
+    })();
+    // Preview tax: varsa sale.taxAmount; yoksa kalem bazlı taxRate ile hesapla; o da yoksa total-subtotal
+    const previewTax = (() => {
+      const explicitTax = Number((sale as any).taxAmount);
+      if (Number.isFinite(explicitTax) && explicitTax > 0) return explicitTax;
+      const anyRateItems = lineItems.filter(li => Number.isFinite(Number((li as any).taxRate)));
+      if (anyRateItems.length > 0) {
+        return anyRateItems.reduce((sum, li) => sum + ((Number(li.quantity)||0)*(Number(li.unitPrice)||0))* (Number((li as any).taxRate)/100), 0);
+      }
+      return Math.max(0, previewTotal - previewSubtotal);
+    })();
+
     const newInvoice = {
       saleId: sale.id,
       issueDate: new Date().toISOString().split('T')[0],
@@ -72,19 +142,24 @@ export default function InvoiceFromSaleModal({
       // Satış verisinden alınacak bilgiler
       customerName: sale.customerName,
       customerEmail: sale.customerEmail || '',
-      productName: sale.productName,
-      quantity: sale.quantity || 1,
-      unitPrice: sale.unitPrice || sale.amount,
-      subtotal: sale.amount / 1.18, // KDV hariç tutar
-      taxAmount: sale.amount - (sale.amount / 1.18), // KDV tutarı
-      total: sale.amount,
       type: 'service',
-      items: [{
-        description: sale.productName,
-        quantity: sale.quantity || 1,
-        unitPrice: sale.unitPrice || sale.amount,
-        total: sale.amount
-      }]
+      items: lineItems.map(li => ({
+        productId: li.productId,
+        description: li.description,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+        taxRate: li.taxRate, // varsa explicit gönder
+      })),
+      lineItems: lineItems.map(li => ({
+        productId: li.productId,
+        description: li.description,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+        taxRate: li.taxRate,
+      })),
+      subtotal: previewSubtotal,
+      taxAmount: previewTax,
+      total: previewTotal || previewSubtotal + previewTax,
     };
 
     onSave(newInvoice);
@@ -96,6 +171,49 @@ export default function InvoiceFromSaleModal({
   };
 
   if (!isOpen || !sale) return null;
+
+  // --- ÖNİZLEME HESAPLARI (render sırasında gösterim için) ---
+  const qtyPreview = Number(sale.quantity || 1);
+  let unitPriceExclPreview = Number(sale.unitPrice || 0);
+  if (!Number.isFinite(unitPriceExclPreview) || unitPriceExclPreview <= 0) {
+    const subPrev = Number((sale as any).subtotal ?? 0);
+    if (Number.isFinite(subPrev) && subPrev > 0 && qtyPreview > 0) {
+      unitPriceExclPreview = subPrev / qtyPreview;
+    } else if (Number.isFinite(sale.amount) && qtyPreview > 0) {
+      unitPriceExclPreview = (sale.amount / 1.18) / qtyPreview; // son çare varsayım
+    }
+  }
+  const originalPreviewItems: any[] = Array.isArray((sale as any).items) ? (sale as any).items : [];
+  const previewLineItems = (originalPreviewItems.length > 0)
+    ? originalPreviewItems.map((it) => {
+        const q = Number(it.quantity) || 1;
+        const up = Number(it.unitPrice) || unitPriceExclPreview;
+        const tx = Number(it.taxRate);
+        return { q, up, txRate: Number.isFinite(tx) && tx >= 0 ? tx : undefined };
+      })
+    : [{ q: qtyPreview, up: unitPriceExclPreview, txRate: (originalPreviewItems[0] && Number.isFinite(Number(originalPreviewItems[0].taxRate))) ? Number(originalPreviewItems[0].taxRate) : undefined }];
+
+  const previewSubtotalUi = (() => {
+    const explicit = Number((sale as any).subtotal);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    return previewLineItems.reduce((sum, li) => sum + li.q * li.up, 0);
+  })();
+  const previewTotalUi = (() => {
+    const explicitTotal = Number((sale as any).total);
+    if (Number.isFinite(explicitTotal) && explicitTotal > 0) return explicitTotal;
+    const amount = Number((sale as any).amount);
+    if (Number.isFinite(amount) && amount > 0) return amount;
+    return previewSubtotalUi + (Number((sale as any).taxAmount) || 0);
+  })();
+  const previewTaxUi = (() => {
+    const explicitTax = Number((sale as any).taxAmount);
+    if (Number.isFinite(explicitTax) && explicitTax > 0) return explicitTax;
+    const anyRate = previewLineItems.filter(li => Number.isFinite(li.txRate));
+    if (anyRate.length > 0) {
+      return anyRate.reduce((sum, li) => sum + (li.q * li.up) * (Number(li.txRate)/100), 0);
+    }
+    return Math.max(0, previewTotalUi - previewSubtotalUi);
+  })();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -127,7 +245,7 @@ export default function InvoiceFromSaleModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-center text-sm">
                 <User className="w-4 h-4 text-gray-400 mr-2" />
-                <span className="text-gray-600">{t('common.customer')}:</span>
+                <span className="text-gray-600">{t('common.customer', { defaultValue: 'Müşteri' })}:</span>
                 <span className="ml-2 font-medium">{sale.customerName}</span>
               </div>
               
@@ -210,15 +328,15 @@ export default function InvoiceFromSaleModal({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Ara Toplam:</span>
-                  <span>{formatCurrency(sale.amount / 1.18)}</span>
+                  <span>{formatCurrency(previewSubtotalUi)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>KDV:</span>
-                  <span>{formatCurrency(sale.amount - (sale.amount / 1.18))}</span>
+                  <span>{formatCurrency(previewTaxUi)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t border-blue-300 pt-2">
                   <span>Toplam:</span>
-                  <span>{formatCurrency(sale.amount)}</span>
+                  <span>{formatCurrency(previewSubtotalUi + previewTaxUi)}</span>
                 </div>
               </div>
             </div>

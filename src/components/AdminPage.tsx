@@ -745,7 +745,7 @@ const AdminPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {(selectedTenantId === 'all' ? users : users.filter(u => u.tenant?.id === selectedTenantId)).map((user) => (
+                    {(userTenantFilter === 'all' ? users : users.filter(u => u.tenant?.id === userTenantFilter)).map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
@@ -1039,6 +1039,19 @@ const AdminPage: React.FC = () => {
                                 setLoading(true);
                                 await adminApi.deleteTenant(tenant.id, { hard: true, backupBefore: false });
                                 setTenants(prev => prev.filter(t => t.id !== tenant.id));
+                                // Kullanıcılar sekmesindeki filtre bu tenant ise 'all' yap ve listeyi tazele
+                                if (userTenantFilter === tenant.id) {
+                                  setUserTenantFilter('all');
+                                  await fetchUsers(undefined);
+                                } else {
+                                  // Filtre farklıysa da güncel sunucu durumu için kullanıcı listesini yenile
+                                  await fetchUsers(userTenantFilter !== 'all' ? userTenantFilter : undefined);
+                                }
+                                // Data sekmesinde seçili tenant bu ise 'all' yap
+                                if (selectedTenantId === tenant.id) {
+                                  setSelectedTenantId('all');
+                                  await loadTables(undefined);
+                                }
                                 setActionMessage('Hesap kalıcı olarak silindi');
                                 setTimeout(() => setActionMessage(''), 2500);
                               } catch (e) {
@@ -1408,9 +1421,18 @@ const AdminPage: React.FC = () => {
                       setActionMessage(hard ? 'Kullanıcı kalıcı olarak silindi' : 'Kullanıcı pasifleştirildi');
                       setTimeout(() => setActionMessage(''), 2500);
                       setDeleteModalUser(null);
-                    } catch (e) {
+                    } catch (e: any) {
                       console.error('Silme hatası', e);
-                      alert('Silme başarısız. Konsolu kontrol edin.');
+                      const status = e?.response?.status;
+                      if (status === 404) {
+                        setActionMessage('Kullanıcı zaten silinmiş veya bulunamadı (404)');
+                        setTimeout(() => setActionMessage(''), 2500);
+                        setDeleteModalUser(null);
+                        // Sunucudaki güncel durumu yansıtmak için listeyi tazele
+                        fetchUsers(userTenantFilter !== 'all' ? userTenantFilter : undefined);
+                      } else {
+                        alert('Silme başarısız. Konsolu kontrol edin.');
+                      }
                     } finally {
                       setDeleteLoading(false);
                     }

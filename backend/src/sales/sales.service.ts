@@ -69,8 +69,8 @@ export class SalesService {
     const discountAmount = Number(dto.discountAmount) || 0;
     const total = subtotal + taxAmount - discountAmount;
 
-    const saleNumber =
-      dto.saleNumber || (await this.generateSaleNumber(tenantId, dto.saleDate));
+    // Benzersiz satış numarası üretimi: her zaman sunucu tarafında üret
+    let saleNumber = await this.generateSaleNumber(tenantId, dto.saleDate);
 
     let customerId: string | null = dto.customerId ?? null;
     // Otomatik müşteri oluşturma: ID yok ama isim varsa
@@ -105,33 +105,44 @@ export class SalesService {
       }
     }
 
-    const sale = this.salesRepository.create({
-      tenantId,
-      saleNumber,
-      customerId,
-      saleDate: new Date(dto.saleDate),
-      items,
-      subtotal,
-      taxAmount,
-      discountAmount,
-      total,
-      notes: dto.notes ?? null,
-      sourceQuoteId: dto.sourceQuoteId ?? null,
-      invoiceId: dto.invoiceId ?? null,
-      status: SaleStatus.CREATED,
-    });
+    // save + retry (eşzamanlı çakışmalara karşı dayanıklı)
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const sale = this.salesRepository.create({
+        tenantId,
+        saleNumber,
+        customerId,
+        saleDate: new Date(dto.saleDate),
+        items,
+        subtotal,
+        taxAmount,
+        discountAmount,
+        total,
+        notes: dto.notes ?? null,
+        sourceQuoteId: dto.sourceQuoteId ?? null,
+        invoiceId: dto.invoiceId ?? null,
+        status: SaleStatus.CREATED,
+      });
 
-    try {
-      return await this.salesRepository.save(sale);
-    } catch (err: any) {
-      const isUniqueViolation =
-        err?.code === '23505' ||
-        (typeof err?.message === 'string' && err.message.includes('UNIQUE constraint failed'));
-      if (isUniqueViolation) {
-        throw new BadRequestException('Bu ay için oluşturulan satış numarası zaten kullanılıyor. Lütfen tekrar deneyin.');
+      try {
+        return await this.salesRepository.save(sale);
+      } catch (err: any) {
+        lastError = err;
+        const isUniqueViolation =
+          err?.code === '23505' ||
+          (typeof err?.message === 'string' && err.message.includes('UNIQUE constraint failed'));
+        if (isUniqueViolation) {
+          // Yeni numara üret ve tekrar dene
+          saleNumber = await this.generateSaleNumber(tenantId, dto.saleDate);
+          continue;
+        }
+        throw err;
       }
-      throw err;
     }
+    // 3 denemeden sonra hâlâ çakışıyorsa anlamlı mesaj ver
+    throw new BadRequestException(
+      'Bu ay için oluşturulan satış numarası çakışıyor. Lütfen tekrar deneyin.'
+    );
   }
 
   async findAll(tenantId: string): Promise<Sale[]> {

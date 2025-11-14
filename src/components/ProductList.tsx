@@ -97,9 +97,10 @@ export default function ProductList({
   const [isCategoryPanelOpen, setIsCategoryPanelOpen] = useState(false);
   const [activeFilterMenu, setActiveFilterMenu] = useState<FilterId | null>(null);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
-  const [editingCategoryData, setEditingCategoryData] = useState<{ name: string; taxRate: number } | null>(null);
+  const [editingCategoryData, setEditingCategoryData] = useState<{ id: string; name: string; taxRate: number; isActive: boolean; isProtected?: boolean } | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryObjects, setCategoryObjects] = useState<ProductCategory[]>([]);
+  const [showArchivedCategories, setShowArchivedCategories] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
     title: string;
@@ -120,7 +121,7 @@ export default function ProductList({
     const fetchCategories = async () => {
       try {
         const api = await loadProductCategoriesApi();
-        const data = await api.getAll();
+        const data = await api.getAll({ includeInactive: true });
         setCategoryObjects(data);
       } catch (error) {
         console.error('Kategoriler yüklenirken hata:', error);
@@ -147,6 +148,11 @@ export default function ProductList({
         .sort((a, b) => a.localeCompare(b, 'tr-TR'));
       return cats;
     },
+    [categoryObjects]
+  );
+
+  const archivedCategories = useMemo(
+    () => categoryObjects.filter(cat => !cat.isActive).sort((a, b) => a.name.localeCompare(b.name, 'tr-TR')),
     [categoryObjects]
   );
 
@@ -321,8 +327,11 @@ export default function ProductList({
     );
     
     setEditingCategoryData({ 
+      id: categoryObj?.id || '',
       name: category.trim(), 
-      taxRate: categoryObj?.taxRate ?? 18 // Backend'den gelen değer veya varsayılan 18
+      taxRate: categoryObj?.taxRate ?? 18, // Backend'den gelen değer veya varsayılan 18
+      isActive: categoryObj?.isActive ?? true,
+      isProtected: categoryObj?.isProtected ?? false,
     });
   };
 
@@ -338,7 +347,7 @@ export default function ProductList({
         });
         
         // Kategori listesini yenile
-        const updatedCategories = await (await loadProductCategoriesApi()).getAll();
+        const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
         setCategoryObjects(updatedCategories);
         try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
         
@@ -385,7 +394,7 @@ export default function ProductList({
       });
       
       // Kategori listesini yenile
-      const updatedCategories = await (await loadProductCategoriesApi()).getAll();
+      const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
       setCategoryObjects(updatedCategories);
       try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
       
@@ -405,6 +414,49 @@ export default function ProductList({
       setEditingCategoryData(null);
     } catch (error: any) {
       console.error('Kategori güncellenirken hata:', error);
+      if (error.response?.data?.message) {
+        setInfoModal({ title: t('common.error'), message: error.response.data.message });
+      }
+    }
+  };
+
+  const handleArchiveCategory = async (categoryId: string) => {
+    try {
+      const api = await loadProductCategoriesApi();
+      await api.delete(categoryId);
+      const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
+      setCategoryObjects(updatedCategories);
+      try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
+      setEditingCategoryData(null);
+    } catch (error: any) {
+      console.error('Kategori arşivlenirken hata:', error);
+      const data = error?.response?.data;
+      if (data?.code === 'CATEGORY_HAS_PRODUCTS') {
+        const count = Number(data?.count ?? 0);
+        // Uyarı gösterirken düzenleme modalını kapat
+        setEditingCategoryData(null);
+        setInfoModal({
+          title: t('common.warning'),
+          message: t('products.cannotArchiveCategoryWithProducts', { count }),
+        });
+      } else if (data?.message) {
+        // Diğer hata durumlarında da düzenleme modalını kapatmak kullanıcı deneyimini sadeleştirir
+        setEditingCategoryData(null);
+        setInfoModal({ title: t('common.error'), message: data.message });
+      }
+    }
+  };
+
+  const handleRestoreCategory = async (categoryId: string) => {
+    try {
+      const api = await loadProductCategoriesApi();
+      await api.update(categoryId, { isActive: true });
+      const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
+      setCategoryObjects(updatedCategories);
+      try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
+      setEditingCategoryData(null);
+    } catch (error: any) {
+      console.error('Kategori aktif edilirken hata:', error);
       if (error.response?.data?.message) {
         setInfoModal({ title: t('common.error'), message: error.response.data.message });
       }
@@ -443,7 +495,7 @@ export default function ProductList({
           if (categoryObj) {
             const api = await loadProductCategoriesApi();
             await api.delete(categoryObj.id);
-            const updatedCategories = await (await loadProductCategoriesApi()).getAll();
+            const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
             setCategoryObjects(updatedCategories);
             try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
           }
@@ -741,6 +793,18 @@ export default function ProductList({
                 <span className="truncate">{t('products.allProducts')}</span>
                 <span className="text-xs text-gray-500">{products.length}</span>
               </button>
+              <div className="flex items-center justify-between px-2 py-1">
+                <span className="text-xs text-gray-500">
+                  {availableCategories.length} {t('products.categoriesCount')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowArchivedCategories(prev => !prev)}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-700"
+                >
+                  {showArchivedCategories ? t('products.hideArchived') : t('products.showArchived')}
+                </button>
+              </div>
               {availableCategories.length === 0 ? (
                 <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">{t('products.noCategories')}</p>
               ) : (
@@ -884,6 +948,39 @@ export default function ProductList({
                                 className="text-red-500 transition-colors hover:text-red-600"
                               >
                                 {t('products.deleteCategory')}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Arşivlenmiş Kategoriler */}
+                  {showArchivedCategories && (
+                    <div className="space-y-1 mt-4">
+                      <div className="px-2 py-1 flex items-center justify-between">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          {t('products.archivedCategories')}
+                        </div>
+                        <span className="text-[11px] text-gray-400">{archivedCategories.length}</span>
+                      </div>
+                      {archivedCategories.length === 0 ? (
+                        <div className="ml-2 rounded-lg px-3 py-2 text-xs text-gray-400 bg-gray-50">
+                          {t('products.noArchivedCategories')}
+                        </div>
+                      ) : archivedCategories.map(cat => {
+                        const usage = categoryUsage.get(cat.name) ?? 0;
+                        return (
+                          <div key={cat.id} className="ml-2 flex items-center justify-between rounded-lg px-3 py-2 text-sm text-gray-500 bg-gray-50">
+                            <span className="truncate">{cat.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-gray-400">{usage}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRestoreCategory(cat.id)}
+                                className="text-[11px] rounded border border-emerald-200 bg-white px-2 py-1 text-emerald-600 hover:border-emerald-300 hover:text-emerald-700"
+                              >
+                                {t('products.activate')}
                               </button>
                             </div>
                           </div>
@@ -1278,6 +1375,8 @@ export default function ProductList({
         categories={availableCategories}
         categoryObjects={categoryObjects}
         editingCategory={editingCategoryData}
+        onArchive={(id) => handleArchiveCategory(id)}
+        onRestore={(id) => handleRestoreCategory(id)}
       />
     </div>
   );

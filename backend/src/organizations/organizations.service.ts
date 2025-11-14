@@ -303,7 +303,7 @@ MoneyFlow Accounting System
     token: string,
     userId: string,
   ): Promise<OrganizationMember> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    let user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }

@@ -560,6 +560,16 @@ export class BillingService {
       throw new BadRequestException('Anlık faturalandırma başarısız: ' + (e?.message || e));
     }
 
+    const amountMinor = ((): number | null => {
+      const aPaid = (paid as any)?.amount_paid;
+      const aDue = (paid as any)?.amount_due;
+      const total = (paid as any)?.total;
+      if (typeof aPaid === 'number' && aPaid > 0) return aPaid;
+      if (typeof aDue === 'number' && aDue > 0) return aDue;
+      if (typeof total === 'number' && total > 0) return total;
+      return (typeof aPaid === 'number' ? aPaid : 0);
+    })();
+
     return {
       success: true,
       newAddonQty,
@@ -567,7 +577,7 @@ export class BillingService {
       invoiceId: paid?.id ?? null,
       invoiceStatus: paid?.status ?? null,
       amountDue: (paid as any)?.amount_due ?? null,
-      amountPaid: (paid as any)?.amount_paid ?? null,
+      amountPaid: amountMinor,
       currency: (paid as any)?.currency ?? null,
       hostedInvoiceUrl: (paid as any)?.hosted_invoice_url ?? null,
       pdf: (paid as any)?.invoice_pdf ?? null,
@@ -644,6 +654,25 @@ export class BillingService {
     tenant.subscriptionExpiresAt = new Date(updated.current_period_end * 1000);
     await this.tenantRepo.save(tenant);
     return { success: true, currentPeriodEnd: tenant.subscriptionExpiresAt };
+  }
+
+  // Abonelik iptalini geri al (period end'de iptal bayrağını kaldır)
+  async resumeCancellation(tenantId: string) {
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    if (!tenant.stripeSubscriptionId)
+      throw new BadRequestException('No active Stripe subscription');
+    const updated = await this.stripe.subscriptions.update(
+      tenant.stripeSubscriptionId,
+      { cancel_at_period_end: false },
+    );
+    tenant.cancelAtPeriodEnd = false;
+    // current_period_end değişmeden kalabilir; yine de güncelleyelim
+    if (updated.current_period_end) {
+      tenant.subscriptionExpiresAt = new Date(updated.current_period_end * 1000);
+    }
+    await this.tenantRepo.save(tenant);
+    return { success: true, cancelAtPeriodEnd: false, currentPeriodEnd: tenant.subscriptionExpiresAt };
   }
 
   // Called from webhook

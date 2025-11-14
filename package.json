@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start:all": "./start-dev.sh",
-    "stop:all": "./stop-dev.sh"
+    "stop:all": "./stop-dev.sh",
+    "start:backend": "./start-backend.sh"
   },
   "dependencies": {
     "axios": "^1.12.2",

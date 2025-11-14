@@ -460,6 +460,8 @@
       "decline": "Refuser",
       "downloadPdf": "Télécharger PDF",
       "copyLink": "Copier le lien public",
+      "copyPublicLink": "Copier le lien",
+      "copyPublicLinkSuccess": "Lien copié.",
       "resendEmail": "Renvoyer l'e-mail",
       "revise": "Réviser",
       "duplicate": "Dupliquer"

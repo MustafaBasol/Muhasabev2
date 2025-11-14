@@ -27,6 +27,7 @@ const TenantConsolePage: React.FC = () => {
   const [invoices, setInvoices] = useState<BillingInvoiceDTO[]>([]);
   const [showAllInvoices, setShowAllInvoices] = useState(false);
   const [subRaw, setSubRaw] = useState<any>(null);
+  const [showInvitesAll, setShowInvitesAll] = useState(false);
   // Seçili tenant'ı son durum olarak takip etmek ve yarış durumlarını engellemek için ref
   const selectedIdRef = useRef<string>('');
 
@@ -163,6 +164,47 @@ const TenantConsolePage: React.FC = () => {
   const limits = overview?.limits;
   const usage = overview?.usage;
   const users = overview?.users || [];
+  const invites = (overview?.invites as any[]) || [];
+
+  // Add user form state
+  const [newUser, setNewUser] = useState<{ email: string; firstName: string; lastName: string; role: string; password: string; autoPassword: boolean; activate: boolean }>({
+    email: '',
+    firstName: '',
+    lastName: '',
+    role: 'user',
+    password: '',
+    autoPassword: true,
+    activate: true,
+  });
+  const [createdTempPassword, setCreatedTempPassword] = useState<string>('');
+  const submitNewUser = async () => {
+    if (!selectedTenantId) return;
+    if (!newUser.email) { setError('E-posta gerekli'); return; }
+    try {
+      setLoading(true);
+      setError('');
+      setMessage('');
+      setCreatedTempPassword('');
+      const payload: any = {
+        email: newUser.email,
+        firstName: newUser.firstName || undefined,
+        lastName: newUser.lastName || undefined,
+        role: newUser.role || undefined,
+        activate: newUser.activate,
+      };
+      if (!newUser.autoPassword && newUser.password) payload.password = newUser.password;
+      const res = await adminApi.addUserToTenant(selectedTenantId, payload);
+      if (res?.tempPassword) setCreatedTempPassword(res.tempPassword);
+      setMessage('Kullanıcı eklendi/güncellendi');
+      setTimeout(()=>setMessage(''), 2000);
+      await loadOverview(selectedTenantId);
+      setNewUser({ email: '', firstName: '', lastName: '', role: 'user', password: '', autoPassword: true, activate: true });
+    } catch (e: any) {
+      setError(e?.message || 'Kullanıcı ekleme başarısız');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Editable tenant header state
   const [editTenantName, setEditTenantName] = useState<string>('');
@@ -446,7 +488,16 @@ const TenantConsolePage: React.FC = () => {
 
             {/* Kullanıcılar */}
             <div className="bg-white border border-gray-200 rounded-lg">
-              <div className="px-3 py-2 border-b font-medium">Kullanıcılar</div>
+              <div className="px-3 py-2 border-b font-medium flex items-center justify-between">
+                <span>Kullanıcılar</span>
+                <div className="flex items-center gap-2">
+                  {createdTempPassword && (
+                    <div className="text-xs text-orange-700 bg-orange-50 border border-orange-200 px-2 py-1 rounded">
+                      Geçici şifre: <span className="font-mono font-semibold">{createdTempPassword}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="max-h-[40vh] overflow-y-auto">
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50">
@@ -459,6 +510,44 @@ const TenantConsolePage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
+                    {/* Add user row */}
+                    <tr className="border-t bg-gray-50/60">
+                      <td className="px-3 py-2">
+                        <div className="flex gap-2">
+                          <input value={newUser.firstName} onChange={(e)=>setNewUser(prev=>({...prev, firstName:e.target.value}))} className="px-2 py-1 border border-gray-300 rounded w-28" placeholder="Ad" />
+                          <input value={newUser.lastName} onChange={(e)=>setNewUser(prev=>({...prev, lastName:e.target.value}))} className="px-2 py-1 border border-gray-300 rounded w-28" placeholder="Soyad" />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <input value={newUser.email} onChange={(e)=>setNewUser(prev=>({...prev, email:e.target.value}))} className="px-2 py-1 border border-gray-300 rounded w-60" placeholder="email@ornek.com" />
+                        <div className="mt-1 flex items-center gap-2">
+                          <label className="text-[11px] text-gray-600 flex items-center gap-1">
+                            <input type="checkbox" checked={newUser.autoPassword} onChange={(e)=>setNewUser(prev=>({...prev, autoPassword:e.target.checked}))} />
+                            Otomatik şifre
+                          </label>
+                          {!newUser.autoPassword && (
+                            <input value={newUser.password} onChange={(e)=>setNewUser(prev=>({...prev, password:e.target.value}))} className="px-2 py-1 border border-gray-300 rounded w-40" placeholder="Parola (>=8)" />
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <select value={newUser.role} onChange={(e)=>setNewUser(prev=>({...prev, role:e.target.value}))} className="px-2 py-1 border border-gray-300 rounded">
+                          <option value="user">user</option>
+                          <option value="accountant">accountant</option>
+                          <option value="tenant_admin">tenant_admin</option>
+                          <option value="super_admin">super_admin</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <label className="text-xs flex items-center gap-2">
+                          <input type="checkbox" checked={newUser.activate} onChange={(e)=>setNewUser(prev=>({...prev, activate:e.target.checked}))} />
+                          Aktif
+                        </label>
+                      </td>
+                      <td className="px-3 py-2">
+                        <button onClick={submitNewUser} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Ekle</button>
+                      </td>
+                    </tr>
                     {users.map((u: any) => {
                       const edit = userEdits[u.id];
                       return (
@@ -511,6 +600,73 @@ const TenantConsolePage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Davetler */}
+            <div className="bg-white border border-gray-200 rounded-lg">
+              <div className="px-3 py-2 border-b font-medium flex items-center justify-between">
+                <span>Davetler</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => selectedTenantId && loadOverview(selectedTenantId)}
+                    className="px-2 py-1 text-xs border rounded"
+                  >Yenile</button>
+                  {invites.length > 8 && (
+                    <button
+                      onClick={() => setShowInvitesAll((p)=>!p)}
+                      className="px-2 py-1 text-xs bg-indigo-600 text-white rounded"
+                    >{showInvitesAll ? 'Daralt' : 'Tümü'}</button>
+                  )}
+                </div>
+              </div>
+              {invites.length === 0 ? (
+                <div className="p-3 text-sm text-gray-600">Görüntülenecek davet yok.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left">E-posta</th>
+                        <th className="px-3 py-2 text-left">Rol</th>
+                        <th className="px-3 py-2 text-left">Durum</th>
+                        <th className="px-3 py-2 text-left">Oluşturulma</th>
+                        <th className="px-3 py-2 text-left">Son Tarih</th>
+                        <th className="px-3 py-2 text-left">Organizasyon</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(showInvitesAll ? invites : invites.slice(0,8)).map((iv: any) => {
+                        const createdAt = iv.createdAt ? new Date(iv.createdAt) : null;
+                        const expiresAt = iv.expiresAt ? new Date(iv.expiresAt) : null;
+                        const acceptedAt = iv.acceptedAt ? new Date(iv.acceptedAt) : null;
+                        const now = new Date();
+                        const status = acceptedAt
+                          ? 'Kabul edildi'
+                          : (expiresAt && expiresAt < now)
+                            ? 'Süresi doldu'
+                            : 'Beklemede';
+                        const badgeClass = status === 'Kabul edildi'
+                          ? 'bg-green-50 text-green-700 border border-green-200'
+                          : status === 'Beklemede'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-red-50 text-red-700 border border-red-200';
+                        return (
+                          <tr key={iv.id} className="border-t">
+                            <td className="px-3 py-2">{iv.email}</td>
+                            <td className="px-3 py-2">{iv.role || 'MEMBER'}</td>
+                            <td className="px-3 py-2">
+                              <span className={`inline-flex items-center text-[10px] px-2 py-0.5 rounded-full ${badgeClass}`}>{status}</span>
+                            </td>
+                            <td className="px-3 py-2">{createdAt ? createdAt.toLocaleString() : '—'}</td>
+                            <td className="px-3 py-2">{expiresAt ? expiresAt.toLocaleString() : '—'}</td>
+                            <td className="px-3 py-2">{iv.organizationName || '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* Fatura Geçmişi */}

@@ -152,6 +152,12 @@ export async function cancelSubscriptionAtPeriodEnd(tenantId: string): Promise<C
   return res.data;
 }
 
+/** Dönem sonu iptalini kaldır (aboneliği yeniden başlat) */
+export async function resumeSubscription(tenantId: string): Promise<{ success: boolean; cancelAtPeriodEnd: false; currentPeriodEnd?: string | null }>{
+  const res = await apiClient.post(`/billing/${tenantId}/resume`);
+  return res.data;
+}
+
 /** Stripe faturalarını listele */
 export async function listInvoices(tenantId: string): Promise<{ invoices: BillingInvoiceDTO[] }>{
   const res = await apiClient.get(`/billing/${tenantId}/invoices`);
@@ -165,7 +171,7 @@ export async function listHistory(tenantId: string): Promise<{ success: boolean;
 }
 
 /** Stripe senkronu (webhook gelmezse manuel) */
-export async function syncSubscription(tenantId: string): Promise<{ success: boolean; updated?: boolean; plan?: string; billingInterval?: string | null; maxUsers?: number | null }> {
+export async function syncSubscription(tenantId: string): Promise<{ success: boolean; updated?: boolean; plan?: string; billingInterval?: string | null; maxUsers?: number | null; cancelAtPeriodEnd?: boolean | null; subscriptionExpiresAt?: string | null }> {
   const res = await apiClient.post(`/billing/${tenantId}/sync`);
   return res.data;
 }

@@ -462,6 +462,8 @@
       "decline": "Ablehnen",
       "downloadPdf": "PDF Herunterladen",
       "copyLink": "Öffentlichen Link kopieren",
+      "copyPublicLink": "Link kopieren",
+      "copyPublicLinkSuccess": "Link kopiert.",
       "resendEmail": "E-Mail erneut senden",
       "revise": "Überarbeiten",
       "duplicate": "Duplizieren"

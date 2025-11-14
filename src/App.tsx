@@ -714,7 +714,20 @@ const AppContent: React.FC = () => {
               status: normalizedStatus,
             };
           });
-          setSales(mappedSales);
+          // Backend'ten gelen liste, kullanıcı eklerken tamamlanan ilk yükleme tarafından
+          // state'i ezmemeli. Mevcut state ile birleştirip (saleNumber,id) bazında tekilleştir.
+          setSales(prev => {
+            const byKey = new Map<string, any>();
+            const makeKey = (x: any) => `${x?.saleNumber || ''}#${x?.id || ''}`;
+            // Önce mevcut state, sonra backend verisi: backend aynı kaydı içeriyorsa onu tercih et.
+            for (const s of Array.isArray(prev) ? prev : []) {
+              byKey.set(makeKey(s), s);
+            }
+            for (const s of mappedSales) {
+              byKey.set(makeKey(s), s);
+            }
+            return Array.from(byKey.values());
+          });
         }
         // Debug: log a sample of expenses to inspect status/amount values
         console.log('🔎 Loaded expenses sample (first 10):', mappedExpenses.slice(0, 10).map(e => ({ id: e.id, amount: e.amount, status: e.status, expenseDate: e.expenseDate })));

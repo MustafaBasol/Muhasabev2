@@ -72,6 +72,18 @@ export class BillingController {
     return this.billing.cancelAtPeriodEnd(tenantId);
   }
 
+  // Aboneliği yeniden başlat (cancel_at_period_end = false)
+  @Post(':tenantId/resume')
+  async resume(
+    @Param('tenantId') tenantId: string,
+    @User() user: any,
+  ) {
+    if (String(user?.tenantId) !== String(tenantId)) {
+      throw new ForbiddenException();
+    }
+    return this.billing.resumeCancellation(tenantId);
+  }
+
   @Get(':tenantId/invoices')
   async invoices(@Param('tenantId') tenantId: string, @User() user: any) {
     if (String(user?.tenantId) !== String(tenantId)) {

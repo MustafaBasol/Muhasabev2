@@ -12,11 +12,13 @@ export interface CreateProductCategoryDto {
 export interface UpdateProductCategoryDto {
   name?: string;
   taxRate?: number;
+  isActive?: boolean;
 }
 
 export const productCategoriesApi = {
-  getAll: async (): Promise<ProductCategory[]> => {
-    const response = await apiClient.get('/product-categories');
+  getAll: async (params?: { includeInactive?: boolean }): Promise<ProductCategory[]> => {
+    const query = params?.includeInactive ? '?includeInactive=true' : '';
+    const response = await apiClient.get(`/product-categories${query}`);
     return response.data;
   },
 

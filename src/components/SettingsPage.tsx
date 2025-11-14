@@ -87,11 +87,27 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     fr: { month: 'Mensuel', year: 'Annuel' },
     de: { month: 'Monatlich', year: 'Jährlich' },
   } as const;
-  // Backend tenant nesnesinde varsa billingInterval'ı göster, yoksa varsayılanı kullan
+  // Backend tenant nesnesinde varsa billingInterval'ı kullan; yoksa yenileme tarihinden çıkarım yap
   const intervalRaw = (tenant as any)?.billingInterval as ('month' | 'year' | undefined);
+  const inferredInterval = (() => {
+    if (intervalRaw) return intervalRaw;
+    try {
+      const exp = tenant?.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt).getTime() : 0;
+      const now = Date.now();
+      if (exp > now) {
+        const days = Math.round((exp - now) / (1000 * 60 * 60 * 24));
+        if (days >= 330) return 'year';
+        if (days >= 25) return 'month';
+      }
+    } catch {}
+    return undefined;
+  })();
+  const effectiveInterval = inferredInterval; // 'month' | 'year' | undefined
   const periodText = isFree
     ? ''
-    : (intervalRaw ? (periodMap[currentLanguage]?.[intervalRaw] || (intervalRaw === 'year' ? 'Yearly' : 'Monthly')) : (periodMap[currentLanguage]?.month || 'Monthly'));
+    : (effectiveInterval
+        ? (periodMap[currentLanguage]?.[effectiveInterval] || (effectiveInterval === 'year' ? 'Yearly' : 'Monthly'))
+        : (periodMap[currentLanguage]?.month || 'Monthly'));
 
   // --- Local state ---
   // Yalnız landing'deki 3 plan: Starter(Free), Pro, Business(Enterprise)
@@ -242,9 +258,38 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
         if (!tenantId) return;
         const { syncSubscription } = await import('../api/billing');
-        await syncSubscription(tenantId);
+        const res = await syncSubscription(tenantId);
         await refreshUser();
-        setPlanMessage(currentLanguage === 'tr' ? 'Portal değişiklikleri senkronize edildi.' : 'Portal changes synchronized.');
+        if (typeof (res as any)?.cancelAtPeriodEnd === 'boolean') {
+          const cancelDateStr = (() => {
+            const s = (res as any)?.subscriptionExpiresAt;
+            if (s) {
+              try { return new Date(s).toLocaleDateString(); } catch { return renewalStr; }
+            }
+            return renewalStr;
+          })();
+          if ((res as any).cancelAtPeriodEnd) {
+            const msg = currentLanguage === 'tr'
+              ? `Abonelik dönem sonunda iptal edilecek. İptal tarihi: ${cancelDateStr}`
+              : currentLanguage === 'fr'
+                ? `L’abonnement sera annulé à la fin de la période. Date: ${cancelDateStr}`
+                : currentLanguage === 'de'
+                  ? `Abo endet am Periodenende. Datum: ${cancelDateStr}`
+                  : `Subscription will be cancelled at period end. Date: ${cancelDateStr}`;
+            setPlanMessage(msg);
+          } else {
+            const msg = currentLanguage === 'tr'
+              ? 'Abonelik aktif. Portal değişiklikleri uygulandı.'
+              : currentLanguage === 'fr'
+                ? 'Abonnement actif. Modifications du portail appliquées.'
+                : currentLanguage === 'de'
+                  ? 'Abo aktiv. Portaländerungen angewendet.'
+                  : 'Subscription active. Portal changes applied.';
+            setPlanMessage(msg);
+          }
+        } else {
+          setPlanMessage(currentLanguage === 'tr' ? 'Portal değişiklikleri senkronize edildi.' : 'Portal changes synchronized.');
+        }
       } catch {}
       finally {
         localStorage.removeItem('pending_portal_sync');
@@ -252,6 +297,27 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         window.history.replaceState({}, document.title, url.pathname + url.search);
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Portal dönüş anahtarı localStorage'da kalmışsa (parametre gelmese de) fokus/ilk yüklemede senkronize et
+  useEffect(() => {
+    const handler = async () => {
+      try {
+        const pending = localStorage.getItem('pending_portal_sync');
+        if (!pending) return;
+        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        if (!tenantId) return;
+        const { syncSubscription } = await import('../api/billing');
+        await syncSubscription(tenantId);
+        await refreshUser();
+        localStorage.removeItem('pending_portal_sync');
+      } catch {}
+    };
+    handler();
+    const onFocus = () => handler();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -331,7 +397,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         return planRaw;
       })();
       const samePlan = normalizedCurrentPlan === desired;
-      const sameInterval = (intervalRaw || 'month') === interval;
+      const sameInterval = ((effectiveInterval || 'month') === interval);
       // Hedef kullanıcı alanı kaldırıldığı için plan değişiminde ek koltuk belirlenmez
       const seatAddon = 0;
 
@@ -435,8 +501,30 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     } finally { setBusy(false); }
   };
 
+  const resumeCancellation = async () => {
+    if (!window.confirm(currentLanguage === 'tr' ? 'İptal kaldırılacak ve aboneliğiniz dönem sonunda yenilenmeye devam edecek. Onaylıyor musunuz?' : 'Cancellation will be removed and subscription will renew. Confirm?')) return;
+    setBusy(true); setPlanMessage('');
+    try {
+      const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+      if (!tenantId) throw new Error('Tenant bulunamadı');
+      const { resumeSubscription } = await import('../api/billing');
+      const res = await resumeSubscription(tenantId);
+      if (res?.success) {
+        setCancelAtPeriodEnd(false);
+        setPlanMessage(currentLanguage === 'tr' ? 'İptal kaldırıldı. Abonelik aktif.' : 'Cancellation removed. Subscription active.');
+        setTimeout(() => setPlanMessage(''), 3000);
+        await refreshUser();
+      }
+    } catch (e:any) {
+      setPlanMessage(e?.response?.data?.message || 'Yeniden başlatma hatası');
+    } finally { setBusy(false); }
+  };
+
   const renewalDate = tenant?.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt) : null;
   const renewalStr = renewalDate ? renewalDate.toLocaleDateString() : (currentLanguage === 'tr' ? '—' : '—');
+  const renewalLabel = cancelAtPeriodEnd
+    ? (currentLanguage === 'tr' ? 'İptal Tarihi' : currentLanguage === 'fr' ? "Date d'annulation" : currentLanguage === 'de' ? 'Kündigungsdatum' : 'Cancellation Date')
+    : (currentLanguage === 'tr' ? 'Yenileme Tarihi' : currentLanguage === 'fr' ? 'Date de renouvellement' : currentLanguage === 'de' ? 'Verlängerungsdatum' : 'Renewal Date');
 
   const canModifySeats = planRaw === 'professional' || planRaw === 'pro';
 
@@ -488,7 +576,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
               <span className="text-sm text-gray-900">{currentMaxUsers < 0 ? (currentLanguage === 'tr' ? 'Sınırsız' : currentLanguage === 'fr' ? 'Illimité' : currentLanguage === 'de' ? 'Unbegrenzt' : 'Unlimited') : currentMaxUsers}</span>
             </div>
           <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
-            <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Yenileme Tarihi' : currentLanguage === 'fr' ? 'Date de renouvellement' : currentLanguage === 'de' ? 'Verlängerungsdatum' : 'Renewal Date'}</span>
+            <span className="text-sm text-gray-600">{renewalLabel}</span>
             <span className="text-sm text-gray-900">{renewalStr}</span>
           </div>
         </div>
@@ -630,7 +718,12 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                 const resp = await chargeAddonNow(tenantId, toAdd);
                 if (resp?.success) {
                   const cur = String(resp?.currency || '').toUpperCase();
-                  const amt = typeof resp.amountPaid === 'number' ? (resp.amountPaid/100).toFixed(2) + ' ' + cur : '';
+                  const minor = (typeof resp.amountPaid === 'number' && resp.amountPaid > 0)
+                    ? resp.amountPaid
+                    : (typeof (resp as any).amountDue === 'number' && (resp as any).amountDue > 0)
+                      ? (resp as any).amountDue
+                      : (typeof (resp as any).total === 'number' ? (resp as any).total : 0);
+                  const amt = minor > 0 ? (minor/100).toFixed(2) + ' ' + cur : '';
                   setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar tahsil edildi.' : 'Additional users charged.') + (amt ? ` (${amt})` : ''));
                   setAdditionalUsersToAdd(1);
                   await refreshUser();
@@ -682,13 +775,21 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       {/* İptal Seçenekleri */}
       {!isFree && (
         <div className="border border-red-300 rounded-lg p-4 bg-red-50 space-y-3">
-          <h4 className="text-md font-semibold mb-2">{currentLanguage === 'tr' ? 'Abonelik İptali' : currentLanguage === 'fr' ? 'Annulation' : currentLanguage === 'de' ? 'Kündigung' : 'Cancellation'}</h4>
+          <h4 className="text-md font-semibold mb-2">{currentLanguage === 'tr' ? 'Abonelik Durumu' : currentLanguage === 'fr' ? 'Statut de l’abonnement' : currentLanguage === 'de' ? 'Abo-Status' : 'Subscription Status'}</h4>
           <p className="text-xs text-red-700">{currentLanguage === 'tr' ? 'Ücretli planlarda iptal talebi dönem sonunda uygulanır.' : 'On paid plans, cancellation takes effect at period end.'}</p>
-          <button
-            onClick={requestCancelAtPeriodEnd}
-            disabled={busy || cancelAtPeriodEnd}
-            className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-          >{cancelAtPeriodEnd ? (currentLanguage === 'tr' ? 'Dönem Sonu İptal Aktif' : 'Cancel at Period End Active') : (currentLanguage === 'tr' ? 'Dönem Sonunda İptal Et' : 'Cancel at Period End')}</button>
+          {!cancelAtPeriodEnd ? (
+            <button
+              onClick={requestCancelAtPeriodEnd}
+              disabled={busy}
+              className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >{currentLanguage === 'tr' ? 'Dönem Sonunda İptal Et' : currentLanguage === 'fr' ? 'Annuler en fin de période' : currentLanguage === 'de' ? 'Zum Periodenende kündigen' : 'Cancel at Period End'}</button>
+          ) : (
+            <button
+              onClick={resumeCancellation}
+              disabled={busy}
+              className="px-4 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+            >{currentLanguage === 'tr' ? 'Aboneliği Yeniden Başlat' : currentLanguage === 'fr' ? 'Relancer l’abonnement' : currentLanguage === 'de' ? 'Abo neu starten' : 'Resume Subscription'}</button>
+          )}
         </div>
       )}
 

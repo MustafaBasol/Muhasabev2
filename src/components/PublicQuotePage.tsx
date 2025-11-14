@@ -355,14 +355,22 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {(quote.items || []).map((it) => (
-                  <tr key={it.id}>
-                    <td className="px-3 py-2 text-sm text-gray-800">{it.description}</td>
-                    <td className="px-3 py-2 text-sm text-right text-gray-700">{it.quantity}</td>
-                    <td className="px-3 py-2 text-sm text-right text-gray-700">{formatCurrency(it.unitPrice, quote.currency)}</td>
-                    <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{formatCurrency(it.total, quote.currency)}</td>
-                  </tr>
-                ))}
+                {(quote.items || []).map((raw) => {
+                  const anyIt = raw as any;
+                  const description = anyIt.description ?? anyIt.name ?? anyIt.productName ?? '';
+                  const quantity = Number(anyIt.quantity ?? anyIt.qty ?? 0);
+                  const unitPrice = Number(anyIt.unitPrice ?? anyIt.price ?? anyIt.unit_price ?? 0);
+                  const total = Number(anyIt.total ?? (quantity * unitPrice) ?? 0);
+                  const key = String(anyIt.id ?? `${description}-${unitPrice}-${total}`);
+                  return (
+                    <tr key={key}>
+                      <td className="px-3 py-2 text-sm text-gray-800">{description}</td>
+                      <td className="px-3 py-2 text-sm text-right text-gray-700">{quantity}</td>
+                      <td className="px-3 py-2 text-sm text-right text-gray-700">{formatCurrency(unitPrice, quote.currency)}</td>
+                      <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{formatCurrency(total, quote.currency)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
