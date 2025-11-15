@@ -14,8 +14,15 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const { i18n } = useTranslation();
   const [currentLanguage, setCurrentLanguage] = useState<Language>(() => {
-    const saved = localStorage.getItem('i18nextLng');
-    return (saved as Language) || 'tr';
+    try {
+      const tenantId = (localStorage.getItem('tenantId') || '').toString();
+      const scopedKey = tenantId ? `lang_${tenantId}` : 'i18nextLng';
+      const savedScoped = localStorage.getItem(scopedKey);
+      const savedGlobal = localStorage.getItem('i18nextLng');
+      return ((savedScoped || savedGlobal) as Language) || 'tr';
+    } catch {
+      return 'tr';
+    }
   });
 
   const languages = [
@@ -28,7 +35,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const changeLanguage = (lang: Language) => {
     i18n.changeLanguage(lang);
     setCurrentLanguage(lang);
-    localStorage.setItem('i18nextLng', lang);
+    try {
+      const tenantId = (localStorage.getItem('tenantId') || '').toString();
+      const scopedKey = tenantId ? `lang_${tenantId}` : 'i18nextLng';
+      localStorage.setItem(scopedKey, lang);
+      // Global fallback'ı da güncel tut
+      localStorage.setItem('i18nextLng', lang);
+    } catch {}
   };
 
   useEffect(() => {

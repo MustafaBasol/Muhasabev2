@@ -284,6 +284,24 @@
       "filterByStatus": "Filtrer par statut"
     },
     "actions": {
+      "templates": {
+        "title": "Modèles de devis",
+        "manage": "Gérer les modèles",
+        "manageTitle": "Gérer les modèles de devis",
+        "list": "Modèles",
+        "new": "Nouveau",
+        "newTemplate": "Nouveau modèle",
+        "placeholderName": "Nom du modèle",
+        "apply": "Appliquer",
+        "create": "Créer un modèle",
+        "selectPlaceholder": "Sélectionnez un modèle…",
+        "freeHidden": "Les modèles sont masqués dans l’offre Starter.",
+        "proLimit": "Vous pouvez enregistrer jusqu’à 1 modèle dans Pro.",
+        "requirePlan": "Offre requise",
+        "manageUpgrade": "Passez à Pro ou Business pour gérer les modèles.",
+        "setDefault": "Par défaut",
+        "availableTokens": "Jetons disponibles (cliquer pour insérer) :"
+      },
       "clear": "Effacer",
       "view": "Voir",
       "copyLink": "Copier le lien",
@@ -506,6 +524,47 @@
       "title": "Portée des travaux",
       "placeholder": "Périmètre du projet, livrables, hypothèses et exclusions...",
       "note": "Ce contenu sera ajouté au PDF du devis en tant que nouvelle page après la section actuelle et sera visible sur le lien public."
+    },
+    "templates": {
+      "title": "Modèles de devis",
+      "manage": "Gérer les modèles",
+      "manageTitle": "Gérer les modèles de devis",
+      "list": "Modèles",
+      "new": "Nouveau",
+      "newTemplate": "Nouveau modèle",
+      "placeholderName": "Nom du modèle",
+      "apply": "Appliquer",
+      "create": "Créer un modèle",
+      "selectPlaceholder": "Sélectionnez un modèle…",
+      "freeHidden": "Les modèles sont masqués dans l’offre Starter.",
+      "proLimit": "Vous pouvez enregistrer jusqu’à 1 modèle dans Pro.",
+      "requirePlan": "Offre requise",
+      "manageUpgrade": "Passez à Pro ou Business pour gérer les modèles.",
+      "setDefault": "Par défaut",
+      "availableTokens": "Jetons disponibles (cliquer pour insérer) :"
+    }
+  },
+  "billing": {
+    "subscriptionUpdated": "Abonnement mis à jour.",
+    "payment": {
+      "successTitle": "Paiement réussi",
+      "cancelledTitle": "Paiement annulé",
+      "cancelledMessage": "Paiement annulé ou non terminé."
+    },
+    "addonAdded": "Utilisateurs supplémentaires ajoutés.",
+    "portal": {
+      "cancelAtPeriodEnd": "L’abonnement sera annulé à la fin de la période. Date : {{date}}",
+      "activeApplied": "Abonnement actif. Modifications du portail appliquées.",
+      "synced": "Modifications du portail synchronisées."
+    },
+    "redirecting": "Redirection vers l’écran de paiement…",
+    "interval": { "updated": "Période de facturation mise à jour." },
+    "checkout": { "failed": "Échec de création de la session de paiement." },
+    "cancelAtPeriodEnd": { "confirm": "L’abonnement sera annulé à la fin de la période. Confirmer ?" },
+    "cancel": { "requestedShort": "Annulation en fin de période définie." },
+    "resumeCancellation": {
+      "confirm": "L’annulation sera retirée et l’abonnement sera renouvelé. Confirmer ?",
+      "done": "Annulation retirée. Abonnement actif."
     }
   },
   "stats": {

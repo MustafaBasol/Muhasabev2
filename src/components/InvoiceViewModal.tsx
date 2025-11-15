@@ -111,6 +111,47 @@ export default function InvoiceViewModal({
         </div>
 
         <div className="p-6" id={`invoice-${invoice.id}`}>
+          {/* Oluşturan / Güncelleyen Bilgisi */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-xs text-gray-600">
+            <div>
+              <div>
+                <span className="text-gray-500">Oluşturan:</span>{' '}
+                <span className="font-medium">{
+                  ((invoice as any).createdByName
+                    || [
+                         (invoice as any)?.createdByUser?.firstName,
+                         (invoice as any)?.createdByUser?.lastName,
+                       ].filter(Boolean).join(' ').trim()
+                    || (invoice as any)?.createdByUser?.email
+                    || (invoice as any)?.createdBy
+                  ) || '—'
+                }</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Oluşturulma:</span>{' '}
+                <span className="font-medium">{(invoice as any).createdAt ? new Date((invoice as any).createdAt).toLocaleString('tr-TR') : '—'}</span>
+              </div>
+            </div>
+            <div>
+              <div>
+                <span className="text-gray-500">Son güncelleyen:</span>{' '}
+                <span className="font-medium">{
+                  ((invoice as any).updatedByName
+                    || [
+                         (invoice as any)?.updatedByUser?.firstName,
+                         (invoice as any)?.updatedByUser?.lastName,
+                       ].filter(Boolean).join(' ').trim()
+                    || (invoice as any)?.updatedByUser?.email
+                    || (invoice as any)?.updatedBy
+                  ) || '—'
+                }</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Son güncelleme:</span>{' '}
+                <span className="font-medium">{(invoice as any).updatedAt ? new Date((invoice as any).updatedAt).toLocaleString('tr-TR') : '—'}</span>
+              </div>
+            </div>
+          </div>
           {/* Invoice Header */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
@@ -179,18 +220,25 @@ export default function InvoiceViewModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {invoice.items && Array.isArray(invoice.items) && invoice.items.map((item, index) => (
-                    <tr key={index}>
-                      <td className="px-4 py-3 text-sm text-gray-900">{item.description}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.quantity}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                        {formatAmount(Number(item.unitPrice) || 0)}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">
-                        {formatAmount(Number(item.total) || 0)}
-                      </td>
-                    </tr>
-                  ))}
+                  {invoice.items && Array.isArray(invoice.items) && invoice.items.map((item, index) => {
+                    const qty = Number(item.quantity) || 0;
+                    const unit = Number(item.unitPrice) || 0;
+                    // Satır toplamını güvenilir şekilde hesapla (KDV hariç): miktar * birim fiyat
+                    // Eğer hesaplanan değer 0 çıkarsa ve item.total doluysa onu yedek olarak kullan.
+                    const lineTotal = (qty * unit) || (Number(item.total) || 0);
+                    return (
+                      <tr key={index}>
+                        <td className="px-4 py-3 text-sm text-gray-900">{item.description}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.quantity}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                          {formatAmount(unit)}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">
+                          {formatAmount(lineTotal)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -55,7 +55,7 @@ export class BillingService {
       case SubscriptionPlan.PROFESSIONAL:
         return 3; // Pro planda 3 kullanıcı dahildir
       case SubscriptionPlan.ENTERPRISE:
-        return 0; // Business (Enterprise) sınırsız: baz koltuk kavramı anlamlı değil, -1 ile işaretlenecek
+        return 10; // Business (Enterprise) planda 10 kullanıcı dahildir
       case SubscriptionPlan.BASIC:
       case SubscriptionPlan.FREE:
       default:
@@ -64,7 +64,7 @@ export class BillingService {
   }
 
   private isUnlimitedPlan(plan: SubscriptionPlan): boolean {
-    return plan === SubscriptionPlan.ENTERPRISE; // Business sınırsız
+    return false; // Artık hiçbir plan sınırsız değil; koltuklar baz + addon ile belirlenir
   }
 
   private ensurePriceId(id: string, label: string) {
@@ -239,7 +239,33 @@ export class BillingService {
     let addonItem = sub.items.data.find((it) => addonPriceIds.includes(it.price.id));
     if (!baseItem) throw new InternalServerErrorException('Base plan item missing on subscription');
 
-    const nextAddonQty = Math.max(0, Math.floor(params.seats ?? (addonItem?.quantity ?? 0)));
+    // ===== Koltuk migrasyonu mantığı =====
+    // Amaç: Plan değişiminde (ör. PRO -> BUSINESS) addon qty otomatik yeniden hesaplanmalı.
+    // Senaryolar:
+    // 1) Kullanıcı Pro (3 baz) + 2 addon (toplam 5) iken Business (10 baz) planına geçerse ==> addon = 0 (çünkü 10 baz yeterli).
+    // 2) Kullanıcı Pro (3 baz) + 12 addon (toplam 15) -> Business (10 baz) ==> addon = 5 (15 - 10).
+    // 3) Business -> Pro downgrade: ör. Business 10 baz + 4 addon (14 toplam) -> Pro 3 baz ==> addon = 11 (14 - 3) (mevcut koltukları koru).
+    // 4) Kullanıcı seats paramı gönderirse (explicit) bu değer override eder (manuel kontrol).
+
+    const oldPlanEnum = tenant.subscriptionPlan;
+    const oldBaseIncluded = this.baseIncludedUsers(oldPlanEnum);
+    const oldAddonQty = addonItem?.quantity ?? 0;
+    const prevTotalSeats = oldBaseIncluded + oldAddonQty;
+    const newBaseIncluded = this.baseIncludedUsers(desiredEnum);
+    const planChanged = oldPlanEnum !== desiredEnum;
+
+    let nextAddonQty: number;
+    if (typeof params.seats === 'number') {
+      // Explicit istekte gönderilen addon qty (yalnızca ekstra koltuklar)
+      nextAddonQty = Math.max(0, Math.floor(params.seats));
+    } else if (planChanged) {
+      // Otomatik migrasyon: Mevcut toplam koltukları koru, yeni baz dahil koltukları düş.
+      const computed = prevTotalSeats - newBaseIncluded;
+      nextAddonQty = Math.max(0, computed);
+    } else {
+      // Plan değişmedi; mevcut addon qty'yi koru.
+      nextAddonQty = oldAddonQty;
+    }
 
     // items dizisini kur: base item yeni fiyatla, addon varsa uygun fiyat ve quantity ile
     const updateItems: Array<{ id: string; price?: string; quantity?: number } & any> = [

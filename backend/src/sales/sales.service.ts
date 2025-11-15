@@ -5,6 +5,7 @@ import { Sale, SaleStatus } from './entities/sale.entity';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { UpdateSaleDto } from './dto/update-sale.dto';
 import { Customer } from '../customers/entities/customer.entity';
+import { Product } from '../products/entities/product.entity';
 
 @Injectable()
 export class SalesService {
@@ -13,6 +14,8 @@ export class SalesService {
     private readonly salesRepository: Repository<Sale>,
     @InjectRepository(Customer)
     private readonly customerRepository: Repository<Customer>,
+    @InjectRepository(Product)
+    private readonly productsRepository: Repository<Product>,
   ) {}
 
   private async generateSaleNumber(tenantId: string, dateStr: string) {
@@ -125,7 +128,25 @@ export class SalesService {
       });
 
       try {
-        return await this.salesRepository.save(sale);
+        const saved = await this.salesRepository.save(sale);
+
+        // Satış kalemlerindeki ürün stoklarını azalt
+        try {
+          const saleItems: any[] = Array.isArray(items) ? items : [];
+          for (const it of saleItems) {
+            const pid = it?.productId ? String(it.productId) : '';
+            const qty = Number(it?.quantity) || 0;
+            if (!pid || qty <= 0) continue;
+            try {
+              const product = await this.productsRepository.findOne({ where: { id: pid, tenantId } });
+              if (!product) continue;
+              product.stock = Number(product.stock || 0) - qty;
+              await this.productsRepository.save(product);
+            } catch {}
+          }
+        } catch {}
+
+        return saved;
       } catch (err: any) {
         lastError = err;
         const isUniqueViolation =

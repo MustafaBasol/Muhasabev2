@@ -73,6 +73,29 @@ export default function CustomerViewModal({
         </div>
 
         <div className="p-6" id={`customer-${customer.id}`}>
+          {/* Oluşturan / Güncelleyen */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-xs text-gray-600">
+            <div>
+              <div>
+                <span className="text-gray-500">Oluşturan:</span>{' '}
+                <span className="font-medium">{(customer as any).createdByName || '—'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Oluşturulma:</span>{' '}
+                <span className="font-medium">{customer.createdAt ? new Date(customer.createdAt).toLocaleString('tr-TR') : '—'}</span>
+              </div>
+            </div>
+            <div>
+              <div>
+                <span className="text-gray-500">Son güncelleyen:</span>{' '}
+                <span className="font-medium">{(customer as any).updatedByName || '—'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Son güncelleme:</span>{' '}
+                <span className="font-medium">{(customer as any).updatedAt ? new Date((customer as any).updatedAt).toLocaleString('tr-TR') : '—'}</span>
+              </div>
+            </div>
+          </div>
           {/* Customer Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>

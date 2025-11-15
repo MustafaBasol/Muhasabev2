@@ -32,6 +32,7 @@ import { AuditInterceptor } from './audit/audit.interceptor';
 import { SeedService } from './database/seed.service';
 import { RateLimitMiddleware } from './common/rate-limit.middleware';
 import { CSRFMiddleware } from './common/csrf.middleware';
+import { EnsureAttributionColumnsService } from './audit/ensure-attribution-columns.service';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
             synchronize: true,
             dropSchema: true,
             logging: false,
+            autoLoadEntities: true,
           } as const;
         }
 
@@ -80,6 +82,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
             entities: [__dirname + '/**/*.entity{.ts,.js}'],
             synchronize: true,
             logging: process.env.NODE_ENV === 'development',
+            autoLoadEntities: true,
           } as const;
         }
 
@@ -113,6 +116,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
           synchronize: false,
           logging: process.env.NODE_ENV === 'development',
           ssl: isProd ? { rejectUnauthorized: false } : false,
+          autoLoadEntities: true,
         } as const;
       },
     }),
@@ -141,6 +145,7 @@ import { CSRFMiddleware } from './common/csrf.middleware';
   providers: [
     AppService,
     SeedService,
+    EnsureAttributionColumnsService,
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantInterceptor,

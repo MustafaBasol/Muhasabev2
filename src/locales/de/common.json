@@ -5,6 +5,29 @@
     "next": "Weiter",
     "range": "{{start}}-{{end}} / {{total}}"
   },
+  "billing": {
+    "subscriptionUpdated": "Abo aktualisiert.",
+    "payment": {
+      "successTitle": "Zahlung erfolgreich",
+      "cancelledTitle": "Zahlung abgebrochen",
+      "cancelledMessage": "Zahlung storniert oder nicht abgeschlossen."
+    },
+    "addonAdded": "Zusätzliche Benutzer hinzugefügt.",
+    "portal": {
+      "cancelAtPeriodEnd": "Abo endet am Periodenende. Datum: {{date}}",
+      "activeApplied": "Abo aktiv. Portaländerungen angewendet.",
+      "synced": "Portaländerungen synchronisiert."
+    },
+    "redirecting": "Weiterleitung zur Zahlung…",
+    "interval": { "updated": "Abrechnungszeitraum aktualisiert." },
+    "checkout": { "failed": "Erstellung der Checkout-Sitzung fehlgeschlagen." },
+    "cancelAtPeriodEnd": { "confirm": "Abo wird zum Periodenende gekündigt. Bestätigen?" },
+    "cancel": { "requestedShort": "Kündigung zum Periodenende gesetzt." },
+    "resumeCancellation": {
+      "confirm": "Kündigung wird entfernt und das Abo wird verlängert. Bestätigen?",
+      "done": "Kündigung entfernt. Abo aktiv."
+    }
+  },
   "app": {
     "name": "comptario",
     "subtitle": "Buchhaltungssystem"
@@ -509,6 +532,48 @@
       "title": "Leistungsumfang",
       "placeholder": "Projektumfang, Liefergegenstände, Annahmen und Ausschlüsse...",
       "note": "Dieser Inhalt wird nach dem aktuellen Abschnitt als neue Seite an das Angebots-PDF angehängt und ist im öffentlichen Link sichtbar."
+    },
+    "templates": {
+      "title": "Angebotsvorlagen",
+      "manage": "Vorlagen verwalten",
+      "manageTitle": "Angebotsvorlagen verwalten",
+      "list": "Vorlagen",
+      "new": "Neu",
+      "newTemplate": "Neue Vorlage",
+      "placeholderName": "Vorlagenname",
+      "apply": "Anwenden",
+      "create": "Vorlage erstellen",
+      "selectPlaceholder": "Vorlage auswählen…",
+      "freeHidden": "Vorlagen sind im Starter-Tarif ausgeblendet.",
+      "proLimit": "Im Pro-Tarif können Sie bis zu 1 Vorlage speichern.",
+      "requirePlan": "Plan erforderlich",
+      "manageUpgrade": "Zu Pro oder Business wechseln, um Vorlagen zu verwalten.",
+      "setDefault": "Standard",
+      "availableTokens": "Verfügbare Platzhalter (zum Einfügen klicken):",
+      "defaultBodyHtml": "<h3>Angebotszusammenfassung</h3><p>Datum: [quote.date] • Gültig bis: [quote.valid_until]</p><p>Sehr geehrte/r [client.name] ([client.company]), nachfolgend unser Angebot zum beschriebenen Umfang.</p><h4>Umfang</h4><ul><li>Punkt 1</li><li>Punkt 2</li><li>Punkt 3</li></ul><h4>Gesamt</h4><p>Gesamt: [quote.total] [quote.currency]</p><h4>Kontakt</h4><p>[org.name] • [org.email] • [org.phone] • [org.address]</p>"
+    }
+  },
+  "billing": {
+    "subscriptionUpdated": "Abo aktualisiert.",
+    "payment": {
+      "successTitle": "Zahlung erfolgreich",
+      "cancelledTitle": "Zahlung abgebrochen",
+      "cancelledMessage": "Zahlung storniert oder nicht abgeschlossen."
+    },
+    "addonAdded": "Zusätzliche Benutzer hinzugefügt.",
+    "portal": {
+      "cancelAtPeriodEnd": "Abo endet am Periodenende. Datum: {{date}}",
+      "activeApplied": "Abo aktiv. Portaländerungen angewendet.",
+      "synced": "Portaländerungen synchronisiert."
+    },
+    "redirecting": "Weiterleitung zur Zahlung…",
+    "interval": { "updated": "Abrechnungszeitraum aktualisiert." },
+    "checkout": { "failed": "Erstellung der Checkout-Sitzung fehlgeschlagen." },
+    "cancelAtPeriodEnd": { "confirm": "Abo wird zum Periodenende gekündigt. Bestätigen?" },
+    "cancel": { "requestedShort": "Kündigung zum Periodenende gesetzt." },
+    "resumeCancellation": {
+      "confirm": "Kündigung wird entfernt und das Abo wird verlängert. Bestätigen?",
+      "done": "Kündigung entfernt. Abo aktiv."
     }
   },
   "stats": {

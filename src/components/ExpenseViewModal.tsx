@@ -136,6 +136,29 @@ export default function ExpenseViewModal({
         </div>
 
         <div className="p-6" id={`expense-${expense.id}`}>
+          {/* Oluşturan / Güncelleyen Bilgisi */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-xs text-gray-600">
+            <div>
+              <div>
+                <span className="text-gray-500">Oluşturan:</span>{' '}
+                <span className="font-medium">{(expense as any).createdByName || '—'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Oluşturulma:</span>{' '}
+                <span className="font-medium">{(expense as any).createdAt ? new Date((expense as any).createdAt).toLocaleString('tr-TR') : '—'}</span>
+              </div>
+            </div>
+            <div>
+              <div>
+                <span className="text-gray-500">Son güncelleyen:</span>{' '}
+                <span className="font-medium">{(expense as any).updatedByName || '—'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Son güncelleme:</span>{' '}
+                <span className="font-medium">{(expense as any).updatedAt ? new Date((expense as any).updatedAt).toLocaleString('tr-TR') : '—'}</span>
+              </div>
+            </div>
+          </div>
           {/* Expense Header */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>

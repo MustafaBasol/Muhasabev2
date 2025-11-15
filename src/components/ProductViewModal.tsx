@@ -63,6 +63,20 @@ export default function ProductViewModal({ isOpen, onClose, product, onEdit }: P
         </div>
 
         <div className="grid gap-6 p-6">
+          {/* Oluşturan / Güncelleyen */}
+          <section>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Kayıt Bilgisi</h3>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2 text-xs text-gray-600">
+              <div>
+                <div>Oluşturan: <span className="font-medium">{(product as any).createdByName || '—'}</span></div>
+                <div>Oluşturulma: <span className="font-medium">{(product as any).createdAt ? new Date((product as any).createdAt).toLocaleString('tr-TR') : '—'}</span></div>
+              </div>
+              <div>
+                <div>Son güncelleyen: <span className="font-medium">{(product as any).updatedByName || '—'}</span></div>
+                <div>Son güncelleme: <span className="font-medium">{(product as any).updatedAt ? new Date((product as any).updatedAt).toLocaleString('tr-TR') : '—'}</span></div>
+              </div>
+            </div>
+          </section>
           <section>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Ozellikler</h3>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">

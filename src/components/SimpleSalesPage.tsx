@@ -73,6 +73,8 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const [editingSale, setEditingSale] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [editingField, setEditingField] = useState<{ saleId: string; field: string } | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
   const [sortBy, setSortBy] = useState<'saleNumber' | 'customer' | 'product' | 'amount' | 'status' | 'date'>('date');
@@ -266,7 +268,11 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
 
       const matchesSearch = q.length === 0 || haystack.includes(q);
       const matchesStatus = statusFilter === 'all' || statusVariant === statusFilter;
-      return matchesSearch && matchesStatus;
+      // Tarih aralığı (sale.date bazlı)
+      const d = (sale.date || '').slice(0,10);
+      const withinStart = !startDate || d >= startDate;
+      const withinEnd = !endDate || d <= endDate;
+      return matchesSearch && matchesStatus && withinStart && withinEnd;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -297,7 +303,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter, sortBy, sortDir]);
+  }, [debouncedSearch, statusFilter, sortBy, sortDir, startDate, endDate]);
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
@@ -692,6 +698,22 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               <option value="pending">{t('status.pending')}</option>
               <option value="cancelled">{t('status.cancelled')}</option>
             </select>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                placeholder={t('startDate')}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                placeholder={t('endDate')}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
           </div>
         </div>
 
@@ -744,6 +766,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                     </th>
                     <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                       {t('sales.status')}<SortIndicator active={sortBy==='status'} />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
+                      {t('customer.historyColumns.createdBy')}
                     </th>
                     <th onClick={() => toggleSort('date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                       {t('sales.date')}<SortIndicator active={sortBy==='date'} />
@@ -884,6 +909,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                             {getStatusBadge(sale.status)}
                           </div>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {(sale as any).createdByName || '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">

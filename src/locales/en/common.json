@@ -509,6 +509,48 @@
       "title": "Scope of Work",
       "placeholder": "Project scope, deliverables, assumptions and exclusions...",
       "note": "This content will be appended to the quote PDF as a new page after the current section and will be visible on the public link."
+    },
+    "templates": {
+      "title": "Quote Templates",
+      "manage": "Manage Templates",
+      "manageTitle": "Manage quote templates",
+      "list": "Templates",
+      "new": "New",
+      "newTemplate": "New template",
+      "placeholderName": "Template name",
+      "apply": "Apply",
+      "create": "Create Template",
+      "selectPlaceholder": "Select a template…",
+      "freeHidden": "Templates are hidden on the Starter plan.",
+      "proLimit": "You can save up to 1 template on Pro.",
+      "requirePlan": "Plan required",
+      "manageUpgrade": "Switch to Pro or Business to manage templates.",
+      "setDefault": "Default",
+      "availableTokens": "Available tokens (click to insert):",
+      "defaultBodyHtml": "<h3>Quote Summary</h3><p>Date: [quote.date] • Valid until: [quote.valid_until]</p><p>Dear [client.name] ([client.company]), please find our proposal for the scope below.</p><h4>Scope</h4><ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul><h4>Total</h4><p>Total: [quote.total] [quote.currency]</p><h4>Contact</h4><p>[org.name] • [org.email] • [org.phone] • [org.address]</p>"
+    }
+  },
+  "billing": {
+    "subscriptionUpdated": "Subscription updated.",
+    "payment": {
+      "successTitle": "Payment Successful",
+      "cancelledTitle": "Payment Cancelled",
+      "cancelledMessage": "Payment cancelled or not completed."
+    },
+    "addonAdded": "Additional users added.",
+    "portal": {
+      "cancelAtPeriodEnd": "Subscription will be cancelled at period end. Date: {{date}}",
+      "activeApplied": "Subscription active. Portal changes applied.",
+      "synced": "Portal changes synchronized."
+    },
+    "redirecting": "Redirecting to payment…",
+    "interval": { "updated": "Billing interval updated." },
+    "checkout": { "failed": "Failed to create checkout session." },
+    "cancelAtPeriodEnd": { "confirm": "Subscription will be cancelled at period end. Confirm?" },
+    "cancel": { "requestedShort": "Cancel at period end set." },
+    "resumeCancellation": {
+      "confirm": "Cancellation will be removed and subscription will renew. Confirm?",
+      "done": "Cancellation removed. Subscription active."
     }
   },
   "stats": {

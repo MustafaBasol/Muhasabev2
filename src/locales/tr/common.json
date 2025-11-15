@@ -599,6 +599,48 @@
       "title": "İşin Kapsamı",
       "placeholder": "Proje kapsamı, teslimatlar, varsayımlar ve hariçler...",
       "note": "Bu içerik teklif PDF’inde mevcut bölümden sonra yeni bir sayfa olarak eklenecek ve genel linkte görünecek."
+    },
+    "templates": {
+      "title": "Teklif Şablonları",
+      "manage": "Şablonları Yönet",
+      "manageTitle": "Teklif şablonlarını yönet",
+      "list": "Şablonlar",
+      "new": "Yeni",
+      "newTemplate": "Yeni şablon",
+      "placeholderName": "Şablon adı",
+      "apply": "Uygula",
+      "create": "Şablon Oluştur",
+      "selectPlaceholder": "Şablon seçin…",
+      "freeHidden": "Şablonlar Starter planda görünmez.",
+      "proLimit": "Pro planda en fazla 1 şablon kaydedebilirsiniz.",
+      "requirePlan": "Plan gerekli",
+      "manageUpgrade": "Şablon yönetimi için Pro veya Business planına geçin.",
+      "setDefault": "Varsayılan",
+      "availableTokens": "Kullanılabilir alanlar (tıkla ve içeriğe ekle):",
+      "defaultBodyHtml": "<h3>Teklif Özeti</h3><p>Tarih: [quote.date] • Geçerlilik: [quote.valid_until]</p><p>Sayın [client.name] ([client.company]), aşağıda belirtilen kapsam için teklifimizi bilgilerinize sunarız.</p><h4>Kapsam</h4><ul><li>Madde 1</li><li>Madde 2</li><li>Madde 3</li></ul><h4>Toplam</h4><p>Toplam: [quote.total] [quote.currency]</p><h4>İletişim</h4><p>[org.name] • [org.email] • [org.phone] • [org.address]</p>"
+    }
+  },
+  "billing": {
+    "subscriptionUpdated": "Abonelik güncellendi.",
+    "payment": {
+      "successTitle": "Ödeme Başarılı",
+      "cancelledTitle": "Ödeme İptal",
+      "cancelledMessage": "Ödeme iptal edildi veya tamamlanamadı."
+    },
+    "addonAdded": "İlave kullanıcılar eklendi.",
+    "portal": {
+      "cancelAtPeriodEnd": "Abonelik dönem sonunda iptal edilecek. İptal tarihi: {{date}}",
+      "activeApplied": "Abonelik aktif. Portal değişiklikleri uygulandı.",
+      "synced": "Portal değişiklikleri senkronize edildi."
+    },
+    "redirecting": "Ödeme ekranına yönlendiriliyorsunuz…",
+    "interval": { "updated": "Plan dönemi güncellendi." },
+    "checkout": { "failed": "Ödeme oturumu oluşturulamadı." },
+    "cancelAtPeriodEnd": { "confirm": "Abonelik dönem sonunda iptal edilecek. Onaylıyor musunuz?" },
+    "cancel": { "requestedShort": "İptal talebi alındı (dönem sonunda)." },
+    "resumeCancellation": {
+      "confirm": "İptal kaldırılacak ve aboneliğiniz dönem sonunda yenilenmeye devam edecek. Onaylıyor musunuz?",
+      "done": "İptal kaldırıldı. Abonelik aktif."
     }
   },
   "stats": {

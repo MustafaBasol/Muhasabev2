@@ -5,6 +5,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import QuoteViewModal, { type Quote as QuoteModel, type QuoteStatus } from './QuoteViewModal';
 import QuoteEditModal from './QuoteEditModal';
 import QuoteCreateModal, { type QuoteCreatePayload } from './QuoteCreateModal';
+import QuoteTemplatesManager from './QuoteTemplatesManager';
 import ConfirmModal from './ConfirmModal';
 import type { Customer, Product } from '../types';
 import * as quotesApi from '../api/quotes';
@@ -57,14 +58,17 @@ interface QuoteItem {
 const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }) => {
   const { t } = useTranslation();
   const { formatCurrency, currency: defaultCurrency } = useCurrency();
-  const { tenant } = useAuth(); // tenant şu an sadece ileride cache anahtarı için gerekebilir; lint uyarısını önlemek adına referans veriyoruz
-  void tenant;
+  const { tenant } = useAuth();
+  const planRaw = String((tenant as any)?.subscriptionPlan || '').toLowerCase();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | QuoteStatus>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [sortBy, setSortBy] = useState<'quoteNumber' | 'customer' | 'date' | 'currency' | 'total' | 'status'>('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<QuoteItem | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -112,6 +116,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           convertedToSale: false,
           createdAt: q.createdAt || q.created_at || undefined,
           updatedAt: q.updatedAt || q.updated_at || undefined,
+          createdByName: q.createdByName,
+          updatedByName: q.updatedByName,
         } as QuoteItem));
         setQuotes(mapped);
       } catch (e) {
@@ -130,7 +136,11 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           .join(' ').toLowerCase();
         const matchesSearch = q.length === 0 || hay.includes(q);
         const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        // Tarih aralığı (issueDate bazlı)
+        const d = new Date(item.issueDate).toISOString().slice(0,10);
+        const withinStart = !startDate || d >= startDate;
+        const withinEnd = !endDate || d <= endDate;
+        return matchesSearch && matchesStatus && withinStart && withinEnd;
       })
       .sort((a, b) => {
         const dir = sortDir === 'asc' ? 1 : -1;
@@ -159,7 +169,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, statusFilter, sortBy, sortDir]);
+  }, [searchTerm, statusFilter, sortBy, sortDir, startDate, endDate]);
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
@@ -204,8 +214,10 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
 
   // Yeni teklif oluşturma modalı artık ayrı bir bileşende (QuoteCreateModal)
 
-  const openCreate = () => setShowCreateModal(true);
+  const openCreate = () => { setShowCreateModal(true); };
   const closeCreate = () => setShowCreateModal(false);
+  const openTemplates = () => setShowTemplates(true);
+  const closeTemplates = () => setShowTemplates(false);
 
   // Dashboard Hızlı İşlemlerden tetiklemek için global event dinle
   React.useEffect(() => {
@@ -441,14 +453,27 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           <h1 className="text-2xl font-bold text-gray-900">{t('quotes.title')}</h1>
           <p className="text-sm text-gray-500">{t('quotes.comingSoon')}</p>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700"
-        >
-          <Plus className="w-4 h-4" />
-          {t('quotes.newQuote')}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Şablon oluştur/yönet (Free'de gizli, Pro=1 adet, Business=sınırsız) */}
+          {(['professional','pro','enterprise','business'].includes(planRaw)) && (
+            <button
+              type="button"
+              onClick={openTemplates}
+              className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              title={t('quotes.templates.manageTitle', { defaultValue: 'Teklif şablonlarını yönet' })}
+            >
+              {t('quotes.templates.manage', { defaultValue: 'Şablonları Yönet' })}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700"
+          >
+            <Plus className="w-4 h-4" />
+            {t('quotes.newQuote')}
+          </button>
+        </div>
       </div>
 
       {/* Ara ve Filtreler */}
@@ -477,6 +502,22 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             <option value="declined">{t('quotes.statusLabels.declined')}</option>
             <option value="expired">{t('quotes.statusLabels.expired')}</option>
           </select>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              placeholder={t('startDate')}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              placeholder={t('endDate')}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
         </div>
         {/* Liste */}
         <div className="divide-y divide-gray-200">
@@ -517,6 +558,9 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                     </th>
                     <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
                       {t('quotes.table.status')}<SortIndicator active={sortBy==='status'} />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('customer.historyColumns.createdBy')}
                     </th>
                     <th onClick={() => toggleSort('date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none">
                       {t('quotes.table.date')}<SortIndicator active={sortBy==='date'} />
@@ -595,6 +639,9 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                             {statusBadge(item.status)}
                           </div>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {(item as any).createdByName || '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {editingQuoteId === item.id && editingField === 'issueDate' ? (
@@ -770,6 +817,9 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           customers={customers}
           products={products}
           defaultCurrency={defaultCurrency as any}
+          onOpenTemplatesManager={openTemplates}
+          enableTemplates={['professional','pro','enterprise','business'].includes(planRaw)}
+          
           onCreate={async (payload: QuoteCreatePayload) => {
             try {
               const cidRaw = String(payload.customer.id ?? '').trim();
@@ -809,6 +859,11 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             }
           }}
         />
+      )}
+
+      {/* Şablon Yönetimi Modal */}
+      {showTemplates && (
+        <QuoteTemplatesManager isOpen={showTemplates} onClose={closeTemplates} planRaw={planRaw} />
       )}
 
       {/* Placeholder alt bölüm kaldırıldı */}

@@ -118,7 +118,8 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
     routingNumber: (initialBankData as any)?.routingNumber || '',
     swiftBic: (initialBankData as any)?.swiftBic || '',
     balance: initialBankData?.balance || 0,
-    currency: initialBankData?.currency || defaultCurrency,
+    // currency her zaman tanımlı olsun (controlled -> uncontrolled uyarısını önle)
+    currency: initialBankData?.currency || defaultCurrency || 'USD',
     accountType: initialBankData?.accountType || 'checking',
     isActive: initialBankData?.isActive !== undefined ? initialBankData.isActive : true
   });
@@ -136,7 +137,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
         routingNumber: (initialBankData as any).routingNumber || '',
         swiftBic: (initialBankData as any).swiftBic || '',
         balance: initialBankData.balance || 0,
-        currency: initialBankData.currency,
+        currency: initialBankData.currency || defaultCurrency || 'USD',
         accountType: initialBankData.accountType,
         isActive: initialBankData.isActive
       });
@@ -151,7 +152,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
         routingNumber: '',
         swiftBic: '',
         balance: 0,
-        currency: defaultCurrency,
+        currency: defaultCurrency || 'USD',
         accountType: 'checking',
         isActive: true
       });

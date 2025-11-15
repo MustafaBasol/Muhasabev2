@@ -5029,18 +5029,36 @@ const AppContent: React.FC = () => {
               continue;
             }
             const items = Array.isArray(q.items) ? q.items : [];
-            const mappedItems = items.map((it: any) => ({
-              productId: it?.productId,
-              productName: it?.description || it?.productName || 'Ürün/Hizmet',
-              quantity: Number(it?.quantity || 1),
-              unitPrice: Number(it?.unitPrice || 0),
-              total: Number(it?.total || (Number(it?.unitPrice || 0) * Number(it?.quantity || 1)))
-            }));
+            // Ürünün efektif KDV oranını belirle: ürün özel > kategori > ürün alanı > varsayılan 18
+            const resolveProductTaxRate = (productId?: any): number => {
+              const pid = String(productId || '');
+              if (!pid) return 18;
+              try {
+                const p = products.find((pp: any) => String(pp.id) === pid);
+                if (!p) return 18;
+                const v = Number(p.categoryTaxRateOverride ?? p.taxRate ?? 18);
+                return Number.isFinite(v) && v >= 0 ? v : 18;
+              } catch { return 18; }
+            };
+            const mappedItems = items.map((it: any) => {
+              const quantity = Number(it?.quantity || 1);
+              const unitPrice = Number(it?.unitPrice || 0);
+              const total = Number(it?.total || (unitPrice * quantity));
+              const productId = it?.productId;
+              const productName = it?.description || it?.productName || 'Ürün/Hizmet';
+              const taxRate = (() => {
+                const explicit = Number((it as any).taxRate);
+                if (Number.isFinite(explicit) && explicit >= 0) return explicit;
+                return resolveProductTaxRate(productId);
+              })();
+              return { productId, productName, quantity, unitPrice, total, taxRate };
+            });
             const totalAmount = mappedItems.reduce((s: number, li: any) => s + Number(li.total || 0), 0);
             // Backend'e idempotent istek: sourceQuoteId ile
             try {
               const saved = await salesApi.createSale({
                 customerId: (q as any).customerId,
+                customerEmail: (q as any).customerEmail || undefined,
                 saleDate: new Date().toISOString().split('T')[0],
                 items: mappedItems.map((it: any) => ({
                   productId: it.productId,
@@ -5058,7 +5076,7 @@ const AppContent: React.FC = () => {
                 id: saved.id,
                 saleNumber: saved.saleNumber || undefined,
                 customerName: q.customerName,
-                customerEmail: undefined,
+                customerEmail: (q as any).customerEmail || (customers.find(c => String(c.id) === String((q as any).customerId))?.email) || undefined,
                 items: Array.isArray(saved.items) ? saved.items : mappedItems,
                 productName: mappedItems.length > 0 ? `${mappedItems[0].productName}${mappedItems.length > 1 ? ` +${mappedItems.length - 1}` : ''}` : 'Tekliften Satış',
                 quantity: mappedItems[0]?.quantity || undefined,

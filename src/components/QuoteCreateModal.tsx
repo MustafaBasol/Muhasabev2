@@ -35,12 +35,14 @@ interface QuoteCreateModalProps {
   products: Product[];
   defaultCurrency?: CurrencyCode;
   onCreate: (payload: QuoteCreatePayload) => void;
+  onOpenTemplatesManager?: () => void;
+  enableTemplates?: boolean;
 }
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000);
 const iso = (d: Date) => d.toISOString().slice(0,10);
 
-const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, customers, products, defaultCurrency, onCreate }) => {
+const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, customers, products, defaultCurrency, onCreate, onOpenTemplatesManager, enableTemplates }) => {
   const { t } = useTranslation();
   const { formatCurrency, currency: systemCurrency } = useCurrency();
 
@@ -54,6 +56,10 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [activeProductDropdown, setActiveProductDropdown] = useState<string | null>(null);
   const [scopeHtml, setScopeHtml] = useState<string>('');
+  const scopeRef = React.useRef<HTMLDivElement>(null);
+  const [scopeDirty, setScopeDirty] = useState(false);
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; html: string }>>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
 
   const filteredCustomers = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
@@ -92,6 +98,85 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
     }));
   };
   const itemsTotal = useMemo(() => items.reduce((sum, it) => sum + (Number(it.total) || 0), 0), [items]);
+
+  // Şablonları yükle (localStorage)
+  React.useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const tid = (localStorage.getItem('tenantId') || '') || undefined;
+      const raw = localStorage.getItem(tid ? `quote_templates_${tid}` : 'quote_templates');
+      const arr = raw ? JSON.parse(raw) as Array<any> : [];
+      setTemplates(arr.map(x => ({ id: x.id, name: x.name, html: x.html })));
+    } catch { setTemplates([]); }
+  }, [isOpen]);
+
+  // (Opsiyonel) Açılışta farklı bir odak davranışı gerekirse burada ele alınır
+
+  const applyTemplate = async () => {
+    if (!selectedTemplateId) return;
+    const tpl = templates.find(t => t.id === selectedTemplateId);
+    if (!tpl) return;
+    // Org bilgilerini localStorage'dan al (pdfGenerator ile benzer yaklaşım)
+    let org: { name?: string; email?: string; phone?: string; address?: string } = {};
+    try {
+      const tid = (localStorage.getItem('tenantId') || '').toString();
+      const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+      const raw = localStorage.getItem(baseKey) || localStorage.getItem(`${baseKey}_plain`) || localStorage.getItem('company') || '';
+      if (raw) {
+        const c = JSON.parse(raw);
+        org = { name: c.name, email: c.email, phone: c.phone, address: c.address };
+      }
+    } catch {}
+    const client: { company?: string; name?: string; email?: string; address?: string } = selectedCustomer ? ({
+      company: selectedCustomer.company,
+      name: selectedCustomer.name,
+      email: selectedCustomer.email,
+      address: (selectedCustomer as any).address,
+    }) : {};
+    // Token doldurma
+    const { fillTemplate } = await import('../utils/quoteTemplates');
+    const filled = fillTemplate(tpl.html, {
+      quote: { date: form.issueDate, validUntil: form.validUntil, total: itemsTotal, currency: form.currency },
+      org, client,
+    });
+    setScopeHtml(filled);
+    setScopeDirty(false);
+  };
+
+  // Şablon seçiliyse ve kullanıcı kapsam içeriğini manüel değiştirmediyse otomatik doldurmayı güncel tut
+  React.useEffect(() => {
+    (async () => {
+      if (!enableTemplates) return;
+      if (!selectedTemplateId) return;
+      if (!isOpen) return;
+      if (scopeDirty) return;
+      const tpl = templates.find(t => t.id === selectedTemplateId);
+      if (!tpl) return;
+      let org: { name?: string; email?: string; phone?: string; address?: string } = {};
+      try {
+        const tid = (localStorage.getItem('tenantId') || '').toString();
+        const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+        const raw = localStorage.getItem(baseKey) || localStorage.getItem(`${baseKey}_plain`) || localStorage.getItem('company') || '';
+        if (raw) {
+          const c = JSON.parse(raw);
+          org = { name: c.name, email: c.email, phone: c.phone, address: c.address };
+        }
+      } catch {}
+      const client: { company?: string; name?: string; email?: string; address?: string } = selectedCustomer ? ({
+        company: selectedCustomer.company,
+        name: selectedCustomer.name,
+        email: selectedCustomer.email,
+        address: (selectedCustomer as any).address,
+      }) : {};
+      const { fillTemplate } = await import('../utils/quoteTemplates');
+      const filled = fillTemplate(tpl.html, {
+        quote: { date: form.issueDate, validUntil: form.validUntil, total: itemsTotal, currency: form.currency },
+        org, client,
+      });
+      setScopeHtml(filled);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplateId, selectedCustomer, form.issueDate, form.validUntil, itemsTotal, form.currency, isOpen, enableTemplates]);
 
   // Onay modalı için state (hook'ları her zaman koşulsuz çağır)
   const [confirmData, setConfirmData] = useState<{
@@ -359,11 +444,27 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
           </div>
 
           {/* İşin Kapsamı */}
-          <div className="mt-4">
+          <div className="mt-4" ref={scopeRef}>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</label>
+            {/* Şablon araç çubuğu */}
+            {enableTemplates && templates.length > 0 && (
+              <div className="flex items-center gap-2 mb-2">
+                <select value={selectedTemplateId} onChange={(e)=>setSelectedTemplateId(e.target.value)} className="px-2 py-1 border rounded text-sm">
+                  <option value="">{t('quotes.templates.selectPlaceholder', { defaultValue: 'Şablon seçin…' })}</option>
+                  {templates.map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}
+                </select>
+                <button onClick={applyTemplate} disabled={!selectedTemplateId} className="px-2.5 py-1.5 text-xs rounded bg-indigo-600 text-white disabled:opacity-50">{t('quotes.templates.apply', { defaultValue: 'Uygula' })}</button>
+                <button onClick={onOpenTemplatesManager} className="px-2.5 py-1.5 text-xs rounded border">{t('quotes.templates.manage', { defaultValue: 'Şablonları Yönet' })}</button>
+              </div>
+            )}
+            {enableTemplates && templates.length === 0 && (
+              <div className="mb-2">
+                <button onClick={onOpenTemplatesManager} className="px-2.5 py-1.5 text-xs rounded border">{t('quotes.templates.create', { defaultValue: 'Şablon Oluştur' })}</button>
+              </div>
+            )}
             <RichTextEditor
               value={scopeHtml}
-              onChange={setScopeHtml}
+              onChange={(val) => { setScopeHtml(val); setScopeDirty(true); }}
               placeholder={t('quotes.scopeOfWork.placeholder', { defaultValue: 'Proje kapsamı, teslimatlar, varsayımlar ve hariçler...' })}
               height={240}
             />

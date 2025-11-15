@@ -65,13 +65,14 @@ interface PlanTabProps {
 }
 
 const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
+  const { t } = useTranslation();
   const { refreshUser } = useAuth();
   const planRaw = String(tenant?.subscriptionPlan || '').toLowerCase();
   const isFree = planRaw === 'free';
   const baseIncludedFor = (planStr: string): number => {
     const p = String(planStr || '').toLowerCase();
     if (p === 'professional' || p === 'pro') return 3; // Pro: 3 kullanıcı dahil
-    if (p === 'enterprise' || p === 'business') return 0; // Business: sınırsız, baz anlamsız
+    if (p === 'enterprise' || p === 'business') return 10; // Business: 10 kullanıcı dahil
     return 1; // Basic/Free
   };
   const planLabelMap: Record<string, string> = {
@@ -122,8 +123,12 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const [additionalUsersToAdd, setAdditionalUsersToAdd] = useState<number>(1);
   const [busy, setBusy] = useState(false);
   const [planMessage, setPlanMessage] = useState<string>('');
+  // Plan kaydetmeden önce onay modali
+  const [planConfirm, setPlanConfirm] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: '', message: '' });
   // Add-on onay modali durumu
   const [addonConfirm, setAddonConfirm] = useState<{ open: boolean; mode: 'now' | 'later'; count: number }>({ open: false, mode: 'now', count: 1 });
+  // Ödeme sonucu modali
+  const [paymentResult, setPaymentResult] = useState<{ open: boolean; title: string; message: string; tone: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', tone: 'info' });
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -207,13 +212,28 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         const { syncSubscription } = await import('../api/billing');
         await syncSubscription(tenantId);
         await refreshUser();
-        setPlanMessage(currentLanguage === 'tr' ? 'Abonelik güncellendi.' : 'Subscription updated.');
+        const okMsg = t('billing.subscriptionUpdated');
+        setPlanMessage(okMsg);
+        setPaymentResult({ open: true, title: t('billing.payment.successTitle'), message: okMsg, tone: 'success' });
         // URL'yi temizle
         url.searchParams.delete('plan');
         url.searchParams.delete('upgrade');
         window.history.replaceState({}, document.title, url.pathname + url.search);
       } catch {}
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Checkout iptal/basarisiz dönüşü
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const cancelled = url.searchParams.get('plan') === 'cancel' || url.searchParams.get('upgrade') === 'cancel';
+    if (!cancelled) return;
+    const errMsg = t('billing.payment.cancelledMessage');
+    setPaymentResult({ open: true, title: t('billing.payment.cancelledTitle'), message: errMsg, tone: 'error' });
+    url.searchParams.delete('plan');
+    url.searchParams.delete('upgrade');
+    window.history.replaceState({}, document.title, url.pathname + url.search);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -237,7 +257,9 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           await syncSubscription(tenantId);
         }
         await refreshUser();
-        setPlanMessage(currentLanguage === 'tr' ? 'İlave kullanıcılar eklendi.' : 'Additional users added.');
+        const okMsg = t('billing.addonAdded');
+        setPlanMessage(okMsg);
+        setPaymentResult({ open: true, title: t('billing.payment.successTitle'), message: okMsg, tone: 'success' });
       } catch {}
       finally {
         localStorage.removeItem('pending_addon_new_total');
@@ -269,26 +291,12 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
             return renewalStr;
           })();
           if ((res as any).cancelAtPeriodEnd) {
-            const msg = currentLanguage === 'tr'
-              ? `Abonelik dönem sonunda iptal edilecek. İptal tarihi: ${cancelDateStr}`
-              : currentLanguage === 'fr'
-                ? `L’abonnement sera annulé à la fin de la période. Date: ${cancelDateStr}`
-                : currentLanguage === 'de'
-                  ? `Abo endet am Periodenende. Datum: ${cancelDateStr}`
-                  : `Subscription will be cancelled at period end. Date: ${cancelDateStr}`;
-            setPlanMessage(msg);
+            setPlanMessage(t('billing.portal.cancelAtPeriodEnd', { date: cancelDateStr }));
           } else {
-            const msg = currentLanguage === 'tr'
-              ? 'Abonelik aktif. Portal değişiklikleri uygulandı.'
-              : currentLanguage === 'fr'
-                ? 'Abonnement actif. Modifications du portail appliquées.'
-                : currentLanguage === 'de'
-                  ? 'Abo aktiv. Portaländerungen angewendet.'
-                  : 'Subscription active. Portal changes applied.';
-            setPlanMessage(msg);
+            setPlanMessage(t('billing.portal.activeApplied'));
           }
         } else {
-          setPlanMessage(currentLanguage === 'tr' ? 'Portal değişiklikleri senkronize edildi.' : 'Portal changes synchronized.');
+          setPlanMessage(t('billing.portal.synced'));
         }
       } catch {}
       finally {
@@ -441,23 +449,11 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                 })
               );
             } catch {}
-            const dictRD = {
-              tr: 'Ödeme ekranına yönlendiriliyorsunuz…',
-              en: 'Redirecting to payment…',
-              fr: 'Redirection vers l’écran de paiement…',
-              de: 'Weiterleitung zur Zahlung…',
-            } as const;
-            setPlanMessage(dictRD[currentLanguage] || dictRD.tr);
+            setPlanMessage(t('billing.redirecting'));
             window.location.href = resp.hostedInvoiceUrl;
             return;
           }
-          const dictOK = {
-            tr: 'Plan dönemi güncellendi.',
-            en: 'Billing interval updated.',
-            fr: 'Période de facturation mise à jour.',
-            de: 'Abrechnungszeitraum aktualisiert.',
-          } as const;
-          setPlanMessage(dictOK[currentLanguage] || dictOK.tr);
+          setPlanMessage(t('billing.interval.updated'));
           await refreshUser();
           return;
         }
@@ -475,7 +471,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       if (session?.url) {
         window.location.href = session.url;
       } else {
-        setPlanMessage(currentLanguage === 'tr' ? 'Ödeme oturumu oluşturulamadı.' : 'Failed to create checkout session.');
+        setPlanMessage(t('billing.checkout.failed'));
       }
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || 'Hata';
@@ -484,7 +480,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   };
 
   const requestCancelAtPeriodEnd = async () => {
-    if (!window.confirm(currentLanguage === 'tr' ? 'Abonelik dönem sonunda iptal edilecek. Onaylıyor musunuz?' : 'Subscription will be cancelled at period end. Confirm?')) return;
+    if (!window.confirm(t('billing.cancelAtPeriodEnd.confirm'))) return;
     setBusy(true); setPlanMessage('');
     try {
       const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
@@ -492,7 +488,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       const res = await billingCancel(tenantId);
       if (res?.success) {
         setCancelAtPeriodEnd(true);
-        setPlanMessage(currentLanguage === 'tr' ? 'İptal talebi alındı (dönem sonunda).' : 'Cancel at period end set.');
+        setPlanMessage(t('billing.cancel.requestedShort'));
         setTimeout(() => setPlanMessage(''), 3000);
         await refreshUser();
       }
@@ -502,7 +498,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   };
 
   const resumeCancellation = async () => {
-    if (!window.confirm(currentLanguage === 'tr' ? 'İptal kaldırılacak ve aboneliğiniz dönem sonunda yenilenmeye devam edecek. Onaylıyor musunuz?' : 'Cancellation will be removed and subscription will renew. Confirm?')) return;
+    if (!window.confirm(t('billing.resumeCancellation.confirm'))) return;
     setBusy(true); setPlanMessage('');
     try {
       const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
@@ -511,7 +507,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       const res = await resumeSubscription(tenantId);
       if (res?.success) {
         setCancelAtPeriodEnd(false);
-        setPlanMessage(currentLanguage === 'tr' ? 'İptal kaldırıldı. Abonelik aktif.' : 'Cancellation removed. Subscription active.');
+        setPlanMessage(t('billing.resumeCancellation.done'));
         setTimeout(() => setPlanMessage(''), 3000);
         await refreshUser();
       }
@@ -526,7 +522,75 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     ? (currentLanguage === 'tr' ? 'İptal Tarihi' : currentLanguage === 'fr' ? "Date d'annulation" : currentLanguage === 'de' ? 'Kündigungsdatum' : 'Cancellation Date')
     : (currentLanguage === 'tr' ? 'Yenileme Tarihi' : currentLanguage === 'fr' ? 'Date de renouvellement' : currentLanguage === 'de' ? 'Verlängerungsdatum' : 'Renewal Date');
 
-  const canModifySeats = planRaw === 'professional' || planRaw === 'pro';
+  const canModifySeats = ['professional', 'pro', 'enterprise', 'business'].includes(planRaw);
+
+  const openPlanConfirm = () => {
+    try {
+      const desired = String(desiredPlan || '').toLowerCase();
+      const interval: 'month' | 'year' = desiredBilling === 'yearly' ? 'year' : 'month';
+      const normalizedCurrentPlan = ((): string => {
+        if (planRaw === 'pro') return 'professional';
+        if (planRaw === 'business') return 'enterprise';
+        return planRaw;
+      })();
+      const samePlan = normalizedCurrentPlan === desired;
+      const sameInterval = ((effectiveInterval || 'month') === interval);
+
+      const planName = (p: string) => (p === 'free' ? (currentLanguage === 'tr' ? 'Starter' : currentLanguage === 'fr' ? 'Starter' : currentLanguage === 'de' ? 'Starter' : 'Starter') : p === 'professional' ? 'Pro' : 'Business');
+      const intervalName = (iv: 'month' | 'year') => (iv === 'year'
+        ? (currentLanguage === 'tr' ? 'Yıllık' : currentLanguage === 'fr' ? 'Annuel' : currentLanguage === 'de' ? 'Jährlich' : 'Yearly')
+        : (currentLanguage === 'tr' ? 'Aylık' : currentLanguage === 'fr' ? 'Mensuel' : currentLanguage === 'de' ? 'Monatlich' : 'Monthly'));
+
+      let title = currentLanguage === 'tr' ? 'İşlemi Onaylayın' : currentLanguage === 'fr' ? 'Confirmez l’opération' : currentLanguage === 'de' ? 'Vorgang bestätigen' : 'Confirm Operation';
+      let message = '';
+
+      const currentlyPaid = ['professional', 'enterprise', 'pro', 'business'].includes(planRaw);
+      const desiredPaid = ['professional', 'enterprise', 'pro', 'business'].includes(desired);
+
+      if (!desiredPaid) {
+        if (currentlyPaid) {
+          message = currentLanguage === 'tr'
+            ? 'Ücretli aboneliğiniz dönem sonunda iptal edilecek. Onaylıyor musunuz?'
+            : currentLanguage === 'fr'
+              ? "Votre abonnement payant sera annulé à la fin de la période. Confirmez-vous ?"
+              : currentLanguage === 'de'
+                ? 'Ihr kostenpflichtiges Abo wird zum Periodenende gekündigt. Bestätigen Sie?'
+                : 'Your paid subscription will be cancelled at period end. Do you confirm?';
+        } else {
+          message = currentLanguage === 'tr' ? 'Plan zaten ücretsiz. Devam edilsin mi?' : 'Already on free plan. Continue?';
+        }
+      } else if (samePlan && sameInterval) {
+        message = currentLanguage === 'tr'
+          ? 'Plan ve dönem aynı görünüyor. Yine de devam edilsin mi?'
+          : currentLanguage === 'fr'
+            ? 'Le plan et la période semblent identiques. Continuer quand même ?'
+            : currentLanguage === 'de'
+              ? 'Plan und Zeitraum scheinen identisch. Trotzdem fortfahren?'
+              : 'Plan and interval look the same. Proceed anyway?';
+      } else if (samePlan && !sameInterval) {
+        message = currentLanguage === 'tr'
+          ? `Faturalama dönemi ${intervalName(effectiveInterval || 'month')} → ${intervalName(interval)} olarak değiştirilecek. Onaylıyor musunuz?`
+          : currentLanguage === 'fr'
+            ? `La période de facturation passera de ${intervalName(effectiveInterval || 'month')} à ${intervalName(interval)}. Confirmez-vous ?`
+            : currentLanguage === 'de'
+              ? `Der Abrechnungszeitraum wird von ${intervalName(effectiveInterval || 'month')} auf ${intervalName(interval)} geändert. Bestätigen?`
+              : `Billing interval will change from ${intervalName(effectiveInterval || 'month')} to ${intervalName(interval)}. Do you confirm?`;
+      } else {
+        message = currentLanguage === 'tr'
+          ? `Plan ${planName(normalizedCurrentPlan)} → ${planName(desired)}, dönem ${intervalName(interval)} olacak. Onaylıyor musunuz?`
+          : currentLanguage === 'fr'
+            ? `L’offre passera de ${planName(normalizedCurrentPlan)} à ${planName(desired)}, période ${intervalName(interval)}. Confirmez-vous ?`
+            : currentLanguage === 'de'
+              ? `Der Plan wechselt von ${planName(normalizedCurrentPlan)} zu ${planName(desired)}, Zeitraum ${intervalName(interval)}. Bestätigen?`
+              : `Plan will change from ${planName(normalizedCurrentPlan)} to ${planName(desired)}, interval ${intervalName(interval)}. Do you confirm?`;
+      }
+
+      setPlanConfirm({ open: true, title, message });
+    } catch {
+      // fallback: no-op
+      setPlanConfirm({ open: true, title: 'Confirm', message: 'Proceed with the change?' });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -628,7 +692,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           {/* İptal seçeneği artık checkbox olarak sunulmuyor */}
           <div className="flex items-end">
             <button
-              onClick={saveSubscription}
+              onClick={openPlanConfirm}
               disabled={busy}
               className="w-full px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
             >
@@ -644,6 +708,9 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         <div className="border border-amber-300 rounded-lg p-4 bg-amber-50">
           <h4 className="text-md font-semibold mb-1">{currentLanguage === 'tr' ? 'İlave Kullanıcı Ekle' : currentLanguage === 'fr' ? 'Ajouter des utilisateurs supplémentaires' : currentLanguage === 'de' ? 'Zusätzliche Benutzer hinzufügen' : 'Add Additional Users'}</h4>
           <p className="text-[11px] text-amber-900 mb-2">{currentLanguage === 'tr' ? 'İlave her kullanıcı aylık 5 € ile ücretlendirilir.' : currentLanguage === 'fr' ? 'Chaque utilisateur supplémentaire est facturé 5 € par mois.' : currentLanguage === 'de' ? 'Jeder zusätzliche Benutzer kostet 5 € pro Monat.' : 'Each additional user is billed at €5 per month.'}</p>
+          {['enterprise','business'].includes(planRaw) && (
+            <p className="text-[11px] text-amber-900 mb-2">{currentLanguage === 'tr' ? 'Business planında 10 kullanıcı dahildir.' : currentLanguage === 'fr' ? 'Le plan Business inclut 10 utilisateurs.' : currentLanguage === 'de' ? 'Im Business-Plan sind 10 Benutzer inbegriffen.' : 'Business plan includes 10 users.'}</p>
+          )}
           <div className="flex items-center gap-3">
             <input
               type="number"
@@ -673,6 +740,21 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           </div>
         </div>
       )}
+      {/* Plan değişimi onay modali */}
+      <InfoModal
+        isOpen={planConfirm.open}
+        onClose={() => setPlanConfirm(p => ({ ...p, open: false }))}
+        title={planConfirm.title || (currentLanguage === 'tr' ? 'Onay' : 'Confirm')}
+        message={planConfirm.message || ''}
+        confirmLabel={currentLanguage === 'tr' ? 'Onayla' : currentLanguage === 'fr' ? 'Confirmer' : currentLanguage === 'de' ? 'Bestätigen' : 'Confirm'}
+        cancelLabel={currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel'}
+        onConfirm={() => {
+          setPlanConfirm(p => ({ ...p, open: false }));
+          saveSubscription();
+        }}
+        onCancel={() => setPlanConfirm(p => ({ ...p, open: false }))}
+        tone="info"
+      />
       {/* Add-on onay modali */}
       <InfoModal
         isOpen={addonConfirm.open}
@@ -792,6 +874,16 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           )}
         </div>
       )}
+
+      {/* Ödeme sonucu modali */}
+      <InfoModal
+        isOpen={paymentResult.open}
+        onClose={() => setPaymentResult(p => ({ ...p, open: false }))}
+        title={paymentResult.title}
+        message={paymentResult.message}
+        confirmLabel={currentLanguage === 'tr' ? 'Tamam' : currentLanguage === 'fr' ? 'OK' : currentLanguage === 'de' ? 'OK' : 'OK'}
+        tone={paymentResult.tone}
+      />
 
       {/* Geçmiş / History */}
       <div className="border border-gray-200 rounded-lg p-4 bg-white">

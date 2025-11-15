@@ -42,7 +42,8 @@ listInvoices(tenantId)
 listHistory(tenantId)
 ```
 
-`seats` yalnızca addon kullanıcı sayısıdır; toplam kullanıcı limiti = 1 (baz) + seats.
+`seats` yalnızca addon kullanıcı sayısıdır; toplam kullanıcı limiti = baz dahil koltuk + addon koltukları.
+Baz dahil koltuklar: FREE/BASIC=1, PRO=3, BUSINESS=10.
 
 ### Plan & Interval Eşlemeleri
 
@@ -50,6 +51,23 @@ listHistory(tenantId)
 - `enterprise` (business) ↔ BUSINESS fiyatları
 - Add-on kullanıcı: `ADDON_USER` fiyatları
 - Interval: `month` veya `year`
+
+### Plan Değişiminde Koltuk Migrasyonu (Otomatik)
+
+Pro → Business veya Business → Pro geçişlerinde sistem mevcut toplam koltuk sayısını (eski baz + eski addon) korumak için addon miktarını yeniden hesaplar:
+
+Formül:
+```
+prevTotalSeats = oldBaseIncluded + oldAddonQty
+newAddonQty = max(0, prevTotalSeats - newBaseIncluded)
+```
+
+Örnekler:
+- Pro (3 baz) + 2 addon = 5 toplam → Business (10 baz) ⇒ addon=0 (ödenen fazladan 2 düşer)
+- Pro (3 baz) + 12 addon = 15 toplam → Business (10 baz) ⇒ addon=5 (yalnızca 5 için ödeme)
+- Business (10 baz) + 4 addon = 14 toplam → Pro (3 baz) ⇒ addon=11 (toplam koltuk kaybı yaşanmaz)
+
+Manual override: `updatePlanAndInterval` çağrısında `seats` paramı gönderilirse migrasyon mantığı yerine explicit addon qty kabul edilir.
 
 ### Webhook Olayları
 
@@ -65,7 +83,7 @@ tenant.subscriptionPlan
 tenant.stripeSubscriptionId
 tenant.billingInterval
 tenant.subscriptionExpiresAt
-tenant.maxUsers (1 + addon seats)
+tenant.maxUsers (baseIncludedUsers(plan) + addon seats)
 tenant.cancelAtPeriodEnd
 ```
 

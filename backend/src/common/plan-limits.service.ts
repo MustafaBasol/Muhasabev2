@@ -20,7 +20,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     ],
   },
   [Plan.BUSINESS]: {
-    maxMembers: -1, // Unlimited
+    maxMembers: 10, // Business: 10 üye dahil
     features: [
       'All Pro features',
       'Custom integrations',

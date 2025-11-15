@@ -232,7 +232,7 @@ export class InvoicesService {
   async findAll(tenantId: string): Promise<Invoice[]> {
     return this.invoicesRepository.find({
       where: { tenantId, isVoided: false },
-      relations: ['customer'],
+      relations: ['customer', 'createdByUser', 'updatedByUser'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -249,7 +249,7 @@ export class InvoicesService {
 
     const invoice = await this.invoicesRepository.findOne({
       where: whereCondition,
-      relations: ['customer', 'voidedByUser'],
+      relations: ['customer', 'voidedByUser', 'createdByUser', 'updatedByUser'],
     });
 
     if (!invoice) {

@@ -166,6 +166,30 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Oluşturan / Güncelleyen Bilgisi */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="text-xs text-gray-600">
+              <div>
+                <span className="text-gray-500">Oluşturan:</span>{' '}
+                <span className="font-medium">{(quote as any).createdByName || '—'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Oluşturulma:</span>{' '}
+                <span className="font-medium">{(quote as any).createdAt ? new Date((quote as any).createdAt).toLocaleString('tr-TR') : '—'}</span>
+              </div>
+            </div>
+            <div className="text-xs text-gray-600">
+              <div>
+                <span className="text-gray-500">Son güncelleyen:</span>{' '}
+                <span className="font-medium">{(quote as any).updatedByName || '—'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Son güncelleme:</span>{' '}
+                <span className="font-medium">{(quote as any).updatedAt ? new Date((quote as any).updatedAt).toLocaleString('tr-TR') : '—'}</span>
+              </div>
+            </div>
+          </div>
+
           {/* Kilit bilgisi */}
           {isLocked && (
             <div className="rounded-md border border-gray-200 bg-gray-50 text-gray-800 px-3 py-2 text-sm">

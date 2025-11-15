@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Customer } from '../../customers/entities/customer.entity';
+import { User } from '../../users/entities/user.entity';
 
 const __isTestEnv =
   process.env.NODE_ENV === 'test' ||
@@ -92,4 +93,25 @@ export class Quote {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // Attribution
+  @Column({ type: 'uuid', nullable: true })
+  createdById: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'createdById' })
+  createdByUser: User | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  createdByName: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  updatedById: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'updatedById' })
+  updatedByUser: User | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  updatedByName: string | null;
 }

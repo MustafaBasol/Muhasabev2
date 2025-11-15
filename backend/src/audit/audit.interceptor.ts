@@ -9,6 +9,7 @@ import { tap } from 'rxjs/operators';
 import { Request } from 'express';
 import { AuditService, AuditLogEntry } from './audit.service';
 import { AuditAction } from './entities/audit-log.entity';
+import { AttributionService } from './attribution.service';
 
 export interface AuditableEntity {
   id: string;
@@ -18,7 +19,10 @@ export interface AuditableEntity {
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
-  constructor(private readonly auditService: AuditService) {}
+  constructor(
+    private readonly auditService: AuditService,
+    private readonly attribution: AttributionService,
+  ) {}
 
   private isTestEnv(): boolean {
     return process.env.NODE_ENV === 'test';
@@ -57,6 +61,11 @@ export class AuditInterceptor implements NestInterceptor {
           const user = (request as any).user;
           const tenantId = user?.tenantId;
           const userId = user?.id;
+          // Görünen ad: Ad Soyad birleşimi, yoksa e‑posta
+          const displayName = [user?.firstName, user?.lastName]
+            .filter((p: any) => Boolean((p || '').toString().trim()))
+            .join(' ')
+            .trim() || user?.email || undefined;
 
           if (!tenantId) {
             if (!this.isTestEnv()) {
@@ -117,11 +126,37 @@ export class AuditInterceptor implements NestInterceptor {
             userAgent,
           };
 
+          // Response enrich: dönen nesne üzerinde de alanları doldur
+          try {
+            if (result && typeof result === 'object') {
+              if (action === AuditAction.CREATE) {
+                (result as any).createdById = userId;
+                (result as any).createdByName = displayName ?? null;
+                (result as any).updatedById = userId;
+                (result as any).updatedByName = displayName ?? null;
+              } else if (action === AuditAction.UPDATE) {
+                (result as any).updatedById = userId;
+                (result as any).updatedByName = displayName ?? null;
+              }
+            }
+          } catch {}
+
           // Fire and forget; don't return a Promise from tap callback
           void this.auditService
             .log(auditEntry)
             .catch((error) =>
               console.error('AuditInterceptor log error:', error),
+            );
+
+          // Ayrıca entity üzerinde createdBy/updatedBy alanlarını güncelle
+          const actionStr = action as 'CREATE' | 'UPDATE' | 'DELETE';
+          void this.attribution
+            .setAttribution(entityName as any, entityId, actionStr, {
+              id: userId,
+              name: displayName,
+            })
+            .catch((e) =>
+              console.warn('AttributionService error:', (e as any)?.message),
             );
         } catch (error) {
           console.error('AuditInterceptor error:', error);

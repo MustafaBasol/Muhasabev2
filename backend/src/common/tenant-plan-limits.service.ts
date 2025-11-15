@@ -26,7 +26,7 @@ export type TenantPlanOverrides = UpdateTenantPlanLimits;
 // Yeni iş kuralları (landing page ile hizalı):
 // - Starter (FREE): 1 kullanıcı, 1 müşteri, 1 tedarikçi, 1 banka hesabı, ayda 5 fatura + 5 gider
 // - Pro (PROFESSIONAL & BASIC legacy): 3 kullanıcı (koltuk), diğer varlıklar sınırsız, aylık sınır yok
-// - Business (ENTERPRISE): sınırsız (tüm sayısal limitler -1)
+// - Business (ENTERPRISE): 10 kullanıcı dahildir; diğer varlıklar sınırsız
 // Not: BASIC geçmiş uyumluluk için tutulur ve PROFESSIONAL ile aynı limitleri paylaşır.
 export const TENANT_PLAN_LIMITS: Record<SubscriptionPlan, TenantPlanLimits> = {
   [SubscriptionPlan.FREE]: {
@@ -61,7 +61,7 @@ export const TENANT_PLAN_LIMITS: Record<SubscriptionPlan, TenantPlanLimits> = {
     },
   },
   [SubscriptionPlan.ENTERPRISE]: {
-    maxUsers: -1,
+    maxUsers: 10,
     maxCustomers: -1,
     maxSuppliers: -1,
     maxBankAccounts: -1,

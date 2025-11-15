@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { X, FileText, Calendar, User, Package } from 'lucide-react';
+import { X, FileText, Calendar, User, Package, Loader2 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { getProducts, type Product } from '../api/products';
+import { productCategoriesApi } from '../api/product-categories';
 
 interface Sale {
   id: string;
@@ -38,6 +40,88 @@ export default function InvoiceFromSaleModal({
 }: InvoiceFromSaleModalProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
+  const [productsCache, setProductsCache] = React.useState<Product[] | null>(null);
+  const [categoriesCache, setCategoriesCache] = React.useState<Array<{ name: string; taxRate: number }> | null>(null);
+  const [loadingMeta, setLoadingMeta] = React.useState(false);
+
+  // Modal açıldığında ürün ve kategori verilerini hafızaya al (localStorage'a güvenme)
+  React.useEffect(() => {
+    let cancelled = false;
+    async function loadMeta() {
+      if (!isOpen) return;
+      setLoadingMeta(true);
+      try {
+        const [prods, cats] = await Promise.allSettled([
+          getProducts(),
+          productCategoriesApi.getAll().then((x) => x.map((c) => ({ name: c.name, taxRate: Number(c.taxRate) }))),
+        ]);
+        if (cancelled) return;
+        if (prods.status === 'fulfilled') setProductsCache(prods.value || []);
+        if (cats.status === 'fulfilled') setCategoriesCache(cats.value || []);
+      } catch {}
+      finally {
+        if (!cancelled) setLoadingMeta(false);
+      }
+    }
+    loadMeta();
+    return () => { cancelled = true; };
+  }, [isOpen]);
+  
+  // Ürün KDV oranını çöz (önce bellek cache'i, sonra localStorage; kategori ismi ile eşleşme)
+  const resolveProductTaxRate = React.useCallback((productId?: string, fallback?: number, productNameHint?: string) => {
+    try {
+      // 1) Bellek cache (API'den)
+      if (Array.isArray(productsCache) && productsCache.length) {
+        let p = productsCache.find((x) => String(x.id) === String(productId));
+        if (!p && productNameHint) {
+          const nameLc = String(productNameHint).trim().toLowerCase();
+          p = productsCache.find((x) => String(x.name || '').trim().toLowerCase() === nameLc)
+            || productsCache.find((x) => String(x.name || '').toLowerCase().includes(nameLc));
+        }
+        if (p) {
+          const override = p.categoryTaxRateOverride;
+          if (override !== undefined && override !== null && Number.isFinite(Number(override))) return Number(override);
+          // Kategori verisi
+          if (p.category && Array.isArray(categoriesCache)) {
+            const cat = categoriesCache.find((c) => String(c.name).toLowerCase() === String(p.category).toLowerCase());
+            if (cat && Number.isFinite(Number(cat.taxRate))) return Number(cat.taxRate);
+          }
+          if (p.taxRate !== undefined && p.taxRate !== null && Number.isFinite(Number(p.taxRate))) return Number(p.taxRate);
+        }
+      }
+
+      // 2) localStorage fallback (mevcut davranış)
+      const tid = (localStorage.getItem('tenantId') || '') as string;
+      const key = tid ? `products_cache_${tid}` : 'products_cache';
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          let p = arr.find((x: any) => String(x.id) === String(productId));
+          if (!p && productNameHint) {
+            const nameLc = String(productNameHint).trim().toLowerCase();
+            p = arr.find((x: any) => String(x.name || '').trim().toLowerCase() === nameLc);
+            if (!p) {
+              p = arr.find((x: any) => String(x.name || '').toLowerCase().includes(nameLc));
+            }
+          }
+          if (p) {
+            // Kategori override > kategori oranı > ürün.taxRate
+            const override = p.categoryTaxRateOverride;
+            if (override !== undefined && override !== null && Number.isFinite(Number(override))) return Number(override);
+            if (p.category && Array.isArray(categoriesCache)) {
+              const cat = categoriesCache.find((c) => String(c.name).toLowerCase() === String(p.category).toLowerCase());
+              if (cat && Number.isFinite(Number(cat.taxRate))) return Number(cat.taxRate);
+            }
+            const v = Number(p.taxRate);
+            if (Number.isFinite(v) && v >= 0) return v;
+          }
+        }
+      }
+    } catch {}
+    const fb = Number(fallback);
+    return Number.isFinite(fb) && fb >= 0 ? fb : 18;
+  }, [productsCache, categoriesCache]);
   
   const [invoiceData, setInvoiceData] = useState({
     dueDate: '',
@@ -88,7 +172,7 @@ export default function InvoiceFromSaleModal({
       ? originalItems.map((it) => {
           const q = Number(it.quantity) || 1;
           const up = Number(it.unitPrice) || unitPriceExcl;
-          const tx = Number(it.taxRate);
+          const tx = resolveProductTaxRate(String(it.productId || (sale as any).productId), undefined, it.productName || it.description || sale.productName);
           return {
             productId: it.productId ?? sale.productId,
             description: it.productName || it.description || sale.productName,
@@ -104,7 +188,7 @@ export default function InvoiceFromSaleModal({
           quantity: qty,
           unitPrice: unitPriceExcl,
           total: qty * unitPriceExcl,
-          taxRate: (originalItems[0] && Number.isFinite(Number(originalItems[0].taxRate))) ? Number(originalItems[0].taxRate) : undefined,
+          taxRate: resolveProductTaxRate((sale as any).productId, Number((originalItems[0]||{} as any).taxRate), sale.productName),
         }];
 
     // Preview subtotal (KDV hariç)
@@ -113,25 +197,15 @@ export default function InvoiceFromSaleModal({
       if (Number.isFinite(explicit) && explicit > 0) return explicit;
       return lineItems.reduce((sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0);
     })();
-    // Preview total (KDV dahil) - sale.total/amount öncelik
-    const previewTotal = (() => {
-      const explicitTotal = Number((sale as any).total);
-      if (Number.isFinite(explicitTotal) && explicitTotal > 0) return explicitTotal;
-      const amount = Number((sale as any).amount);
-      if (Number.isFinite(amount) && amount > 0) return amount;
-      // Hesapla: subtotal + vergi
-      return previewSubtotal + (Number((sale as any).taxAmount) || 0);
-    })();
-    // Preview tax: varsa sale.taxAmount; yoksa kalem bazlı taxRate ile hesapla; o da yoksa total-subtotal
-    const previewTax = (() => {
-      const explicitTax = Number((sale as any).taxAmount);
-      if (Number.isFinite(explicitTax) && explicitTax > 0) return explicitTax;
-      const anyRateItems = lineItems.filter(li => Number.isFinite(Number((li as any).taxRate)));
-      if (anyRateItems.length > 0) {
-        return anyRateItems.reduce((sum, li) => sum + ((Number(li.quantity)||0)*(Number(li.unitPrice)||0))* (Number((li as any).taxRate)/100), 0);
-      }
-      return Math.max(0, previewTotal - previewSubtotal);
-    })();
+    // Preview tax: her kalemi ürün KDV oranıyla hesapla (sale.taxAmount'ı kullanma)
+    const previewTax = lineItems.reduce((sum, li) => {
+      const q = Number(li.quantity) || 0;
+      const up = Number(li.unitPrice) || 0;
+      const rate = Number((li as any).taxRate);
+      const r = Number.isFinite(rate) && rate >= 0 ? rate : resolveProductTaxRate(String(li.productId));
+      return sum + q * up * (r / 100);
+    }, 0);
+    const previewTotal = previewSubtotal + previewTax;
 
     const newInvoice = {
       saleId: sale.id,
@@ -188,32 +262,22 @@ export default function InvoiceFromSaleModal({
     ? originalPreviewItems.map((it) => {
         const q = Number(it.quantity) || 1;
         const up = Number(it.unitPrice) || unitPriceExclPreview;
-        const tx = Number(it.taxRate);
+        const tx = resolveProductTaxRate(String(it.productId || (sale as any).productId), undefined, it.productName || it.description || sale.productName);
         return { q, up, txRate: Number.isFinite(tx) && tx >= 0 ? tx : undefined };
       })
-    : [{ q: qtyPreview, up: unitPriceExclPreview, txRate: (originalPreviewItems[0] && Number.isFinite(Number(originalPreviewItems[0].taxRate))) ? Number(originalPreviewItems[0].taxRate) : undefined }];
+    : [{ q: qtyPreview, up: unitPriceExclPreview, txRate: resolveProductTaxRate((sale as any).productId, Number((originalPreviewItems[0]||{} as any).taxRate), sale.productName) }];
 
   const previewSubtotalUi = (() => {
     const explicit = Number((sale as any).subtotal);
     if (Number.isFinite(explicit) && explicit > 0) return explicit;
     return previewLineItems.reduce((sum, li) => sum + li.q * li.up, 0);
   })();
-  const previewTotalUi = (() => {
-    const explicitTotal = Number((sale as any).total);
-    if (Number.isFinite(explicitTotal) && explicitTotal > 0) return explicitTotal;
-    const amount = Number((sale as any).amount);
-    if (Number.isFinite(amount) && amount > 0) return amount;
-    return previewSubtotalUi + (Number((sale as any).taxAmount) || 0);
-  })();
-  const previewTaxUi = (() => {
-    const explicitTax = Number((sale as any).taxAmount);
-    if (Number.isFinite(explicitTax) && explicitTax > 0) return explicitTax;
-    const anyRate = previewLineItems.filter(li => Number.isFinite(li.txRate));
-    if (anyRate.length > 0) {
-      return anyRate.reduce((sum, li) => sum + (li.q * li.up) * (Number(li.txRate)/100), 0);
-    }
-    return Math.max(0, previewTotalUi - previewSubtotalUi);
-  })();
+  const previewTaxUi = previewLineItems.reduce((sum, li) => {
+    const eff = Number(li.txRate);
+    const rate = Number.isFinite(eff) && eff >= 0 ? eff : resolveProductTaxRate(String((sale as any)?.productId), undefined, (sale as any)?.productName);
+    return sum + (li.q * li.up) * ((Number(rate) || 18) / 100);
+  }, 0);
+  const previewTotalUi = previewSubtotalUi + previewTaxUi;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -262,8 +326,16 @@ export default function InvoiceFromSaleModal({
               </div>
               
               <div className="flex items-center text-sm">
-                <span className="text-gray-600">Tutar:</span>
-                <span className="ml-2 font-bold text-green-600">{formatCurrency(sale.amount)}</span>
+                <span className="text-gray-600">Tutar (KDV Hariç):</span>
+                <span className="ml-2 font-bold text-green-600" title={`Orijinal satış tutarı (KDV dahil olabilir): ${formatCurrency(sale.amount)}`}>
+                  {loadingMeta ? (
+                    <span className="inline-flex items-center text-gray-500">
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" /> —
+                    </span>
+                  ) : (
+                    formatCurrency(previewSubtotalUi)
+                  )}
+                </span>
               </div>
             </div>
 
@@ -332,7 +404,15 @@ export default function InvoiceFromSaleModal({
                 </div>
                 <div className="flex justify-between">
                   <span>KDV:</span>
-                  <span>{formatCurrency(previewTaxUi)}</span>
+                  <span>
+                    {loadingMeta ? (
+                      <span className="inline-flex items-center text-gray-500">
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" /> —
+                      </span>
+                    ) : (
+                      formatCurrency(previewTaxUi)
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t border-blue-300 pt-2">
                   <span>Toplam:</span>
@@ -353,7 +433,7 @@ export default function InvoiceFromSaleModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={!invoiceData.dueDate}
+            disabled={!invoiceData.dueDate || loadingMeta}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t('invoices.createInvoice')}

@@ -4,6 +4,15 @@ set -e
 echo "🚀 Backend başlatılıyor (yalnızca backend)"
 cd "$(dirname "$0")/backend"
 
+# .env dosyasını erken yükle (dotenv öncesi), böylece script default'ları .env'i ezmez
+if [ -f ./.env ]; then
+  echo "📄 .env yükleniyor (backend/.env)"
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
+
 # Çakışan süreç/port temizliği
 echo "🧹 Çakışan süreçler/portlar temizleniyor..."
 if command -v lsof >/dev/null 2>&1; then
@@ -36,19 +45,22 @@ export DATABASE_PORT=${DATABASE_PORT:-5433}
 export DATABASE_USER=${DATABASE_USER:-moneyflow}
 export DATABASE_PASSWORD=${DATABASE_PASSWORD:-moneyflow123}
 export DATABASE_NAME=${DATABASE_NAME:-moneyflow_dev}
+# E-posta değişkenlerini .env'den gelen değerler varsa koru; yoksa varsayılan ver
 export MAIL_PROVIDER=${MAIL_PROVIDER:-log}
 export MAIL_FROM=${MAIL_FROM:-no-reply@example.com}
 export AWS_REGION=${AWS_REGION:-${SES_REGION:-us-east-1}}
+
+echo "✉️  Email config: provider=$MAIL_PROVIDER from=$MAIL_FROM region=${AWS_REGION:-n/a}"
 
 # Çalıştır ve logları arkaplana al
 echo "🔧 nest start --watch (port $PORT)"
 nohup npm run start:dev > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 
-# Health check
+# Health check (health endpoint global prefix dışında)
 ATT=0; MAX=20
 until [ $ATT -ge $MAX ]; do
-  CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" "http://localhost:${PORT}/api/health/email" || echo 000)
+  CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" "http://localhost:${PORT}/health/email" || echo 000)
   if [ "$CODE" = "200" ]; then
     echo "✅ Backend ayakta (PID=$BACKEND_PID, PORT=$PORT)"
     echo "ℹ️  Loglar: tail -f /tmp/backend.log"

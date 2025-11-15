@@ -115,4 +115,25 @@ export class Invoice {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // Attribution
+  @Column({ type: 'uuid', nullable: true })
+  createdById: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'createdById' })
+  createdByUser: User | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  createdByName: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  updatedById: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'updatedById' })
+  updatedByUser: User | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  updatedByName: string | null;
 }
