@@ -346,24 +346,32 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       return;
     }
     
-    // Calculate totals from items - Her ürün kendi KDV oranıyla
-    const totalWithTax = items.reduce((sum, item) => sum + (item.total || 0), 0);
-    
-    // Her ürün için KDV hesapla
-    let subtotal = 0;
-    let taxAmount = 0;
-    
-    items.forEach(item => {
-      const itemTotal = Number(item.total) || 0;
-      const itemTaxRate = Number(item.taxRate ?? 18) / 100; // %18 -> 0.18
-      const itemSubtotal = itemTotal / (1 + itemTaxRate);
-      const itemTax = itemTotal - itemSubtotal;
-      
-      subtotal += itemSubtotal;
+    // İade faturaları için kalemleri negatifle (miktar negatif olmalı)
+    const normalizedItems = (invoiceData.type === 'return')
+      ? items.map(it => {
+          const q = Number(it.quantity) || 0;
+          const unitPrice = Number(it.unitPrice) || 0;
+          const negQ = q > 0 ? -q : q; // pozitif girilmişse negatife çevir
+          const lineTotal = negQ * unitPrice; // KDV HARİÇ
+          return { ...it, quantity: negQ, total: lineTotal };
+        })
+      : items.map(it => {
+          const q = Number(it.quantity) || 0;
+          const unitPrice = Number(it.unitPrice) || 0;
+          return { ...it, total: q * unitPrice };
+        });
+
+    // Her ürün kendi KDV oranıyla: item.total KDV HARİÇ kabul edilir
+    let subtotal = 0; // KDV HARİÇ
+    let taxAmount = 0; // KDV
+    normalizedItems.forEach(item => {
+      const itemTotal = Number(item.total) || 0; // KDV HARİÇ
+      const itemTaxRate = Number(item.taxRate ?? 18) / 100;
+      const itemTax = itemTotal * itemTaxRate; // işaret korunur
+      subtotal += itemTotal;
       taxAmount += itemTax;
     });
-    
-    const total = totalWithTax;
+    const total = subtotal + taxAmount; // KDV DAHİL
     
     const newInvoice: any = {
       invoiceNumber: invoiceData.invoiceNumber,
@@ -373,7 +381,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       customerAddress: invoiceData.customerAddress,
       issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
       dueDate: invoiceData.dueDate || new Date().toISOString().split('T')[0],
-      items,
+      items: normalizedItems,
       subtotal,
       taxAmount,
       total,
@@ -387,6 +395,11 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     if (invoice?.id) {
       newInvoice.id = invoice.id;
       newInvoice.createdAt = invoice.createdAt;
+    }
+    // Yeni fatura akışından iade seçilip bir orijinal fatura belirlenmişse,
+    // yeni kayıt oluşturmak yerine orijinal faturayı güncelle
+    if (!newInvoice.id && newInvoice.type === 'return' && newInvoice.originalInvoiceId) {
+      newInvoice.id = String(newInvoice.originalInvoiceId);
     }
     
     console.log('💾 InvoiceModal - onSave\'e gönderilecek veri:', {
@@ -457,6 +470,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                         setInvoiceData(prev => ({
                           ...prev,
                           originalInvoiceId: candidateId,
+                          invoiceNumber: original.invoiceNumber || prev.invoiceNumber,
                           customerId: prev.customerId || original.customerId || '',
                           customerName: prev.customerName || original.customer?.name || original.customerName || '',
                           customerEmail: prev.customerEmail || original.customer?.email || original.customerEmail || '',
@@ -515,6 +529,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                     setInvoiceData(prev => ({
                       ...prev,
                       originalInvoiceId: id,
+                      invoiceNumber: original.invoiceNumber || prev.invoiceNumber,
                       customerId: original.customerId || '',
                       customerName: original.customer?.name || original.customerName || '',
                       customerEmail: original.customer?.email || original.customerEmail || '',

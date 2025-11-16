@@ -265,6 +265,7 @@ export class InvoicesService {
     updateInvoiceDto: any,
   ): Promise<Invoice> {
     const invoice = await this.findOne(tenantId, id);
+    const wasRefund = String(invoice.type || '').toLowerCase() === 'refund' || String(invoice.type || '').toLowerCase() === 'return';
 
     // Recalculate if items are updated
     if (updateInvoiceDto.lineItems || updateInvoiceDto.items) {
@@ -298,6 +299,38 @@ export class InvoicesService {
     Object.assign(invoice, updateInvoiceDto);
     await this.invoicesRepository.save(invoice);
 
+    // İade faturası yapıldığında: stok geri ekle + satış iptal et
+    const isNowRefund = String(invoice.type || '').toLowerCase() === 'refund' || String(invoice.type || '').toLowerCase() === 'return';
+    if (!wasRefund && isNowRefund) {
+      try {
+        // Stok geri ekle
+        const lineItems = Array.isArray(invoice.items) ? invoice.items : [];
+        for (const it of lineItems) {
+          const pid = it?.productId ? String(it.productId) : '';
+          const qty = Number(it?.quantity) || 0;
+          if (!pid) continue;
+          try {
+            const product = await this.productsRepository.findOne({ where: { id: pid, tenantId } });
+            if (!product) continue;
+            // İade faturasında miktar negatif olabilir; stoğu her durumda artırmalıyız
+            const delta = qty < 0 ? Math.abs(qty) : qty;
+            product.stock = Number(product.stock || 0) + delta;
+            await this.productsRepository.save(product);
+          } catch {}
+        }
+        // Satış iptal et
+        if (invoice.saleId) {
+          const sale = await this.salesRepository.findOne({ where: { id: invoice.saleId, tenantId } });
+          if (sale) {
+            sale.status = 'refunded' as any;
+            await this.salesRepository.save(sale);
+          }
+        }
+      } catch (e) {
+        console.warn('Refund stock/sale update error:', e);
+      }
+    }
+
     // Reload with customer relation
     return this.findOne(tenantId, id);
   }
@@ -324,7 +357,38 @@ export class InvoicesService {
     invoice.voidedAt = new Date();
     invoice.voidedBy = userId;
 
-    return this.invoicesRepository.save(invoice);
+    await this.invoicesRepository.save(invoice);
+
+    // Void işleminde: stok geri ekle/azalt (kalem miktarının işaretine göre) + satış iptal et
+    try {
+      // Stok geri ekle
+      const lineItems = Array.isArray(invoice.items) ? invoice.items : [];
+      for (const it of lineItems) {
+        const pid = it?.productId ? String(it.productId) : '';
+        const qty = Number(it?.quantity) || 0;
+        if (!pid) continue;
+        try {
+          const product = await this.productsRepository.findOne({ where: { id: pid, tenantId } });
+          if (!product) continue;
+          // Normal satış faturası (qty>0) void: stok artar
+          // İade faturası (qty<0) void: stok azalır (eklenen geri alınır)
+          product.stock = Number(product.stock || 0) + qty;
+          await this.productsRepository.save(product);
+        } catch {}
+      }
+      // Satış iptal et
+      if (invoice.saleId) {
+        const sale = await this.salesRepository.findOne({ where: { id: invoice.saleId, tenantId } });
+        if (sale) {
+          sale.status = 'cancelled' as any;
+          await this.salesRepository.save(sale);
+        }
+      }
+    } catch (e) {
+      console.warn('Void stock/sale update error:', e);
+    }
+
+    return invoice;
   }
 
   async restoreInvoice(tenantId: string, id: string): Promise<Invoice> {

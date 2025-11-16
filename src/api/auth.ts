@@ -12,6 +12,7 @@ export interface RegisterData {
 export interface LoginData {
   email: string;
   password: string;
+  twoFactorToken?: string;
 }
 
 export interface AuthResponse {
@@ -49,7 +50,7 @@ export const authService = {
     }
   },
 
-  async login(data: LoginData): Promise<AuthResponse> {
+  async login(data: LoginData): Promise<AuthResponse | { mfaRequired: true } > {
     try {
       // Avoid logging raw credentials; keep minimal debug only
       logger.debug('🔑 auth.login called');
@@ -67,6 +68,10 @@ export const authService = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const message = errorData.message || 'Geçersiz email veya şifre';
+        if (message === 'MFA_REQUIRED') {
+          // Frontend bu durumu özel olarak ele alacak
+          return { mfaRequired: true } as const;
+        }
         throw new Error(message);
       }
       

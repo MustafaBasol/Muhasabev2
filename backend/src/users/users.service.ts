@@ -172,6 +172,13 @@ export class UsersService {
     });
   }
 
+  async incrementTokenVersion(userId: string): Promise<User> {
+    const user = await this.findOne(userId);
+    const next = ((user as any).tokenVersion || 0) + 1;
+    await this.userRepository.update(userId, { tokenVersion: next, updatedAt: new Date() } as any);
+    return this.findOne(userId);
+  }
+
   async validatePassword(user: User, password: string): Promise<boolean> {
     return this.securityService.comparePassword(password, user.password);
   }

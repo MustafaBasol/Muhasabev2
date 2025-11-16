@@ -72,7 +72,7 @@ export class TwoFactorService {
   generateQRCodeUrl(
     secret: string,
     accountName: string,
-    issuer: string = 'Muhasebe App',
+    issuer: string = 'Comptario',
   ): string {
     const encodedAccount = encodeURIComponent(accountName);
     const encodedIssuer = encodeURIComponent(issuer);

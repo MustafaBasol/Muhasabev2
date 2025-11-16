@@ -2199,6 +2199,15 @@ export default function SettingsPage({
   const [isExporting, setIsExporting] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
+  // Security: 2FA modal states
+  const [twoFAOpen, setTwoFAOpen] = useState(false);
+  const [twoFAMode, setTwoFAMode] = useState<null | 'enable' | 'disable'>(null);
+  const [twoFAStatus, setTwoFAStatus] = useState<{ enabled: boolean; backupCodesCount: number } | null>(null);
+  const [twoFASetup, setTwoFASetup] = useState<{ secret: string; qrCodeUrl: string } | null>(null);
+  const [twoFAToken, setTwoFAToken] = useState('');
+  const [twoFABusy, setTwoFABusy] = useState(false);
+  const [twoFABackups, setTwoFABackups] = useState<string[] | null>(null);
+
   // i18next entegrasyonu
   const { i18n, t } = useTranslation();
   
@@ -2215,7 +2224,7 @@ export default function SettingsPage({
   const notificationLabels = text.notifications.labels;
   
   // Auth context - profil güncellemesi için
-  const { refreshUser, user: authUser, tenant } = useAuth();
+  const { refreshUser, user: authUser, tenant, logout } = useAuth();
   // Tenant sahibi/ADMİN kontrolü: farklı sistemlerde rol isimleri değişebiliyor
   const roleNorm = (authUser?.role || '').toUpperCase();
   // Plan sekmesi sadece 'OWNER' benzeri sahiplik rolleri için görünür olmalı.
@@ -2251,6 +2260,75 @@ export default function SettingsPage({
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Security: 2FA handlers
+  // İlk yüklemede 2FA durumunu al (buton etiketini dinamik göstermek için)
+  useEffect(() => {
+    (async () => {
+      try {
+        const status = await usersApi.getTwoFactorStatus();
+        setTwoFAStatus(status);
+      } catch {}
+    })();
+  }, []);
+
+  const handleTwoFactorClick = async () => {
+    try {
+      setTwoFABusy(true);
+      setTwoFABackups(null);
+      setTwoFAToken('');
+      const status = await usersApi.getTwoFactorStatus();
+      setTwoFAStatus(status);
+      if (status.enabled) {
+        setTwoFAMode('disable');
+        setTwoFAOpen(true);
+      } else {
+        const setup = await usersApi.setupTwoFactor();
+        setTwoFASetup({ secret: setup.secret, qrCodeUrl: setup.qrCodeUrl });
+        setTwoFAMode('enable');
+        setTwoFAOpen(true);
+      }
+    } catch (e: any) {
+      openInfo('2FA', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
+    } finally {
+      setTwoFABusy(false);
+    }
+  };
+
+  const confirmTwoFactor = async () => {
+    try {
+      setTwoFABusy(true);
+      if (twoFAMode === 'enable') {
+        const res = await usersApi.enableTwoFactor((twoFAToken || '').trim());
+        setTwoFABackups(res?.backupCodes || []);
+        setTwoFAStatus({ enabled: true, backupCodesCount: res?.backupCodes?.length || 0 });
+        await refreshUser();
+      } else if (twoFAMode === 'disable') {
+        await usersApi.disableTwoFactor((twoFAToken || '').trim());
+        setTwoFAStatus({ enabled: false, backupCodesCount: 0 });
+        await refreshUser();
+        setTwoFAOpen(false);
+        setTwoFAMode(null);
+        openInfo(
+          currentLanguage === 'tr' ? '2FA devre dışı' : currentLanguage === 'fr' ? '2FA désactivé' : currentLanguage === 'de' ? '2FA deaktiviert' : '2FA disabled',
+          currentLanguage === 'tr' ? 'İki faktörlü doğrulama kapatıldı.' : currentLanguage === 'fr' ? "L’authentification à deux facteurs a été désactivée." : currentLanguage === 'de' ? 'Zwei-Faktor-Authentifizierung wurde deaktiviert.' : 'Two-factor authentication has been disabled.',
+          'success'
+        );
+      }
+    } catch (e: any) {
+      openInfo('2FA', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
+    } finally {
+      setTwoFABusy(false);
+    }
+  };
+
+  const closeTwoFAModal = () => {
+    setTwoFAOpen(false);
+    setTwoFAMode(null);
+    setTwoFASetup(null);
+    setTwoFAToken('');
+    setTwoFABackups(null);
+  };
 
   // Hosted invoice dönüşü (fokus veya sayfa açılışı) başarı modalı
   useEffect(() => {
@@ -3609,8 +3687,14 @@ export default function SettingsPage({
             <div className="font-medium text-gray-900">{text.security.cards.twoFactor.title}</div>
             <div className="text-sm text-gray-500">{text.security.cards.twoFactor.description}</div>
           </div>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            {text.security.cards.twoFactor.action}
+          <button onClick={handleTwoFactorClick} disabled={twoFABusy} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+            {(() => {
+              const enabled = !!twoFAStatus?.enabled;
+              if (enabled) {
+                return currentLanguage === 'tr' ? 'Devre Dışı Bırak' : currentLanguage === 'fr' ? 'Désactiver' : currentLanguage === 'de' ? 'Deaktivieren' : 'Disable';
+              }
+              return text.security.cards.twoFactor.action;
+            })()}
           </button>
         </div>
 
@@ -3619,7 +3703,15 @@ export default function SettingsPage({
             <div className="font-medium text-gray-900">{text.security.cards.sessionHistory.title}</div>
             <div className="text-sm text-gray-500">{text.security.cards.sessionHistory.description}</div>
           </div>
-          <button className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+          <button
+            onClick={() => {
+              try {
+                const el = document.getElementById('audit-logs-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              } catch {}
+            }}
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
             {text.security.cards.sessionHistory.action}
           </button>
         </div>
@@ -3629,7 +3721,52 @@ export default function SettingsPage({
             <div className="font-medium text-gray-900">{text.security.cards.activeSessions.title}</div>
             <div className="text-sm text-gray-500">{text.security.cards.activeSessions.description}</div>
           </div>
-          <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+          <button
+            onClick={() => {
+              setInfoModal({
+                open: true,
+                title: currentLanguage === 'tr' ? 'Oturumları Sonlandır' : currentLanguage === 'fr' ? 'Terminer les sessions' : currentLanguage === 'de' ? 'Sitzungen beenden' : 'Terminate Sessions',
+                message: currentLanguage === 'tr'
+                  ? 'Tüm cihazlardaki oturumlar sonlandırılsın mı? Bu cihazda oturuma devam edebilmeniz için yeni bir token oluşturulacak.'
+                  : currentLanguage === 'fr'
+                  ? 'Mettre fin à toutes les sessions sur tous les appareils ? Un nouveau jeton sera émis pour continuer ici.'
+                  : currentLanguage === 'de'
+                  ? 'Alle Sitzungen auf allen Geräten beenden? Für dieses Gerät wird ein neues Token ausgestellt.'
+                  : 'Terminate sessions on all devices? A new token will be issued to continue here.'
+                ,
+                tone: 'info',
+                confirmLabel: currentLanguage === 'tr' ? 'Evet, Sonlandır' : currentLanguage === 'fr' ? 'Oui, terminer' : currentLanguage === 'de' ? 'Ja, beenden' : 'Yes, terminate',
+                cancelLabel: currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel',
+                onConfirm: async () => {
+                  try {
+                    const res = await usersApi.terminateAllSessions();
+                    if (res?.token) {
+                      localStorage.setItem('auth_token', res.token);
+                      try { await refreshUser(); } catch {}
+                      setInfoModal({
+                        open: true,
+                        title: currentLanguage === 'tr' ? 'Oturumlar Sonlandırıldı' : currentLanguage === 'fr' ? 'Sessions terminées' : currentLanguage === 'de' ? 'Sitzungen beendet' : 'Sessions terminated',
+                        message: currentLanguage === 'tr' ? 'Diğer cihazlardaki oturumlar sonlandırıldı. Bu cihazda oturuma devam ediyorsunuz.' : currentLanguage === 'fr' ? 'Les autres appareils ont été déconnectés. Vous continuez sur cet appareil.' : currentLanguage === 'de' ? 'Andere Geräte wurden abgemeldet. Sie bleiben auf diesem Gerät angemeldet.' : 'Other devices were signed out. You remain signed in here.',
+                        tone: 'success',
+                        // Ek seçenek: Bu cihazdan da çıkış yap
+                        cancelLabel: currentLanguage === 'tr' ? 'Bu cihazdan da çık' : currentLanguage === 'fr' ? 'Se déconnecter ici aussi' : currentLanguage === 'de' ? 'Auch hier abmelden' : 'Sign out here too',
+                        onCancel: async () => {
+                          try { await logout(); } catch {}
+                          setInfoModal(m => ({ ...m, open: false }));
+                        },
+                        confirmLabel: currentLanguage === 'tr' ? 'Tamam' : currentLanguage === 'fr' ? 'OK' : currentLanguage === 'de' ? 'OK' : 'OK',
+                        onConfirm: () => setInfoModal(m => ({ ...m, open: false })),
+                      });
+                    }
+                  } catch (e: any) {
+                    openInfo('Sessions', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
+                  }
+                },
+                onCancel: () => setInfoModal(m => ({ ...m, open: false })),
+              });
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
             {text.security.cards.activeSessions.action}
           </button>
         </div>
@@ -3637,7 +3774,7 @@ export default function SettingsPage({
     </div>
 
     {/* Audit Logs Section */}
-    <div className="border-t pt-6">
+    <div id="audit-logs-section" className="border-t pt-6">
       <AuditLogComponent />
     </div>
   </div>
@@ -3893,6 +4030,114 @@ export default function SettingsPage({
           {activeTab === 'privacy' && renderPrivacyTab()}
         </div>
       </div>
+
+      {/* 2FA Modal */}
+      {twoFAOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {twoFAMode === 'enable'
+                ? (currentLanguage === 'tr' ? 'İki Faktörlü Doğrulamayı Etkinleştir' : currentLanguage === 'fr' ? 'Activer l’authentification à deux facteurs' : currentLanguage === 'de' ? 'Zwei-Faktor-Authentifizierung aktivieren' : 'Enable Two-Factor Authentication')
+                : (currentLanguage === 'tr' ? 'İki Faktörlü Doğrulamayı Devre Dışı Bırak' : currentLanguage === 'fr' ? 'Désactiver l’authentification à deux facteurs' : currentLanguage === 'de' ? 'Zwei-Faktor-Authentifizierung deaktivieren' : 'Disable Two-Factor Authentication')}
+            </h3>
+
+            {/* Enable flow: show QR + secret + token input until backups appear */}
+            {twoFAMode === 'enable' && !twoFABackups && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  {currentLanguage === 'tr' ? 'Authenticator uygulamanızla QR kodu tarayın veya gizli anahtarı girin.' : currentLanguage === 'fr' ? "Scannez le QR avec votre application d’authentification ou saisissez la clé secrète." : currentLanguage === 'de' ? 'Scannen Sie den QR-Code mit Ihrer Authenticator-App oder geben Sie den geheimen Schlüssel ein.' : 'Scan the QR with your authenticator app or enter the secret key.'}
+                </p>
+                {twoFASetup?.qrCodeUrl && (
+                  <div className="flex flex-col items-center">
+                    <img
+                      alt="2FA QR"
+                      className="w-44 h-44"
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(twoFASetup.qrCodeUrl)}`}
+                    />
+                  </div>
+                )}
+                {twoFASetup?.secret && (
+                  <div className="text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded p-2 break-all">
+                    {currentLanguage === 'tr' ? 'Gizli Anahtar:' : currentLanguage === 'fr' ? 'Clé secrète :' : currentLanguage === 'de' ? 'Geheimer Schlüssel:' : 'Secret key:'} {twoFASetup.secret}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{currentLanguage === 'tr' ? '6 Haneli Kod' : currentLanguage === 'fr' ? 'Code à 6 chiffres' : currentLanguage === 'de' ? '6-stelliger Code' : '6-digit code'}</label>
+                  <input
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={twoFAToken}
+                    onChange={e => setTwoFAToken(e.target.value.replace(/\D/g, '').slice(0,6))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="123456"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={confirmTwoFactor}
+                    disabled={twoFABusy || (twoFAToken || '').length !== 6}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {twoFABusy ? (currentLanguage === 'tr' ? 'İşleniyor…' : 'Processing…') : (currentLanguage === 'tr' ? 'Etkinleştir' : currentLanguage === 'fr' ? 'Activer' : currentLanguage === 'de' ? 'Aktivieren' : 'Enable')}
+                  </button>
+                  <button onClick={closeTwoFAModal} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                    {currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* After enabling: show backup codes */}
+            {twoFAMode === 'enable' && twoFABackups && (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-700">
+                  {currentLanguage === 'tr' ? 'Yedek kodlarınızı güvenli bir yerde saklayın. Bu kodlar yalnızca bir kez gösterilir.' : currentLanguage === 'fr' ? 'Conservez vos codes de secours en lieu sûr. Ils ne sont affichés qu’une seule fois.' : currentLanguage === 'de' ? 'Bewahren Sie Ihre Backup-Codes sicher auf. Diese werden nur einmal angezeigt.' : 'Store your backup codes safely. These are shown only once.'}
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {twoFABackups.map((c, i) => (
+                    <div key={i} className="px-2 py-1 bg-gray-50 border border-gray-200 rounded font-mono">{c}</div>
+                  ))}
+                </div>
+                <div className="flex justify-end pt-2">
+                  <button onClick={closeTwoFAModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    {currentLanguage === 'tr' ? 'Tamam' : 'OK'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Disable flow */}
+            {twoFAMode === 'disable' && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  {currentLanguage === 'tr' ? '2FA’yı devre dışı bırakmak için geçerli 6 haneli kodu veya bir yedek kodu girin.' : currentLanguage === 'fr' ? 'Saisissez un code à 6 chiffres ou un code de secours pour désactiver 2FA.' : currentLanguage === 'de' ? 'Geben Sie einen gültigen 6-stelligen Code oder einen Backup-Code ein, um 2FA zu deaktivieren.' : 'Enter a valid 6-digit code or a backup code to disable 2FA.'}
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{currentLanguage === 'tr' ? 'Kod' : 'Code'}</label>
+                  <input
+                    value={twoFAToken}
+                    onChange={e => setTwoFAToken(e.target.value.toUpperCase().slice(0, 8))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="123456 veya ABCD1234"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={confirmTwoFactor}
+                    disabled={twoFABusy || !(twoFAToken || '').length}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {twoFABusy ? (currentLanguage === 'tr' ? 'İşleniyor…' : 'Processing…') : (currentLanguage === 'tr' ? 'Devre Dışı Bırak' : currentLanguage === 'fr' ? 'Désactiver' : currentLanguage === 'de' ? 'Deaktivieren' : 'Disable')}
+                  </button>
+                  <button onClick={closeTwoFAModal} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                    {currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Save result modals */}
       <InfoModal

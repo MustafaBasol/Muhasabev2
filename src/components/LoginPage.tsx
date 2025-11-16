@@ -18,6 +18,8 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaToken, setMfaToken] = useState('');
   const [resending, setResending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,9 +27,24 @@ export default function LoginPage() {
     setError('');
     
     try {
-      await login(formData.email, formData.password);
+      const res = await login(formData.email, formData.password, mfaRequired ? (mfaToken || undefined) : undefined);
+      if ((res as any)?.mfaRequired) {
+        setMfaRequired(true);
+        setError('İki faktörlü doğrulama gerekli. Lütfen doğrulama kodunu girin.');
+        return;
+      }
+      // başarıyla giriş yaptıysak MFA durumunu sıfırla
+      setMfaRequired(false);
+      setMfaToken('');
     } catch (error: any) {
-      setError(error.message || 'Giriş sırasında bir hata oluştu');
+      // MFA adımında yanlış kod girdiyse daha net mesaj ver
+      const msg = error?.message || 'Giriş sırasında bir hata oluştu';
+      if (msg === 'MFA_REQUIRED') {
+        setMfaRequired(true);
+        setError('İki faktörlü doğrulama gerekli. Lütfen doğrulama kodunu girin.');
+      } else {
+        setError(msg);
+      }
     }
   };
 
@@ -118,6 +135,25 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {mfaRequired && (
+              <div>
+                <label htmlFor="totp" className="block text-sm font-semibold text-gray-700 mb-2">2FA Kodu</label>
+                <input
+                  id="totp"
+                  name="totp"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9A-Z]{6,8}"
+                  value={mfaToken}
+                  onChange={(e) => setMfaToken(e.target.value.toUpperCase())}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="6 haneli TOTP veya 8 karakter yedek kod"
+                  autoFocus
+                />
+                <p className="mt-1 text-xs text-gray-500">Google Authenticator / 1Password kodunu girin.</p>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <label className="flex items-center">
                 <input
@@ -144,7 +180,7 @@ export default function LoginPage() {
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>{t('auth.signIn', 'Giriş Yap')}</span>
+                  <span>{mfaRequired ? 'Doğrula ve Giriş Yap' : t('auth.signIn', 'Giriş Yap')}</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}

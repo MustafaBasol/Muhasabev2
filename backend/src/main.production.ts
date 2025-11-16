@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { json, urlencoded } from 'express';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -69,7 +69,7 @@ async function bootstrap() {
 
   // API prefix
   app.setGlobalPrefix('api', {
-    exclude: ['health'], // Health check without prefix
+    exclude: [{ path: 'health/(.*)', method: RequestMethod.ALL }], // Health check without prefix for all subpaths
   });
 
   // Swagger documentation (only in development)

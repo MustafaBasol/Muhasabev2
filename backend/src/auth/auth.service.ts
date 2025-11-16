@@ -149,6 +149,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
+      tokenVersion: (user as any).tokenVersion || 0,
     };
 
     return {
@@ -253,12 +254,26 @@ export class AuthService {
       // Sessiz geç
     }
 
+    // If 2FA is enabled, require token (TOTP or backup code)
+    if ((user as any).twoFactorEnabled) {
+      const token = (loginDto as any).twoFactorToken;
+      if (!token) {
+        // Özel durum: Frontend bu mesajı yakalayıp ikinci adımı gösterecek
+        throw new ForbiddenException('MFA_REQUIRED');
+      }
+      const ok = await this.usersService.verifyTwoFactor(user.id, { token });
+      if (!ok) {
+        throw new UnauthorizedException('Invalid 2FA token');
+      }
+    }
+
     // Generate JWT token
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
+      tokenVersion: (user as any).tokenVersion || 0,
     };
 
     return {
@@ -326,6 +341,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
+      tokenVersion: (user as any).tokenVersion || 0,
     };
     return {
       token: this.jwtService.sign(payload),

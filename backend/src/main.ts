@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { json, urlencoded, raw } from 'express';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
@@ -227,7 +227,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   // Global API prefix (development de de prod ile aynı olsun)
-  app.setGlobalPrefix('api', { exclude: ['health'] });
+  app.setGlobalPrefix('api', { exclude: [{ path: 'health/(.*)', method: RequestMethod.ALL }] });
 
   SwaggerModule.setup('api/docs', app, document);
 

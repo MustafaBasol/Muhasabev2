@@ -93,6 +93,11 @@ export class EnsureAttributionColumnsService
         `);
       }
       await qr.commitTransaction();
+      // Ek güvenlik/auth alanları: users.tokenVersion (global oturum sonlandırma için)
+      // Not: Ayrı bir transaction gerektirmiyor; idempotent ALTER ile ekliyoruz
+      await qr.query(
+        `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "tokenVersion" integer NOT NULL DEFAULT 0`,
+      );
       this.logger.log('Attribution columns ensured on core tables.');
     } catch (e) {
       await qr.rollbackTransaction();

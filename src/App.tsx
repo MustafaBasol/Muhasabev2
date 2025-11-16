@@ -2436,7 +2436,11 @@ const AppContent: React.FC = () => {
         discountAmount: Number(invoiceData.discountAmount || 0),
         notes: invoiceData.notes || '',
         saleId: invoiceData.saleId, // Satış ID'sini ekle
-        refundedInvoiceId: invoiceData.originalInvoiceId || undefined,
+        // Sadece yeni iade faturası OLUŞTURULUYORSA orijinale referans ver
+        refundedInvoiceId: (!invoiceData.id && invoiceData.originalInvoiceId &&
+          (String((invoiceData.type||'').toLowerCase()) === 'return' || String((invoiceData.type||'').toLowerCase()) === 'refund'))
+          ? invoiceData.originalInvoiceId
+          : undefined,
       };
       
       console.log('📤 Backend\'e gönderilecek data:', {
@@ -2476,7 +2480,11 @@ const AppContent: React.FC = () => {
       }
 
       if (invoiceData.id) {
+        const oldInvoice = invoices.find(i => String(i.id) === String(invoiceData.id));
+        const wasRefund = String(oldInvoice?.type || '').toLowerCase() === 'refund' || String(oldInvoice?.type || '').toLowerCase() === 'return';
         const updated = await invoicesApi.updateInvoice(String(invoiceData.id), cleanData);
+        const isNowRefund = String(updated.type || '').toLowerCase() === 'refund' || String(updated.type || '').toLowerCase() === 'return';
+        
         const newInvoices = invoices.map(i => i.id === updated.id ? updated : i);
         setInvoices(newInvoices);
         try {
@@ -2484,6 +2492,36 @@ const AppContent: React.FC = () => {
           const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
           localStorage.setItem(iKey, JSON.stringify(newInvoices));
         } catch {}
+        
+        // İade faturasına dönüşmüşse: stokları UI'de geri ekle + satışı iptal et
+        if (!wasRefund && isNowRefund) {
+          try {
+            const lineItems = Array.isArray((updated as any).items) ? (updated as any).items : [];
+            setProducts(prev => prev.map(p => {
+              const matched = lineItems.find((li: any) => String(li.productId || '') === String(p.id));
+              if (!matched) return p;
+              const q = Number(matched.quantity || 0);
+              // Backend stok artırdı; UI'de de artır (negatif iade miktarlarını mutlak değerle)
+              const delta = q < 0 ? Math.abs(q) : q;
+              const newStock = Number(p.stockQuantity || 0) + delta;
+              return {
+                ...p,
+                stockQuantity: newStock,
+                status: newStock <= 0 ? 'out-of-stock' : newStock <= (p.reorderLevel || 0) ? 'low' : 'active'
+              };
+            }));
+          } catch {}
+          
+          // İlgili satışı 'refunded' yap
+          if ((updated as any).saleId) {
+            setSales(prev => prev.map(s => 
+              String(s.id) === String((updated as any).saleId) 
+                ? { ...s, status: 'refunded' }
+                : s
+            ));
+          }
+        }
+        
         console.log('💾 Fatura cache güncellendi (update)');
         showToast('Fatura güncellendi', 'success');
         return updated; // Güncellenen faturayı return et
@@ -2498,172 +2536,98 @@ const AppContent: React.FC = () => {
           lineItems: (created as any).lineItems
         });
         
-        // Eğer mevcut bir satış yoksa (saleId yok) otomatik satış oluştur
-        if (!cleanData.saleId && cleanData.items && cleanData.items.length > 0) {
+        // Eğer mevcut bir satış yoksa (saleId yok) ve fatura iade değilse otomatik satış OLUŞTUR ve backend'e kaydet
+        if (
+          !cleanData.saleId &&
+          cleanData.items &&
+          cleanData.items.length > 0 &&
+          String(cleanData.type || '').toLowerCase() !== 'refund' &&
+          String(cleanData.type || '').toLowerCase() !== 'return'
+        ) {
           try {
-            console.log('🔄 Otomatik satış oluşturuluyor...');
-            
-            // Müşteri bilgilerini frontend'den al (daha güvenli)
+            console.log('🔄 Otomatik satış (backend) oluşturuluyor...');
+
+            // Müşteri bilgileri
             const customerInfo = customers.find(c => c.id === cleanData.customerId);
             const customerName = customerInfo?.name || invoiceData.customerName || 'N/A';
             const customerEmail = customerInfo?.email || invoiceData.customerEmail || '';
-            
-            console.log('👤 Müşteri bilgileri hazırlandı:', {
-              customerId: cleanData.customerId,
-              customerName: customerName,
-              customerEmail: customerEmail,
-              backendCustomer: created.customer?.name,
-              frontendCustomer: customerInfo?.name
-            });
-            
-            // Fatura kalemlerinden satış verisi hazırla
-            // ✅ Tüm ürünleri items array olarak sakla
+
+            // Satış kalemleri (KDV oranı bilgisi de tutuluyor)
             const saleItems = cleanData.items.map((item: any) => ({
-              productName: item.productName || item.description || 'Ürün/Hizmet',
               productId: item.productId,
+              productName: item.productName || item.description || 'Ürün/Hizmet',
               quantity: Number(item.quantity) || 1,
               unitPrice: Number(item.unitPrice) || 0,
-              total: Number(item.total) || 0,
+              taxRate: Number(item.taxRate ?? 18)
             }));
-            
-            // Toplam tutar hesaplama
-            const saleAmount = Number(created.total) || saleItems.reduce((sum: number, item: any) => sum + item.total, 0);
-            
-            // İlk ürün bilgisini eski format uyumluluğu için tut
-            const firstItem = saleItems[0];
-            
-            const saleData = {
-              customerName: customerName,
-              customerEmail: customerEmail,
-              // Eski format uyumluluğu
-              productName: saleItems.length === 1 
-                ? firstItem.productName 
-                : `${saleItems.length} ürün`,
-              quantity: saleItems.length === 1 ? firstItem.quantity : saleItems.length,
-              unitPrice: saleItems.length === 1 ? firstItem.unitPrice : saleAmount,
-              // Yeni: Çoklu ürün desteği
+
+            const salePayload: salesApi.CreateSaleDto = {
+              customerId: String(cleanData.customerId),
+              customerName,
+              customerEmail,
+              saleDate: cleanData.issueDate,
               items: saleItems,
-              amount: saleAmount,
-              date: cleanData.issueDate,
-              paymentMethod: 'card' as const,
+              discountAmount: Number(cleanData.discountAmount || 0),
               notes: `${created.invoiceNumber} numaralı faturadan otomatik oluşturuldu.`,
-              invoiceId: created.id
+              invoiceId: created.id,
             };
-            
-            console.log('💰 Satış oluşturuldu:', {
-              itemCount: saleItems.length,
-              items: saleItems,
-              totalAmount: saleAmount
+
+            // Backend'e yaz
+            const savedSale = await salesApi.createSale(salePayload);
+
+            // UI state için temel alanları normalleştir
+            const firstItem = Array.isArray(savedSale?.items) && savedSale.items.length > 0 ? savedSale.items[0] : undefined;
+            const uiSale = {
+              ...savedSale,
+              customerName: savedSale?.customer?.name || customerName,
+              customerEmail: customerEmail,
+              productId: firstItem?.productId,
+              productName: firstItem?.productName || firstItem?.description || '',
+              quantity: Number(firstItem?.quantity ?? 1),
+              unitPrice: Number(firstItem?.unitPrice ?? 0),
+              date: savedSale?.saleDate ? String(savedSale.saleDate).slice(0,10) : cleanData.issueDate,
+              amount: Number(savedSale?.total ?? created.total ?? 0),
+              status: 'completed',
+            } as any;
+
+            // Satış state + cache
+            setSales(prev => {
+              const next = [...prev, uiSale];
+              try {
+                const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+                const salesKey = tid ? `sales_${tid}` : 'sales';
+                const salesCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+                localStorage.setItem(salesKey, JSON.stringify(next));
+                localStorage.setItem(salesCacheKey, JSON.stringify(next));
+              } catch {}
+              return next;
             });
-            
-            // 📦 Stok kontrolü ve düşürme
-            for (const item of saleItems) {
-              if (item.productId) {
-                const product = products.find(p => String(p.id) === String(item.productId));
-                if (product) {
-                  const newStock = Number(product.stockQuantity || 0) - Number(item.quantity);
-                  
-                  // Stok negatife düşerse uyarı ver
-                  if (newStock < 0) {
-                    console.warn(`⚠️ Stok yetersiz: ${product.name} (Mevcut: ${product.stockQuantity}, İstenen: ${item.quantity})`);
-                    showToast(`Uyarı: ${product.name} stoğu yetersiz!`, 'error');
-                  }
-                  
-                  // Stoku güncelle
-                  try {
-                    const updateData = {
-                      stock: newStock < 0 ? 0 : newStock, // Negatif stok olmasın
-                    };
-                    
-                    await productsApi.updateProduct(String(product.id), updateData);
-                    
-                    // Frontend state'i güncelle
-                    setProducts(prev => prev.map(p => 
-                      String(p.id) === String(product.id) 
-                        ? { 
-                            ...p, 
-                            stockQuantity: newStock < 0 ? 0 : newStock,
-                            status: newStock <= 0 ? 'out-of-stock' : newStock <= (p.reorderLevel || 0) ? 'low' : 'active'
-                          } 
-                        : p
-                    ));
-                    
-                    console.log(`📦 Stok güncellendi: ${product.name} (${product.stockQuantity} → ${newStock < 0 ? 0 : newStock})`);
-                    
-                    // Düşük stok uyarısı
-                    if (newStock > 0 && newStock <= (product.reorderLevel || 0)) {
-                      addNotification(
-                        'Düşük stok uyarısı',
-                        `${product.name} - Stok seviyesi minimum limitin altında! (${newStock}/${product.reorderLevel})`,
-                        'info',
-                        'products',
-                        { persistent: true, repeatDaily: true, relatedId: `low-stock-${product.id}` }
-                      );
-                    }
-                  } catch (stockError) {
-                    console.error('Stok güncellenemedi:', stockError);
-                  }
-                }
-              }
-            }
-            
-            // Sıralı satış numarası oluştur (SAL-YYYY-MM-XXX formatı)
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const prefix = `SAL-${year}-${month}-`;
-            
-            // Mevcut ayın satışlarını bul
-            const currentMonthSales = sales.filter(s => 
-              s.saleNumber && s.saleNumber.startsWith(prefix)
-            );
-            
-            // Sıra numarasını bul
-            let nextSequence = 1;
-            if (currentMonthSales.length > 0) {
-              const sequences = currentMonthSales
-                .map(s => {
-                  const parts = s.saleNumber?.split('-');
-                  return parts ? parseInt(parts[parts.length - 1] || '0', 10) : 0;
-                })
-                .filter(n => !isNaN(n));
-              
-              if (sequences.length > 0) {
-                nextSequence = Math.max(...sequences) + 1;
-              }
-            }
-            
-            const saleNumber = `${prefix}${String(nextSequence).padStart(3, '0')}`;
-            
-            // Satış oluştur
-            const tenantIdRaw = authUser?.tenantId ?? localStorage.getItem('tenantId') ?? undefined;
-            const normalizedTenantId = tenantIdRaw != null ? String(tenantIdRaw) : undefined;
-            const newSale = {
-              ...saleData,
-              id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
-              saleNumber: saleNumber,
-              status: 'completed' as const,
-              invoiceId: created.id, // Fatura ID'sini satışa ekle
-              tenantId: normalizedTenantId, // Tenant ID ekle (normalize + fallback)
-            };
-            
-            const newSales = [...sales, newSale];
-            setSales(newSales);
+
+            // Ürün stoklarını sadece UI'de düş (backend zaten düşürdü)
             try {
-              const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-              const salesKey = tid ? `sales_${tid}` : 'sales';
-              localStorage.setItem(salesKey, JSON.stringify(newSales));
+              const lineItems = Array.isArray(saleItems) ? saleItems : [];
+              setProducts(prev => prev.map(p => {
+                const matched = lineItems.find(li => String(li.productId || '') === String(p.id));
+                if (!matched) return p;
+                const newStock = Number(p.stockQuantity || 0) - Number(matched.quantity || 0);
+                const ns = newStock < 0 ? 0 : newStock;
+                return {
+                  ...p,
+                  stockQuantity: ns,
+                  status: ns <= 0 ? 'out-of-stock' : ns <= (p.reorderLevel || 0) ? 'low' : 'active'
+                };
+              }));
             } catch {}
-            
-            console.log('✅ Otomatik satış oluşturuldu:', {
-              id: newSale.id,
-              saleNumber: newSale.saleNumber,
-              customer: newSale.customerName,
-              amount: newSale.amount,
-              invoiceId: newSale.invoiceId
-            });
-            
-            // 🔔 Satış bildirimi (tercihe tabi)
+
+            // Faturayı satış ile ilişkilendir (tip güvenliği için saleId ekli UpdateInvoiceDto)
+            try {
+              await invoicesApi.updateInvoice(String(created.id), { saleId: String(savedSale.id) });
+              setInvoices(prev => prev.map(inv => String(inv.id) === String(created.id) ? { ...inv, saleId: savedSale.id } : inv));
+            } catch (e) {
+              console.warn('Invoice link update failed:', e);
+            }
+
+            // Bildirim
             try {
               const tid = (localStorage.getItem('tenantId') || 'default') as string;
               const userRaw = localStorage.getItem('user');
@@ -2674,16 +2638,17 @@ const AppContent: React.FC = () => {
               if (prefs?.salesNotifications !== false) {
                 addNotification(
                   'Yeni satış gerçekleşti',
-                  `${newSale.saleNumber} - ${newSale.customerName}: ${newSale.amount} TL`,
+                  `${savedSale.saleNumber || ''} - ${customerName}: ${(Number(savedSale.total)||0)} TL`,
                   'success',
                   'sales'
                 );
               }
             } catch {}
-            
+
           } catch (saleError) {
-            console.error('⚠️ Otomatik satış oluşturulamadı:', saleError);
-            // Fatura başarılı oldu ama satış oluşturulamadı, kullanıcıyı uyar
+            console.error('⚠️ Otomatik satış (backend) oluşturulamadı:', saleError);
+            // Fatura başarılı oldu ama satış oluşturulamadıysa kullanıcıya bilgi ver (fatura kaydı bozulmasın)
+            showToast('Fatura oluşturuldu, ancak satış kaydı oluşturulamadı', 'error');
           }
         }
         
@@ -2751,6 +2716,7 @@ const AppContent: React.FC = () => {
 
   const voidInvoice = async (invoiceId: string, reason: string) => {
     try {
+      const invoiceToVoid = invoices.find(inv => inv.id === invoiceId);
       await invoicesApi.voidInvoice(invoiceId, reason);
       const updatedInvoices = invoices.map(invoice => 
         invoice.id === invoiceId 
@@ -2763,6 +2729,34 @@ const AppContent: React.FC = () => {
         const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
         localStorage.setItem(iKey, JSON.stringify(updatedInvoices));
       } catch {}
+      
+      // Backend stokları geri ekledi; UI state'ini de güncelle
+      if (invoiceToVoid) {
+        try {
+          const lineItems = Array.isArray((invoiceToVoid as any).items) ? (invoiceToVoid as any).items : [];
+          setProducts(prev => prev.map(p => {
+            const matched = lineItems.find((li: any) => String(li.productId || '') === String(p.id));
+            if (!matched) return p;
+            const qty = Number(matched.quantity || 0);
+            const newStock = Number(p.stockQuantity || 0) + qty;
+            return {
+              ...p,
+              stockQuantity: newStock,
+              status: newStock <= 0 ? 'out-of-stock' : newStock <= (p.reorderLevel || 0) ? 'low' : 'active'
+            };
+          }));
+        } catch {}
+        
+        // İlgili satışı iptal et
+        if ((invoiceToVoid as any).saleId) {
+          setSales(prev => prev.map(s => 
+            String(s.id) === String((invoiceToVoid as any).saleId) 
+              ? { ...s, status: 'cancelled' }
+              : s
+          ));
+        }
+      }
+      
       showToast('Fatura iptal edildi', 'success');
     } catch (error: any) {
       console.error('Invoice void error:', error);
@@ -4051,10 +4045,17 @@ const AppContent: React.FC = () => {
   const expenseCurrent = sum(paidExpenses.filter(expense => isInMonth(expense?.expenseDate, currentMonth, currentYear)), expenseAmount);
     const expensePrevious = sum(paidExpenses.filter(expense => isInMonth(expense?.expenseDate, previousMonth, previousYear)), expenseAmount);
 
-    const outstandingInvoices = invoices.filter(invoice => invoice.status !== "paid");
+    // Bekleyen: yalnızca pozitif tutarlı (tahsil edilecek) ve ödenmemiş faturalar
+    const outstandingInvoices = invoices.filter(
+      (invoice) => invoice.status !== "paid" && Number(invoice?.total ?? 0) > 0
+    );
     const outstandingAmount = sum(outstandingInvoices, invoiceAmount);
-    const outstandingCurrent = outstandingInvoices.filter(invoice => isInMonth(invoice?.dueDate || invoice?.issueDate, currentMonth, currentYear)).length;
-    const outstandingPrevious = outstandingInvoices.filter(invoice => isInMonth(invoice?.dueDate || invoice?.issueDate, previousMonth, previousYear)).length;
+    const outstandingCurrent = outstandingInvoices.filter((invoice) =>
+      isInMonth(invoice?.dueDate || invoice?.issueDate, currentMonth, currentYear)
+    ).length;
+    const outstandingPrevious = outstandingInvoices.filter((invoice) =>
+      isInMonth(invoice?.dueDate || invoice?.issueDate, previousMonth, previousYear)
+    ).length;
 
     // Aktif müşteri tanımı: İlgili ayda en az bir işlem (fatura veya satış) yapan benzersiz müşteri
     const normalizeName = (name: any) => (typeof name === 'string' ? name.trim().toLowerCase() : '');

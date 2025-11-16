@@ -59,6 +59,8 @@ export interface UpdateInvoiceDto {
   lineItems?: InvoiceLineItem[];
   taxAmount?: number;
   notes?: string;
+  // Backend güncellemesinde destekleniyor: satış ile ilişkilendirme
+  saleId?: string;
 }
 
 /**

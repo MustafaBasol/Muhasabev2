@@ -22,11 +22,12 @@ import {
   Disable2FADto,
 } from './dto/enable-2fa.dto';
 import { TwoFactorSecretResponse } from '../common/two-factor.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService, private readonly jwtService: JwtService) {}
 
   /**
    * Mevcut kullanıcının profilini getir
@@ -192,7 +193,7 @@ export class UsersController {
    */
   @Post('2fa/setup')
   async setupTwoFactor(@Request() req): Promise<TwoFactorSecretResponse> {
-    return this.usersService.setupTwoFactor(req.user.userId);
+    return this.usersService.setupTwoFactor(req.user.id);
   }
 
   /**
@@ -203,7 +204,7 @@ export class UsersController {
     @Request() req,
     @Body() dto: Enable2FADto,
   ): Promise<{ message: string; backupCodes: string[] }> {
-    return this.usersService.enableTwoFactor(req.user.userId, dto);
+    return this.usersService.enableTwoFactor(req.user.id, dto);
   }
 
   /**
@@ -214,7 +215,7 @@ export class UsersController {
     @Request() req,
     @Body() dto: Verify2FADto,
   ): Promise<{ valid: boolean }> {
-    const valid = await this.usersService.verifyTwoFactor(req.user.userId, dto);
+    const valid = await this.usersService.verifyTwoFactor(req.user.id, dto);
     return { valid };
   }
 
@@ -226,7 +227,7 @@ export class UsersController {
     @Request() req,
     @Body() dto: Disable2FADto,
   ): Promise<{ message: string }> {
-    return this.usersService.disableTwoFactor(req.user.userId, dto);
+    return this.usersService.disableTwoFactor(req.user.id, dto);
   }
 
   /**
@@ -236,6 +237,25 @@ export class UsersController {
   async getTwoFactorStatus(
     @Request() req,
   ): Promise<{ enabled: boolean; backupCodesCount: number }> {
-    return this.usersService.getTwoFactorStatus(req.user.userId);
+    return this.usersService.getTwoFactorStatus(req.user.id);
+  }
+
+  /**
+   * Tüm oturumları sonlandır: tokenVersion artır ve mevcut istemci için yeni token döndür
+   */
+  @Post('sessions/terminate-all')
+  @HttpCode(HttpStatus.OK)
+  async terminateAllSessions(@Request() req): Promise<{ token: string }> {
+    const userId = req.user.id;
+    const updated = await this.usersService.incrementTokenVersion(userId);
+    // Mevcut oturum devam etsin diye yeni bir token ver
+    const payload = {
+      sub: updated.id,
+      email: updated.email,
+      role: updated.role,
+      tenantId: updated.tenantId,
+      tokenVersion: (updated as any).tokenVersion || 0,
+    };
+    return { token: this.jwtService.sign(payload) };
   }
 }

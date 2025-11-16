@@ -67,7 +67,8 @@ export class User {
 
   @Column({
     name: 'twoFactorBackupCodes',
-    type: 'simple-json',
+    type: 'text',
+    array: true,
     nullable: true,
   })
   backupCodes: string[];
@@ -118,6 +119,10 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // JWT token versioning – increment to invalidate all existing tokens
+  @Column({ type: 'int', default: 0 })
+  tokenVersion: number;
 
   // Notification preferences (per user, per tenant context)
   // Stored as JSON blob to allow easy extension without extra migrations

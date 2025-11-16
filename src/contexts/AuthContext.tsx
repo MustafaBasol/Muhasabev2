@@ -30,7 +30,7 @@ interface AuthContextType {
   tenant: Tenant | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, twoFactorToken?: string) => Promise<{ mfaRequired?: true } | void>;
   register: (data: {
     name: string;
     email: string;
@@ -194,12 +194,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, twoFactorToken?: string) => {
     try {
       logger.info('🔑 Login başlatılıyor:', { email });
-      const data = await authService.login({ email, password });
+      const data = await authService.login({ email, password, twoFactorToken });
       logger.debug('🔍 Login response:', data);
-      handleAuthSuccess(data);
+      if ((data as any)?.mfaRequired) {
+        // İkinci adım gerekli, çağırana haber ver
+        return { mfaRequired: true } as const;
+      }
+      handleAuthSuccess(data as any);
       logger.info('✅ Login tamamlandı');
     } catch (err: unknown) {
       console.error('❌ Login failed:', err);
