@@ -163,6 +163,8 @@ export class AdminService {
         role: true,
         isActive: true,
         lastLoginAt: true,
+        lastLoginTimeZone: true as any,
+        lastLoginUtcOffsetMinutes: true as any,
         createdAt: true,
         tenantId: true,
         tenant: {
@@ -538,6 +540,8 @@ export class AdminService {
         role: true,
         isActive: true,
         lastLoginAt: true,
+        lastLoginTimeZone: true as any,
+        lastLoginUtcOffsetMinutes: true as any,
         createdAt: true,
       },
       order: { createdAt: 'DESC' as any },

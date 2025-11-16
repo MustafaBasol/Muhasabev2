@@ -18,6 +18,8 @@ interface User {
   role: string;
   isActive: boolean;
   lastLoginAt: string;
+  lastLoginTimeZone?: string;
+  lastLoginUtcOffsetMinutes?: number;
   createdAt: string;
   tenant: {
     id: string;
@@ -737,6 +739,12 @@ const AdminPage: React.FC = () => {
                         Yetki
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Son Giriş
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Son Giriş Saat Dilimi
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Durum
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -764,6 +772,19 @@ const AdminPage: React.FC = () => {
                           }`}>
                             {user.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {(() => {
+                            const tz = (user as any).lastLoginTimeZone;
+                            const off = (user as any).lastLoginUtcOffsetMinutes;
+                            const offLabel = typeof off === 'number'
+                              ? `UTC${off >= 0 ? '+' : ''}${(off/60).toFixed(1).replace('.0','')}`
+                              : '';
+                            return tz || offLabel || '—';
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${

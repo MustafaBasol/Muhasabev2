@@ -51,6 +51,8 @@ export class UsersService {
         'role',
         'isActive',
         'lastLoginAt',
+        'lastLoginTimeZone',
+        'lastLoginUtcOffsetMinutes',
         'createdAt',
       ],
     });

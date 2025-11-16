@@ -161,6 +161,10 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId,
         isEmailVerified: (user as any).isEmailVerified === true,
+        // Enriched for immediate UI display (only from user on register)
+        lastLoginAt: (user as any).lastLoginAt,
+        lastLoginTimeZone: (user as any).lastLoginTimeZone,
+        lastLoginUtcOffsetMinutes: (user as any).lastLoginUtcOffsetMinutes,
       },
       tenant: {
         id: tenant.id,
@@ -197,7 +201,7 @@ export class AuthService {
     return { success: true };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, req?: any) {
     // Find user by email
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
@@ -228,6 +232,37 @@ export class AuthService {
 
     // Update last login
     await this.usersService.updateLastLogin(user.id);
+    // Persist client time zone hints if provided
+    try {
+      const updates: any = {};
+      if ((loginDto as any).clientTimeZone) {
+        updates.lastLoginTimeZone = (loginDto as any).clientTimeZone;
+      }
+      if (typeof (loginDto as any).clientUtcOffsetMinutes === 'number') {
+        updates.lastLoginUtcOffsetMinutes = (loginDto as any).clientUtcOffsetMinutes;
+      }
+      if (Object.keys(updates).length > 0) {
+        await this.usersService.update(user.id, updates);
+      }
+    } catch {}
+
+    // Audit login with client env hints (non-blocking)
+    try {
+      await this.auditService.log({
+        tenantId: user.tenantId,
+        userId: user.id,
+        entity: 'auth',
+        action: AuditAction.UPDATE,
+        diff: {
+          event: 'login',
+          clientTimeZone: (loginDto as any).clientTimeZone,
+          clientUtcOffsetMinutes: (loginDto as any).clientUtcOffsetMinutes,
+          clientLocale: (loginDto as any).clientLocale,
+        },
+        ip: req?.ip,
+        userAgent: req?.headers?.['user-agent'],
+      });
+    } catch {}
 
     // === Organizasyon Tenant Senkronizasyonu ===
     // Senaryo: Kullanıcının kişisel tenant'ında veri yok; başka bir organizasyonda MEMBER/ADMIN ise
@@ -285,6 +320,14 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId,
         isEmailVerified: (user as any).isEmailVerified === true,
+        // Enriched for immediate UI display
+        lastLoginAt: (user as any).lastLoginAt,
+        lastLoginTimeZone:
+          (loginDto as any).clientTimeZone || (user as any).lastLoginTimeZone,
+        lastLoginUtcOffsetMinutes:
+          typeof (loginDto as any).clientUtcOffsetMinutes === 'number'
+            ? (loginDto as any).clientUtcOffsetMinutes
+            : (user as any).lastLoginUtcOffsetMinutes,
       },
       tenant: user.tenant
         ? {
@@ -312,6 +355,9 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId,
         isEmailVerified: user.isEmailVerified === true,
+        lastLoginAt: user.lastLoginAt,
+        lastLoginTimeZone: (user as any).lastLoginTimeZone,
+        lastLoginUtcOffsetMinutes: (user as any).lastLoginUtcOffsetMinutes,
       },
       tenant: user.tenant
         ? {

@@ -53,6 +53,12 @@ export class User {
   lastLoginAt: Date;
 
   @Column({ nullable: true })
+  lastLoginTimeZone: string;
+
+  @Column({ type: 'int', nullable: true })
+  lastLoginUtcOffsetMinutes: number;
+
+  @Column({ nullable: true })
   deletionRequestedAt: Date;
 
   @Column({ default: false })

@@ -2923,6 +2923,37 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Inline gider durumu güncelleme (kalıcı)
+  const updateExpenseStatusInline = async (updated: any) => {
+    try {
+      const server = await expensesApi.updateExpenseStatus(String(updated.id), updated.status as any);
+      const mapped: any = {
+        ...server,
+        supplier: server.supplier || null,
+        expenseDate: server.expenseDate
+          ? (typeof server.expenseDate === 'string' ? server.expenseDate : new Date(server.expenseDate).toISOString().split('T')[0])
+          : updated.expenseDate,
+        dueDate: (server as any).dueDate || (server as any).expenseDate || updated.expenseDate,
+      };
+      const next = expenses.map(e => (String(e.id) === String(mapped.id) ? mapped : e));
+      setExpenses(next);
+      try {
+        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+        const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
+        localStorage.setItem(eKey, JSON.stringify(next));
+      } catch {}
+      showToast('Gider durumu güncellendi', 'success');
+    } catch (error: any) {
+      console.error('Expense status update error:', error);
+      const msg = String(error?.response?.data?.message || error?.message || 'Gider durumu güncellenemedi');
+      if (msg.includes('locked period') || msg.includes('kilitli dönem') || msg.includes('Cannot modify records')) {
+        showToast(t('common.periodLockedError'), 'error');
+      } else {
+        showToast(msg, 'error');
+      }
+    }
+  };
+
   const restoreExpense = async (expenseId: string) => {
     try {
       await expensesApi.restoreExpense(expenseId);
@@ -4368,7 +4399,7 @@ const AppContent: React.FC = () => {
               setSelectedExpense(expense);
               setShowExpenseViewModal(true);
             }}
-            onUpdateExpense={updated => setExpenses(prev => prev.map(expense => (expense.id === updated.id ? updated : expense)))}
+            onUpdateExpense={updateExpenseStatusInline}
             onDownloadExpense={handleDownloadExpense}
             onVoidExpense={voidExpense}
             onRestoreExpense={restoreExpense}

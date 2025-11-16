@@ -13,6 +13,10 @@ export interface LoginData {
   email: string;
   password: string;
   twoFactorToken?: string;
+  // Client environment hints (optional)
+  clientTimeZone?: string; // IANA TZ, e.g. "Europe/Istanbul"
+  clientUtcOffsetMinutes?: number; // minutes relative to UTC (e.g. +180 -> 180)
+  clientLocale?: string; // e.g. "tr-TR"
 }
 
 export interface AuthResponse {
@@ -23,6 +27,11 @@ export interface AuthResponse {
     lastName: string;
     role: string;
     tenantId: string;
+    // Optional extra fields returned by backend
+    isEmailVerified?: boolean;
+    lastLoginAt?: string;
+    lastLoginTimeZone?: string;
+    lastLoginUtcOffsetMinutes?: number;
   };
   tenant?: {
     id: string;
@@ -54,13 +63,26 @@ export const authService = {
     try {
       // Avoid logging raw credentials; keep minimal debug only
       logger.debug('🔑 auth.login called');
+      // Attach client timezone/locale hints if not provided
+      let clientHints: Partial<LoginData> = {};
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const off = -new Date().getTimezoneOffset();
+        const loc = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : undefined;
+        clientHints = {
+          clientTimeZone: tz || undefined,
+          clientUtcOffsetMinutes: isNaN(off) ? undefined : off,
+          clientLocale: loc,
+        };
+      } catch {}
+      const body = { ...data, ...clientHints };
       
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(body),
       });
       
       logger.debug('🔍 Fetch response status:', response.status);

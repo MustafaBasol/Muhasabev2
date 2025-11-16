@@ -3,6 +3,7 @@ import apiClient from './client';
 export enum ExpenseStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
+  PAID = 'paid',
   REJECTED = 'rejected',
 }
 

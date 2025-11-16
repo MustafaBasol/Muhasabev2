@@ -2719,7 +2719,6 @@ export default function SettingsPage({
   const [systemSettings, setSystemSettings] = useState({
     language: 'tr',
     dateFormat: 'DD/MM/YYYY',
-    timezone: 'Europe/Istanbul',
     theme: 'light',
     // TODO: Otomatik yedekleme - Backend servisi eklendiğinde aktif edilecek
     // autoBackup: true,
@@ -3108,6 +3107,20 @@ export default function SettingsPage({
             onChange={e => handleProfileChange('phone', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+        {/* Son giriş saat dilimi bilgisi (salt-okunur) */}
+        <div className="flex flex-col">
+          <span className="block text-sm font-medium text-gray-700 mb-2">{currentLanguage === 'tr' ? 'Son Giriş Saat Dilimi' : currentLanguage === 'fr' ? 'Fuseau horaire (dernière connexion)' : currentLanguage === 'de' ? 'Zeitzone (letzte Anmeldung)' : 'Last Login Time Zone'}</span>
+          <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700">
+            {(() => {
+              try {
+                const tz = (user as any)?.lastLoginTimeZone as string | undefined;
+                const off = (user as any)?.lastLoginUtcOffsetMinutes as number | undefined;
+                const offStr = typeof off === 'number' ? `UTC${off >= 0 ? '+' : ''}${(off/60).toFixed(1).replace('.0','')}` : '';
+                return tz || offStr || '—';
+              } catch { return '—'; }
+            })()}
+          </div>
         </div>
       </div>
     </div>
@@ -3609,18 +3622,6 @@ export default function SettingsPage({
                   <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                   <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                   <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.timezoneLabel}</label>
-                <select
-                  value={systemSettings.timezone}
-                  onChange={e => handleSystemChange('timezone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Europe/Istanbul">{text.system.timezones['Europe/Istanbul']}</option>
-                  <option value="UTC">{text.system.timezones['UTC']}</option>
-                  <option value="America/New_York">{text.system.timezones['America/New_York']}</option>
                 </select>
               </div>
             </div>

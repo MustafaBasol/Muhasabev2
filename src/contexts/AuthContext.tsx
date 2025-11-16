@@ -12,6 +12,10 @@ interface User {
   role: string;
   tenantId: string;
   isEmailVerified?: boolean;
+  // Optional enriched fields
+  lastLoginAt?: string;
+  lastLoginTimeZone?: string;
+  lastLoginUtcOffsetMinutes?: number;
 }
 
 interface Tenant {
@@ -204,6 +208,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { mfaRequired: true } as const;
       }
       handleAuthSuccess(data as any);
+      // Hemen ardından profili tazele (TZ gibi zengin alanları almak için)
+      try { await refreshUser(); } catch {}
       logger.info('✅ Login tamamlandı');
     } catch (err: unknown) {
       console.error('❌ Login failed:', err);

@@ -40,8 +40,8 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Login user' })
   @HttpCode(200)
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Req() req: any) {
+    return this.authService.login(loginDto, req);
   }
 
   @Get('me')
