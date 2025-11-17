@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { X, FileText, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 
 interface CustomerHistoryModalProps {
   isOpen: boolean;
@@ -30,10 +31,10 @@ export default function CustomerHistoryModal({
   const { t } = useTranslation();
   
   const statusLabels = useMemo(() => ({
-    paid: `✅ ${t('status.paid')}`,
-    sent: `📤 ${t('status.sent')}`,
-    overdue: `⚠️ ${t('status.overdue')}`,
-    draft: `📝 ${t('status.draft')}`
+    paid: `✅ ${resolveStatusLabel(t, 'paid')}`,
+    sent: `📤 ${resolveStatusLabel(t, 'sent')}`,
+    overdue: `⚠️ ${resolveStatusLabel(t, 'overdue')}`,
+    draft: `📝 ${resolveStatusLabel(t, 'draft')}`
   }), [t]);
   
   if (!isOpen || !customer) return null;
@@ -142,7 +143,10 @@ export default function CustomerHistoryModal({
                         {formatAmount(Number(q.total || 0))}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {q.status}
+                        {(() => {
+                          const key = normalizeStatusKey(String(q.status || ''));
+                          return resolveStatusLabel(t, key);
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -179,7 +183,15 @@ export default function CustomerHistoryModal({
                         +{formatAmount(sale.amount)}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {sale.status === 'completed' ? `✅ ${t('customer.completed')}` : `⏳ ${t('customer.waiting')}`}
+                        {(() => {
+                          const key = normalizeStatusKey(String(sale.status || ''));
+                          const map = {
+                            completed: `✅ ${resolveStatusLabel(t, 'completed')}`,
+                            pending: `⏳ ${resolveStatusLabel(t, 'pending')}`,
+                            cancelled: `❌ ${resolveStatusLabel(t, 'cancelled')}`
+                          } as const;
+                          return (map as any)[key] || resolveStatusLabel(t, key);
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -213,7 +225,10 @@ export default function CustomerHistoryModal({
                         {formatAmount(invoice.total)}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {statusLabels[invoice.status as keyof typeof statusLabels] || invoice.status}
+                        {(() => {
+                          const key = normalizeStatusKey(String(invoice.status || ''));
+                          return statusLabels[key as keyof typeof statusLabels] || resolveStatusLabel(t, key);
+                        })()}
                       </div>
                     </div>
                   </div>

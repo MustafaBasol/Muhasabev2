@@ -11,6 +11,10 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderSales, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
 import Pagination from './Pagination';
+import SavedViewsBar from './SavedViewsBar';
+import { useSavedListViews } from '../hooks/useSavedListViews';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { getPresetLabel } from '../utils/presetLabels';
 
 
 
@@ -58,7 +62,7 @@ interface SimpleSalesPageProps {
 }
 
 export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale }: SimpleSalesPageProps) {
-  const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation('common');
   const { formatCurrency } = useCurrency();
   
   const [showSaleModal, setShowSaleModal] = useState(false);
@@ -86,6 +90,24 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     const n = saved ? Number(saved) : 20;
     return [20, 50, 100].includes(n) ? n : 20;
   });
+
+  // Default kaydedilmiş görünüm uygula
+  const { getDefault } = useSavedListViews<{ searchTerm: string; statusFilter: string; startDate?: string; endDate?: string; sortBy?: typeof sortBy; sortDir?: typeof sortDir; pageSize?: number }>({ listType: 'sales' });
+  useEffect(() => {
+    const def = getDefault();
+    if (def && def.state) {
+      try {
+        setSearchTerm(def.state.searchTerm ?? '');
+        setStatusFilter(def.state.statusFilter ?? 'all');
+        setStartDate(def.state.startDate ?? '');
+        setEndDate(def.state.endDate ?? '');
+        if (def.state.sortBy) setSortBy(def.state.sortBy as any);
+        if (def.state.sortDir) setSortDir(def.state.sortDir as any);
+        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAddSale = (newSale: any) => {
     console.log('➕ SimpleSalesPage: Yeni satış ekleniyor');
@@ -327,23 +349,19 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   );
 
   const getStatusBadge = (status: string) => {
-    // Backend farklı statüler döndürebilir; hepsini 3 varyanta indirgeriz.
-    const key = (status || '').toString().toLowerCase();
-    let variant: 'completed' | 'pending' | 'cancelled' = 'pending';
-    if (['completed', 'paid', 'invoiced', 'approved'].includes(key)) variant = 'completed';
-    else if (['cancelled', 'canceled', 'void', 'refunded', 'deleted'].includes(key)) variant = 'cancelled';
-    else if (['pending', 'created', 'new', 'draft', 'open', 'processing'].includes(key)) variant = 'pending';
-
+    const key = normalizeStatusKey(status);
+    const isCompleted = ['completed', 'paid', 'invoiced', 'approved'].includes(key);
+    const isCancelled = ['cancelled'].includes(key);
+    const variant: 'completed' | 'pending' | 'cancelled' = isCompleted ? 'completed' : isCancelled ? 'cancelled' : 'pending';
     const statusConfig = {
-      completed: { label: t('status.completed'), class: 'bg-green-100 text-green-800' },
-      pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
-      cancelled: { label: t('status.cancelled'), class: 'bg-red-100 text-red-800' }
+      completed: { label: resolveStatusLabel(t, 'completed'), class: 'bg-green-100 text-green-800' },
+      pending: { label: resolveStatusLabel(t, 'pending'), class: 'bg-yellow-100 text-yellow-800' },
+      cancelled: { label: resolveStatusLabel(t, 'cancelled'), class: 'bg-red-100 text-red-800' }
     } as const;
-
-    const config = statusConfig[variant] || { label: key || t('status.pending'), class: 'bg-gray-100 text-gray-800' };
+    const cfg = statusConfig[variant] || { label: resolveStatusLabel(t, key), class: 'bg-gray-100 text-gray-800' };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.class}`}>
-        {config.label}
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${cfg.class}`}>
+        {cfg.label}
       </span>
     );
   };
@@ -694,9 +712,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                  i18n.language === 'de' ? 'Alle Status' :
                  i18n.language === 'fr' ? 'Tous les Statuts' : 'All Statuses'}
               </option>
-              <option value="completed">{t('status.completed')}</option>
-              <option value="pending">{t('status.pending')}</option>
-              <option value="cancelled">{t('status.cancelled')}</option>
+              <option value="completed">{resolveStatusLabel(t, 'completed')}</option>
+              <option value="pending">{resolveStatusLabel(t, 'pending')}</option>
+              <option value="cancelled">{resolveStatusLabel(t, 'cancelled')}</option>
             </select>
             <div className="flex gap-2">
               <input
@@ -712,6 +730,34 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 onChange={(e) => setEndDate(e.target.value)}
                 placeholder={t('endDate')}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            {/* Hazır filtreler + Kaydedilmiş görünümler */}
+            <div className="ml-auto flex items-center">
+              <SavedViewsBar
+                listType="sales"
+                getState={() => ({ searchTerm, statusFilter, startDate, endDate, sortBy, sortDir, pageSize })}
+                applyState={(s) => {
+                  const st = s || {} as any;
+                  setSearchTerm(st.searchTerm ?? '');
+                  setStatusFilter(st.statusFilter ?? 'all');
+                  setStartDate(st.startDate ?? '');
+                  setEndDate(st.endDate ?? '');
+                  if (st.sortBy) setSortBy(st.sortBy);
+                  if (st.sortDir) setSortDir(st.sortDir);
+                  if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+                }}
+                presets={[
+                  { id: 'this-month', label: getPresetLabel('this-month', i18n.language), apply: () => {
+                    const d = new Date();
+                    const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+                    const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+                    setStartDate(start); setEndDate(end);
+                  }},
+                  { id: 'completed', label: resolveStatusLabel(t, 'completed'), apply: () => setStatusFilter('completed') },
+                  { id: 'pending', label: resolveStatusLabel(t, 'pending'), apply: () => setStatusFilter('pending') },
+                  { id: 'cancelled', label: resolveStatusLabel(t, 'cancelled'), apply: () => setStatusFilter('cancelled') },
+                ]}
               />
             </div>
           </div>
@@ -881,9 +927,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                               onChange={(e) => setTempValue(e.target.value)}
                               className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-green-500 w-[120px] max-w-[120px]"
                             >
-                              <option value="completed">{t('status.completed')}</option>
-                              <option value="pending">{t('status.pending')}</option>
-                              <option value="cancelled">{t('status.cancelled')}</option>
+                              <option value="completed">{resolveStatusLabel(t, 'completed')}</option>
+                              <option value="pending">{resolveStatusLabel(t, 'pending')}</option>
+                              <option value="cancelled">{resolveStatusLabel(t, 'cancelled')}</option>
                             </select>
                             <button
                               onClick={() => handleSaveInlineEdit(sale)}

@@ -21,6 +21,8 @@ export interface OrganizationMember {
     firstName: string;
     lastName: string;
     email: string;
+    lastLoginAt?: string | null;
+    lastLoginTimeZone?: string | null;
   };
   role: keyof Role;
   createdAt: string;

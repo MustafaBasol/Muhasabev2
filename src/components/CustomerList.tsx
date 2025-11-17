@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
+import SavedViewsBar from './SavedViewsBar';
+import { useSavedListViews } from '../hooks/useSavedListViews';
+import { getPresetLabel } from '../utils/presetLabels';
 
 export interface Customer {
   id?: string | number;
@@ -47,15 +50,38 @@ export default function CustomerList({
   onImportCustomers,
   selectionMode = false,
 }: CustomerListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [hasEmailOnly, setHasEmailOnly] = useState<boolean>(false);
+  const [hasPhoneOnly, setHasPhoneOnly] = useState<boolean>(false);
+  const [hasCompanyOnly, setHasCompanyOnly] = useState<boolean>(false);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('customers_pageSize') : null;
     const n = saved ? Number(saved) : 20;
     return [20, 50, 100].includes(n) ? n : 20;
   });
+
+  // Default kaydedilmiş görünüm uygula
+  const { getDefault } = useSavedListViews<{ searchTerm: string; hasEmailOnly?: boolean; hasPhoneOnly?: boolean; hasCompanyOnly?: boolean; startDate?: string; endDate?: string; pageSize?: number }>({ listType: 'customers' });
+  useEffect(() => {
+    const def = getDefault();
+    if (def && def.state) {
+      try {
+        setSearchTerm(def.state.searchTerm ?? '');
+        setHasEmailOnly(Boolean(def.state.hasEmailOnly));
+        setHasPhoneOnly(Boolean(def.state.hasPhoneOnly));
+        setHasCompanyOnly(Boolean(def.state.hasCompanyOnly));
+        setStartDate(def.state.startDate ?? '');
+        setEndDate(def.state.endDate ?? '');
+        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const safeCustomers = useMemo(
     () => (Array.isArray(customers) ? customers.filter(Boolean) : []),
@@ -64,21 +90,21 @@ export default function CustomerList({
 
   const filteredCustomers = useMemo(() => {
     const lookup = searchTerm.trim().toLowerCase();
-    if (!lookup) {
-      return safeCustomers;
-    }
-
     return safeCustomers.filter(customer => {
       const name = toSafeLower(customer?.name);
       const email = toSafeLower(customer?.email);
       const company = toSafeLower(customer?.company);
-      return (
-        name.includes(lookup) ||
-        email.includes(lookup) ||
-        company.includes(lookup)
-      );
+      const matchesSearch = !lookup || name.includes(lookup) || email.includes(lookup) || company.includes(lookup);
+      const matchesEmail = !hasEmailOnly || !!(customer?.email && customer.email.trim());
+      const matchesPhone = !hasPhoneOnly || !!(customer?.phone && customer.phone.trim());
+      const matchesCompany = !hasCompanyOnly || !!(customer?.company && customer.company.trim());
+      const created = customer?.createdAt ? new Date(customer.createdAt) : null;
+      let matchesDate = true;
+      if (startDate && created) matchesDate = matchesDate && created >= new Date(startDate);
+      if (endDate && created) matchesDate = matchesDate && created <= new Date(endDate);
+      return matchesSearch && matchesEmail && matchesPhone && matchesCompany && matchesDate;
     });
-  }, [safeCustomers, searchTerm]);
+  }, [safeCustomers, searchTerm, hasEmailOnly, hasPhoneOnly, hasCompanyOnly, startDate, endDate]);
 
   const paginatedCustomers = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -87,7 +113,7 @@ export default function CustomerList({
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, hasEmailOnly, hasPhoneOnly, hasCompanyOnly, startDate, endDate]);
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
@@ -188,15 +214,70 @@ export default function CustomerList({
         )}
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={event => setSearchTerm(event.target.value)}
-          placeholder={t('customers.search')}
-          className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-        />
+      <div>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={event => setSearchTerm(event.target.value)}
+            placeholder={t('customers.search')}
+            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+        </div>
+        {/* Filters row */}
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-sm text-gray-700 inline-flex items-center gap-2">
+              <input type="checkbox" className="rounded" checked={hasEmailOnly} onChange={(e)=>setHasEmailOnly(e.target.checked)} />
+              E-posta var
+            </label>
+            <label className="text-sm text-gray-700 inline-flex items-center gap-2">
+              <input type="checkbox" className="rounded" checked={hasPhoneOnly} onChange={(e)=>setHasPhoneOnly(e.target.checked)} />
+              Telefon var
+            </label>
+            <label className="text-sm text-gray-700 inline-flex items-center gap-2">
+              <input type="checkbox" className="rounded" checked={hasCompanyOnly} onChange={(e)=>setHasCompanyOnly(e.target.checked)} />
+              Şirketi olanlar
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Başlangıç</span>
+              <input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
+              <span className="text-sm text-gray-700">Bitiş</span>
+              <input type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
+              {(startDate || endDate) && (
+                <button onClick={()=>{setStartDate(''); setEndDate('');}} className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200">Temizle</button>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end">
+          <SavedViewsBar
+            listType="customers"
+            getState={() => ({ searchTerm, hasEmailOnly, hasPhoneOnly, hasCompanyOnly, startDate, endDate, pageSize })}
+            applyState={(s) => {
+              const st = s || {} as any;
+              setSearchTerm(st.searchTerm ?? '');
+              setHasEmailOnly(Boolean(st.hasEmailOnly));
+              setHasPhoneOnly(Boolean(st.hasPhoneOnly));
+              setHasCompanyOnly(Boolean(st.hasCompanyOnly));
+              setStartDate(st.startDate ?? '');
+              setEndDate(st.endDate ?? '');
+              if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+            }}
+            presets={[
+              { id:'with-email', label:getPresetLabel('with-email', i18n.language), apply:()=>{ setHasEmailOnly(true); setHasPhoneOnly(false); setHasCompanyOnly(false); }},
+              { id:'with-phone', label:getPresetLabel('with-phone', i18n.language), apply:()=>{ setHasPhoneOnly(true); setHasEmailOnly(false); setHasCompanyOnly(false); }},
+              { id:'with-company', label:getPresetLabel('with-company', i18n.language), apply:()=>{ setHasCompanyOnly(true); setHasEmailOnly(false); setHasPhoneOnly(false); }},
+              { id:'added-this-month', label:getPresetLabel('added-this-month', i18n.language), apply:()=>{
+                const d = new Date();
+                const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+                const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+                setStartDate(s); setEndDate(e);
+              }},
+            ]}
+          />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -57,177 +57,97 @@
     "testimonials.title": "Was unsere Benutzer sagen",
     "pricing.title": "Einfache Preisgestaltung",
     "pricing.starter": "Starter",
-    "pricing.pro": "Pro",
-    "pricing.business": "Business",
-    "pricing.price.free": "0€/Monat",
-  "pricing.price.pro": "29€/Monat",
-  "pricing.price.biz": "Kontaktieren Sie uns",
-  "pricing.cta": "Jetzt starten",
-  "pricing.ctaContact": "Kontaktieren Sie uns",
-    "faq.title": "Häufig gestellte Fragen",
-    "faq.q1": "Kann ich kostenlos starten?",
-    "faq.a1": "Ja, der Starter-Plan ermöglicht es Ihnen, begrenzte Rechnungen kostenlos auszustellen.",
-    "faq.q2": "Unterstützt es Mehrwertsteuer?",
-    "faq.a2": "Ja, mit kategoriebasierter Mehrwertsteuer und einfachen Zusammenfassungen.",
-    "faq.q3": "Werden Angebote unterstützt?",
-    "faq.a3": "Angebote kommen bald — noch nicht aktiviert.",
-    "faq.q4": "Unterstützen Sie mehrere Währungen?",
-    "faq.a4": "Ja, EUR und TRY mit manueller Kurseingabe.",
-    "faq.q5": "Wie kann ich kündigen?",
-    "faq.a5": "Sie können jederzeit über die Abrechnungseinstellungen kündigen.",
-    "faq.q6": "Wo werden meine Daten gehostet?",
-    "faq.a6": "In der EU (Platzhalter), mit Verschlüsselung und regelmäßigen Backups.",
-    "finalCta.title": "Machen Sie die Vorbuchhaltung einfach.",
-    "finalCta.cta": "Kostenlos testen",
-    "seo.title": "Comptario – Vorbuchhaltungs-Software",
-    "seo.description": "Comptario hilft Ihnen, Rechnungen, Ausgaben und Mehrwertsteuer in einem einfachen, sicheren Arbeitsbereich mit Multi-Währungsunterstützung und PDF-Rechnungserstellung zu verwalten.",
-    "hero.badge": "Comptario – Vorbuchhaltungs-Software",
-    "hero.features.pdf": "PDF-Rechnungserstellung",
-    "hero.features.currency": "Mehrere Währungen (EUR/TRY)",
-    "hero.features.vat": "Mehrwertsteuerverwaltung",
-    "hero.mockup.revenue": "Monatliche Einnahmen",
-    "hero.mockup.expenses": "Monatliche Ausgaben",
-    "hero.mockup.vat": "Zu zahlende MwSt",
-    "hero.mockup.rate": "Kurs",
-    "features.subtitle": "Verwalten Sie Ihre Vorbuchhaltung mit Vertrauen mit unserem umfassenden Toolset für moderne Unternehmen.",
-    "value.subtitle": "Ob Sie gerade erst anfangen oder ein etabliertes Unternehmen führen, Comptario passt sich Ihren Bedürfnissen an.",
-    "value.freelancers.title": "Für Freiberufler",
-    "value.freelancers.desc": "Einfache Rechnungsstellung und Ausgabenverfolgung für eine organisierte Geschäftsführung",
-    "value.freelancers.basic": "Grundlegende Rechnungsstellung",
-    "value.freelancers.expense": "Ausgabenverwaltung",
-    "value.freelancers.tax": "Steuerzusammenfassungen",
-    "value.small.title": "Für Kleine Unternehmen",
-    "value.small.desc": "Umfassende Vorbuchhaltungstools, die mit Ihrem Unternehmen wachsen",
-    "value.small.currency": "Multi-Währungsunterstützung",
-    "value.small.customer": "Kundenverwaltung",
-    "value.small.reporting": "Erweiterte Berichterstattung",
-    "value.growing.title": "Für Wachsende Unternehmen",
-    "value.growing.desc": "Skalierbare Lösungen, die sich an Ihre expandierenden Operationen anpassen",
-    "value.growing.team": "Teamzusammenarbeit",
-    "value.growing.api": "API-Integrationen",
-    "value.growing.support": "Prioritäts-Support",
-    "value.cta.title": "Bereit, Ihre Vorbuchhaltung zu rationalisieren?",
-    "value.cta.subtitle": "Schließen Sie sich Tausenden von Unternehmen an, die Comptario vertrauen, um ihre Finanzen effizient zu verwalten.",
-    "value.cta.trial": "Kostenlose Testversion starten",
-    "value.cta.demo": "Demo planen",
-    "value.stats.users": "Aktive Benutzer",
-    "value.stats.invoices": "Generierte Rechnungen",
-    "value.stats.uptime": "Betriebszeit",
-    "security.badge": "Unternehmens-Sicherheit",
-    "finalCta.subtitle": "Schließen Sie sich Tausenden von Unternehmen an, die ihre Vorbuchhaltung mit Comptario optimiert haben. Starten Sie heute Ihre kostenlose Testversion – keine Kreditkarte erforderlich.",
-    "finalCta.trial": "30 Tage kostenlose Testversion",
-    "finalCta.noSetup": "Keine Einrichtungsgebühren",
-    "finalCta.cancel": "Jederzeit kündbar",
-    "finalCta.stats.countries": "Bediente Länder",
-    "security.features.hosting.title": "EU-Datenhosting",
-    "security.features.hosting.desc": "Ihre Daten werden in sicheren EU-Rechenzentren mit GDPR-Compliance gehostet",
-    "security.features.encryption.title": "Ende-zu-Ende-Verschlüsselung",
-    "security.features.encryption.desc": "Alle Daten werden bei Übertragung und Speicherung mit Industriestandard-Protokollen verschlüsselt",
-    "security.features.backups.title": "Automatisierte Backups",
-    "security.features.backups.desc": "Tägliche automatisierte Backups sorgen dafür, dass Ihre Daten immer sicher und wiederherstellbar sind",
-    "security.features.gdpr.title": "GDPR-Konform",
-    "security.features.gdpr.desc": "Vollständige Einhaltung der europäischen Datenschutzbestimmungen",
-    "security.features.monitoring.title": "24/7 Überwachung",
-    "security.features.monitoring.desc": "Kontinuierliche Sicherheitsüberwachung und Bedrohungserkennung",
-    "security.features.uptime.title": "99,9% Betriebszeit",
-    "security.features.uptime.desc": "Zuverlässige Infrastruktur mit garantierter Betriebszeit-SLA",
-    "security.trusted.title": "Vertraut von Unternehmen in ganz Europa",
-    "security.trusted.gdpr": "Konform",
-    "security.trusted.iso": "Zertifiziert",
-    "security.trusted.soc": "Typ II",
-    "security.trusted.ssl": "Verschlüsselt",
-    "security.trusted.desc": "Ihre Finanzdaten werden durch dieselben Sicherheitsstandards geschützt, die von Banken und Finanzinstituten verwendet werden. Wir teilen Ihre Daten niemals mit Dritten und Sie behalten die volle Kontrolle über Ihre Informationen.",
-    "testimonials.subtitle": "Glauben Sie nicht nur uns. Hier ist, was unsere Nutzer über ihre Erfahrung mit Comptario sagen.",
-    "testimonials.sarah.content": "Comptario hat meinen Rechnungsstellungsprozess vollständig vereinfacht. Ich kann jetzt in Minuten professionelle Rechnungen erstellen und meine Ausgaben mühelos verfolgen.",
-    "testimonials.sarah.role": "Freiberufliche Designerin",
-    "testimonials.sarah.company": "Design Studio Pro",
-    "testimonials.marcus.content": "Die Multi-Währungs-Funktion ist ein Lebensretter für unsere internationalen Kunden. MwSt-Berechnungen sind automatisch und genau, was uns Stunden manueller Arbeit spart.",
-    "testimonials.marcus.role": "CEO",
-    "testimonials.marcus.company": "Tech Solutions GmbH",
-    "testimonials.elena.content": "Als kleines Unternehmen brauchten wir etwas Einfaches aber Mächtiges. Comptario gibt uns alles was wir brauchen ohne die Komplexität von Unternehmenssoftware.",
-    "testimonials.elena.role": "Kleinunternehmerin",
-    "testimonials.elena.company": "Lokale Bäckerei",
-    "testimonials.stats.rating": "Durchschnittliche Bewertung",
-    "testimonials.stats.customers": "Zufriedene Kunden",
-    "testimonials.stats.countries": "Länder",
-    "pricing.subtitle": "Wählen Sie den Plan, der zu Ihren Geschäftsanforderungen passt. Starten Sie kostenlos und upgraden Sie, während Sie wachsen.",
-    "faq.support.title": "Haben Sie noch Fragen?",
-    "faq.support.desc": "Unser Support-Team ist hier, um Ihnen zu helfen, das Beste aus Comptario herauszuholen.",
-    "faq.support.contact": "Support kontaktieren",
-    "faq.support.demo": "Demo planen",
-    "pricing.popular": "Am Beliebtesten",
-    "pricing.plans.starter.desc": "Perfekt für Freiberufler und kleine Projekte",
-    "pricing.plans.pro.desc": "Ideal für wachsende Unternehmen",
-    "pricing.plans.business.desc": "Für etablierte Unternehmen",
-    "pricing.features.users1": "1 Benutzer",
-    "pricing.features.users3": "3 Benutzer",
-    "pricing.features.usersUnlimited": "Unbegrenzte Benutzer",
-    "pricing.features.invoices5": "5 Rechnungen pro Monat",
-  "pricing.features.basicExpense": "Grundlegende Ausgabenverfolgung",
-  "pricing.features.expenses5": "5 Ausgaben pro Monat",
-    "pricing.features.bank1": "1 Bankkonto",
-    "pricing.features.bankUnlimited": "Unbegrenzte Bankkonten",
-    "pricing.features.customerSupplier1": "1 Kunde und 1 Lieferant",
-    "pricing.features.customerSupplierUnlimited": "Unbegrenzte Kunden und Lieferanten",
-    "pricing.features.unlimitedInvoicesExpenses": "Unbegrenzte Rechnungen und Ausgaben",
-    "pricing.features.vat": "MwSt-Berechnungen",
-    "pricing.features.pdf": "PDF-Export",
-    "pricing.features.emailSupport": "E-Mail-Support",
-    "pricing.features.quotesBasic": "Angebotserstellung und teilbarer Link",
-    "pricing.features.quotesAdvanced": "Angebote: angesehen/akzeptiert/abgelehnt, PDF",
-    "pricing.features.unlimited": "Unbegrenzte Rechnungen",
-    "pricing.features.advancedExpense": "Erweiterte Ausgabenverwaltung",
-    "pricing.features.multiCurrency": "Multi-Währungsunterstützung",
-    "pricing.features.customerMgmt": "Kundenverwaltung",
-    "pricing.features.products": "Produkt- und Lagerverwaltung",
-    "pricing.features.reports": "Berichte und Einblicke",
-    "pricing.features.prioritySupport": "Prioritätssupport",
-    "pricing.features.api": "API-Zugang",
-    "pricing.features.everythingPro": "Alles in Pro",
-    "pricing.features.teamCollaboration": "Teamzusammenarbeit",
-    "pricing.features.advancedReporting": "Erweiterte Berichterstattung",
-    "pricing.features.whiteLabel": "White-Label-Optionen",
-    "pricing.features.dedicatedSupport": "Dedizierter Support",
-    "pricing.features.customIntegrations": "Benutzerdefinierte Integrationen",
-    "pricing.features.noCredit": "Keine Kreditkarte erforderlich",
-    "pricing.questions": "Haben Sie Fragen zu unseren Preisen?",
-    "pricing.checkFaq": "Schauen Sie in unsere FAQ",
-    "pricing.or": "oder",
-    "pricing.contactSupport": "kontaktieren Sie den Support",
-    "pricing.guarantee": "30-tägige Geld-zurück-Garantie auf alle bezahlten Pläne",
-    "faq.subtitle": "Alles was Sie über Comptario wissen müssen. Können Sie die gesuchte Antwort nicht finden? Kontaktieren Sie uns gerne.",
-    "faq.contactUs": "kontaktieren Sie uns",
-    "footer.product": "PRODUKT",
-    "footer.company": "UNTERNEHMEN",
-    "footer.support": "SUPPORT",
-    "footer.legal": "RECHTLICHES",
-    "footer.features": "Funktionen",
-    "footer.pricing": "Preise",
-    "footer.security": "Sicherheit",
-    "footer.api": "API",
-    "footer.about": "Über uns",
-    "footer.blog": "Blog",
-    "footer.careers": "Karriere",
-    "footer.press": "Presse",
-    "footer.helpCenter": "Hilfezentrum",
-    "footer.contactUs": "Kontakt",
-    "footer.status": "Status",
-    "footer.community": "Community",
-    "footer.privacy": "Datenschutzrichtlinie",
-    "footer.terms": "Nutzungsbedingungen",
-    "footer.gdpr": "GDPR",
-    "footer.cookies": "Cookie-Richtlinie",
-  "footer.imprint": "Impressum",
-    "footer.description": "Einfache, sichere Vorbuchhaltungssoftware für moderne Unternehmen. Verwalten Sie Rechnungen, Ausgaben und MwSt. mit Vertrauen.",
-    "footer.stayUpdated": "Bleiben Sie informiert",
-    "footer.updatesDesc": "Erhalten Sie die neuesten Updates zu neuen Funktionen und bewährten Praktiken.",
-    "footer.email": "support@comptario.com",
-    "footer.languages": "Verfügbar in 4 Sprachen",
-    "footer.gdprCompliant": "GDPR-konform",
-    "footer.emailPlaceholder": "Geben Sie Ihre E-Mail ein",
-    "footer.subscribe": "Abonnieren",
-    "footer.copyright": "© {{year}} Comptario. Alle Rechte vorbehalten.",
-    "footer.madeWith": "Mit ❤️ in Europa gemacht"
+    "pricing.pro": "Pro"
+  },
+  "planTab": {
+    "header": {
+      "title": "Plan & Abrechnung",
+      "subtitle": "Abonnement, Abrechnungszeitraum und Sitzplätze verwalten"
+    },
+    "managePayments": "Zahlungen verwalten",
+    "monthly": "Monatlich",
+    "yearly": "Jährlich",
+    "yearlyNote": "2 Monate gratis",
+    "currentPlan": {
+      "label": "Aktueller Plan",
+      "seatsInUse": "Verwendete Sitzplätze",
+      "renewalDate": "Verlängerungsdatum",
+      "cancellationDate": "Kündigungsdatum",
+      "cancelAtPeriodEndNotice": "Ihr Abonnement wird zum Periodenende gekündigt."
+    },
+    "changePlan": "Plan ändern",
+    "plans": {
+      "labels": {
+        "professional": "Pro",
+        "enterprise": "Business",
+        "free": "Starter"
+      },
+      "bullets": {
+        "proIncluded": "3 Benutzer inklusive",
+        "basicAutomations": "Basis-Automatisierungen",
+        "businessIncluded": "10 Benutzer inklusive",
+        "advancedAutomations": "Erweiterte Automatisierungen & Rollen",
+        "freeLimited": "Begrenzte Rechnungen und Funktionen"
+      }
+    },
+    "prices": {
+      "monthly": {
+        "free": "0€/Monat",
+        "pro": "29€/Monat",
+        "enterprise": "59€/Monat"
+      }
+    },
+    "configuration": "Konfiguration",
+    "billingCycle": "Abrechnungszyklus",
+    "seatsAddon": "Zusätzliche Sitzplätze",
+    "seatsAddonHelper": "5€/Sitz/Monat. Anteilige Berechnung wird angewendet.",
+    "costPreview": "Kostenübersicht",
+    "newSubtotal": "Neuer Zwischensaldo",
+    "extraSeats": "Zusätzliche Sitzplätze",
+    "prorationToday": "Heutige anteilige Berechnung",
+    "updatePlan": "Plan aktualisieren",
+    "amountsNote": "Beträge sind Richtwerte. Endpreise erscheinen während des Bezahlvorgangs.",
+    "quickSeatActions": "Schnelle Sitzplatzaktionen",
+    "add1SeatNow": "1 Sitz hinzufügen und jetzt berechnen",
+    "add5SeatsNow": "5 Sitze hinzufügen und jetzt berechnen",
+    "remove1Seat": "1 Sitz entfernen",
+    "quickTip": "Tipp: Sitze können auch im Abrechnungsportal hinzugefügt werden.",
+    "subscriptionStatus": "Abonnementstatus",
+    "subscriptionCancelNote": "Kündigung greift zum Periodenende; bis dahin lässt sich fortsetzen.",
+    "cancelAtPeriodEndBtn": "Zum Periodenende kündigen",
+    "resumeSubscriptionBtn": "Abonnement fortsetzen",
+    "history": {
+      "title": "Verlauf",
+      "loading": "Verlauf wird geladen…",
+      "empty": "Keine Einträge",
+      "type": "Typ",
+      "plan": "Plan",
+      "users": "Benutzer",
+      "date": "Datum",
+      "footerNote": "Ereignisse werden periodisch vom Abrechnungsanbieter synchronisiert."
+    },
+    "invoices": {
+      "title": "Rechnungen",
+      "loading": "Rechnungen werden geladen…",
+      "empty": "Keine Rechnungen",
+      "filters": {
+        "status": "Status",
+        "all": "Alle",
+        "search": "Suchen",
+        "searchPlaceholder": "Nummer oder Währung…",
+        "from": "Von",
+        "to": "Bis",
+        "exportCsv": "Als CSV exportieren"
+      },
+      "table": {
+        "number": "Nummer",
+        "date": "Datum",
+        "amount": "Betrag",
+        "status": "Status",
+        "actions": "Aktionen"
+      },
+      "footerNote": "Rechnungen werden vom Abrechnungsanbieter abgerufen; Beträge werden in der Rechnungswährung angezeigt."
+    }
   },
   "auth": {
     "welcomeTitle": "Willkommen",
@@ -592,7 +512,14 @@
     "cancelled": "Storniert",
     "completed": "Abgeschlossen",
     "active": "Aktiv",
-    "inactive": "Inaktiv"
+    "inactive": "Inaktiv",
+    "viewed": "Angesehen",
+    "accepted": "Akzeptiert",
+    "declined": "Abgelehnt",
+    "expired": "Abgelaufen",
+    "invoiced": "Fakturiert",
+    "created": "Erstellt",
+    "refunded": "Erstattet"
   },
   "invoice": {
     "details": "Rechnungsdetails",
@@ -1088,6 +1015,53 @@
     "pieces": "Stk",
     "saleInfo": "Verkaufsinformationen",
     "salesWaitingForInvoice": "Auf Rechnung wartende Verkäufe: {{count}}"
+  },
+  "security": {
+    "twofa": {
+      "reminderTitle": "Zwei-Faktor-Authentifizierung aktivieren",
+      "reminderDesc": "Aktivieren Sie 2FA für besseren Kontoschutz.",
+      "modalTitle": "Sichern Sie Ihr Konto",
+      "modalMessage": "Die Zwei-Faktor-Authentifizierung (2FA) erhöht die Kontosicherheit erheblich. Möchten Sie sie jetzt aktivieren?",
+      "enableNow": "Jetzt Aktivieren",
+      "neverRemind": "Nie wieder erinnern"
+    }
+  },
+  "common.remindMeLater": "Später Erinnern",
+  "notifications": {
+    "invoices": {
+      "overdue": { "title": "Überfällige Rechnungszahlung", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysOverdue}} Tage überfällig)" },
+      "upcoming": { "title": "Bevorstehende Rechnungszahlung", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysLeft}} Tage verbleiben)" },
+      "created": { "title": "Neue Rechnung erstellt", "desc": "Rechnung {{invoiceNumber}} für {{customerName}} ist bereit." }
+    },
+    "expenses": {
+      "overdue": { "title": "Überfällige Ausgaben-Zahlung", "desc": "{{description}} - {{supplierName}} ({{daysOverdue}} Tage überfällig)" },
+      "upcoming": { "title": "Bevorstehende Ausgaben-Zahlung", "desc": "{{description}} - {{supplierName}} ({{daysLeft}} Tage verbleiben)" },
+      "created": { "title": "Neue Ausgabe erfasst", "desc": "{{supplierName}} - {{description}}: {{amount}}" }
+    },
+    "products": {
+      "lowStock": { "title": "Niedriger Lagerbestand", "desc": "{{name}} - Bestand unter Mindestniveau ({{stock}}/{{min}})" },
+      "outOfStock": { "title": "Bestand aufgebraucht", "desc": "{{name}} - Bestand aufgebraucht!" }
+    },
+    "quotes": {
+      "expired": { "title": "Angebot abgelaufen", "desc": "{{quoteNumber}} - abgelaufen" },
+      "dueSoon": { "title": "Angebot läuft bald ab", "desc": "{{quoteNumber}} - {{diffDays}} Tage verbleiben" }
+    },
+    "customers": {
+      "created": { "title": "Neuer Kunde hinzugefügt", "desc": "{{name}} wurde registriert." }
+    },
+    "suppliers": {
+      "created": { "title": "Neuer Lieferant hinzugefügt", "desc": "{{name}} wurde registriert." }
+    },
+    "sales": {
+      "created": { "title": "Neuer Verkauf erfasst", "desc": "{{customerName}} - {{summary}}: {{totalAmount}}" }
+    },
+    "plan": {
+      "limit": {
+        "title": "Planlimit Warnung",
+        "invoices": { "desc": "Sie nähern sich dem monatlichen Rechnungs-Limit ({{used}}/{{limit}})." },
+        "expenses": { "desc": "Sie nähern sich dem monatlichen Ausgaben-Limit ({{used}}/{{limit}})." }
+      }
+    }
   },
   "payment": {
     "method": "Zahlungsmethode",
@@ -1719,6 +1693,7 @@
         "name": "Name",
         "email": "E-Mail",
         "role": "Rolle",
+        "lastLogin": "Letzte Anmeldung",
         "joinedAt": "Beitrittsdatum",
         "actions": "Aktionen"
       },
@@ -1862,6 +1837,96 @@
         "transfer": "Überweisung",
         "check": "Scheck"
       }
-    }
+      },
+      "planTab": {
+        "header": {
+          "title": "Plan & Abrechnung",
+          "subtitle": "Abonnement, Abrechnungszeitraum und Sitzplätze verwalten"
+        },
+        "managePayments": "Zahlungen verwalten",
+        "monthly": "Monatlich",
+        "yearly": "Jährlich",
+        "yearlyNote": "2 Monate gratis",
+        "currentPlan": {
+          "label": "Aktueller Plan",
+          "seatsInUse": "Verwendete Sitzplätze",
+          "renewalDate": "Verlängerungsdatum",
+          "cancellationDate": "Kündigungsdatum",
+          "cancelAtPeriodEndNotice": "Ihr Abonnement wird zum Periodenende gekündigt."
+        },
+        "changePlan": "Plan ändern",
+        "plans": {
+          "labels": {
+            "professional": "Pro",
+            "enterprise": "Business",
+            "free": "Starter"
+          },
+          "bullets": {
+            "proIncluded": "3 Benutzer inklusive",
+            "basicAutomations": "Basis-Automatisierungen",
+            "businessIncluded": "10 Benutzer inklusive",
+            "advancedAutomations": "Erweiterte Automatisierungen & Rollen",
+            "freeLimited": "Begrenzte Rechnungen und Funktionen"
+          }
+        },
+        "prices": {
+          "monthly": {
+            "free": "0€/Monat",
+            "pro": "29€/Monat",
+            "enterprise": "59€/Monat"
+          }
+        },
+        "configuration": "Konfiguration",
+        "billingCycle": "Abrechnungszyklus",
+        "seatsAddon": "Zusätzliche Sitzplätze",
+        "seatsAddonHelper": "5€/Sitz/Monat. Anteilige Berechnung wird angewendet.",
+        "costPreview": "Kostenübersicht",
+        "newSubtotal": "Neuer Zwischensaldo",
+        "extraSeats": "Zusätzliche Sitzplätze",
+        "prorationToday": "Heutige anteilige Berechnung",
+        "updatePlan": "Plan aktualisieren",
+        "amountsNote": "Beträge sind Richtwerte. Endpreise erscheinen während des Bezahlvorgangs.",
+        "quickSeatActions": "Schnelle Sitzplatzaktionen",
+        "add1SeatNow": "1 Sitz hinzufügen und jetzt berechnen",
+        "add5SeatsNow": "5 Sitze hinzufügen und jetzt berechnen",
+        "remove1Seat": "1 Sitz entfernen",
+        "quickTip": "Tipp: Sitze können auch im Abrechnungsportal hinzugefügt werden.",
+        "subscriptionStatus": "Abonnementstatus",
+        "subscriptionCancelNote": "Kündigung greift zum Periodenende; bis dahin lässt sich fortsetzen.",
+        "cancelAtPeriodEndBtn": "Zum Periodenende kündigen",
+        "resumeSubscriptionBtn": "Abonnement fortsetzen",
+        "history": {
+          "title": "Verlauf",
+          "loading": "Verlauf wird geladen…",
+          "empty": "Keine Einträge",
+          "type": "Typ",
+          "plan": "Plan",
+          "users": "Benutzer",
+          "date": "Datum",
+          "footerNote": "Ereignisse werden periodisch vom Abrechnungsanbieter synchronisiert."
+        },
+        "invoices": {
+          "title": "Rechnungen",
+          "loading": "Rechnungen werden geladen…",
+          "empty": "Keine Rechnungen",
+          "filters": {
+            "status": "Status",
+            "all": "Alle",
+            "search": "Suchen",
+            "searchPlaceholder": "Nummer oder Währung…",
+            "from": "Von",
+            "to": "Bis",
+            "exportCsv": "Als CSV exportieren"
+          },
+          "table": {
+            "number": "Nummer",
+            "date": "Datum",
+            "amount": "Betrag",
+            "status": "Status",
+            "actions": "Aktionen"
+          },
+          "footerNote": "Rechnungen werden vom Abrechnungsanbieter abgerufen; Beträge werden in der Rechnungswährung angezeigt."
+        }
+      }
   }
 }

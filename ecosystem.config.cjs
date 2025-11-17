@@ -7,7 +7,12 @@ module.exports = {
       cwd: './backend',
       env: {
         NODE_ENV: 'development',
-        PORT: 3000
+        PORT: 3001,
+        DATABASE_HOST: 'localhost',
+        DATABASE_PORT: 5433,
+        DATABASE_USER: 'moneyflow',
+        DATABASE_PASSWORD: 'moneyflow123',
+        DATABASE_NAME: 'moneyflow_dev'
       },
       watch: false, // Nest zaten watch yapıyor
       autorestart: true,

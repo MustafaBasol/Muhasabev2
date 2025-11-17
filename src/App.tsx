@@ -172,6 +172,16 @@ const AppContent: React.FC = () => {
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
   const { prefs } = useNotificationPreferences();
+
+  // i18n fallback yardımcı: çeviri yoksa anahtar yerine fallback metni döndür
+  const tOr = React.useCallback((key: string, fallback: string, params?: Record<string, any>) => {
+    try {
+      const val = t(key as any, params as any);
+      return val === key ? fallback : val;
+    } catch {
+      return fallback;
+    }
+  }, [t]);
   
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
@@ -509,7 +519,7 @@ const AppContent: React.FC = () => {
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [_isLoadingData, setIsLoadingData] = useState(true);
-  const [infoModal, setInfoModal] = useState<{ title: string; message: string; tone?: 'success' | 'error' | 'info'; confirmLabel?: string; onConfirm?: () => void; cancelLabel?: string; onCancel?: () => void } | null>(null);
+  const [infoModal, setInfoModal] = useState<{ title: string; message: string; tone?: 'success' | 'error' | 'info'; confirmLabel?: string; onConfirm?: () => void; cancelLabel?: string; onCancel?: () => void; extraLabel?: string; onExtra?: () => void } | null>(null);
   const [publicQuoteId, setPublicQuoteId] = useState<string | null>(null);
 
   // Customers state değiştiğinde localStorage cache güncelle (PDF ve diğer offline ihtiyaçlar için)
@@ -955,6 +965,8 @@ const AppContent: React.FC = () => {
   console.log('📂 localStorage cache yükleniyor (authenticated user)...');
   const bankKey = tid ? `bankAccounts_${tid}` : 'bankAccounts';
   const savedBanks = localStorage.getItem(bankKey);
+  // Eski/generic anahtar desteği: birleşik oku, tenant anahtarına öncelik ver
+  const savedBanksGeneric = (!savedBanks ? localStorage.getItem('bankAccounts') : null);
   if (!tid) {
     // Tenant ID henüz belli değilse cache yüklemeyi ertele
     setIsLoadingData(false);
@@ -971,12 +983,22 @@ const AppContent: React.FC = () => {
   const savedInvoices = localStorage.getItem(tid ? `invoices_cache_${tid}` : 'invoices_cache');
   const savedExpenses = localStorage.getItem(tid ? `expenses_cache_${tid}` : 'expenses_cache');
     
-    if (savedBanks) {
+    if (savedBanks || savedBanksGeneric) {
       try {
-        const banks = JSON.parse(savedBanks);
-        if (Array.isArray(banks)) {
-          console.log('✅ Bankalar cache\'den yüklendi:', banks.length);
-          setBankAccounts(banks.map((b:any)=>({ ...b, id: String(b.id) })));
+        const tenantBanks = savedBanks ? JSON.parse(savedBanks) : [];
+        const genericBanks = savedBanksGeneric ? JSON.parse(savedBanksGeneric) : [];
+        const combined = [...(Array.isArray(tenantBanks)?tenantBanks:[]), ...(Array.isArray(genericBanks)?genericBanks:[])];
+        if (combined.length > 0) {
+          // id bazında tekilleştir (tenant öncelikli)
+          const byId = new Map<string, any>();
+          for (const b of combined) {
+            const id = String((b && b.id) || '');
+            if (!id) continue;
+            if (!byId.has(id)) byId.set(id, b);
+          }
+          const list = Array.from(byId.values());
+          console.log('✅ Bankalar cache\'den yüklendi:', list.length);
+          setBankAccounts(list.map((b:any)=>({ ...b, id: String(b.id) })));
         }
       } catch (e) {
         console.error('Error loading banks:', e);
@@ -988,8 +1010,33 @@ const AppContent: React.FC = () => {
         const { bankAccountsApi } = await import('./api/bank-accounts');
         const remote = await bankAccountsApi.list();
         // Backend'den gelen 'name' alanını frontend'de kullanılan 'accountName' ile eşle
-        setBankAccounts(remote.map((b:any)=>({ ...b, id: String(b.id), accountName: b.name })));
-        try { localStorage.setItem(bankKey, JSON.stringify(remote)); } catch {}
+        const mappedRemote = remote.map((b:any)=>({ ...b, id: String(b.id), accountName: b.name }));
+        // Lokal cache veya mevcut state'teki UI alanları ile birleştir (kalıcı kıl)
+        const localList: any[] = (() => {
+          try { return savedBanks ? JSON.parse(savedBanks) : bankAccounts; } catch { return bankAccounts; }
+        })();
+        // UI alanları için ayrı harita (ek güvence)
+        const uiKey = tid ? `bankUi_${tid}` : 'bankUi';
+        const uiMap: Record<string, any> = (() => {
+          try { const raw = localStorage.getItem(uiKey); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+        })();
+        const merged = mappedRemote.map((r:any) => {
+          const local = (Array.isArray(localList) ? localList : []).find((x:any) => String(x.id) === String(r.id));
+          const extra = uiMap[String(r.id)] || {};
+          return {
+            ...local,
+            ...r,
+            // UI alanları için local öncelikli, varsayılanlar
+            isActive: (local?.isActive !== undefined) ? local.isActive : (extra?.isActive !== undefined ? extra.isActive : true),
+            accountType: local?.accountType || extra?.accountType || 'checking',
+            balance: Number((local?.balance ?? extra?.balance) ?? 0),
+            branchCode: local?.branchCode || extra?.branchCode || '',
+            routingNumber: local?.routingNumber || extra?.routingNumber || '',
+            swiftBic: local?.swiftBic || extra?.swiftBic || '',
+          };
+        });
+        setBankAccounts(merged);
+        try { localStorage.setItem(bankKey, JSON.stringify(merged)); } catch {}
       } catch (e) {
         console.warn('Bank accounts fetch failed, cache ile devam', e);
       }
@@ -1233,6 +1280,58 @@ const AppContent: React.FC = () => {
     [notifications]
   );
 
+  // 2FA hatırlatıcı bildirimi ve ilk açılış modali
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const enabled = ((authUser as any)?.twoFactorEnabled === true);
+
+    // 2FA etkin ise: varsa hatırlatıcı bildirimi kaldır ve çık
+    if (enabled) {
+      setNotifications(current => current.filter(n => n.relatedId !== 'twofa-reminder'));
+      return;
+    }
+
+    // 2FA etkin değilse: kalıcı/günlük tekrar eden bildirim ekle (kategori filtresine takılmaması için link vermiyoruz)
+    const title = tOr('security.twofa.reminderTitle', 'İki Aşamalı Doğrulamayı Etkinleştirin');
+    const description = tOr('security.twofa.reminderDesc', 'Hesabınızı korumak için 2FA’yı etkinleştirmeniz önerilir.');
+    addNotification(title, description, 'warning', undefined, { persistent: true, repeatDaily: true, relatedId: 'twofa-reminder' });
+
+    // İlk açılış modali: kullanıcı/tenant bazlı, HER OTURUMDA bir kez göster (2FA etkinleşene kadar)
+    try {
+      const tid = (tenant?.id || authUser?.tenantId || 'default') as string;
+      const uid = (authUser as any)?.id || 'anon';
+      const neverKey = `twofa_modal_never:${tid}:${uid}`;
+      const never = localStorage.getItem(neverKey);
+      if (never) return; // Kullanıcı bir daha hatırlatma dedi
+      const key = `twofa_modal_shown_session:${tid}:${uid}`;
+      const shownThisSession = sessionStorage.getItem(key);
+      if (!shownThisSession) {
+        setInfoModal({
+          title: tOr('security.twofa.modalTitle', 'Hesabınızı Güvenceye Alın'),
+          message: tOr('security.twofa.modalMessage', 'İki Aşamalı Doğrulama (2FA) hesap güvenliğinizi önemli ölçüde artırır. Şimdi etkinleştirmek ister misiniz?'),
+          tone: 'info',
+          confirmLabel: tOr('security.twofa.enableNow', 'Şimdi Etkinleştir'),
+          cancelLabel: tOr('common.remindMeLater', 'Daha Sonra'),
+          extraLabel: tOr('security.twofa.neverRemind', 'Bir daha hatırlatma'),
+          onConfirm: () => {
+            try { sessionStorage.setItem(key, '1'); } catch {}
+            openSettingsOn('security');
+            setInfoModal(null);
+          },
+          onCancel: () => {
+            try { sessionStorage.setItem(key, '1'); } catch {}
+            setInfoModal(null);
+          },
+          onExtra: () => {
+            try { sessionStorage.setItem(key, '1'); } catch {}
+            try { localStorage.setItem(neverKey, '1'); } catch {}
+            setInfoModal(null);
+          },
+        });
+      }
+    } catch {}
+  }, [isAuthenticated, (authUser as any)?.twoFactorEnabled, authUser?.id, tenant?.id, i18n.language]);
+
   // 🔔 Yaklaşan ve geçmiş ödemeler için bildirim kontrol et
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -1265,8 +1364,8 @@ const AppContent: React.FC = () => {
             // Ödeme tarihi geçmiş
             const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
             addNotification(
-              'Gecikmiş fatura ödemesi',
-              `${invoiceNumber} - ${customerName} (${daysOverdue} gün gecikmiş)`,
+              tOr('notifications.invoices.overdue.title', 'Gecikmiş fatura ödemesi'),
+              tOr('notifications.invoices.overdue.desc', `${invoiceNumber} - ${customerName} (${daysOverdue} gün gecikmiş)`, { invoiceNumber, customerName, daysOverdue }),
               'danger',
               'invoices',
               { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
@@ -1275,8 +1374,8 @@ const AppContent: React.FC = () => {
             // 3 gün içinde ödeme
             const daysLeft = Math.ceil((dueDateMs - todayMs) / (1000 * 60 * 60 * 24));
             addNotification(
-              'Yaklaşan fatura ödemesi',
-              `${invoiceNumber} - ${customerName} (${daysLeft} gün kaldı)`,
+              tOr('notifications.invoices.upcoming.title', 'Yaklaşan fatura ödemesi'),
+              tOr('notifications.invoices.upcoming.desc', `${invoiceNumber} - ${customerName} (${daysLeft} gün kaldı)`, { invoiceNumber, customerName, daysLeft }),
               'warning',
               'invoices',
               { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
@@ -1303,8 +1402,8 @@ const AppContent: React.FC = () => {
             // Ödeme tarihi geçmiş
             const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
             addNotification(
-              'Gecikmiş gider ödemesi',
-              `${description} - ${supplierName} (${daysOverdue} gün gecikmiş)`,
+              tOr('notifications.expenses.overdue.title', 'Gecikmiş gider ödemesi'),
+              tOr('notifications.expenses.overdue.desc', `${description} - ${supplierName} (${daysOverdue} gün gecikmiş)`, { description, supplierName, daysOverdue }),
               'danger',
               'expenses',
               { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
@@ -1313,8 +1412,8 @@ const AppContent: React.FC = () => {
             // 3 gün içinde ödeme
             const daysLeft = Math.ceil((dueDateMs - todayMs) / (1000 * 60 * 60 * 24));
             addNotification(
-              'Yaklaşan gider ödemesi',
-              `${description} - ${supplierName} (${daysLeft} gün kaldı)`,
+              tOr('notifications.expenses.upcoming.title', 'Yaklaşan gider ödemesi'),
+              tOr('notifications.expenses.upcoming.desc', `${description} - ${supplierName} (${daysLeft} gün kaldı)`, { description, supplierName, daysLeft }),
               'warning',
               'expenses',
               { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
@@ -1331,9 +1430,17 @@ const AppContent: React.FC = () => {
             const stock = Number(p.stockQuantity || 0);
             const min = Number(p.reorderLevel || 0);
             if (stock <= 0) {
-              addNotification('Stok tükendi', `${p.name} - Stok tükendi!`, 'danger', 'products', { persistent: true, repeatDaily: true, relatedId: `out-of-stock-${p.id}` });
+              addNotification(
+                tOr('notifications.products.outOfStock.title', 'Stok tükendi'),
+                tOr('notifications.products.outOfStock.desc', `${p.name} - Stok tükendi!`, { name: p.name }),
+                'danger', 'products', { persistent: true, repeatDaily: true, relatedId: `out-of-stock-${p.id}` }
+              );
             } else {
-              addNotification('Düşük stok uyarısı', `${p.name} - Stok seviyesi minimum limitin altında! (${stock}/${min})`, 'warning', 'products', { persistent: true, repeatDaily: true, relatedId: `low-stock-${p.id}` });
+              addNotification(
+                tOr('notifications.products.lowStock.title', 'Düşük stok uyarısı'),
+                tOr('notifications.products.lowStock.desc', `${p.name} - Stok seviyesi minimum limitin altında! (${stock}/${min})`, { name: p.name, stock, min }),
+                'warning', 'products', { persistent: true, repeatDaily: true, relatedId: `low-stock-${p.id}` }
+              );
             }
           });
         } catch {}
@@ -1404,9 +1511,17 @@ const AppContent: React.FC = () => {
           const dueMs = due.getTime();
           const diffDays = Math.ceil((dueMs - todayMs) / 86400000);
           if (dueMs < todayMs) {
-            addNotification('Teklif süresi doldu', `${q.quoteNumber || 'Teklif'} - süre doldu`, 'danger', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-expired-${q.id}` });
+            addNotification(
+              tOr('notifications.quotes.expired.title', 'Teklif süresi doldu'),
+              tOr('notifications.quotes.expired.desc', `${q.quoteNumber || 'Teklif'} - süre doldu`, { quoteNumber: q.quoteNumber || 'Teklif' }),
+              'danger', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-expired-${q.id}` }
+            );
           } else if (diffDays <= 3) {
-            addNotification('Teklif süresi yaklaşıyor', `${q.quoteNumber || 'Teklif'} - ${diffDays} gün kaldı`, 'warning', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-due-${q.id}` });
+            addNotification(
+              tOr('notifications.quotes.dueSoon.title', 'Teklif süresi yaklaşıyor'),
+              tOr('notifications.quotes.dueSoon.desc', `${q.quoteNumber || 'Teklif'} - ${diffDays} gün kaldı`, { quoteNumber: q.quoteNumber || 'Teklif', diffDays }),
+              'warning', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-due-${q.id}` }
+            );
           }
         });
       } catch (e) { /* sessiz */ }
@@ -1652,6 +1767,14 @@ const AppContent: React.FC = () => {
     // Bildirim panelini kapat
     handleCloseNotifications();
     
+    // 2FA hatırlatıcısı için özel yönlendirme: Güvenlik sekmesini aç
+    try {
+      if (notification.relatedId && String(notification.relatedId).startsWith('twofa')) {
+        openSettingsOn('security');
+        return;
+      }
+    } catch {}
+
     // Eğer link varsa o sayfaya git
     if (notification.link) {
       navigateTo(notification.link);
@@ -1855,8 +1978,8 @@ const AppContent: React.FC = () => {
         
         // 🔔 Bildirim ekle
         addNotification(
-          'Yeni müşteri eklendi',
-          `${created.name} sisteme kaydedildi.`,
+          tOr('notifications.customers.created.title', 'Yeni müşteri eklendi'),
+          tOr('notifications.customers.created.desc', `${created.name} sisteme kaydedildi.`, { name: created.name }),
           'success',
           'customers'
         );
@@ -2359,8 +2482,8 @@ const AppContent: React.FC = () => {
         
         // 🔔 Bildirim ekle
         addNotification(
-          'Yeni tedarikçi eklendi',
-          `${created.name} sisteme kaydedildi.`,
+          tOr('notifications.suppliers.created.title', 'Yeni tedarikçi eklendi'),
+          tOr('notifications.suppliers.created.desc', `${created.name} sisteme kaydedildi.`, { name: created.name }),
           'success',
           'suppliers'
         );
@@ -2470,8 +2593,8 @@ const AppContent: React.FC = () => {
           return;
         } else if (used === MAX - 1) {
           addNotification(
-            'Plan limiti uyarısı',
-            'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).',
+            tOr('notifications.plan.limit.title', 'Plan limiti uyarısı'),
+            tOr('notifications.plan.limit.invoices.desc', 'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).'),
             'info',
             'invoices',
             { relatedId: 'plan-limit-invoices' }
@@ -2665,8 +2788,8 @@ const AppContent: React.FC = () => {
         // 🔔 Bildirim ekle
         const customerInfo = customers.find(c => c.id === cleanData.customerId);
         addNotification(
-          'Yeni fatura oluşturuldu',
-          `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`,
+          tOr('notifications.invoices.created.title', 'Yeni fatura oluşturuldu'),
+          tOr('notifications.invoices.created.desc', `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`, { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' }),
           'success',
           'invoices'
         );
@@ -2800,8 +2923,8 @@ const AppContent: React.FC = () => {
           return;
         } else if (used === MAX - 1) {
           addNotification(
-            'Plan limiti uyarısı',
-            'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).',
+            tOr('notifications.plan.limit.title', 'Plan limiti uyarısı'),
+            tOr('notifications.plan.limit.expenses.desc', 'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).'),
             'info',
             'expenses',
             { relatedId: 'plan-limit-expenses' }
@@ -2855,8 +2978,8 @@ const AppContent: React.FC = () => {
         // 🔔 Bildirim ekle
         const supplierName = mappedCreated.supplier?.name || 'Tedarikçi';
         addNotification(
-          'Yeni gider kaydedildi',
-          `${supplierName} - ${mappedCreated.description}: ${mappedCreated.amount} TL`,
+          tOr('notifications.expenses.created.title', 'Yeni gider kaydedildi'),
+          tOr('notifications.expenses.created.desc', `${supplierName} - ${mappedCreated.description}: ${mappedCreated.amount} TL`, { supplierName, description: mappedCreated.description, amount: mappedCreated.amount }),
           'info',
           'expenses'
         );
@@ -3142,10 +3265,18 @@ const AppContent: React.FC = () => {
             : p
           ));
           if (newStock > 0 && newStock <= (product.reorderLevel || 0)) {
-            addNotification('Düşük stok uyarısı', `${product.name} - Stok seviyesi minimum limitin altında! (${newStock}/${product.reorderLevel})`, 'info', 'products', { persistent: true, repeatDaily: true, relatedId: `low-stock-${product.id}` });
+            addNotification(
+              tOr('notifications.products.lowStock.title', 'Düşük stok uyarısı'),
+              tOr('notifications.products.lowStock.desc', `${product.name} - Stok seviyesi minimum limitin altında! (${newStock}/${product.reorderLevel})`, { name: product.name, stock: newStock, min: product.reorderLevel }),
+              'info', 'products', { persistent: true, repeatDaily: true, relatedId: `low-stock-${product.id}` }
+            );
           }
           if (newStock <= 0) {
-            addNotification('Stok tükendi', `${product.name} - Stok tükendi!`, 'info', 'products', { persistent: true, repeatDaily: true, relatedId: `out-of-stock-${product.id}` });
+            addNotification(
+              tOr('notifications.products.outOfStock.title', 'Stok tükendi'),
+              tOr('notifications.products.outOfStock.desc', `${product.name} - Stok tükendi!`, { name: product.name }),
+              'info', 'products', { persistent: true, repeatDaily: true, relatedId: `out-of-stock-${product.id}` }
+            );
           }
         } catch (stockError) {
           console.error('Manuel satış - Stok güncellenemedi:', stockError);
@@ -3162,7 +3293,11 @@ const AppContent: React.FC = () => {
       const totalAmount = (Array.isArray(saleData.items) && saleData.items.length > 0)
         ? saleData.items.reduce((s:number, it:any) => s + Number(it.total || (it.quantity * it.unitPrice) || 0), 0)
         : (saleData.amount || (saleData.quantity * saleData.unitPrice));
-      addNotification('Yeni satış kaydedildi', `${saleData.customerName} - ${summary}: ${totalAmount} TL`, 'success', 'sales');
+      addNotification(
+        tOr('notifications.sales.created.title', 'Yeni satış kaydedildi'),
+        tOr('notifications.sales.created.desc', `${saleData.customerName} - ${summary}: ${totalAmount} TL`, { customerName: saleData.customerName, summary, totalAmount }),
+        'success', 'sales'
+      );
     }
   };
 
@@ -3270,8 +3405,8 @@ const AppContent: React.FC = () => {
         // ⚠️ Stok uyarısı
         if (created.stock <= created.minStock) {
           addNotification(
-            'Düşük stok uyarısı',
-            `${created.name} - Stok seviyesi minimum limitin altında! (${created.stock}/${created.minStock})`,
+            tOr('notifications.products.lowStock.title', 'Düşük stok uyarısı'),
+            tOr('notifications.products.lowStock.desc', `${created.name} - Stok seviyesi minimum limitin altında! (${created.stock}/${created.minStock})`, { name: created.name, stock: created.stock, min: created.minStock }),
             'warning',
             'products'
           );
@@ -3478,10 +3613,46 @@ const AppContent: React.FC = () => {
           currency: bankData.currency,
         });
         // Frontend listesi için 'accountName' alanını doldur
-        setBankAccounts(prev => prev.map(bank => String(bank.id) === String(updated.id)
-          ? { ...bank, ...updated, accountName: updated.name }
-          : bank));
-        showToast('Banka hesabı güncellendi', 'success');
+        setBankAccounts(prev => {
+          const next = prev.map(bank => {
+            if (String(bank.id) !== String(updated.id)) return bank;
+            return {
+              ...bank,
+              ...updated,
+              accountName: updated.name,
+              // UI'ya özel alanları KALICI olarak sakla (localStorage ile)
+              isActive: bankData.isActive !== false,
+              accountType: bankData.accountType || 'checking',
+              balance: Number(bankData.balance) || 0,
+              branchCode: (bankData as any).branchCode || '',
+              routingNumber: (bankData as any).routingNumber || '',
+              swiftBic: (bankData as any).swiftBic || '',
+            };
+          });
+          try {
+            const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+            const key = tid ? `bankAccounts_${tid}` : 'bankAccounts';
+            localStorage.setItem(key, JSON.stringify(next));
+            const uiKey = tid ? `bankUi_${tid}` : 'bankUi';
+            const uiRaw = localStorage.getItem(uiKey);
+            const uiMap = uiRaw ? JSON.parse(uiRaw) : {};
+            uiMap[String(updated.id)] = {
+              isActive: bankData.isActive !== false,
+              accountType: bankData.accountType || 'checking',
+              balance: Number(bankData.balance) || 0,
+              branchCode: (bankData as any).branchCode || '',
+              routingNumber: (bankData as any).routingNumber || '',
+              swiftBic: (bankData as any).swiftBic || '',
+            };
+            localStorage.setItem(uiKey, JSON.stringify(uiMap));
+          } catch {}
+          return next;
+        });
+        const msgUpdated = i18n.language === 'tr' ? 'Banka hesabı güncellendi' :
+          i18n.language === 'en' ? 'Bank account updated' :
+          i18n.language === 'fr' ? 'Compte bancaire mis à jour' :
+          i18n.language === 'de' ? 'Bankkonto aktualisiert' : 'Bank account updated';
+        showToast(msgUpdated, 'success');
       } else {
         const created = await bankAccountsApi.create({
           name: bankData.accountName,
@@ -3489,22 +3660,71 @@ const AppContent: React.FC = () => {
           bankName: bankData.bankName,
           currency: bankData.currency,
         });
-        setBankAccounts(prev => [...prev, { ...created, id: String(created.id), accountName: created.name }]);
-        showToast('Banka hesabı eklendi', 'success');
+        setBankAccounts(prev => {
+          const next = [
+            ...prev,
+            {
+              ...created,
+              id: String(created.id),
+              accountName: created.name,
+              isActive: bankData.isActive !== false,
+              accountType: bankData.accountType || 'checking',
+              balance: Number(bankData.balance) || 0,
+              branchCode: (bankData as any).branchCode || '',
+              routingNumber: (bankData as any).routingNumber || '',
+              swiftBic: (bankData as any).swiftBic || '',
+            },
+          ];
+          try {
+            const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
+            const key = tid ? `bankAccounts_${tid}` : 'bankAccounts';
+            localStorage.setItem(key, JSON.stringify(next));
+            const uiKey = tid ? `bankUi_${tid}` : 'bankUi';
+            const uiRaw = localStorage.getItem(uiKey);
+            const uiMap = uiRaw ? JSON.parse(uiRaw) : {};
+            uiMap[String(created.id)] = {
+              isActive: bankData.isActive !== false,
+              accountType: bankData.accountType || 'checking',
+              balance: Number(bankData.balance) || 0,
+              branchCode: (bankData as any).branchCode || '',
+              routingNumber: (bankData as any).routingNumber || '',
+              swiftBic: (bankData as any).swiftBic || '',
+            };
+            localStorage.setItem(uiKey, JSON.stringify(uiMap));
+          } catch {}
+          return next;
+        });
+        const msgAdded = i18n.language === 'tr' ? 'Banka hesabı eklendi' :
+          i18n.language === 'en' ? 'Bank account added' :
+          i18n.language === 'fr' ? 'Compte bancaire ajouté' :
+          i18n.language === 'de' ? 'Bankkonto hinzugefügt' : 'Bank account added';
+        showToast(msgAdded, 'success');
       }
     } catch (e: any) {
       console.error('Bank upsert failed:', e);
-      showToast(e?.response?.data?.message || 'Banka işlemi başarısız', 'error');
+      const msgFailed = i18n.language === 'tr' ? 'Banka işlemi başarısız' :
+        i18n.language === 'en' ? 'Bank operation failed' :
+        i18n.language === 'fr' ? 'L’opération bancaire a échoué' :
+        i18n.language === 'de' ? 'Bankvorgang fehlgeschlagen' : 'Bank operation failed';
+      showToast(e?.response?.data?.message || msgFailed, 'error');
     }
   };
 
   const deleteBank = async (bankId: string | number) => {
-    if (!confirmAction("Bu banka hesabını silmek istediğinizden emin misiniz?")) return;
+    if (!confirmAction(i18n.language==='tr'? 'Bu banka hesabını silmek istediğinizden emin misiniz?'
+      : i18n.language==='en'? 'Are you sure you want to delete this bank account?'
+      : i18n.language==='fr'? 'Voulez-vous vraiment supprimer ce compte bancaire ?'
+      : i18n.language==='de'? 'Möchten Sie dieses Bankkonto wirklich löschen?'
+      : 'Are you sure you want to delete this bank account?')) return;
     try {
       const { bankAccountsApi } = await import('./api/bank-accounts');
       await bankAccountsApi.remove(String(bankId));
       setBankAccounts(prev => prev.filter(bank => String(bank.id) !== String(bankId)));
-      showToast('Banka hesabı silindi', 'success');
+      const msgDeleted = i18n.language === 'tr' ? 'Banka hesabı silindi' :
+        i18n.language === 'en' ? 'Bank account deleted' :
+        i18n.language === 'fr' ? 'Compte bancaire supprimé' :
+        i18n.language === 'de' ? 'Bankkonto gelöscht' : 'Bank account deleted';
+      showToast(msgDeleted, 'success');
     } catch (e: any) {
       console.error('Bank delete failed:', e);
       showToast(e?.response?.data?.message || 'Banka silinemedi', 'error');
@@ -3698,8 +3918,8 @@ const AppContent: React.FC = () => {
       // 🔔 Bildirimler
       const customerInfo = customers.find(c => c.id === customerId);
       addNotification(
-        'Yeni fatura oluşturuldu',
-        `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`,
+        tOr('notifications.invoices.created.title', 'Yeni fatura oluşturuldu'),
+        tOr('notifications.invoices.created.desc', `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`, { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' }),
         'success',
         'invoices'
       );
@@ -4936,7 +5156,10 @@ const AppContent: React.FC = () => {
         isOpen={showBankViewModal}
         onClose={closeBankViewModal}
         bankAccount={selectedBank}
-        onEdit={bank => openBankModal(bank)}
+        onEdit={bank => {
+          setShowBankViewModal(false);
+          setTimeout(() => openBankModal(bank), 50);
+        }}
       />
 
       <CustomerHistoryModal
@@ -5022,7 +5245,11 @@ const AppContent: React.FC = () => {
           message={infoModal.message}
           tone={infoModal.tone}
           confirmLabel={infoModal.confirmLabel || t('common.ok')}
+          cancelLabel={infoModal.cancelLabel}
           onConfirm={infoModal.onConfirm}
+          onCancel={infoModal.onCancel}
+          extraLabel={infoModal.extraLabel}
+          onExtra={infoModal.onExtra}
           onClose={() => setInfoModal(null)}
         />
       )}

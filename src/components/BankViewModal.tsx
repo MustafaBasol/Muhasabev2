@@ -108,13 +108,11 @@ export default function BankViewModal({
                 <p className="text-green-100 text-sm mt-1">{getCurrencyName(bankData.currency)}</p>
               </div>
               <div className="text-right">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  bankData.isActive 
-                    ? 'bg-green-400 text-green-900' 
-                    : 'bg-gray-400 text-gray-900'
-                }`}>
-                  {bankData.isActive ? 'Aktif' : 'Pasif'}
-                </span>
+                {(() => { const active = (bankData as any)?.isActive !== false; return (
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${active ? 'bg-green-400 text-green-900' : 'bg-gray-400 text-gray-900'}`}>
+                    {active ? 'Aktif' : 'Pasif'}
+                  </span>
+                ); })()}
               </div>
             </div>
           </div>

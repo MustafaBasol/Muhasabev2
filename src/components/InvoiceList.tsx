@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Eye, Edit, Download, Trash2, FileText, Calendar, Check, X, Ban, RotateCcw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderInvoices, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from './Pagination';
+import SavedViewsBar from './SavedViewsBar';
+import { useSavedListViews } from '../hooks/useSavedListViews';
+import { getPresetLabel } from '../utils/presetLabels';
 
 // Archive threshold: invoices older than this many days will only appear in archive
 const ARCHIVE_THRESHOLD_DAYS = 365; // 1 year
@@ -54,7 +58,7 @@ export default function InvoiceList({
   onRestoreInvoice
 }: InvoiceListProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation('common');
   const { tenant } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,6 +80,28 @@ export default function InvoiceList({
     const n = saved ? Number(saved) : 20;
     return [20, 50, 100].includes(n) ? n : 20;
   });
+
+  // Default kaydedilmiş görünümü açılışta uygula
+  const { getDefault } = useSavedListViews<{ searchTerm: string; statusFilter: string; startDate?: string; endDate?: string; showVoided?: boolean; sort?: typeof sort; pageSize?: number }>({ listType: 'invoices' });
+  useEffect(() => {
+    const def = getDefault();
+    if (def && def.state) {
+      try {
+        setSearchTerm(def.state.searchTerm ?? '');
+        setStatusFilter(def.state.statusFilter ?? 'all');
+        setStartDate(def.state.startDate ?? '');
+        setEndDate(def.state.endDate ?? '');
+        setShowVoided(Boolean(def.state.showVoided));
+        if (def.state.sort && (def.state.sort as any).by && (def.state.sort as any).dir) {
+          setSort(def.state.sort as any);
+        }
+        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) {
+          handlePageSizeChange(def.state.pageSize);
+        }
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Plan kullanımı: Free/Starter için bu ayki fatura sayısı (isVoided hariç)
   const planNormalized = String(tenant?.subscriptionPlan || '').toLowerCase();
@@ -218,23 +244,27 @@ export default function InvoiceList({
     if (isVoided) {
       return (
         <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          İptal Edildi
+          {t('common:status.cancelled')}
         </span>
       );
     }
 
+    // Normalize and resolve label centrally
+    const key = normalizeStatusKey(status);
     const statusConfig = {
-      draft: { label: t('status.draft'), class: 'bg-gray-100 text-gray-800' },
-      sent: { label: t('status.sent'), class: 'bg-blue-100 text-blue-800' },
-      paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
-      overdue: { label: t('status.overdue'), class: 'bg-red-100 text-red-800' },
-      cancelled: { label: t('status.cancelled'), class: 'bg-red-100 text-red-800' }
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, class: 'bg-gray-100 text-gray-800' };
+      draft: { label: resolveStatusLabel(t, 'draft'), class: 'bg-gray-100 text-gray-800' },
+      sent: { label: resolveStatusLabel(t, 'sent'), class: 'bg-blue-100 text-blue-800' },
+      paid: { label: resolveStatusLabel(t, 'paid'), class: 'bg-green-100 text-green-800' },
+      overdue: { label: resolveStatusLabel(t, 'overdue'), class: 'bg-red-100 text-red-800' },
+      cancelled: { label: resolveStatusLabel(t, 'cancelled'), class: 'bg-red-100 text-red-800' }
+    } as const;
+
+    const cfg = statusConfig[key as keyof typeof statusConfig];
+    const label = cfg ? cfg.label : resolveStatusLabel(t, key);
+    const cls = cfg ? cfg.class : 'bg-gray-100 text-gray-800';
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.class}`}>
-        {config.label}
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${cls}`}>
+        {label}
       </span>
     );
   };
@@ -332,11 +362,11 @@ export default function InvoiceList({
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">{t('invoices.filterAll')}</option>
-            <option value="draft">{t('status.draft')}</option>
-            <option value="sent">{t('status.sent')}</option>
-            <option value="paid">{t('status.paid')}</option>
-            <option value="overdue">{t('status.overdue')}</option>
-            <option value="cancelled">{t('status.cancelled')}</option>
+            <option value="draft">{resolveStatusLabel(t, 'draft')}</option>
+            <option value="sent">{resolveStatusLabel(t, 'sent')}</option>
+            <option value="paid">{resolveStatusLabel(t, 'paid')}</option>
+            <option value="overdue">{resolveStatusLabel(t, 'overdue')}</option>
+            <option value="cancelled">{resolveStatusLabel(t, 'cancelled')}</option>
           </select>
           {/* Date range */}
           <div className="flex gap-2 items-center">
@@ -377,6 +407,55 @@ export default function InvoiceList({
             />
             {showVoided ? t('invoices.hideVoided') : t('invoices.showVoided')}
           </label>
+          {/* Hazır filtreler + Kaydedilmiş görünümler */}
+          <div className="ml-auto flex items-center">
+            <SavedViewsBar
+              listType="invoices"
+              getState={() => ({
+                searchTerm,
+                statusFilter,
+                startDate,
+                endDate,
+                showVoided,
+                sort,
+                pageSize,
+              })}
+              applyState={(s) => {
+                const st = s || {} as any;
+                setSearchTerm(st.searchTerm ?? '');
+                setStatusFilter(st.statusFilter ?? 'all');
+                setStartDate(st.startDate ?? '');
+                setEndDate(st.endDate ?? '');
+                setShowVoided(Boolean(st.showVoided));
+                if (st.sort && st.sort.by && st.sort.dir) setSort(st.sort);
+                if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+              }}
+              presets={[
+                { id: 'this-month', label: getPresetLabel('this-month', i18n.language), apply: () => {
+                  const d = new Date();
+                  const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+                  const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+                  setStartDate(start); setEndDate(end);
+                }},
+                { id: 'last-month', label: getPresetLabel('last-month', i18n.language), apply: () => {
+                  const d = new Date();
+                  const start = new Date(d.getFullYear(), d.getMonth()-1, 1).toISOString().slice(0,10);
+                  const end = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().slice(0,10);
+                  setStartDate(start); setEndDate(end);
+                }},
+                { id: 'this-year', label: getPresetLabel('this-year', i18n.language), apply: () => {
+                  const d = new Date();
+                  const start = new Date(d.getFullYear(), 0, 1).toISOString().slice(0,10);
+                  const end = new Date(d.getFullYear(), 11, 31).toISOString().slice(0,10);
+                  setStartDate(start); setEndDate(end);
+                }},
+                { id: 'status-draft', label: resolveStatusLabel(t, 'draft'), apply: () => setStatusFilter('draft') },
+                { id: 'status-sent', label: resolveStatusLabel(t, 'sent'), apply: () => setStatusFilter('sent') },
+                { id: 'status-paid', label: resolveStatusLabel(t, 'paid'), apply: () => setStatusFilter('paid') },
+                { id: 'status-overdue', label: resolveStatusLabel(t, 'overdue'), apply: () => setStatusFilter('overdue') },
+              ]}
+            />
+          </div>
           {/* Plan kullanım özeti */}
           {isFreePlan && (
             <div className="px-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 whitespace-nowrap">
@@ -519,10 +598,10 @@ export default function InvoiceList({
                             onChange={(e) => setTempValue(e.target.value)}
                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-[120px] max-w-[120px]"
                           >
-                            <option value="draft">{t('status.draft')}</option>
-                            <option value="sent">{t('status.sent')}</option>
-                            <option value="paid">{t('status.paid')}</option>
-                            <option value="overdue">{t('status.overdue')}</option>
+                            <option value="draft">{resolveStatusLabel(t, 'draft')}</option>
+                            <option value="sent">{resolveStatusLabel(t, 'sent')}</option>
+                            <option value="paid">{resolveStatusLabel(t, 'paid')}</option>
+                            <option value="overdue">{resolveStatusLabel(t, 'overdue')}</option>
                           </select>
                           <button
                             onClick={() => handleSaveInlineEdit(invoice)}

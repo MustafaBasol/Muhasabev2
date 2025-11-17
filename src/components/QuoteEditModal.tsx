@@ -198,8 +198,8 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
                 onChange={(e) => setForm({ ...form, status: e.target.value as QuoteStatus })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
               >
-                <option value="draft">{t('status.draft')}</option>
-                <option value="sent">{t('status.sent')}</option>
+                <option value="draft">{t('common:status.draft')}</option>
+                <option value="sent">{t('common:status.sent')}</option>
                 <option value="viewed">{t('quotes.statusLabels.viewed')}</option>
                 <option value="accepted">{t('quotes.statusLabels.accepted')}</option>
                 <option value="declined">{t('quotes.statusLabels.declined')}</option>

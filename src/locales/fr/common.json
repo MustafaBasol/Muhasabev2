@@ -34,91 +34,98 @@
     "testimonials.title": "Ce que disent nos utilisateurs",
     "pricing.title": "Tarification simple",
     "pricing.starter": "Starter",
-    "pricing.pro": "Pro",
-    "pricing.business": "Business",
-    "pricing.price.free": "0€/mois",
-  "pricing.price.pro": "29€/mois",
-  "pricing.price.biz": "Contactez-nous",
-  "pricing.cta": "Commencer maintenant",
-  "pricing.ctaContact": "Contactez-nous",
-    "faq.title": "Questions fréquemment posées",
-    "faq.q1": "Puis-je commencer gratuitement?",
-    "faq.a1": "Oui, le plan Starter vous permet d'émettre des factures limitées sans frais.",
-    "faq.q2": "Supporte-t-il la TVA?",
-    "faq.a2": "Oui, avec TVA par catégorie et résumés simples.",
-    "faq.q3": "Les devis sont-ils supportés?",
-    "faq.a3": "Les devis arrivent bientôt — pas encore activés.",
-    "faq.q4": "Supportez-vous plusieurs devises?",
-    "faq.a4": "Oui, EUR et TRY avec saisie manuelle des taux.",
-    "faq.q5": "Comment puis-je annuler?",
-    "faq.a5": "Vous pouvez annuler à tout moment depuis les paramètres de facturation.",
-    "faq.q6": "Où mes données sont-elles hébergées?",
-    "faq.a6": "Dans l'UE (placeholder), avec chiffrement et sauvegardes régulières.",
-    "finalCta.title": "Simplifiez la pré-comptabilité.",
-    "finalCta.cta": "Essayer gratuitement",
-    "seo.title": "Comptario – Logiciel de Pré-Comptabilité",
-    "seo.description": "Comptario vous aide à gérer factures, dépenses et TVA dans un espace de travail simple et sécurisé avec support multi-devises et génération de factures PDF.",
-    "hero.badge": "Comptario – Logiciel de Pré-Comptabilité",
-    "hero.features.pdf": "Génération de Factures PDF",
-    "hero.features.currency": "Multi-Devises (EUR/TRY)",
-    "hero.features.vat": "Gestion TVA",
-    "hero.mockup.revenue": "Revenus Mensuels",
-    "hero.mockup.expenses": "Dépenses Mensuelles",
-    "hero.mockup.vat": "TVA à Payer",
-    "hero.mockup.rate": "Taux",
-    "features.subtitle": "Gérez votre pré-comptabilité en toute confiance avec notre ensemble d'outils complet conçu pour les entreprises modernes.",
-    "value.subtitle": "Que vous débutiez ou dirigiez une entreprise établie, Comptario s'adapte à vos besoins.",
-    "value.freelancers.title": "Pour les Freelances",
-    "value.freelancers.desc": "Facturation simple et suivi des dépenses pour garder votre activité organisée",
-    "value.freelancers.basic": "Facturation de base",
-    "value.freelancers.expense": "Gestion des dépenses",
-    "value.freelancers.tax": "Résumés fiscaux",
-    "value.small.title": "Pour les Petites Entreprises",
-    "value.small.desc": "Outils de pré-comptabilité complets qui grandissent avec votre entreprise",
-    "value.small.currency": "Support multi-devises",
-    "value.small.customer": "Gestion client",
-    "value.small.reporting": "Rapports avancés",
-    "value.growing.title": "Pour les Entreprises en Croissance",
-    "value.growing.desc": "Solutions évolutives qui s'adaptent à vos opérations en expansion",
-    "value.growing.team": "Collaboration équipe",
-    "value.growing.api": "Intégrations API",
-    "value.growing.support": "Support prioritaire",
-    "value.cta.title": "Prêt à rationaliser votre pré-comptabilité?",
-    "value.cta.subtitle": "Rejoignez des milliers d'entreprises qui font confiance à Comptario pour gérer efficacement leurs finances.",
-    "value.cta.trial": "Commencer l'Essai Gratuit",
-    "value.cta.demo": "Planifier une Démo",
-    "value.stats.users": "Utilisateurs Actifs",
-    "value.stats.invoices": "Factures Générées",
-    "value.stats.uptime": "Temps de Fonctionnement",
-    "security.badge": "Sécurité de Niveau Entreprise",
-    "finalCta.subtitle": "Rejoignez des milliers d'entreprises qui ont optimisé leur pré-comptabilité avec Comptario. Commencez votre essai gratuit aujourd'hui – aucune carte de crédit requise.",
-    "finalCta.trial": "Essai gratuit de 30 jours",
-    "finalCta.noSetup": "Aucuns frais d'installation",
-    "finalCta.cancel": "Annulez à tout moment",
-    "finalCta.stats.countries": "Pays Desservis",
-    "security.features.hosting.title": "Hébergement de Données UE",
-    "security.features.hosting.desc": "Vos données sont hébergées dans des centres de données UE sécurisés avec conformité GDPR",
-    "security.features.encryption.title": "Chiffrement de Bout en Bout",
-    "security.features.encryption.desc": "Toutes les données sont chiffrées en transit et au repos en utilisant des protocoles standard de l'industrie",
-    "security.features.backups.title": "Sauvegardes Automatisées",
-    "security.features.backups.desc": "Les sauvegardes automatisées quotidiennes garantissent que vos données sont toujours en sécurité et récupérables",
-    "security.features.gdpr.title": "Conforme GDPR",
-    "security.features.gdpr.desc": "Conformité complète avec les réglementations européennes de protection des données",
-    "security.features.monitoring.title": "Surveillance 24/7",
-    "security.features.monitoring.desc": "Surveillance continue de la sécurité et détection des menaces",
-    "security.features.uptime.title": "99,9% de Disponibilité",
-    "security.features.uptime.desc": "Infrastructure fiable avec SLA de disponibilité garanti",
-    "security.trusted.title": "Approuvé par les entreprises à travers l'Europe",
-    "security.trusted.gdpr": "Conforme",
-    "security.trusted.iso": "Certifié",
-    "security.trusted.soc": "Type II",
-    "security.trusted.ssl": "Chiffré",
-    "security.trusted.desc": "Vos données financières sont protégées par les mêmes standards de sécurité utilisés par les banques et institutions financières. Nous ne partageons jamais vos données avec des tiers et vous gardez un contrôle total sur vos informations.",
-    "testimonials.subtitle": "Ne nous croyez pas sur parole. Voici ce que nos utilisateurs disent de leur expérience avec Comptario.",
-    "testimonials.sarah.content": "Comptario a complètement simplifié mon processus de facturation. Je peux maintenant générer des factures professionnelles en minutes et suivre mes dépenses sans effort.",
-    "testimonials.sarah.role": "Designer Freelance",
-    "testimonials.sarah.company": "Design Studio Pro",
-    "testimonials.marcus.content": "La fonctionnalité multi-devises sauve la vie pour nos clients internationaux. Les calculs de TVA sont automatiques et précis, nous faisant économiser des heures de travail manuel.",
+    "pricing.pro": "Pro"
+  },
+  "planTab": {
+    "header": {
+      "title": "Abonnement et Facturation",
+      "subtitle": "Gérez votre abonnement, période de facturation et sièges"
+    },
+    "managePayments": "Gérer les paiements",
+    "monthly": "Mensuel",
+    "yearly": "Annuel",
+    "yearlyNote": "2 mois offerts",
+    "currentPlan": {
+      "label": "Offre actuelle",
+      "seatsInUse": "Sièges utilisés",
+      "renewalDate": "Date de renouvellement",
+      "cancellationDate": "Date d’annulation",
+      "cancelAtPeriodEndNotice": "Votre abonnement sera annulé en fin de période."
+    },
+    "changePlan": "Changer d’offre",
+    "plans": {
+      "labels": {
+        "professional": "Pro",
+        "enterprise": "Business",
+        "free": "Starter"
+      },
+      "bullets": {
+        "proIncluded": "3 utilisateurs inclus",
+        "basicAutomations": "Automatisations de base",
+        "businessIncluded": "10 utilisateurs inclus",
+        "advancedAutomations": "Automatisations avancées et rôles",
+        "freeLimited": "Fonctionnalités et factures limitées"
+      }
+    },
+    "prices": {
+      "monthly": {
+        "free": "0€/mois",
+        "pro": "29€/mois",
+        "enterprise": "59€/mois"
+      }
+    },
+    "configuration": "Configuration",
+    "billingCycle": "Cycle de facturation",
+    "seatsAddon": "Sièges supplémentaires",
+    "seatsAddonHelper": "Facturés 5€/siège/mois. Proratisation appliquée.",
+    "costPreview": "Aperçu des coûts",
+    "newSubtotal": "Nouveau sous-total",
+    "extraSeats": "Sièges supplémentaires",
+    "prorationToday": "Proratisation aujourd’hui",
+    "updatePlan": "Mettre à jour l’offre",
+    "amountsNote": "Les montants sont indicatifs. Les frais finaux sont affichés au paiement.",
+    "quickSeatActions": "Actions rapides sur les sièges",
+    "add1SeatNow": "Ajouter 1 siège et encaisser maintenant",
+    "add5SeatsNow": "Ajouter 5 sièges et encaisser maintenant",
+    "remove1Seat": "Retirer 1 siège",
+    "quickTip": "Astuce : vous pouvez aussi ajouter des sièges depuis le portail de facturation.",
+    "subscriptionStatus": "Statut de l’abonnement",
+    "subscriptionCancelNote": "L’annulation prend effet en fin de période ; vous pouvez reprendre avant.",
+    "cancelAtPeriodEndBtn": "Annuler en fin de période",
+    "resumeSubscriptionBtn": "Reprendre l’abonnement",
+    "history": {
+      "title": "Historique",
+      "loading": "Chargement de l’historique…",
+      "empty": "Aucun enregistrement",
+      "type": "Type",
+      "plan": "Offre",
+      "users": "Utilisateurs",
+      "date": "Date",
+      "footerNote": "Les événements sont synchronisés périodiquement depuis le prestataire de facturation."
+    },
+    "invoices": {
+      "title": "Factures",
+      "loading": "Chargement des factures…",
+      "empty": "Aucune facture",
+      "filters": {
+        "status": "Statut",
+        "all": "Tous",
+        "search": "Rechercher",
+        "searchPlaceholder": "Numéro ou devise…",
+        "from": "De",
+        "to": "À",
+        "exportCsv": "Exporter CSV"
+      },
+      "table": {
+        "number": "Numéro",
+        "date": "Date",
+        "amount": "Montant",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "footerNote": "Les factures sont récupérées depuis le prestataire ; les montants sont affichés dans la devise de facturation."
+    }
+  },
     "testimonials.marcus.role": "PDG",
     "testimonials.marcus.company": "Tech Solutions GmbH",
     "testimonials.elena.content": "En tant que petite entreprise, nous avions besoin de quelque chose de simple mais puissant. Comptario nous donne tout ce dont nous avons besoin sans la complexité des logiciels d'entreprise.",
@@ -204,8 +211,8 @@
     "footer.emailPlaceholder": "Entrez votre e-mail",
     "footer.subscribe": "S'abonner",
     "footer.copyright": "© {{year}} Comptario. Tous droits réservés.",
-    "footer.madeWith": "Fait avec ❤️ en Europe"
-  },
+    "footer.madeWith": "Fait avec ❤️ en Europe",
+  
   "auth": {
     "welcomeTitle": "Bienvenue",
     "welcomeSubtitle": "Connectez-vous pour continuer",
@@ -583,7 +590,14 @@
     "cancelled": "Annulé",
     "completed": "Terminé",
     "active": "Actif",
-    "inactive": "Inactif"
+    "inactive": "Inactif",
+    "viewed": "Consulté",
+    "accepted": "Accepté",
+    "declined": "Décliné",
+    "expired": "Expiré",
+    "invoiced": "Facturé",
+    "created": "Créé",
+    "refunded": "Remboursé"
   },
   "invoice": {
     "details": "Détails de la Facture",
@@ -1026,6 +1040,53 @@
     "newSale": "Nouvelle Vente",
     "totalSales": "Total des Ventes",
     "totalSalesCount": "Nombre Total de Ventes",
+  "security": {
+    "twofa": {
+      "reminderTitle": "Activez l'authentification à deux facteurs",
+      "reminderDesc": "Activez la 2FA pour mieux protéger votre compte.",
+      "modalTitle": "Sécurisez votre compte",
+      "modalMessage": "L'authentification à deux facteurs (2FA) augmente considérablement la sécurité de votre compte. Voulez-vous l'activer maintenant ?",
+      "enableNow": "Activer maintenant",
+      "neverRemind": "Ne plus rappeler"
+    }
+  },
+  "common.remindMeLater": "Me le rappeler plus tard",
+  "notifications": {
+    "invoices": {
+      "overdue": { "title": "Paiement facture en retard", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysOverdue}} jours de retard)" },
+      "upcoming": { "title": "Paiement facture à venir", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysLeft}} jours restants)" },
+      "created": { "title": "Nouvelle facture créée", "desc": "Facture {{invoiceNumber}} pour {{customerName}} prête." }
+    },
+    "expenses": {
+      "overdue": { "title": "Paiement dépense en retard", "desc": "{{description}} - {{supplierName}} ({{daysOverdue}} jours de retard)" },
+      "upcoming": { "title": "Paiement dépense à venir", "desc": "{{description}} - {{supplierName}} ({{daysLeft}} jours restants)" },
+      "created": { "title": "Nouvelle dépense enregistrée", "desc": "{{supplierName}} - {{description}} : {{amount}}" }
+    },
+    "products": {
+      "lowStock": { "title": "Stock faible", "desc": "{{name}} - stock sous le minimum ({{stock}}/{{min}})" },
+      "outOfStock": { "title": "Rupture de stock", "desc": "{{name}} - stock épuisé !" }
+    },
+    "quotes": {
+      "expired": { "title": "Devis expiré", "desc": "{{quoteNumber}} - expiré" },
+      "dueSoon": { "title": "Devis bientôt expiré", "desc": "{{quoteNumber}} - {{diffDays}} jours restants" }
+    },
+    "customers": {
+      "created": { "title": "Nouveau client ajouté", "desc": "{{name}} a été enregistré." }
+    },
+    "suppliers": {
+      "created": { "title": "Nouveau fournisseur ajouté", "desc": "{{name}} a été enregistré." }
+    },
+    "sales": {
+      "created": { "title": "Nouvelle vente enregistrée", "desc": "{{customerName}} - {{summary}} : {{totalAmount}}" }
+    },
+    "plan": {
+      "limit": {
+        "title": "Alerte limite de forfait",
+        "invoices": { "desc": "Vous approchez de la limite mensuelle de factures ({{used}}/{{limit}})." },
+        "expenses": { "desc": "Vous approchez de la limite mensuelle de dépenses ({{used}}/{{limit}})." }
+      }
+    }
+  },
     "completed": "Terminées",
     "salesList": "Liste des Ventes",
     "salesRegistered": "ventes enregistrées",
@@ -1710,6 +1771,7 @@
         "name": "Nom",
         "email": "Email",
         "role": "Rôle",
+        "lastLogin": "Dernière connexion",
         "joinedAt": "Date d'Adhésion",
         "actions": "Actions"
       },
@@ -1853,7 +1915,97 @@
         "transfer": "Virement",
         "check": "Chèque"
       }
-    }
+      },
+      "planTab": {
+        "header": {
+          "title": "Abonnement et Facturation",
+          "subtitle": "Gérez votre abonnement, période de facturation et sièges"
+        },
+        "managePayments": "Gérer les paiements",
+        "monthly": "Mensuel",
+        "yearly": "Annuel",
+        "yearlyNote": "2 mois offerts",
+        "currentPlan": {
+          "label": "Offre actuelle",
+          "seatsInUse": "Sièges utilisés",
+          "renewalDate": "Date de renouvellement",
+          "cancellationDate": "Date d’annulation",
+          "cancelAtPeriodEndNotice": "Votre abonnement sera annulé en fin de période."
+        },
+        "changePlan": "Changer d’offre",
+        "plans": {
+          "labels": {
+            "professional": "Pro",
+            "enterprise": "Business",
+            "free": "Starter"
+          },
+          "bullets": {
+            "proIncluded": "3 utilisateurs inclus",
+            "basicAutomations": "Automatisations de base",
+            "businessIncluded": "10 utilisateurs inclus",
+            "advancedAutomations": "Automatisations avancées et rôles",
+            "freeLimited": "Fonctionnalités et factures limitées"
+          }
+        },
+        "prices": {
+          "monthly": {
+            "free": "0€/mois",
+            "pro": "29€/mois",
+            "enterprise": "59€/mois"
+          }
+        },
+        "configuration": "Configuration",
+        "billingCycle": "Cycle de facturation",
+        "seatsAddon": "Sièges supplémentaires",
+        "seatsAddonHelper": "Facturés 5€/siège/mois. Proratisation appliquée.",
+        "costPreview": "Aperçu des coûts",
+        "newSubtotal": "Nouveau sous-total",
+        "extraSeats": "Sièges supplémentaires",
+        "prorationToday": "Proratisation aujourd’hui",
+        "updatePlan": "Mettre à jour l’offre",
+        "amountsNote": "Les montants sont indicatifs. Les frais finaux sont affichés au paiement.",
+        "quickSeatActions": "Actions rapides sur les sièges",
+        "add1SeatNow": "Ajouter 1 siège et encaisser maintenant",
+        "add5SeatsNow": "Ajouter 5 sièges et encaisser maintenant",
+        "remove1Seat": "Retirer 1 siège",
+        "quickTip": "Astuce : vous pouvez aussi ajouter des sièges depuis le portail de facturation.",
+        "subscriptionStatus": "Statut de l’abonnement",
+        "subscriptionCancelNote": "L’annulation prend effet en fin de période ; vous pouvez reprendre avant.",
+        "cancelAtPeriodEndBtn": "Annuler en fin de période",
+        "resumeSubscriptionBtn": "Reprendre l’abonnement",
+        "history": {
+          "title": "Historique",
+          "loading": "Chargement de l’historique…",
+          "empty": "Aucun enregistrement",
+          "type": "Type",
+          "plan": "Offre",
+          "users": "Utilisateurs",
+          "date": "Date",
+          "footerNote": "Les événements sont synchronisés périodiquement depuis le prestataire de facturation."
+        },
+        "invoices": {
+          "title": "Factures",
+          "loading": "Chargement des factures…",
+          "empty": "Aucune facture",
+          "filters": {
+            "status": "Statut",
+            "all": "Tous",
+            "search": "Rechercher",
+            "searchPlaceholder": "Numéro ou devise…",
+            "from": "De",
+            "to": "À",
+            "exportCsv": "Exporter CSV"
+          },
+          "table": {
+            "number": "Numéro",
+            "date": "Date",
+            "amount": "Montant",
+            "status": "Statut",
+            "actions": "Actions"
+          },
+          "footerNote": "Les factures sont récupérées depuis le prestataire ; les montants sont affichés dans la devise de facturation."
+        }
+      }
   }
 }
 

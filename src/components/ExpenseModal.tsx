@@ -354,10 +354,10 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
                 onChange={(e) => setExpenseData({...expenseData, status: e.target.value as any})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               >
-                <option value="pending">{t('status.pending') || 'Beklemede'}</option>
-                <option value="approved">{t('status.approved') || 'Onaylandı'}</option>
-                <option value="paid">{t('status.paid') || 'Ödendi'}</option>
-                <option value="rejected">{t('status.rejected') || 'Reddedildi'}</option>
+                <option value="pending">{t('common:status.pending') || 'Beklemede'}</option>
+                <option value="approved">{t('common:status.approved') || 'Onaylandı'}</option>
+                <option value="paid">{t('common:status.paid') || 'Ödendi'}</option>
+                <option value="rejected">{t('common:status.rejected') || 'Reddedildi'}</option>
               </select>
             </div>
           </div>

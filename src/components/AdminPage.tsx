@@ -51,7 +51,7 @@ interface TableData {
 const AdminPage: React.FC = () => {
   const { tenant: authTenant } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
+  const [loginForm, setLoginForm] = useState({ username: 'owner', password: '' });
   const [users, setUsers] = useState<User[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [tableData, setTableData] = useState<TableData>({
@@ -520,9 +520,10 @@ const AdminPage: React.FC = () => {
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Kullanıcı Adı
                 </label>
+                <p className="text-xs text-gray-500 mb-2">Genellikle: owner (dev ortamı)</p>
                 <input
                   type="text"
                   value={loginForm.username}
@@ -533,9 +534,10 @@ const AdminPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Şifre
                 </label>
+                <p className="text-xs text-gray-500 mb-2">Backend .env içindeki ADMIN_PASSWORD (veya ADMIN_PASSWORD_HASH)</p>
                 <input
                   type="password"
                   value={loginForm.password}

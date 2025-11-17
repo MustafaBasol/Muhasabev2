@@ -84,7 +84,7 @@ ATTEMPTS=0
 MAX_ATTEMPTS=15
 until [ $ATTEMPTS -ge $MAX_ATTEMPTS ]
 do
-    STATUS_CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" "http://localhost:3001/api/health/email" || echo 000)
+    STATUS_CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" "http://localhost:3001/health/email" || echo 000)
     if [ "$STATUS_CODE" = "200" ] && grep -q '"provider"' /tmp/health.json; then
         echo -e "${GREEN}✅ Backend başarıyla başlatıldı (PID: $BACKEND_PID)${NC}"
         break

@@ -124,6 +124,49 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
     isActive: initialBankData?.isActive !== undefined ? initialBankData.isActive : true
   });
 
+  // Değişiklik takibi (dirty check)
+  const baseline = React.useMemo(() => {
+    if (!initialBankData) return null;
+    return {
+      bankName: initialBankData.bankName || '',
+      accountName: initialBankData.accountName || '',
+      accountNumber: initialBankData.accountNumber || '',
+      iban: initialBankData.iban || '',
+      branchCode: (initialBankData as any).branchCode || '',
+      routingNumber: (initialBankData as any).routingNumber || '',
+      swiftBic: (initialBankData as any).swiftBic || '',
+      balance: Number(initialBankData.balance || 0),
+      currency: initialBankData.currency || (defaultCurrency || 'USD'),
+      accountType: initialBankData.accountType || 'checking',
+      isActive: initialBankData.isActive !== undefined ? initialBankData.isActive : true,
+    };
+  }, [initialBankData, defaultCurrency]);
+
+  const requiredOk = Boolean(
+    bankData.bankName && bankData.accountName && (showIBAN ? bankData.iban : (bankData as any).routingNumber)
+  );
+
+  const isDirty = React.useMemo(() => {
+    if (!baseline) {
+      // Yeni hesap oluştururken gerekli alanlar doldurulunca aktif olsun
+      return requiredOk;
+    }
+    const current = {
+      bankName: bankData.bankName || '',
+      accountName: bankData.accountName || '',
+      accountNumber: bankData.accountNumber || '',
+      iban: bankData.iban || '',
+      branchCode: (bankData as any).branchCode || '',
+      routingNumber: (bankData as any).routingNumber || '',
+      swiftBic: (bankData as any).swiftBic || '',
+      balance: Number(bankData.balance || 0),
+      currency: bankData.currency || (defaultCurrency || 'USD'),
+      accountType: bankData.accountType || 'checking',
+      isActive: bankData.isActive !== undefined ? bankData.isActive : true,
+    };
+    return JSON.stringify(current) !== JSON.stringify(baseline);
+  }, [baseline, bankData, defaultCurrency, requiredOk]);
+
   // Reset form when modal opens
   React.useEffect(() => {
     if (isOpen && initialBankData) {
@@ -257,11 +300,10 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
               </label>
               <input
                 type="text"
-                value={bankData.accountNumber}
+                value={bankData.accountNumber ?? ''}
                 onChange={(e) => setBankData({...bankData, accountNumber: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="1234567890"
-                required
               />
             </div>
             <div>
@@ -289,7 +331,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
               </label>
               <input
                 type="text"
-                value={bankData.iban}
+                value={bankData.iban ?? ''}
                 onChange={(e) => handleIbanChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder={normalizedCountry === 'DE' ? 'DE00 0000 0000 0000 0000 00' : normalizedCountry === 'FR' ? 'FR00 0000 0000 0000 0000 0000 000' : 'TR00 0000 0000 0000 0000 0000 00'}
@@ -309,7 +351,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
               </label>
               <input
                 type="text"
-                value={(bankData as any).routingNumber}
+                value={(bankData as any).routingNumber ?? ''}
                 onChange={(e) => setBankData({ ...bankData, routingNumber: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="123456789"
@@ -325,7 +367,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
               </label>
               <input
                 type="text"
-                value={(bankData as any).swiftBic}
+                value={(bankData as any).swiftBic ?? ''}
                 onChange={(e) => setBankData({ ...bankData, swiftBic: e.target.value.toUpperCase() })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="ABCDEF12XXX"
@@ -341,7 +383,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
               </label>
               <input
                 type="text"
-                value={(bankData as any).branchCode}
+                value={(bankData as any).branchCode ?? ''}
                 onChange={(e) => setBankData({ ...bankData, branchCode: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="1234"
@@ -410,7 +452,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
           </button>
           <button
             onClick={handleSave}
-            disabled={!bankData.bankName || !bankData.accountName || !bankData.accountNumber || (showIBAN ? !bankData.iban : !((bankData as any).routingNumber))}
+            disabled={!requiredOk || !isDirty}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {initialBankData ? t('common.update') : t('banks.addAccount')}

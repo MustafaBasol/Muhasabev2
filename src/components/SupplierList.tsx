@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Edit, Trash2, Mail, Phone, Building2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
+import SavedViewsBar from './SavedViewsBar';
+import { useSavedListViews } from '../hooks/useSavedListViews';
+import { getPresetLabel } from '../utils/presetLabels';
 
 interface Supplier {
   id: string;
@@ -35,14 +38,42 @@ export default function SupplierList({
   selectionMode = false
 }: SupplierListProps) {
   const { t, i18n } = useTranslation();
+  // Kategori çok-dilli etiketleri
+  const categoryLabels: Record<string, Record<string, string>> = {
+    'Ofis Malzemeleri': { tr: 'Ofis Malzemeleri', en: 'Office Supplies', fr: 'Fournitures de bureau', de: 'Büromaterial' },
+    'Teknoloji': { tr: 'Teknoloji', en: 'Technology', fr: 'Technologie', de: 'Technologie' },
+    'Hizmet': { tr: 'Hizmet', en: 'Services', fr: 'Services', de: 'Dienstleistungen' },
+    'Üretim': { tr: 'Üretim', en: 'Manufacturing', fr: 'Production', de: 'Fertigung' },
+    'Lojistik': { tr: 'Lojistik', en: 'Logistics', fr: 'Logistique', de: 'Logistik' },
+    'Diğer': { tr: 'Diğer', en: 'Other', fr: 'Autre', de: 'Sonstiges' },
+  };
+  const getCategoryLabel = (value: string) => categoryLabels[value]?.[i18n.language] || value;
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('suppliers_pageSize') : null;
     const n = saved ? Number(saved) : 20;
     return [20, 50, 100].includes(n) ? n : 20;
   });
+
+  // Default kaydedilmiş görünüm uygula
+  const { getDefault } = useSavedListViews<{ searchTerm: string; categoryFilter: string; startDate?: string; endDate?: string; pageSize?: number }>({ listType: 'suppliers' });
+  useEffect(() => {
+    const def = getDefault();
+    if (def && def.state) {
+      try {
+        setSearchTerm(def.state.searchTerm ?? '');
+        setCategoryFilter(def.state.categoryFilter ?? 'all');
+        if (def.state.startDate) setStartDate(def.state.startDate);
+        if (def.state.endDate) setEndDate(def.state.endDate);
+        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const categories = ['Ofis Malzemeleri', 'Teknoloji', 'Hizmet', 'Üretim', 'Lojistik', 'Diğer'];
 
@@ -52,8 +83,15 @@ export default function SupplierList({
       supplier.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (supplier.company || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || supplier.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  }), [suppliers, searchTerm, categoryFilter]);
+    // Tarih aralığı (createdAt) filtresi
+    let matchesDate = true;
+    if ((startDate || endDate) && supplier.createdAt) {
+      const created = new Date(supplier.createdAt);
+      if (startDate) matchesDate = matchesDate && created >= new Date(startDate);
+      if (endDate) matchesDate = matchesDate && created <= new Date(endDate);
+    }
+    return matchesSearch && matchesCategory && matchesDate;
+  }), [suppliers, searchTerm, categoryFilter, startDate, endDate]);
 
   const paginatedSuppliers = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -63,7 +101,7 @@ export default function SupplierList({
   useEffect(() => {
     // Filtre değiştiğinde ilk sayfaya dön
     setPage(1);
-  }, [searchTerm, categoryFilter]);
+  }, [searchTerm, categoryFilter, startDate, endDate]);
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
@@ -101,7 +139,7 @@ export default function SupplierList({
         {/* Search and Filter */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 transform text-gray-400 w-4 h-4" />
             <input
               type="text"
               placeholder={t('suppliers.search')}
@@ -122,9 +160,44 @@ export default function SupplierList({
                i18n.language === 'fr' ? 'Toutes les catégories' : 'All categories'}
             </option>
             {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
+              <option key={category} value={category}>{getCategoryLabel(category)}</option>
             ))}
           </select>
+          {/* Tarih filtreleri */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-700">Başlangıç</span>
+            <input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <span className="text-sm text-gray-700">Bitiş</span>
+            <input type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            {(startDate || endDate) && (
+              <button onClick={()=>{setStartDate(''); setEndDate('');}} className="px-3 py-2 text-sm bg-gray-100 rounded-lg hover:bg-gray-200">Temizle</button>
+            )}
+          </div>
+          <div className="ml-auto flex items-center">
+            <SavedViewsBar
+              listType="suppliers"
+              getState={() => ({ searchTerm, categoryFilter, startDate, endDate, pageSize })}
+              applyState={(s) => {
+                const st = s || {} as any;
+                setSearchTerm(st.searchTerm ?? '');
+                setCategoryFilter(st.categoryFilter ?? 'all');
+                setStartDate(st.startDate ?? '');
+                setEndDate(st.endDate ?? '');
+                if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+              }}
+              presets={[
+                { id:'cat-office', label: getCategoryLabel('Ofis Malzemeleri'), apply:()=> setCategoryFilter('Ofis Malzemeleri') },
+                { id:'cat-technology', label: getCategoryLabel('Teknoloji'), apply:()=> setCategoryFilter('Teknoloji') },
+                { id:'cat-services', label: getCategoryLabel('Hizmet'), apply:()=> setCategoryFilter('Hizmet') },
+                { id:'added-this-month', label: getPresetLabel('added-this-month', i18n.language), apply:()=>{
+                  const d = new Date();
+                  const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+                  const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+                  setStartDate(s); setEndDate(e);
+                }},
+              ]}
+            />
+          </div>
         </div>
       </div>
 
@@ -202,7 +275,7 @@ export default function SupplierList({
                         </span>
                       )}
                       <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
-                        {supplier.category}
+                        {getCategoryLabel(supplier.category)}
                       </span>
                     </div>
 

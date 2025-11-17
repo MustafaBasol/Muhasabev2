@@ -100,7 +100,7 @@ export default function ReportsPage({
   sales = [],
   customers = []
 }: ReportsPageProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation('common');
   const { formatCurrency } = useCurrency();
   const currentDate = new Date(); // Current date for report display
   
@@ -643,7 +643,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                         return (
                           <div key={status} className="flex justify-between items-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors]}`}>
-                              {t(`status.${status}`)}
+                              {t(`common:status.${status}`)}
                             </span>
                             <span className="font-medium">{count}</span>
                           </div>
@@ -664,7 +664,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                         return (
                           <div key={status} className="flex justify-between items-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors]}`}>
-                              {t(`status.${status}`)}
+                              {t(`common:status.${status}`)}
                             </span>
                             <span className="font-medium">{count}</span>
                           </div>

@@ -158,6 +158,9 @@ const MemberList: React.FC<MemberListProps> = ({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 {t('org.members.table.joinedAt')}
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {t('org.members.table.lastLogin')}
+              </th>
               {canManageMembers && (
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t('org.members.table.actions')}
@@ -205,6 +208,19 @@ const MemberList: React.FC<MemberListProps> = ({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(member.createdAt)}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {member.user.lastLoginAt
+                      ? new Date(member.user.lastLoginAt).toLocaleString(
+                          i18n.language === 'tr'
+                            ? 'tr-TR'
+                            : i18n.language === 'de'
+                            ? 'de-DE'
+                            : i18n.language === 'fr'
+                            ? 'fr-FR'
+                            : 'en-US',
+                        )
+                      : <span className="text-gray-400">-</span>}
+                  </td>
                   {canManageMembers && (
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {canManageThisMember ? (
@@ -246,7 +262,7 @@ const MemberList: React.FC<MemberListProps> = ({
                                   className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
                                 >
                                   <UserMinus className="w-4 h-4 mr-2 text-red-500" />
-                                  {t('org.members.remove')}
+                                  {t('org.members.remove.title')}
                                 </button>
                               </div>
                             </div>

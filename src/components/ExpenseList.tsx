@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Pagination from './Pagination';
+import SavedViewsBar from './SavedViewsBar';
+import { useSavedListViews } from '../hooks/useSavedListViews';
 import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X, Ban, RotateCcw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { getPresetLabel } from '../utils/presetLabels';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderExpenses, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
 import { useAuth } from '../contexts/AuthContext';
@@ -53,7 +57,7 @@ export default function ExpenseList({
   onRestoreExpense
 }: ExpenseListProps) {
   const { formatCurrency } = useCurrency();
-  const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation('common');
   const { tenant } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,6 +84,25 @@ export default function ExpenseList({
   useEffect(() => {
     localStorage.setItem('expenses_pageSize', String(pageSize));
   }, [pageSize]);
+
+  // Default kaydedilmiş görünüm uygula
+  const { getDefault } = useSavedListViews<{ searchTerm: string; statusFilter: string; categoryFilter: string; startDate?: string; endDate?: string; showVoided?: boolean; sort?: typeof sort; pageSize?: number }>({ listType: 'expenses' });
+  useEffect(() => {
+    const def = getDefault();
+    if (def && def.state) {
+      try {
+        setSearchTerm(def.state.searchTerm ?? '');
+        setStatusFilter(def.state.statusFilter ?? 'all');
+        setCategoryFilter(def.state.categoryFilter ?? 'all');
+        setStartDate(def.state.startDate ?? '');
+        setEndDate(def.state.endDate ?? '');
+        setShowVoided(Boolean(def.state.showVoided));
+        if (def.state.sort && (def.state.sort as any).by && (def.state.sort as any).dir) setSort(def.state.sort as any);
+        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) setPageSize(def.state.pageSize);
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Plan kullanım bilgisi: Free/Starter için bu ayki gider sayısı (isVoided hariç)
   const planNormalized = String(tenant?.subscriptionPlan || '').toLowerCase();
@@ -189,22 +212,26 @@ export default function ExpenseList({
     if (isVoided) {
       return (
         <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          İptal Edildi
+          {t('common:status.cancelled')}
         </span>
       );
     }
 
+    const key = normalizeStatusKey(status);
     const statusConfig = {
-      pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
-      approved: { label: t('status.approved'), class: 'bg-blue-100 text-blue-800' },
-      paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
-      rejected: { label: t('status.rejected'), class: 'bg-red-100 text-red-800' }
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, class: 'bg-gray-100 text-gray-800' };
+      pending: { label: resolveStatusLabel(t, 'pending'), class: 'bg-yellow-100 text-yellow-800' },
+      approved: { label: resolveStatusLabel(t, 'approved'), class: 'bg-blue-100 text-blue-800' },
+      paid: { label: resolveStatusLabel(t, 'paid'), class: 'bg-green-100 text-green-800' },
+      rejected: { label: resolveStatusLabel(t, 'rejected'), class: 'bg-red-100 text-red-800' },
+      cancelled: { label: resolveStatusLabel(t, 'cancelled'), class: 'bg-red-100 text-red-800' },
+    } as const;
+
+    const cfg = statusConfig[key as keyof typeof statusConfig];
+    const label = cfg ? cfg.label : resolveStatusLabel(t, key);
+    const cls = cfg ? cfg.class : 'bg-gray-100 text-gray-800';
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.class}`}>
-        {config.label}
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${cls}`}>
+        {label}
       </span>
     );
   };
@@ -317,10 +344,10 @@ export default function ExpenseList({
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             <option value="all">{t('expenses.filterAll')}</option>
-            <option value="pending">{t('status.pending')}</option>
-            <option value="approved">{t('status.approved')}</option>
-            <option value="paid">{t('status.paid')}</option>
-            <option value="rejected">{t('status.rejected')}</option>
+            <option value="pending">{resolveStatusLabel(t, 'pending')}</option>
+            <option value="approved">{resolveStatusLabel(t, 'approved')}</option>
+            <option value="paid">{resolveStatusLabel(t, 'paid')}</option>
+            <option value="rejected">{resolveStatusLabel(t, 'rejected')}</option>
           </select>
           <select
             value={categoryFilter}
@@ -376,6 +403,48 @@ export default function ExpenseList({
             />
 {showVoided ? t('fiscalPeriods.filters.hideVoided') : t('fiscalPeriods.filters.showVoided')}
           </label>
+          {/* Hazır filtreler + Kaydedilmiş görünümler */}
+          <div className="ml-auto flex items-center">
+            <SavedViewsBar
+              listType="expenses"
+              getState={() => ({ searchTerm, statusFilter, categoryFilter, startDate, endDate, showVoided, sort, pageSize })}
+              applyState={(s) => {
+                const st = s || {} as any;
+                setSearchTerm(st.searchTerm ?? '');
+                setStatusFilter(st.statusFilter ?? 'all');
+                setCategoryFilter(st.categoryFilter ?? 'all');
+                setStartDate(st.startDate ?? '');
+                setEndDate(st.endDate ?? '');
+                setShowVoided(Boolean(st.showVoided));
+                if (st.sort && st.sort.by && st.sort.dir) setSort(st.sort);
+                if (st.pageSize && [20,50,100].includes(st.pageSize)) setPageSize(st.pageSize);
+              }}
+              presets={[
+                { id: 'this-month', label: getPresetLabel('this-month', i18n.language), apply: () => {
+                  const d = new Date();
+                  const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+                  const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+                  setStartDate(start); setEndDate(end);
+                }},
+                { id: 'last-month', label: getPresetLabel('last-month', i18n.language), apply: () => {
+                  const d = new Date();
+                  const start = new Date(d.getFullYear(), d.getMonth()-1, 1).toISOString().slice(0,10);
+                  const end = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().slice(0,10);
+                  setStartDate(start); setEndDate(end);
+                }},
+                { id: 'this-year', label: getPresetLabel('this-year', i18n.language), apply: () => {
+                  const d = new Date();
+                  const start = new Date(d.getFullYear(), 0, 1).toISOString().slice(0,10);
+                  const end = new Date(d.getFullYear(), 11, 31).toISOString().slice(0,10);
+                  setStartDate(start); setEndDate(end);
+                }},
+                { id: 'status-pending', label: resolveStatusLabel(t, 'pending'), apply: () => setStatusFilter('pending') },
+                { id: 'status-approved', label: resolveStatusLabel(t, 'approved'), apply: () => setStatusFilter('approved') },
+                { id: 'status-paid', label: resolveStatusLabel(t, 'paid'), apply: () => setStatusFilter('paid') },
+                { id: 'status-rejected', label: resolveStatusLabel(t, 'rejected'), apply: () => setStatusFilter('rejected') },
+              ]}
+            />
+          </div>
           {/* Plan kullanım özeti */}
           {isFreePlan && (
             <div className="px-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 whitespace-nowrap">
@@ -491,10 +560,10 @@ export default function ExpenseList({
                             onChange={(e) => setTempValue(e.target.value)}
                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-500 w-[120px] max-w-[120px]"
                           >
-                            <option value="pending">{t('status.pending')}</option>
-                            <option value="approved">{t('status.approved')}</option>
-                            <option value="paid">{t('status.paid')}</option>
-                            <option value="rejected">{t('status.rejected')}</option>
+                            <option value="pending">{resolveStatusLabel(t, 'pending')}</option>
+                            <option value="approved">{resolveStatusLabel(t, 'approved')}</option>
+                            <option value="paid">{resolveStatusLabel(t, 'paid')}</option>
+                            <option value="rejected">{resolveStatusLabel(t, 'rejected')}</option>
                           </select>
                           <button
                             onClick={() => handleSaveInlineEdit(expense)}

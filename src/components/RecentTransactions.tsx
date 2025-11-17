@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 
 interface RecentTransactionsProps {
   invoices?: any[];
@@ -138,12 +139,13 @@ export default function RecentTransactions({
   }, [invoices, expenses, sales, quotes, t, formatCurrency, i18n.language]);
 
   const getStatusBadge = (status: string, type: string) => {
+    const key = normalizeStatusKey(status);
     if (type === 'quote') {
       // Teklif durumları için bazı anahtarlar quotes.statusLabels.* altında tanımlı değil (draft, sent);
-      // Bu nedenle önce quotes.statusLabels.* deniyoruz, bulunamazsa status.* fallback kullanıyoruz.
+      // Bu nedenle önce quotes.statusLabels.* deniyoruz, bulunamazsa common:status.* fallback kullanıyoruz.
       const resolve = (primary: string, fallback: string) => {
         const val = t(primary);
-        return val === primary ? t(fallback) : val;
+        return val === primary ? t(`common:${fallback}`) : val;
       };
       const quoteStatus = {
         draft: { label: resolve('quotes.statusLabels.draft', 'status.draft'), class: 'bg-gray-100 text-gray-800' },
@@ -153,22 +155,22 @@ export default function RecentTransactions({
         declined: { label: resolve('quotes.statusLabels.declined', 'status.declined'), class: 'bg-red-100 text-red-800' },
         expired: { label: resolve('quotes.statusLabels.expired', 'status.expired'), class: 'bg-yellow-100 text-yellow-800' }
       } as const;
-      const cfg = quoteStatus[status as keyof typeof quoteStatus];
-      return cfg || { label: status, class: 'bg-gray-100 text-gray-800' };
+      const cfg = quoteStatus[key as keyof typeof quoteStatus];
+      return cfg || { label: t(`common:status.${key}`, key), class: 'bg-gray-100 text-gray-800' };
     }
 
     const statusConfig = {
-      paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
-      completed: { label: t('status.completed'), class: 'bg-green-100 text-green-800' },
-      pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
-      overdue: { label: t('status.overdue'), class: 'bg-red-100 text-red-800' },
-      draft: { label: t('status.draft'), class: 'bg-gray-100 text-gray-800' },
-      sent: { label: t('status.sent'), class: 'bg-blue-100 text-blue-800' },
-      approved: { label: t('status.approved'), class: 'bg-blue-100 text-blue-800' },
-      cancelled: { label: t('status.cancelled'), class: 'bg-red-100 text-red-800' }
+      paid: { label: resolveStatusLabel(t, 'paid'), class: 'bg-green-100 text-green-800' },
+      completed: { label: resolveStatusLabel(t, 'completed'), class: 'bg-green-100 text-green-800' },
+      pending: { label: resolveStatusLabel(t, 'pending'), class: 'bg-yellow-100 text-yellow-800' },
+      overdue: { label: resolveStatusLabel(t, 'overdue'), class: 'bg-red-100 text-red-800' },
+      draft: { label: resolveStatusLabel(t, 'draft'), class: 'bg-gray-100 text-gray-800' },
+      sent: { label: resolveStatusLabel(t, 'sent'), class: 'bg-blue-100 text-blue-800' },
+      approved: { label: resolveStatusLabel(t, 'approved'), class: 'bg-blue-100 text-blue-800' },
+      cancelled: { label: resolveStatusLabel(t, 'cancelled'), class: 'bg-red-100 text-red-800' }
     } as const;
-    const config = statusConfig[status as keyof typeof statusConfig];
-    return config || { label: status, class: 'bg-gray-100 text-gray-800' };
+    const config = statusConfig[key as keyof typeof statusConfig];
+    return config || { label: resolveStatusLabel(t, key), class: 'bg-gray-100 text-gray-800' };
   };
 
   const getTypeIcon = (type: string) => {

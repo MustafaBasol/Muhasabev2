@@ -581,6 +581,8 @@
     "edit": "Düzenle",
     "delete": "Sil",
     "statusLabels": {
+      "draft": "Taslak",
+      "sent": "Gönderildi",
       "viewed": "Görüntülendi",
       "accepted": "Kabul Edildi",
       "declined": "Reddedildi",
@@ -1136,6 +1138,53 @@
     "saved": "Ayarlar kaydedildi",
     "saveFailed": "Ayarlar kaydedilemedi"
   },
+  "security": {
+    "twofa": {
+      "reminderTitle": "İki Aşamalı Doğrulamayı Etkinleştirin",
+      "reminderDesc": "Hesabınızı daha güçlü korumak için 2FA'yı etkinleştirin.",
+      "modalTitle": "Hesabınızı Güvenceye Alın",
+      "modalMessage": "İki Aşamalı Doğrulama (2FA) hesap güvenliğinizi önemli ölçüde artırır. Şimdi etkinleştirmek ister misiniz?",
+      "enableNow": "Şimdi Etkinleştir",
+      "neverRemind": "Bir daha hatırlatma"
+    }
+  },
+  "common.remindMeLater": "Daha Sonra Hatırlat",
+  "notifications": {
+    "invoices": {
+      "overdue": { "title": "Gecikmiş fatura ödemesi", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysOverdue}} gün gecikmiş)" },
+      "upcoming": { "title": "Yaklaşan fatura ödemesi", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysLeft}} gün kaldı)" },
+      "created": { "title": "Yeni fatura oluşturuldu", "desc": "{{invoiceNumber}} - {{customerName}} için fatura hazır." }
+    },
+    "expenses": {
+      "overdue": { "title": "Gecikmiş gider ödemesi", "desc": "{{description}} - {{supplierName}} ({{daysOverdue}} gün gecikmiş)" },
+      "upcoming": { "title": "Yaklaşan gider ödemesi", "desc": "{{description}} - {{supplierName}} ({{daysLeft}} gün kaldı)" },
+      "created": { "title": "Yeni gider kaydedildi", "desc": "{{supplierName}} - {{description}}: {{amount}}" }
+    },
+    "products": {
+      "lowStock": { "title": "Düşük stok uyarısı", "desc": "{{name}} - Stok seviyesi minimum limitin altında! ({{stock}}/{{min}})" },
+      "outOfStock": { "title": "Stok tükendi", "desc": "{{name}} - Stok tükendi!" }
+    },
+    "quotes": {
+      "expired": { "title": "Teklif süresi doldu", "desc": "{{quoteNumber}} - süre doldu" },
+      "dueSoon": { "title": "Teklif süresi yaklaşıyor", "desc": "{{quoteNumber}} - {{diffDays}} gün kaldı" }
+    },
+    "customers": {
+      "created": { "title": "Yeni müşteri eklendi", "desc": "{{name}} sisteme kaydedildi." }
+    },
+    "suppliers": {
+      "created": { "title": "Yeni tedarikçi eklendi", "desc": "{{name}} sisteme kaydedildi." }
+    },
+    "sales": {
+      "created": { "title": "Yeni satış kaydedildi", "desc": "{{customerName}} - {{summary}}: {{totalAmount}}" }
+    },
+    "plan": {
+      "limit": {
+        "title": "Plan limiti uyarısı",
+        "invoices": { "desc": "Bu ayki fatura limitine yaklaşıyorsunuz ({{used}}/{{limit}})." },
+        "expenses": { "desc": "Bu ayki gider limitine yaklaşıyorsunuz ({{used}}/{{limit}})." }
+      }
+    }
+  },
   "sales": {
     "title": "Satışlar",
     "newSale": "Yeni Satış",
@@ -1690,7 +1739,6 @@
             "title": "Bildirim Süresi",
             "content": "Veri ihlali tespit edildiğinde 72 saat içinde bildirim yapılır"
           }
-        }
       }
     },
     "subprocessors": {
@@ -1820,6 +1868,7 @@
         "name": "Ad",
         "email": "E-posta",
         "role": "Rol",
+        "lastLogin": "Son Giriş",
         "status": "Durum",
         "joinedAt": "Katılma Tarihi",
         "actions": "İşlemler"
@@ -1917,6 +1966,96 @@
       }
     }
   },
+  "planTab": {
+    "header": {
+      "title": "Plan ve Faturalama",
+      "subtitle": "Aboneliğinizi, faturalama dönemi ve koltukları yönetin"
+    },
+    "managePayments": "Ödemeleri Yönet",
+    "monthly": "Aylık",
+    "yearly": "Yıllık",
+    "yearlyNote": "2 ay ücretsiz",
+    "currentPlan": {
+      "label": "Mevcut Plan",
+      "seatsInUse": "Kullanımda koltuk",
+      "renewalDate": "Yenileme Tarihi",
+      "cancellationDate": "İptal Tarihi",
+      "cancelAtPeriodEndNotice": "Abonelik dönem sonunda iptal edilecektir."
+    },
+    "changePlan": "Planı Değiştir",
+    "plans": {
+      "labels": {
+        "professional": "Pro",
+        "enterprise": "İşletme",
+        "free": "Başlangıç"
+      },
+      "bullets": {
+        "proIncluded": "3 kullanıcı dahil",
+        "basicAutomations": "Temel otomasyonlar",
+        "businessIncluded": "10 kullanıcı dahil",
+        "advancedAutomations": "Gelişmiş otomasyonlar ve roller",
+        "freeLimited": "Sınırlı faturalar ve özellikler"
+      }
+    },
+    "prices": {
+      "monthly": {
+        "free": "0€/ay",
+        "pro": "29€/ay",
+        "enterprise": "59€/ay"
+      }
+    },
+    "configuration": "Yapılandırma",
+    "billingCycle": "Faturalama dönemi",
+    "seatsAddon": "Ek koltuklar",
+    "seatsAddonHelper": "5€/koltuk/ay olarak ücretlendirilir. Orantılama uygulanır.",
+    "costPreview": "Maliyet önizleme",
+    "newSubtotal": "Yeni ara toplam",
+    "extraSeats": "Ek koltuklar",
+    "prorationToday": "Bugünkü oranlama",
+    "updatePlan": "Planı Güncelle",
+    "amountsNote": "Tutarlar bilgilendirme amaçlıdır. Nihai ücretler ödeme adımında gösterilir.",
+    "quickSeatActions": "Hızlı koltuk işlemleri",
+    "add1SeatNow": "1 koltuk ekle ve şimdi tahsil et",
+    "add5SeatsNow": "5 koltuk ekle ve şimdi tahsil et",
+    "remove1Seat": "1 koltuk azalt",
+    "quickTip": "İpucu: Koltukları faturalama portalından da ekleyebilirsiniz.",
+    "subscriptionStatus": "Abonelik durumu",
+    "subscriptionCancelNote": "İptal dönem sonunda geçerlidir; o zamana kadar devam ettirebilirsiniz.",
+    "cancelAtPeriodEndBtn": "Dönem sonunda iptal et",
+    "resumeSubscriptionBtn": "Aboneliği devam ettir",
+    "history": {
+      "title": "Geçmiş",
+      "loading": "Geçmiş yükleniyor…",
+      "empty": "Kayıt bulunamadı",
+      "type": "Tür",
+      "plan": "Plan",
+      "users": "Kullanıcı",
+      "date": "Tarih",
+      "footerNote": "Olaylar belirli aralıklarla faturalama sağlayıcısından senkronize edilir."
+    },
+    "invoices": {
+      "title": "Faturalar",
+      "loading": "Faturalar yükleniyor…",
+      "empty": "Fatura bulunamadı",
+      "filters": {
+        "status": "Durum",
+        "all": "Tümü",
+        "search": "Ara",
+        "searchPlaceholder": "Numara veya para birimi…",
+        "from": "Başlangıç",
+        "to": "Bitiş",
+        "exportCsv": "CSV Dışa Aktar"
+      },
+      "table": {
+        "number": "Numara",
+        "date": "Tarih",
+        "amount": "Tutar",
+        "status": "Durum",
+        "actions": "İşlemler"
+      },
+      "footerNote": "Faturalar faturalama sağlayıcısından alınır; tutarlar fatura para biriminde gösterilir."
+    }
+  },
   "pdf": {
     "invoice": {
       "title": "FATURA",
@@ -1988,5 +2127,7 @@
     }
   }
 }
+}
+
 
 

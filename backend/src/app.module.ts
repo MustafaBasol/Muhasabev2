@@ -75,6 +75,9 @@ import { EnsureAttributionColumnsService } from './audit/ensure-attribution-colu
         // Geliştirme ortamı: varsayılan olarak yerel SQLite dosyası kullan.
         // Postgres'e bağlanmak isterseniz .env'de DATABASE_HOST vb. değerleri verin veya DB_SQLITE=false yapın.
         if (!isProd && useSqlite) {
+          // Geliştirmede Postgres env'i eksikse SQLite'a düşüldüğünü belirgin şekilde logla
+          // Bu, farklı ortamlarda "kullanıcılar kayboldu" algısının tipik sebebidir.
+          console.warn('⚠️ Using SQLite dev.db because DATABASE_HOST/URL is not set. For consistent data, set Postgres env (DATABASE_HOST, PORT, USER, PASSWORD, NAME).');
           const sqlitePath = path.join(__dirname, '..', 'dev.db');
           return {
             type: 'sqlite',

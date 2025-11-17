@@ -569,7 +569,14 @@
     "cancelled": "Cancelled",
     "completed": "Completed",
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "viewed": "Viewed",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "expired": "Expired",
+    "invoiced": "Invoiced",
+    "created": "Created",
+    "refunded": "Refunded"
   },
   "invoice": {
     "details": "Invoice Details",
@@ -1017,6 +1024,53 @@
     "error": "Error",
     "saved": "Settings saved",
     "saveFailed": "Settings could not be saved"
+  },
+  "security": {
+    "twofa": {
+      "reminderTitle": "Enable Two-Factor Authentication",
+      "reminderDesc": "For stronger account protection, please enable 2FA.",
+      "modalTitle": "Secure Your Account",
+      "modalMessage": "Two-Factor Authentication (2FA) significantly increases your account security. Would you like to enable it now?",
+      "enableNow": "Enable Now",
+      "neverRemind": "Never remind again"
+    }
+  },
+  "common.remindMeLater": "Remind Me Later",
+  "notifications": {
+    "invoices": {
+      "overdue": { "title": "Overdue invoice payment", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysOverdue}} days overdue)" },
+      "upcoming": { "title": "Upcoming invoice payment", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysLeft}} days left)" },
+      "created": { "title": "New invoice created", "desc": "Invoice {{invoiceNumber}} for {{customerName}} is ready." }
+    },
+    "expenses": {
+      "overdue": { "title": "Overdue expense payment", "desc": "{{description}} - {{supplierName}} ({{daysOverdue}} days overdue)" },
+      "upcoming": { "title": "Upcoming expense payment", "desc": "{{description}} - {{supplierName}} ({{daysLeft}} days left)" },
+      "created": { "title": "New expense recorded", "desc": "{{supplierName}} - {{description}}: {{amount}}" }
+    },
+    "products": {
+      "lowStock": { "title": "Low stock warning", "desc": "{{name}} - Stock below minimum level ({{stock}}/{{min}})" },
+      "outOfStock": { "title": "Stock depleted", "desc": "{{name}} - Stock is depleted!" }
+    },
+    "quotes": {
+      "expired": { "title": "Quote expired", "desc": "{{quoteNumber}} - expired" },
+      "dueSoon": { "title": "Quote expiring soon", "desc": "{{quoteNumber}} - {{diffDays}} days left" }
+    },
+    "customers": {
+      "created": { "title": "New customer added", "desc": "{{name}} has been registered." }
+    },
+    "suppliers": {
+      "created": { "title": "New supplier added", "desc": "{{name}} has been registered." }
+    },
+    "sales": {
+      "created": { "title": "New sale recorded", "desc": "{{customerName}} - {{summary}}: {{totalAmount}}" }
+    },
+    "plan": {
+      "limit": {
+        "title": "Plan limit warning",
+        "invoices": { "desc": "You are nearing this month's invoice limit ({{used}}/{{limit}})." },
+        "expenses": { "desc": "You are nearing this month's expense limit ({{used}}/{{limit}})." }
+      }
+    }
   },
   "sales": {
     "title": "Sales",
@@ -1710,6 +1764,7 @@
         "name": "Name",
         "email": "Email",
         "role": "Role",
+        "lastLogin": "Last Login",
         "joinedAt": "Joined Date",
         "actions": "Actions"
       },
@@ -1783,6 +1838,96 @@
       }
     }
   },
+  "planTab": {
+    "header": {
+      "title": "Plan & Billing",
+      "subtitle": "Manage your subscription, billing cycle, and seats"
+    },
+    "managePayments": "Manage Payments",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "yearlyNote": "2 months free",
+    "currentPlan": {
+      "label": "Current Plan",
+      "seatsInUse": "Seats in use",
+      "renewalDate": "Renewal Date",
+      "cancellationDate": "Cancellation Date",
+      "cancelAtPeriodEndNotice": "Your subscription will be cancelled at period end."
+    },
+    "changePlan": "Change Plan",
+    "plans": {
+      "labels": {
+        "professional": "Pro",
+        "enterprise": "Business",
+        "free": "Starter"
+      },
+      "bullets": {
+        "proIncluded": "Includes 3 users",
+        "basicAutomations": "Basic automations",
+        "businessIncluded": "Includes 10 users",
+        "advancedAutomations": "Advanced automations & roles",
+        "freeLimited": "Limited invoices and features"
+      }
+    },
+    "prices": {
+      "monthly": {
+        "free": "0€/mo",
+        "pro": "29€/mo",
+        "enterprise": "59€/mo"
+      }
+    },
+    "configuration": "Configuration",
+    "billingCycle": "Billing cycle",
+    "seatsAddon": "Additional seats",
+    "seatsAddonHelper": "Billed at 5€/seat/month. Proration applies.",
+    "costPreview": "Cost preview",
+    "newSubtotal": "New subtotal",
+    "extraSeats": "Extra seats",
+    "prorationToday": "Proration today",
+    "updatePlan": "Update Plan",
+    "amountsNote": "Amounts are indicative. Final charges are shown during checkout.",
+    "quickSeatActions": "Quick seat actions",
+    "add1SeatNow": "Add 1 seat and charge now",
+    "add5SeatsNow": "Add 5 seats and charge now",
+    "remove1Seat": "Remove 1 seat",
+    "quickTip": "Tip: You can also add seats from the billing portal.",
+    "subscriptionStatus": "Subscription status",
+    "subscriptionCancelNote": "Cancelling takes effect at period end; you can resume anytime until then.",
+    "cancelAtPeriodEndBtn": "Cancel at period end",
+    "resumeSubscriptionBtn": "Resume subscription",
+    "history": {
+      "title": "History",
+      "loading": "Loading history…",
+      "empty": "No records found",
+      "type": "Type",
+      "plan": "Plan",
+      "users": "Users",
+      "date": "Date",
+      "footerNote": "Events are synchronized from the billing provider periodically."
+    },
+    "invoices": {
+      "title": "Invoices",
+      "loading": "Loading invoices…",
+      "empty": "No invoices found",
+      "filters": {
+        "status": "Status",
+        "all": "All",
+        "search": "Search",
+        "searchPlaceholder": "Number or currency…",
+        "from": "From",
+        "to": "To",
+        "exportCsv": "Export CSV"
+      },
+      "table": {
+        "number": "Number",
+        "date": "Date",
+        "amount": "Amount",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "footerNote": "Invoices are fetched from the billing provider; amounts are shown in the billed currency."
+    }
+  },
   "pdf": {
     "invoice": {
       "title": "INVOICE",
@@ -1851,7 +1996,97 @@
         "transfer": "Transfer",
         "check": "Check"
       }
-    }
+      },
+      "planTab": {
+        "header": {
+          "title": "Plan & Billing",
+          "subtitle": "Manage your subscription, billing cycle, and seats"
+        },
+        "managePayments": "Manage Payments",
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "yearlyNote": "2 months free",
+        "currentPlan": {
+          "label": "Current Plan",
+          "seatsInUse": "Seats in use",
+          "renewalDate": "Renewal Date",
+          "cancellationDate": "Cancellation Date",
+          "cancelAtPeriodEndNotice": "Your subscription will be cancelled at period end."
+        },
+        "changePlan": "Change Plan",
+        "plans": {
+          "labels": {
+            "professional": "Pro",
+            "enterprise": "Business",
+            "free": "Starter"
+          },
+          "bullets": {
+            "proIncluded": "Includes 3 users",
+            "basicAutomations": "Basic automations",
+            "businessIncluded": "Includes 10 users",
+            "advancedAutomations": "Advanced automations & roles",
+            "freeLimited": "Limited invoices and features"
+          }
+        },
+        "prices": {
+          "monthly": {
+            "free": "0€/mo",
+            "pro": "29€/mo",
+            "enterprise": "59€/mo"
+          }
+        },
+        "configuration": "Configuration",
+        "billingCycle": "Billing cycle",
+        "seatsAddon": "Additional seats",
+        "seatsAddonHelper": "Billed at 5€/seat/month. Proration applies.",
+        "costPreview": "Cost preview",
+        "newSubtotal": "New subtotal",
+        "extraSeats": "Extra seats",
+        "prorationToday": "Proration today",
+        "updatePlan": "Update Plan",
+        "amountsNote": "Amounts are indicative. Final charges are shown during checkout.",
+        "quickSeatActions": "Quick seat actions",
+        "add1SeatNow": "Add 1 seat and charge now",
+        "add5SeatsNow": "Add 5 seats and charge now",
+        "remove1Seat": "Remove 1 seat",
+        "quickTip": "Tip: You can also add seats from the billing portal.",
+        "subscriptionStatus": "Subscription status",
+        "subscriptionCancelNote": "Cancelling takes effect at period end; you can resume anytime until then.",
+        "cancelAtPeriodEndBtn": "Cancel at period end",
+        "resumeSubscriptionBtn": "Resume subscription",
+        "history": {
+          "title": "History",
+          "loading": "Loading history…",
+          "empty": "No records found",
+          "type": "Type",
+          "plan": "Plan",
+          "users": "Users",
+          "date": "Date",
+          "footerNote": "Events are synchronized from the billing provider periodically."
+        },
+        "invoices": {
+          "title": "Invoices",
+          "loading": "Loading invoices…",
+          "empty": "No invoices found",
+          "filters": {
+            "status": "Status",
+            "all": "All",
+            "search": "Search",
+            "searchPlaceholder": "Number or currency…",
+            "from": "From",
+            "to": "To",
+            "exportCsv": "Export CSV"
+          },
+          "table": {
+            "number": "Number",
+            "date": "Date",
+            "amount": "Amount",
+            "status": "Status",
+            "actions": "Actions"
+          },
+          "footerNote": "Invoices are fetched from the billing provider; amounts are shown in the billed currency."
+        }
+      }
   }
 }
 

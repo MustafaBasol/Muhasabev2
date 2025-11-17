@@ -23,6 +23,8 @@ import ProductCategoryModal from './ProductCategoryModal';
 import InfoModal from './InfoModal';
 import ConfirmModal from './ConfirmModal';
 import Pagination from './Pagination';
+import SavedViewsBar from './SavedViewsBar';
+import { useSavedListViews } from '../hooks/useSavedListViews';
 // product-categories API'yi dinamik içeri aktararak kod bölmeyi (code-splitting) iyileştir
 const loadProductCategoriesApi = async () => (await import('../api/product-categories')).productCategoriesApi;
 import type { ProductCategory } from '../types';
@@ -115,6 +117,22 @@ export default function ProductList({
     const n = saved ? Number(saved) : 20;
     return [20, 50, 100].includes(n) ? n : 20;
   });
+
+  // Default kaydedilmiş görünüm uygula
+  const { getDefault } = useSavedListViews<{ searchTerm: string; categoryFilter: string; stockFilter: string; sortOption: string; pageSize?: number }>({ listType: 'products' });
+  useEffect(() => {
+    const def = getDefault();
+    if (def && def.state) {
+      try {
+        setSearchTerm(def.state.searchTerm ?? '');
+        setCategoryFilter(def.state.categoryFilter ?? 'all');
+        setStockFilter(def.state.stockFilter ?? 'all');
+        setSortOption(def.state.sortOption ?? 'recent');
+        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Kategori bilgilerini backend'den çek
   useEffect(() => {
@@ -1133,6 +1151,26 @@ export default function ProductList({
                       Tumunu temizle
                     </button>
                   )}
+                </div>
+                <div className="mt-3 flex items-center justify-end">
+                  <SavedViewsBar
+                    listType="products"
+                    getState={() => ({ searchTerm, categoryFilter, stockFilter, sortOption, pageSize })}
+                    applyState={(s) => {
+                      const st = s || {} as any;
+                      setSearchTerm(st.searchTerm ?? '');
+                      setCategoryFilter(st.categoryFilter ?? 'all');
+                      setStockFilter(st.stockFilter ?? 'all');
+                      setSortOption(st.sortOption ?? 'recent');
+                      if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+                    }}
+                    presets={[
+                      { id: 'low-stock', label: t('products.lowStockFilter'), apply: () => setStockFilter('low') },
+                      { id: 'out-of-stock', label: t('products.outOfStock'), apply: () => setStockFilter('out') },
+                      { id: 'price-high', label: t('products.priceHighLow'), apply: () => setSortOption('price-desc') },
+                      { id: 'price-low', label: t('products.priceLowHigh'), apply: () => setSortOption('price-asc') },
+                    ]}
+                  />
                 </div>
                 {hasSelection && (
                   <div className="mt-3 flex flex-col gap-3 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 md:flex-row md:items-center md:justify-between">

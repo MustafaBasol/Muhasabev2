@@ -12,6 +12,8 @@ interface InfoModalProps {
   onConfirm?: () => void;
   cancelLabel?: string;
   onCancel?: () => void;
+  extraLabel?: string;
+  onExtra?: () => void;
   tone?: InfoTone;
   autoCloseMs?: number;
 }
@@ -47,6 +49,8 @@ export default function InfoModal({
   onConfirm,
   cancelLabel,
   onCancel,
+  extraLabel,
+  onExtra,
   tone = 'info',
   autoCloseMs,
 }: InfoModalProps) {
@@ -113,30 +117,78 @@ export default function InfoModal({
           </p>
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
-            {cancelLabel ? (
+          {cancelLabel && extraLabel ? (
+            // 3 buton: Önce birincil tam genişlik, altında iki ikincil yan yana
+            <div className="space-y-3">
               <button
-                onClick={onCancel || onClose}
-                className={`w-1/2 px-4 py-2 rounded-lg transition-colors border border-gray-300 text-gray-700 bg-white hover:bg-gray-50`}
+                onClick={() => {
+                  try {
+                    if (onConfirm) onConfirm();
+                    else onClose();
+                  } catch {}
+                }}
+                className={`w-full px-4 py-2 rounded-lg transition-colors ${styles.button}`}
               >
-                {cancelLabel}
+                {confirmLabel}
               </button>
-            ) : null}
-
-            <button
-              onClick={() => {
-                try {
-                  if (onConfirm) onConfirm();
-                  else onClose();
-                } catch {
-                  // no-op
-                }
-              }}
-              className={`${cancelLabel ? 'w-1/2' : 'w-full'} px-4 py-2 rounded-lg transition-colors ${styles.button}`}
-            >
-              {confirmLabel}
-            </button>
-          </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={onCancel || onClose}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors border border-gray-300 text-gray-700 bg-white hover:bg-gray-50`}
+                >
+                  {cancelLabel}
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      if (onExtra) onExtra();
+                      else onClose();
+                    } catch {}
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors border border-gray-300 text-gray-700 bg-white hover:bg-gray-50`}
+                >
+                  {extraLabel}
+                </button>
+              </div>
+            </div>
+          ) : (
+            // 1 veya 2 buton: yan yana taşmayacak düzen
+            cancelLabel ? (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={onCancel || onClose}
+                  className={`w-full px-4 py-2 rounded-lg transition-colors border border-gray-300 text-gray-700 bg-white hover:bg-gray-50`}
+                >
+                  {cancelLabel}
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      if (onConfirm) onConfirm();
+                      else onClose();
+                    } catch {}
+                  }}
+                  className={`w-full px-4 py-2 rounded-lg transition-colors ${styles.button}`}
+                >
+                  {confirmLabel}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <button
+                  onClick={() => {
+                    try {
+                      if (onConfirm) onConfirm();
+                      else onClose();
+                    } catch {}
+                  }}
+                  className={`w-full px-4 py-2 rounded-lg transition-colors ${styles.button}`}
+                >
+                  {confirmLabel}
+                </button>
+              </div>
+            )
+          )}
         </div>
       </div>
     </div>

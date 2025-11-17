@@ -11,6 +11,7 @@ import {
   Check
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import type { Product } from '../types';
 import type { Sale } from '../types';
 
@@ -530,9 +531,9 @@ export default function SaleModal({
                 onChange={(event) => setSaleData({ ...saleData, status: event.target.value as Sale['status'] })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                <option value="completed">{t('sales.statusCompleted')}</option>
-                <option value="pending">{t('sales.statusPending')}</option>
-                <option value="cancelled">{t('sales.statusCancelled')}</option>
+                <option value="completed">{resolveStatusLabel(t, normalizeStatusKey('completed'))}</option>
+                <option value="pending">{resolveStatusLabel(t, normalizeStatusKey('pending'))}</option>
+                <option value="cancelled">{resolveStatusLabel(t, normalizeStatusKey('cancelled'))}</option>
               </select>
             </div>
             <div>

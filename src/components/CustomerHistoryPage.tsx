@@ -376,9 +376,9 @@ export default function CustomerHistoryPage() {
     };
     let label = '';
     if (type === 'quote') {
-      label = tr(`quotes.statusLabels.${status}`) || tr(`status.${status}`);
+      label = tr(`quotes.statusLabels.${status}`) || tr(`common:status.${status}`);
     } else {
-      label = tr(`status.${status}`) || tr(`quotes.statusLabels.${status}`);
+      label = tr(`common:status.${status}`);
     }
     if (!label) label = status;
     return (

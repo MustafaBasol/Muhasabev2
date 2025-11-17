@@ -10,7 +10,10 @@ import ConfirmModal from './ConfirmModal';
 import type { Customer, Product } from '../types';
 import * as quotesApi from '../api/quotes';
 import Pagination from './Pagination';
+import SavedViewsBar from './SavedViewsBar';
+import { useSavedListViews } from '../hooks/useSavedListViews';
 import { useAuth } from '../contexts/AuthContext';
+import { getPresetLabel } from '../utils/presetLabels';
 
 interface QuotesPageProps {
   onAddQuote?: () => void;
@@ -86,6 +89,24 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<'status' | 'issueDate' | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
+
+  // Default kaydedilmiş görünümü uygula
+  const { getDefault } = useSavedListViews<{ searchTerm: string; statusFilter: typeof statusFilter; startDate?: string; endDate?: string; sortBy?: typeof sortBy; sortDir?: typeof sortDir; pageSize?: number }>({ listType: 'quotes' });
+  useEffect(() => {
+    const def = getDefault();
+    if (def && def.state) {
+      try {
+        setSearchTerm(def.state.searchTerm ?? '');
+        setStatusFilter((def.state.statusFilter as any) ?? 'all');
+        setStartDate(def.state.startDate ?? '');
+        setEndDate(def.state.endDate ?? '');
+        if (def.state.sortBy) setSortBy(def.state.sortBy as any);
+        if (def.state.sortDir) setSortDir(def.state.sortDir as any);
+        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Backend verileri
   const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000);
@@ -201,8 +222,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
 
   const statusBadge = (status: QuoteStatus) => {
     const map: Record<QuoteStatus, { label: string; className: string }> = {
-      draft:    { label: t('status.draft'),    className: 'bg-gray-100 text-gray-800' },
-      sent:     { label: t('status.sent'),     className: 'bg-blue-100 text-blue-800' },
+      draft:    { label: t('common:status.draft'),    className: 'bg-gray-100 text-gray-800' },
+      sent:     { label: t('common:status.sent'),     className: 'bg-blue-100 text-blue-800' },
       viewed:   { label: t('quotes.statusLabels.viewed'),   className: 'bg-indigo-100 text-indigo-800' },
       accepted: { label: t('quotes.statusLabels.accepted'), className: 'bg-green-100 text-green-800' },
       declined: { label: t('quotes.statusLabels.declined'), className: 'bg-red-100 text-red-800' },
@@ -495,8 +516,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="all">{t('quotes.filterAll')}</option>
-            <option value="draft">{t('status.draft')}</option>
-            <option value="sent">{t('status.sent')}</option>
+            <option value="draft">{t('common:status.draft')}</option>
+            <option value="sent">{t('common:status.sent')}</option>
             <option value="viewed">{t('quotes.statusLabels.viewed')}</option>
             <option value="accepted">{t('quotes.statusLabels.accepted')}</option>
             <option value="declined">{t('quotes.statusLabels.declined')}</option>
@@ -516,6 +537,33 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
               onChange={(e) => setEndDate(e.target.value)}
               placeholder={t('endDate')}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="ml-auto flex items-center">
+            <SavedViewsBar
+              listType="quotes"
+              getState={() => ({ searchTerm, statusFilter, startDate, endDate, sortBy, sortDir, pageSize })}
+              applyState={(s) => {
+                const st = s || {} as any;
+                setSearchTerm(st.searchTerm ?? '');
+                setStatusFilter((st.statusFilter as any) ?? 'all');
+                setStartDate(st.startDate ?? '');
+                setEndDate(st.endDate ?? '');
+                if (st.sortBy) setSortBy(st.sortBy);
+                if (st.sortDir) setSortDir(st.sortDir);
+                if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+              }}
+              presets={[
+                { id: 'this-month', label: getPresetLabel('this-month', (t as any)?.i18n?.language), apply: () => {
+                  const d = new Date();
+                  const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+                  const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+                  setStartDate(start); setEndDate(end);
+                }},
+                { id: 'accepted', label: t('quotes.statusLabels.accepted'), apply: () => setStatusFilter('accepted') as any },
+                { id: 'declined', label: t('quotes.statusLabels.declined'), apply: () => setStatusFilter('declined') as any },
+                { id: 'expired', label: t('quotes.statusLabels.expired'), apply: () => setStatusFilter('expired') as any },
+              ]}
             />
           </div>
         </div>
@@ -616,8 +664,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                               onChange={(e) => setTempValue(e.target.value)}
                               className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                             >
-                              <option value="draft">{t('status.draft')}</option>
-                              <option value="sent">{t('status.sent')}</option>
+                              <option value="draft">{t('common:status.draft')}</option>
+                              <option value="sent">{t('common:status.sent')}</option>
                               <option value="viewed">{t('quotes.statusLabels.viewed')}</option>
                               <option value="accepted">{t('quotes.statusLabels.accepted')}</option>
                               <option value="declined">{t('quotes.statusLabels.declined')}</option>

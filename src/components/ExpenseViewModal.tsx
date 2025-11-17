@@ -2,6 +2,7 @@ import { X, Download, Edit, Calendar, Building2, Tag, Receipt } from 'lucide-rea
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { useMemo } from 'react';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 
 interface Expense {
   id: string;
@@ -40,11 +41,11 @@ export default function ExpenseViewModal({
   const { t } = useTranslation();
 
   const statusConfig = useMemo(() => ({
-    draft: { label: t('status.draft'), class: 'bg-gray-100 text-gray-800' },
-    approved: { label: t('status.approved'), class: 'bg-blue-100 text-blue-800' },
-    paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
-    pending: { label: t('status.pending'), class: 'bg-yellow-100 text-yellow-800' },
-    rejected: { label: t('status.rejected'), class: 'bg-red-100 text-red-800' }
+    draft: { label: resolveStatusLabel(t, 'draft'), class: 'bg-gray-100 text-gray-800' },
+    approved: { label: resolveStatusLabel(t, 'approved'), class: 'bg-blue-100 text-blue-800' },
+    paid: { label: resolveStatusLabel(t, 'paid'), class: 'bg-green-100 text-green-800' },
+    pending: { label: resolveStatusLabel(t, 'pending'), class: 'bg-yellow-100 text-yellow-800' },
+    rejected: { label: resolveStatusLabel(t, 'rejected'), class: 'bg-red-100 text-red-800' }
   }), [t]);
   
   if (!isOpen || !expense) return null;
@@ -83,9 +84,10 @@ export default function ExpenseViewModal({
   };
 
   const getStatusBadge = (status: string) => {
-    const config = statusConfig[status as keyof typeof statusConfig] || { 
-      label: status || 'Bilinmeyen', 
-      class: 'bg-gray-100 text-gray-800' 
+    const key = normalizeStatusKey(status);
+    const config = (statusConfig as any)[key] || {
+      label: resolveStatusLabel(t, key),
+      class: 'bg-gray-100 text-gray-800'
     };
     return (
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.class}`}>

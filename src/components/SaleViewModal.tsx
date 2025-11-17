@@ -1,6 +1,8 @@
 import { X, Edit, Calendar, User, Package, CreditCard, Download, Trash2 } from 'lucide-react';
 import type { Sale } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 
 // Sayısal stringleri güvenli biçimde sayıya çevir ("2000.00", "2.000,00", "2,000.00")
 const toNumber = (v: any): number => {
@@ -41,6 +43,7 @@ export default function SaleViewModal({
   onDownload
 }: SaleViewModalProps) {
   const { formatCurrency } = useCurrency();
+  const { t } = useTranslation();
   
   if (!isOpen || !sale) return null;
 
@@ -54,19 +57,17 @@ export default function SaleViewModal({
 };
 
   const getStatusBadge = (status: string) => {
-    const key = (status || '').toString().toLowerCase();
-    let variant: 'completed' | 'pending' | 'cancelled' = 'pending';
-    if (['completed', 'paid', 'invoiced', 'approved'].includes(key)) variant = 'completed';
-    else if (['cancelled', 'canceled', 'void', 'refunded', 'deleted'].includes(key)) variant = 'cancelled';
-    else if (['pending', 'created', 'new', 'draft', 'open', 'processing'].includes(key)) variant = 'pending';
-
+    const key = normalizeStatusKey(status);
+    // Satış durumlarını temel gruplara indir ve etiketleri i18n üzerinden çöz
+    const isCompleted = ['completed', 'paid', 'invoiced', 'approved'].includes(key);
+    const isCancelled = ['cancelled'].includes(key);
+    const variant = isCompleted ? 'completed' : isCancelled ? 'cancelled' : 'pending';
     const statusConfig = {
-      completed: { label: 'Tamamlandı', class: 'bg-green-100 text-green-800' },
-      pending: { label: 'Bekliyor', class: 'bg-yellow-100 text-yellow-800' },
-      cancelled: { label: 'İptal', class: 'bg-red-100 text-red-800' }
+      completed: { label: resolveStatusLabel(t, 'completed'), class: 'bg-green-100 text-green-800' },
+      pending: { label: resolveStatusLabel(t, 'pending'), class: 'bg-yellow-100 text-yellow-800' },
+      cancelled: { label: resolveStatusLabel(t, 'cancelled'), class: 'bg-red-100 text-red-800' }
     } as const;
-
-    const config = statusConfig[variant] || { label: key || 'Bekliyor', class: 'bg-gray-100 text-gray-800' };
+    const config = statusConfig[variant] || { label: resolveStatusLabel(t, key), class: 'bg-gray-100 text-gray-800' } as const;
     return (
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.class}`}>
         {config.label}
@@ -75,13 +76,15 @@ export default function SaleViewModal({
   };
 
   const getPaymentMethodLabel = (method?: string) => {
-    const methods = {
-      cash: 'Nakit',
-      card: 'Kredi/Banka Kartı',
-      transfer: 'Havale/EFT',
-      check: 'Çek'
+    const key = (method || '').toString().toLowerCase();
+    // Basit i18n anahtarları; bulunamazsa mevcut fallback korunur
+    const map: Record<string, string> = {
+      cash: t('payments.methods.cash', 'Nakit'),
+      card: t('payments.methods.card', 'Kredi/Banka Kartı'),
+      transfer: t('payments.methods.transfer', 'Havale/EFT'),
+      check: t('payments.methods.check', 'Çek'),
     };
-    return methods[method as keyof typeof methods] || method;
+    return map[key] || method;
   };
 
   return (
@@ -94,7 +97,7 @@ export default function SaleViewModal({
               <h2 className="text-2xl font-bold text-gray-900">
                 {sale.saleNumber || `SAL-${sale.id}`}
               </h2>
-              <p className="text-sm text-gray-500">Satış Detayları</p>
+              <p className="text-sm text-gray-500">{t('sales.details', 'Satış Detayları')}</p>
             </div>
             {getStatusBadge(sale.status)}
           </div>
@@ -280,7 +283,7 @@ export default function SaleViewModal({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Tutar Bilgileri</h3>
               <div className="bg-green-50 rounded-lg p-6 border border-green-200">
                 <div className="flex justify-between items-center">
-                  <span className="text-green-800 font-medium text-lg">Toplam Tutar (KDV Hariç):</span>
+                  <span className="text-green-800 font-medium text-lg">{t('sales.totalExclVat', 'Toplam Tutar (KDV Hariç):')}</span>
                   <span className="text-2xl font-bold text-green-600">
                     {formatAmount(toNumber(sale.unitPrice) * toNumber(sale.quantity))}
                   </span>

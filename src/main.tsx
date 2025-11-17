@@ -1,6 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthProvider } from './contexts/AuthContext';
+import { I18nextProvider } from 'react-i18next';
+import i18n from './i18n/config';
 import App from './App';
 import './index.css';
 import './i18n/config'; // i18n konfigürasyonunu yükle
@@ -25,9 +27,11 @@ const reactRoot = createRoot(root);
 try {
   reactRoot.render(
     <StrictMode>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <I18nextProvider i18n={i18n}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </I18nextProvider>
     </StrictMode>
   );
   

@@ -25,6 +25,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useNotificationPreferences } from '../contexts/NotificationPreferencesContext';
 import { tenantsApi } from '../api/tenants';
 import { usersApi } from '../api/users';
+import { organizationsApi } from '../api/organizations';
 import {
   cancelSubscriptionAtPeriodEnd as billingCancel,
   createAddonCheckout,
@@ -65,7 +66,7 @@ interface PlanTabProps {
 }
 
 const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation('common');
   const { refreshUser } = useAuth();
   const planRaw = String(tenant?.subscriptionPlan || '').toLowerCase();
   const isFree = planRaw === 'free';
@@ -83,10 +84,10 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   };
   const planText = planLabelMap[planRaw] || (planRaw ? planRaw.toUpperCase() : '—');
   const periodMap: Record<SettingsLanguage, { month: string; year: string }> = {
-    tr: { month: 'Aylık', year: 'Yıllık' },
-    en: { month: 'Monthly', year: 'Yearly' },
-    fr: { month: 'Mensuel', year: 'Annuel' },
-    de: { month: 'Monatlich', year: 'Jährlich' },
+    tr: { month: t('common:planTab.monthly'), year: t('common:planTab.yearly') },
+    en: { month: t('common:planTab.monthly'), year: t('common:planTab.yearly') },
+    fr: { month: t('common:planTab.monthly'), year: t('common:planTab.yearly') },
+    de: { month: t('common:planTab.monthly'), year: t('common:planTab.yearly') },
   } as const;
   // Backend tenant nesnesinde varsa billingInterval'ı kullan; yoksa yenileme tarihinden çıkarım yap
   const intervalRaw = (tenant as any)?.billingInterval as ('month' | 'year' | undefined);
@@ -137,6 +138,8 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const [invoiceSearch, setInvoiceSearch] = useState<string>('');
   const [invoiceDateFrom, setInvoiceDateFrom] = useState<string>('');
   const [invoiceDateTo, setInvoiceDateTo] = useState<string>('');
+  // Organizasyondaki aktif üye sayısını göstermek için (sadece görsel amaçlı)
+  const [seatsInUse, setSeatsInUse] = useState<number | null>(null);
 
   const getFilteredInvoices = () => {
     return invoices.filter((inv: any) => {
@@ -223,6 +226,47 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Organizasyon üyelik istatistiklerini isteğe bağlı çek (yalnızca gösterim için)
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const orgApi = await import('../api/organizations');
+        const orgs = await orgApi.organizationsApi.getAll().catch(() => []);
+        const org = Array.isArray(orgs) && orgs.length > 0 ? orgs[0] : null;
+        if (!org) return;
+        const stats = await orgApi.organizationsApi.getMembershipStats(org.id).catch(() => null);
+        if (!cancelled && stats) {
+          setSeatsInUse(stats.currentMembers ?? null);
+        }
+      } catch {}
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [tenant?.id]);
+
+  // Hızlı 1 koltuk azaltma (varsa)
+  const removeOneSeat = async () => {
+    try {
+      setBusy(true); setPlanMessage('');
+      const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+      if (!tenantId) throw new Error('Tenant bulunamadı');
+      const base = baseIncludedFor(planRaw);
+      const currentMax = (tenant?.maxUsers as number) || base;
+      const currentAddon = Math.max(0, currentMax - base);
+      if (currentAddon <= 0) {
+        setPlanMessage(currentLanguage === 'tr' ? 'Azaltılabilecek ilave koltuk yok.' : 'No extra seats to remove.');
+        return;
+      }
+      const nextAddon = currentAddon - 1;
+      await billingUpdateSeats(tenantId, nextAddon);
+      setPlanMessage(currentLanguage === 'tr' ? 'Koltuk azaltıldı.' : 'Seat removed.');
+      await refreshUser();
+    } catch (e:any) {
+      setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
+    } finally { setBusy(false); }
+  };
 
   // Checkout iptal/basarisiz dönüşü
   useEffect(() => {
@@ -519,8 +563,8 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const renewalDate = tenant?.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt) : null;
   const renewalStr = renewalDate ? renewalDate.toLocaleDateString() : (currentLanguage === 'tr' ? '—' : '—');
   const renewalLabel = cancelAtPeriodEnd
-    ? (currentLanguage === 'tr' ? 'İptal Tarihi' : currentLanguage === 'fr' ? "Date d'annulation" : currentLanguage === 'de' ? 'Kündigungsdatum' : 'Cancellation Date')
-    : (currentLanguage === 'tr' ? 'Yenileme Tarihi' : currentLanguage === 'fr' ? 'Date de renouvellement' : currentLanguage === 'de' ? 'Verlängerungsdatum' : 'Renewal Date');
+    ? t('common:planTab.currentPlan.cancellationDate')
+    : t('common:planTab.currentPlan.renewalDate');
 
   const canModifySeats = ['professional', 'pro', 'enterprise', 'business'].includes(planRaw);
 
@@ -536,10 +580,12 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       const samePlan = normalizedCurrentPlan === desired;
       const sameInterval = ((effectiveInterval || 'month') === interval);
 
-      const planName = (p: string) => (p === 'free' ? (currentLanguage === 'tr' ? 'Starter' : currentLanguage === 'fr' ? 'Starter' : currentLanguage === 'de' ? 'Starter' : 'Starter') : p === 'professional' ? 'Pro' : 'Business');
-      const intervalName = (iv: 'month' | 'year') => (iv === 'year'
-        ? (currentLanguage === 'tr' ? 'Yıllık' : currentLanguage === 'fr' ? 'Annuel' : currentLanguage === 'de' ? 'Jährlich' : 'Yearly')
-        : (currentLanguage === 'tr' ? 'Aylık' : currentLanguage === 'fr' ? 'Mensuel' : currentLanguage === 'de' ? 'Monatlich' : 'Monthly'));
+      const planName = (p: string) => {
+        if (p === 'free') return t('common:planTab.plans.labels.free');
+        if (p === 'professional') return t('common:planTab.plans.labels.professional');
+        return t('common:planTab.plans.labels.enterprise');
+      };
+      const intervalName = (iv: 'month' | 'year') => (iv === 'year' ? t('common:planTab.yearly') : t('common:planTab.monthly'));
 
       let title = currentLanguage === 'tr' ? 'İşlemi Onaylayın' : currentLanguage === 'fr' ? 'Confirmez l’opération' : currentLanguage === 'de' ? 'Vorgang bestätigen' : 'Confirm Operation';
       let message = '';
@@ -594,152 +640,160 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
 
   return (
     <div className="space-y-6">
-      {/* Özet Kartları */}
-      <div className="border border-gray-200 rounded-lg p-4 bg-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{text.tabs.plan || 'Plan'}</h3>
-            <p className="text-sm text-gray-500 mt-1">{currentLanguage === 'tr' ? 'Abonelik ve faturalama bilgileri' : currentLanguage === 'fr' ? 'Abonnement et facturation' : currentLanguage === 'de' ? 'Abo und Abrechnung' : 'Subscription & billing'}</p>
-          </div>
-          {/* Stripe Portal button */}
-          <div>
-            <button
-              onClick={async () => {
-                try {
-                  setBusy(true);
-                  const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-                  if (!tenantId) throw new Error('Tenant bulunamadı');
-                  const curr = new URL(window.location.href);
-                  curr.searchParams.set('portal', 'return');
-                  const { url } = await createPortalSession(tenantId, curr.toString());
-                  if (url) {
-                    localStorage.setItem('pending_portal_sync', '1');
-                    window.location.href = url;
-                  }
-                } catch (e: any) {
-                  setPlanMessage(e?.response?.data?.message || e?.message || 'Portal hatası');
-                } finally {
-                  setBusy(false);
+      {/* Başlık */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-semibold text-gray-900">{t('common:planTab.header.title')}</h3>
+          <p className="text-sm text-gray-500 mt-1">{t('common:planTab.header.subtitle')}</p>
+        </div>
+        <div>
+          <button
+            onClick={async () => {
+              try {
+                setBusy(true);
+                const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+                if (!tenantId) throw new Error('Tenant bulunamadı');
+                const curr = new URL(window.location.href);
+                curr.searchParams.set('portal', 'return');
+                const { url } = await createPortalSession(tenantId, curr.toString());
+                if (url) {
+                  localStorage.setItem('pending_portal_sync', '1');
+                  window.location.href = url;
                 }
-              }}
-              className="px-3 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-            >{currentLanguage === 'tr' ? 'Ödemeleri Yönet' : currentLanguage === 'fr' ? 'Gérer la facturation' : currentLanguage === 'de' ? 'Abrechnung verwalten' : 'Manage Billing'}</button>
-          </div>
+              } catch (e: any) {
+                setPlanMessage(e?.response?.data?.message || e?.message || 'Portal hatası');
+              } finally { setBusy(false); }
+            }}
+            className="px-3 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+          >{t('common:planTab.managePayments')}</button>
         </div>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
-            <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Mevcut Plan' : currentLanguage === 'fr' ? 'Offre actuelle' : currentLanguage === 'de' ? 'Aktueller Plan' : 'Current Plan'}</span>
-            <span className="inline-flex w-fit items-center text-xs font-semibold px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{planText}</span>
+      </div>
+
+      {/* Üst Grid: Mevcut plan ve plan seçenekleri */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Mevcut Plan */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="text-sm text-gray-600">{t('common:planTab.currentPlan.label')}</div>
+          <div className="mt-1 text-lg font-semibold text-gray-900">{planText} {!isFree && periodText ? `• ${periodText}` : ''}</div>
+          <div className="mt-2 text-sm text-gray-600">
+            {(() => {
+              const map: Record<SettingsLanguage, string> = {
+                tr: 'Kullanımda kullanıcı',
+                en: 'Users in use',
+                fr: 'Utilisateurs en cours',
+                de: 'Benutzte Nutzer',
+              } as const;
+              return (map[currentLanguage] || t('common:planTab.currentPlan.seatsInUse')) + ' ';
+            })()}
+            <span className="text-gray-900 font-medium">{typeof seatsInUse === 'number' ? seatsInUse : '—'}</span>
+            {currentMaxUsers > 0 && (
+              <span className="text-gray-500">{` / ${currentMaxUsers}`}</span>
+            )}
           </div>
-          <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
-            <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Faturalama Dönemi' : currentLanguage === 'fr' ? 'Période' : currentLanguage === 'de' ? 'Zeitraum' : 'Billing Period'}</span>
-            <span className="text-sm text-gray-900">{periodText || (currentLanguage === 'tr' ? '—' : '—')}</span>
-          </div>
-            <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
-              <span className="text-sm text-gray-600">{currentLanguage === 'tr' ? 'Kullanıcı Limiti' : currentLanguage === 'fr' ? 'Limite Utilisateurs' : currentLanguage === 'de' ? 'Benutzerlimit' : 'User Limit'}</span>
-              <span className="text-sm text-gray-900">{currentMaxUsers < 0 ? (currentLanguage === 'tr' ? 'Sınırsız' : currentLanguage === 'fr' ? 'Illimité' : currentLanguage === 'de' ? 'Unbegrenzt' : 'Unlimited') : currentMaxUsers}</span>
+          <div className="mt-2 text-sm text-gray-600">{renewalLabel}: <span className="text-gray-900">{renewalStr}</span></div>
+          {cancelAtPeriodEnd && !isFree && (
+            <div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded">
+              {t('common:planTab.currentPlan.cancelAtPeriodEndNotice')}
             </div>
-          <div className="flex flex-col gap-2 border rounded-md px-3 py-2">
-            <span className="text-sm text-gray-600">{renewalLabel}</span>
-            <span className="text-sm text-gray-900">{renewalStr}</span>
-          </div>
-        </div>
-        {cancelAtPeriodEnd && !isFree && (
-          <div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded">
-            {currentLanguage === 'tr' ? 'Dönem sonunda iptal edilecek.' : 'Will cancel at period end.'}
-          </div>
-        )}
-      </div>
-
-      {/* Plan Değişimi */}
-      <div className="border border-gray-200 rounded-lg p-4 bg-white">
-        <h4 className="text-md font-semibold mb-3">{currentLanguage === 'tr' ? 'Plan Yükselt / Düşür' : currentLanguage === 'fr' ? 'Changer de Plan' : currentLanguage === 'de' ? 'Plan wechseln' : 'Change Plan'}</h4>
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Yeni Plan' : currentLanguage === 'fr' ? 'Nouveau Plan' : currentLanguage === 'de' ? 'Neuer Plan' : 'New Plan'}</label>
-            <select
-              value={desiredPlan}
-              onChange={e => setDesiredPlan(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-            >
-              <option value="professional">{currentLanguage === 'tr' ? 'Pro' : currentLanguage === 'fr' ? 'Pro' : currentLanguage === 'de' ? 'Pro' : 'Pro'}</option>
-              <option value="enterprise">{currentLanguage === 'tr' ? 'Business' : currentLanguage === 'fr' ? 'Business' : currentLanguage === 'de' ? 'Business' : 'Business'}</option>
-              <option value="free">
-                {currentLanguage === 'tr'
-                  ? 'Starter (Ücretsiz)'
-                  : currentLanguage === 'fr'
-                  ? 'Starter (Gratuit)'
-                  : currentLanguage === 'de'
-                  ? 'Starter (Kostenlos)'
-                  : 'Starter (Free)'}
-              </option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Faturalama' : currentLanguage === 'fr' ? 'Facturation' : currentLanguage === 'de' ? 'Abrechnung' : 'Billing'}</label>
-            <select
-              value={desiredBilling}
-              onChange={e => setDesiredBilling(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              // Aylık/Yıllık seçimi yalnız ücretli planlarda aktif
-              disabled={!['professional', 'enterprise', 'pro', 'business'].includes(String(desiredPlan).toLowerCase())}
-            >
-              <option value="monthly">{currentLanguage === 'tr' ? 'Aylık' : currentLanguage === 'fr' ? 'Mensuel' : currentLanguage === 'de' ? 'Monatlich' : 'Monthly'}</option>
-              <option value="yearly">{currentLanguage === 'tr' ? 'Yıllık' : currentLanguage === 'fr' ? 'Annuel' : currentLanguage === 'de' ? 'Jährlich' : 'Yearly'}</option>
-            </select>
-          </div>
-          
-          {/* İptal seçeneği artık checkbox olarak sunulmuyor */}
-          <div className="flex items-end">
-            <button
-              onClick={openPlanConfirm}
-              disabled={busy}
-              className="w-full px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {busy ? (currentLanguage === 'tr' ? 'İşleniyor…' : 'Saving…') : (currentLanguage === 'tr' ? 'Kaydet' : 'Save')}
-            </button>
-          </div>
-        </div>
-        {planMessage && <div className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded">{planMessage}</div>}
-      </div>
-
-      {/* Kullanıcı Sayısı Hızlı Güncelle (yalnız Pro+) */}
-      {canModifySeats && (
-        <div className="border border-amber-300 rounded-lg p-4 bg-amber-50">
-          <h4 className="text-md font-semibold mb-1">{currentLanguage === 'tr' ? 'İlave Kullanıcı Ekle' : currentLanguage === 'fr' ? 'Ajouter des utilisateurs supplémentaires' : currentLanguage === 'de' ? 'Zusätzliche Benutzer hinzufügen' : 'Add Additional Users'}</h4>
-          <p className="text-[11px] text-amber-900 mb-2">{currentLanguage === 'tr' ? 'İlave her kullanıcı aylık 5 € ile ücretlendirilir.' : currentLanguage === 'fr' ? 'Chaque utilisateur supplémentaire est facturé 5 € par mois.' : currentLanguage === 'de' ? 'Jeder zusätzliche Benutzer kostet 5 € pro Monat.' : 'Each additional user is billed at €5 per month.'}</p>
-          {['enterprise','business'].includes(planRaw) && (
-            <p className="text-[11px] text-amber-900 mb-2">{currentLanguage === 'tr' ? 'Business planında 10 kullanıcı dahildir.' : currentLanguage === 'fr' ? 'Le plan Business inclut 10 utilisateurs.' : currentLanguage === 'de' ? 'Im Business-Plan sind 10 Benutzer inbegriffen.' : 'Business plan includes 10 users.'}</p>
           )}
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min={1}
-              value={additionalUsersToAdd}
-              onChange={e => setAdditionalUsersToAdd(parseInt(e.target.value || '1', 10))}
-              className="w-32 px-3 py-2 border border-amber-300 rounded-md text-sm bg-white"
-            />
-            <div className="flex gap-2">
+        </div>
+
+        {/* Plan Seçenekleri */}
+        <div className="md:col-span-2 bg-white border border-gray-200 rounded-lg p-4">
+          <div className="text-sm font-semibold text-gray-900 mb-3">{t('common:planTab.changePlan')}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[{key:'professional', label:t('common:planTab.plans.labels.professional'), price:t('common:planTab.prices.monthly.pro'), bullets:[t('common:planTab.plans.bullets.proIncluded'), t('common:planTab.plans.bullets.basicAutomations')]},
+              {key:'enterprise', label:t('common:planTab.plans.labels.enterprise'), price:t('common:planTab.prices.monthly.enterprise'), bullets:[t('common:planTab.plans.bullets.businessIncluded'), t('common:planTab.plans.bullets.advancedAutomations')]},
+              {key:'free', label:t('common:planTab.plans.labels.free'), price:t('common:planTab.prices.monthly.free'), bullets:[t('common:planTab.plans.bullets.freeLimited')]}].map(opt => (
               <button
-                onClick={() => {
-                  if (additionalUsersToAdd <= 0) { setPlanMessage(currentLanguage === 'tr' ? 'Ek kullanıcı >= 1 olmalı' : 'Additional users must be >= 1'); return; }
-                  setAddonConfirm({ open: true, mode: 'now', count: additionalUsersToAdd });
-                }}
-                disabled={busy}
-                className="px-4 py-2 text-sm rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
-              >{currentLanguage === 'tr' ? 'Hemen Tahsil Et' : currentLanguage === 'fr' ? 'Encaisser Maintenant' : currentLanguage === 'de' ? 'Jetzt Abbuchen' : 'Charge Now'}</button>
+                key={opt.key}
+                type="button"
+                onClick={() => setDesiredPlan(opt.key)}
+                className={`text-left rounded-lg border p-3 hover:border-indigo-400 transition ${String(desiredPlan)===opt.key? 'border-indigo-500 ring-1 ring-indigo-200 bg-indigo-50' : 'border-gray-200 bg-white'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-gray-900">{opt.label}</div>
+                  <div className="text-sm text-indigo-600 font-medium">{opt.price}</div>
+                </div>
+                <ul className="mt-2 text-xs text-gray-600 space-y-1 list-disc list-inside">
+                  {opt.bullets.map((b,i)=>(<li key={i}>{b}</li>))}
+                </ul>
+              </button>
+            ))}
+          </div>
+          {/* Dönem seçimi ve Planı Güncelle butonu — üst alana taşındı */}
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <div className="text-xs text-gray-600 mb-1">{t('common:planTab.billingCycle')}</div>
+              <div className="inline-flex rounded-md border border-gray-300 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setDesiredBilling('monthly')}
+                  className={`px-3 py-1.5 text-sm ${desiredBilling==='monthly' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'}`}
+                >{t('common:planTab.monthly')}</button>
+                <button
+                  type="button"
+                  onClick={() => setDesiredBilling('yearly')}
+                  className={`px-3 py-1.5 text-sm ${desiredBilling==='yearly' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'}`}
+                >{t('common:planTab.yearly')} <span className="ml-1 text-[10px] opacity-80">{t('common:planTab.yearlyNote')}</span></button>
+              </div>
+            </div>
+            <div>
               <button
-                onClick={() => {
-                  if (additionalUsersToAdd <= 0) { setPlanMessage(currentLanguage === 'tr' ? 'Ek kullanıcı >= 1 olmalı' : 'Additional users must be >= 1'); return; }
-                  setAddonConfirm({ open: true, mode: 'later', count: additionalUsersToAdd });
-                }}
+                onClick={openPlanConfirm}
                 disabled={busy}
-                className="px-4 py-2 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
-              >{currentLanguage === 'tr' ? 'Dönem Sonu Faturalandır' : currentLanguage === 'fr' ? 'Facturer à la fin de période' : currentLanguage === 'de' ? 'Am Periodenende berechnen' : 'Invoice Later'}</button>
+                className="px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+              >{t('common:planTab.updatePlan')}</button>
             </div>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Kullanıcı ekleme ve hızlı işlemler (tek kartta birleşik) */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="text-sm font-semibold text-gray-900 mb-3">{currentLanguage === 'tr' ? 'Ek Kullanıcı' : currentLanguage === 'fr' ? 'Utilisateur supplémentaire' : currentLanguage === 'de' ? 'Zusätzlicher Benutzer' : 'Additional User'}</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          {/* Ek Kullanıcı adedi */}
+          <div>
+            <div className="text-xs text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Ek kullanıcı adedi' : currentLanguage === 'fr' ? 'Nombre d’utilisateurs' : currentLanguage === 'de' ? 'Anzahl zusätzlicher Benutzer' : 'Additional user count'}</div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setAdditionalUsersToAdd(v=>Math.max(1, (v||1)-1))} className="w-8 h-8 rounded-md border text-lg leading-none">−</button>
+              <div className="w-16 text-center font-semibold">{additionalUsersToAdd}</div>
+              <button onClick={() => setAdditionalUsersToAdd(v=> (v||1)+1)} className="w-8 h-8 rounded-md border text-lg leading-none">+</button>
+              <div className="ml-3 text-xs text-gray-500">{currentLanguage === 'tr' ? 'Kullanıcı başına 5€/ay. Faturalandırma plan dönemine göre yapılır.' : currentLanguage === 'fr' ? '5€/mo par utilisateur. Facturation selon la période du plan.' : currentLanguage === 'de' ? '5€/Monat pro Benutzer. Abrechnung nach Planzeitraum.' : '€5/month per user. Billed per plan period.'}</div>
+            </div>
+          </div>
+
+          {/* Hızlı aksiyonlar */}
+          {canModifySeats && (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setAddonConfirm({ open: true, mode: 'now', count: additionalUsersToAdd })}
+                disabled={busy || (additionalUsersToAdd||0) < 1}
+                className="px-3 py-2 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+              >{currentLanguage === 'tr' ? 'Hemen Tahsil Et' : currentLanguage === 'fr' ? 'Encaisser maintenant' : currentLanguage === 'de' ? 'Sofort belasten' : 'Charge now'}</button>
+              <button
+                onClick={() => setAddonConfirm({ open: true, mode: 'later', count: additionalUsersToAdd })}
+                disabled={busy || (additionalUsersToAdd||0) < 1}
+                className="px-3 py-2 text-sm rounded-md bg-indigo-100 text-indigo-800 hover:bg-indigo-200 disabled:opacity-50"
+              >{currentLanguage === 'tr' ? 'Dönem Sonunda Faturalandır' : currentLanguage === 'fr' ? 'Facturer en fin de période' : currentLanguage === 'de' ? 'Am Periodenende abrechnen' : 'Invoice at period end'}</button>
+            </div>
+          )}
+
+          {/* Azaltma */}
+          {canModifySeats && (
+            <div className="flex items-center md:justify-end">
+              <button
+                onClick={removeOneSeat}
+                disabled={busy}
+                className="px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50"
+              >{currentLanguage === 'tr' ? '1 kullanıcı azalt' : currentLanguage === 'fr' ? 'Réduire de 1 utilisateur' : currentLanguage === 'de' ? '1 Benutzer reduzieren' : 'Reduce 1 user'}</button>
+            </div>
+          )}
+        </div>
+        {planMessage && <div className="mt-3 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded">{planMessage}</div>}
+        <div className="mt-2 text-[11px] text-gray-500">{t('common:planTab.amountsNote')}</div>
+      </div>
       {/* Plan değişimi onay modali */}
       <InfoModal
         isOpen={planConfirm.open}
@@ -857,20 +911,20 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       {/* İptal Seçenekleri */}
       {!isFree && (
         <div className="border border-red-300 rounded-lg p-4 bg-red-50 space-y-3">
-          <h4 className="text-md font-semibold mb-2">{currentLanguage === 'tr' ? 'Abonelik Durumu' : currentLanguage === 'fr' ? 'Statut de l’abonnement' : currentLanguage === 'de' ? 'Abo-Status' : 'Subscription Status'}</h4>
-          <p className="text-xs text-red-700">{currentLanguage === 'tr' ? 'Ücretli planlarda iptal talebi dönem sonunda uygulanır.' : 'On paid plans, cancellation takes effect at period end.'}</p>
+          <h4 className="text-md font-semibold mb-2">{t('common:planTab.subscriptionStatus')}</h4>
+          <p className="text-xs text-red-700">{t('common:planTab.subscriptionCancelNote')}</p>
           {!cancelAtPeriodEnd ? (
             <button
               onClick={requestCancelAtPeriodEnd}
               disabled={busy}
               className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-            >{currentLanguage === 'tr' ? 'Dönem Sonunda İptal Et' : currentLanguage === 'fr' ? 'Annuler en fin de période' : currentLanguage === 'de' ? 'Zum Periodenende kündigen' : 'Cancel at Period End'}</button>
+            >{t('common:planTab.cancelAtPeriodEndBtn')}</button>
           ) : (
             <button
               onClick={resumeCancellation}
               disabled={busy}
               className="px-4 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-            >{currentLanguage === 'tr' ? 'Aboneliği Yeniden Başlat' : currentLanguage === 'fr' ? 'Relancer l’abonnement' : currentLanguage === 'de' ? 'Abo neu starten' : 'Resume Subscription'}</button>
+            >{t('common:planTab.resumeSubscriptionBtn')}</button>
           )}
         </div>
       )}
@@ -887,20 +941,20 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
 
       {/* Geçmiş / History */}
       <div className="border border-gray-200 rounded-lg p-4 bg-white">
-        <h4 className="text-md font-semibold mb-3">{currentLanguage === 'tr' ? 'Faturalama / Plan Geçmişi' : currentLanguage === 'fr' ? 'Historique' : currentLanguage === 'de' ? 'Verlauf' : 'History'}</h4>
-        {loadingHistory && <p className="text-xs text-gray-500">{currentLanguage === 'tr' ? 'Yükleniyor…' : 'Loading…'}</p>}
+        <h4 className="text-md font-semibold mb-3">{t('common:planTab.history.title')}</h4>
+        {loadingHistory && <p className="text-xs text-gray-500">{t('common:planTab.history.loading')}</p>}
         {!loadingHistory && history.length === 0 && (
-          <p className="text-xs text-gray-500">{currentLanguage === 'tr' ? 'Kayıt yok (mock).' : 'No events (mock).'}</p>
+          <p className="text-xs text-gray-500">{t('common:planTab.history.empty')}</p>
         )}
         {!loadingHistory && history.length > 0 && (
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs">
               <thead>
                 <tr className="text-left text-gray-600">
-                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Tür' : 'Type'}</th>
-                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Plan' : 'Plan'}</th>
-                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Kullanıcı' : 'Users'}</th>
-                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Tarih' : 'Date'}</th>
+                  <th className="py-1 pr-4">{t('common:planTab.history.type')}</th>
+                  <th className="py-1 pr-4">{t('common:planTab.history.plan')}</th>
+                  <th className="py-1 pr-4">{t('common:planTab.history.users')}</th>
+                  <th className="py-1 pr-4">{t('common:planTab.history.date')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -960,45 +1014,45 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
             </table>
           </div>
         )}
-        <p className="mt-2 text-[10px] text-gray-400">{currentLanguage === 'tr' ? 'Gerçek Stripe geçmişi henüz entegre edilmedi.' : 'Real Stripe history not yet integrated.'}</p>
+        <p className="mt-2 text-[10px] text-gray-400">{t('common:planTab.history.footerNote')}</p>
       </div>
 
       {/* Stripe Faturaları */}
       <div className="border border-gray-200 rounded-lg p-4 bg-white">
-        <h4 className="text-md font-semibold mb-3">{currentLanguage === 'tr' ? 'Faturalarım' : currentLanguage === 'fr' ? 'Mes Factures' : currentLanguage === 'de' ? 'Meine Rechnungen' : 'My Invoices'}</h4>
-        {loadingInvoices && <p className="text-xs text-gray-500">{currentLanguage === 'tr' ? 'Yükleniyor…' : 'Loading…'}</p>}
+        <h4 className="text-md font-semibold mb-3">{t('common:planTab.invoices.title')}</h4>
+        {loadingInvoices && <p className="text-xs text-gray-500">{t('common:planTab.invoices.loading')}</p>}
         {!loadingInvoices && invoices.length === 0 && (
-          <p className="text-xs text-gray-500">{currentLanguage === 'tr' ? 'Fatura bulunamadı.' : 'No invoices found.'}</p>
+          <p className="text-xs text-gray-500">{t('common:planTab.invoices.empty')}</p>
         )}
         {!loadingInvoices && invoices.length > 0 && (
           <div className="overflow-x-auto">
             {/* Filtreler */}
             <div className="mb-3 flex flex-wrap gap-2 items-end">
               <div className="flex flex-col">
-                <label className="text-[10px] font-medium text-gray-600">{currentLanguage === 'tr' ? 'Durum' : 'Status'}</label>
+                <label className="text-[10px] font-medium text-gray-600">{t('common:planTab.invoices.filters.status')}</label>
                 <select
                   value={invoiceStatusFilter}
                   onChange={e => setInvoiceStatusFilter(e.target.value)}
                   className="px-2 py-1 border border-gray-300 rounded-md text-xs"
                 >
-                  <option value="all">{currentLanguage === 'tr' ? 'Tümü' : 'All'}</option>
+                  <option value="all">{t('common:planTab.invoices.filters.all')}</option>
                   <option value="paid">Paid</option>
                   <option value="open">Open/Draft</option>
                   <option value="unpaid">Unpaid/Void/Uncollectible</option>
                 </select>
               </div>
               <div className="flex flex-col">
-                <label className="text-[10px] font-medium text-gray-600">{currentLanguage === 'tr' ? 'Arama' : 'Search'}</label>
+                <label className="text-[10px] font-medium text-gray-600">{t('common:planTab.invoices.filters.search')}</label>
                 <input
                   type="text"
                   value={invoiceSearch}
                   onChange={e => setInvoiceSearch(e.target.value)}
-                  placeholder={currentLanguage === 'tr' ? 'Numara / Para Birimi' : 'Number / Currency'}
+                  placeholder={t('common:planTab.invoices.filters.searchPlaceholder')}
                   className="px-2 py-1 border border-gray-300 rounded-md text-xs"
                 />
               </div>
               <div className="flex flex-col">
-                <label className="text-[10px] font-medium text-gray-600">{currentLanguage === 'tr' ? 'Başlangıç' : 'From'}</label>
+                <label className="text-[10px] font-medium text-gray-600">{t('common:planTab.invoices.filters.from')}</label>
                 <input
                   type="date"
                   value={invoiceDateFrom}
@@ -1007,7 +1061,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                 />
               </div>
               <div className="flex flex-col">
-                <label className="text-[10px] font-medium text-gray-600">{currentLanguage === 'tr' ? 'Bitiş' : 'To'}</label>
+                <label className="text-[10px] font-medium text-gray-600">{t('common:planTab.invoices.filters.to')}</label>
                 <input
                   type="date"
                   value={invoiceDateTo}
@@ -1046,17 +1100,17 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                   }}
                   disabled={invoices.length === 0}
                   className="px-3 py-1 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-                >{currentLanguage === 'tr' ? 'CSV İndir' : 'Export CSV'}</button>
+                >{t('common:planTab.invoices.filters.exportCsv')}</button>
               </div>
             </div>
             <table className="min-w-full text-xs">
               <thead>
                 <tr className="text-left text-gray-600">
-                  <th className="py-1 pr-4">#</th>
-                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Tarih' : 'Date'}</th>
-                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Tutar' : 'Amount'}</th>
-                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'Durum' : 'Status'}</th>
-                  <th className="py-1 pr-4">{currentLanguage === 'tr' ? 'İşlem' : 'Actions'}</th>
+                  <th className="py-1 pr-4">{t('common:planTab.invoices.table.number')}</th>
+                  <th className="py-1 pr-4">{t('common:planTab.invoices.table.date')}</th>
+                  <th className="py-1 pr-4">{t('common:planTab.invoices.table.amount')}</th>
+                  <th className="py-1 pr-4">{t('common:planTab.invoices.table.status')}</th>
+                  <th className="py-1 pr-4">{t('common:planTab.invoices.table.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1081,7 +1135,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                       </td>
                       <td className="py-1 pr-4 space-x-2">
                         {inv.hostedInvoiceUrl && (
-                          <a className="text-indigo-600 hover:underline" href={inv.hostedInvoiceUrl} target="_blank" rel="noreferrer">{currentLanguage === 'tr' ? 'Görüntüle' : 'View'}</a>
+                          <a className="text-indigo-600 hover:underline" href={inv.hostedInvoiceUrl} target="_blank" rel="noreferrer">{t('common:view')}</a>
                         )}
                         {inv.pdf && (
                           <a className="text-indigo-600 hover:underline" href={inv.pdf} target="_blank" rel="noreferrer">PDF</a>
@@ -1094,7 +1148,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
             </table>
           </div>
         )}
-        <p className="mt-2 text-[10px] text-gray-400">{currentLanguage === 'tr' ? 'Bu listede Stripe fatura bağlantıları sunulur.' : 'Stripe invoice links are provided here.'}</p>
+        <p className="mt-2 text-[10px] text-gray-400">{t('common:planTab.invoices.footerNote')}</p>
       </div>
     </div>
   );
@@ -2209,7 +2263,7 @@ export default function SettingsPage({
   const [twoFABackups, setTwoFABackups] = useState<string[] | null>(null);
 
   // i18next entegrasyonu
-  const { i18n, t } = useTranslation();
+  const { i18n, t } = useTranslation('common');
   
   // i18next dilini kullan (tr/en/fr/de formatında)
   const i18nLanguage = i18n.language.toLowerCase().substring(0, 2);
@@ -2233,7 +2287,35 @@ export default function SettingsPage({
   // Ayarlar sayfasında ise sadece Profil sekmesini görecekler. Mevcut mantık zaten bunu sağlıyor;
   // ancak bazı kurulumlarda ek roller (ACCOUNTANT, USER) "isOwnerLike" içine yanlışlıkla dahil edilirse
   // genişleme olmasın diye koşulu dar tutuyoruz.
-  const isOwnerLike = roleNorm === 'OWNER' || roleNorm === 'TENANT_ADMIN';
+  // Yönetici kapsamı: OWNER benzeri sahiplik rolleri + tenant_admin + super_admin tüm sekmeleri görsün
+  const isOwnerLike = roleNorm === 'OWNER' || roleNorm === 'TENANT_ADMIN' || roleNorm === 'SUPER_ADMIN';
+
+  // Organizasyon üyelik rolü (OWNER | ADMIN | MEMBER) — Settings erişimini genişletmek için kullanılır
+  const [orgRole, setOrgRole] = useState<'OWNER' | 'ADMIN' | 'MEMBER' | null>(null);
+  const isOrgAdminLike = orgRole === 'OWNER' || orgRole === 'ADMIN';
+  const canManageSettings = isOwnerLike || isOrgAdminLike; // Sekme ve alan yetkisi bu değişkene bağlı
+
+  // Mevcut organizasyondaki (ilk/org) rolü yükle
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Kullanıcı yoksa veya token yoksa atla
+        const token = localStorage.getItem('auth_token');
+        if (!token || !authUser?.id) return;
+        const orgs = await organizationsApi.getAll();
+        if (!orgs || orgs.length === 0) return;
+        const orgId = orgs[0].id;
+        if (!orgId) return;
+        const members = await organizationsApi.getMembers(orgId);
+        const me = members.find(m => m.user.id === authUser.id);
+        if (!cancelled) setOrgRole((me?.role as any) || null);
+      } catch {
+        if (!cancelled) setOrgRole(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authUser?.id]);
 
   // Resmi şirket adı (backend tenant.name) için yerel state
   const [officialCompanyName, setOfficialCompanyName] = useState<string>('');
@@ -2383,7 +2465,7 @@ export default function SettingsPage({
           const baseMsg = meta?.type === 'plan-interval' ? dict.basePlan : dict.baseGeneric;
           const extraMsg = meta?.seats && meta.seats > 0 ? dict.extra(meta.seats) : '';
           // Owner ise "Kullanıcı Davet Et" kısa yolu ekle, değilse basit başarı mesajı
-          if (isOwnerLike) {
+          if (canManageSettings) {
             const labels = {
               tr: { invite: 'Kullanıcı Davet Et', close: 'Kapat' },
               en: { invite: 'Invite Users', close: 'Close' },
@@ -2436,7 +2518,7 @@ export default function SettingsPage({
         } as const;
         const dict = messages[lang as 'tr'|'en'|'fr'|'de'] || messages.tr;
         const extra = meta?.seats && meta.seats > 0 ? dict.extra(meta.seats) : '';
-        if (isOwnerLike) {
+        if (canManageSettings) {
           const labels = {
             tr: { invite: 'Kullanıcı Davet Et', close: 'Kapat' },
             en: { invite: 'Invite Users', close: 'Close' },
@@ -2725,13 +2807,12 @@ export default function SettingsPage({
     // backupFrequency: 'daily',
   });
 
-  // Sekmeler: Plan sekmesini sadece sahipler (owner/tenant_admin) görsün
+  // Sekmeler: Üyeler sadece Güvenlik sekmesini görsün; yöneticiler tüm sekmeleri görür
   const tabs = (() => {
-    // İş gereksinimi: Ayarlar sekmeleri yalnız sahibi (OWNER / TENANT_ADMIN) görebilsin.
-    // Diğer roller sadece profil sekmesini görür; şirket / organizasyon / plan vb. tenant düzeyindeki ayarlar gizlenir.
-    if (!isOwnerLike) {
+    if (!canManageSettings) {
       return [
         { id: 'profile', label: text.tabs.profile, icon: User },
+        { id: 'security', label: text.tabs.security, icon: Shield },
       ];
     }
     return [
@@ -2755,6 +2836,15 @@ export default function SettingsPage({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTab]);
+
+  // Aktif sekme mevcut değilse ilk geçerli sekmeye taşı
+  useEffect(() => {
+    const validTabIds = tabs.map(t => t.id);
+    if (!validTabIds.includes(activeTab)) {
+      const next = validTabIds[0] || 'security';
+      setActiveTab(next);
+    }
+  }, [tabs, activeTab]);
 
   const handleProfileChange = (field: string, value: string) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
@@ -2952,7 +3042,7 @@ export default function SettingsPage({
 
       // Resmi şirket adı değiştiyse ve kullanıcı tenant sahibi ise, backend'e yaz
       try {
-  if (isOwnerLike && officialLoaded) {
+  if (canManageSettings && officialLoaded) {
           // Değişiklik kontrolü basitçe yapılır; gerçek senaryoda trim/normalize edilebilir
           // Backend tarafı sadece TENANT_ADMIN'e izin veriyor
           // companyData.name markalama alanı, officialCompanyName ise resmi alan
@@ -3008,7 +3098,7 @@ export default function SettingsPage({
         } as any;
 
         // Şirket sahibi değilse kimlik alanını hiç göndermeyelim
-  if (!isOwnerLike) {
+  if (!canManageSettings) {
           delete payload.companyName;
         }
 
@@ -3108,16 +3198,18 @@ export default function SettingsPage({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        {/* Son giriş saat dilimi bilgisi (salt-okunur) */}
+        {/* Son giriş zamanı (salt-okunur) */}
         <div className="flex flex-col">
-          <span className="block text-sm font-medium text-gray-700 mb-2">{currentLanguage === 'tr' ? 'Son Giriş Saat Dilimi' : currentLanguage === 'fr' ? 'Fuseau horaire (dernière connexion)' : currentLanguage === 'de' ? 'Zeitzone (letzte Anmeldung)' : 'Last Login Time Zone'}</span>
+          <span className="block text-sm font-medium text-gray-700 mb-2">{currentLanguage === 'tr' ? 'Son Giriş' : currentLanguage === 'fr' ? 'Dernière connexion' : currentLanguage === 'de' ? 'Letzte Anmeldung' : 'Last Login'}</span>
           <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700">
             {(() => {
               try {
-                const tz = (user as any)?.lastLoginTimeZone as string | undefined;
-                const off = (user as any)?.lastLoginUtcOffsetMinutes as number | undefined;
-                const offStr = typeof off === 'number' ? `UTC${off >= 0 ? '+' : ''}${(off/60).toFixed(1).replace('.0','')}` : '';
-                return tz || offStr || '—';
+                const at = (authUser as any)?.lastLoginAt as string | undefined;
+                if (!at) return '—';
+                const d = new Date(at);
+                if (Number.isNaN(d.getTime())) return '—';
+                const locale = (typeof i18n?.language === 'string' && i18n.language) ? i18n.language : (currentLanguage || 'tr');
+                return d.toLocaleString(locale);
               } catch { return '—'; }
             })()}
           </div>
@@ -3223,9 +3315,9 @@ export default function SettingsPage({
                   setOfficialCompanyName(e.target.value);
                   setUnsavedChanges(true);
                 }}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isOwnerLike ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
-                disabled={!isOwnerLike}
-                title={!isOwnerLike ? 'Şirket adını yalnızca şirket sahibi veya yönetici güncelleyebilir' : undefined}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canManageSettings ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
+                disabled={!canManageSettings}
+                title={!canManageSettings ? 'Şirket adını yalnızca şirket sahibi veya yönetici güncelleyebilir' : undefined}
               />
               {!isOwnerLike && (
                 <p className="mt-1 text-xs text-gray-500">Bu alan yalnızca şirket sahibi tarafından değiştirilebilir.</p>
@@ -3699,85 +3791,90 @@ export default function SettingsPage({
           </button>
         </div>
 
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-          <div>
-            <div className="font-medium text-gray-900">{text.security.cards.sessionHistory.title}</div>
-            <div className="text-sm text-gray-500">{text.security.cards.sessionHistory.description}</div>
+        {isOwnerLike && (
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div>
+              <div className="font-medium text-gray-900">{text.security.cards.sessionHistory.title}</div>
+              <div className="text-sm text-gray-500">{text.security.cards.sessionHistory.description}</div>
+            </div>
+            <button
+              onClick={() => {
+                try {
+                  const el = document.getElementById('audit-logs-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } catch {}
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              {text.security.cards.sessionHistory.action}
+            </button>
           </div>
-          <button
-            onClick={() => {
-              try {
-                const el = document.getElementById('audit-logs-section');
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              } catch {}
-            }}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            {text.security.cards.sessionHistory.action}
-          </button>
-        </div>
+        )}
 
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-          <div>
-            <div className="font-medium text-gray-900">{text.security.cards.activeSessions.title}</div>
-            <div className="text-sm text-gray-500">{text.security.cards.activeSessions.description}</div>
-          </div>
-          <button
-            onClick={() => {
-              setInfoModal({
-                open: true,
-                title: currentLanguage === 'tr' ? 'Oturumları Sonlandır' : currentLanguage === 'fr' ? 'Terminer les sessions' : currentLanguage === 'de' ? 'Sitzungen beenden' : 'Terminate Sessions',
-                message: currentLanguage === 'tr'
-                  ? 'Tüm cihazlardaki oturumlar sonlandırılsın mı? Bu cihazda oturuma devam edebilmeniz için yeni bir token oluşturulacak.'
-                  : currentLanguage === 'fr'
-                  ? 'Mettre fin à toutes les sessions sur tous les appareils ? Un nouveau jeton sera émis pour continuer ici.'
-                  : currentLanguage === 'de'
-                  ? 'Alle Sitzungen auf allen Geräten beenden? Für dieses Gerät wird ein neues Token ausgestellt.'
-                  : 'Terminate sessions on all devices? A new token will be issued to continue here.'
-                ,
-                tone: 'info',
-                confirmLabel: currentLanguage === 'tr' ? 'Evet, Sonlandır' : currentLanguage === 'fr' ? 'Oui, terminer' : currentLanguage === 'de' ? 'Ja, beenden' : 'Yes, terminate',
-                cancelLabel: currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel',
-                onConfirm: async () => {
-                  try {
-                    const res = await usersApi.terminateAllSessions();
-                    if (res?.token) {
-                      localStorage.setItem('auth_token', res.token);
-                      try { await refreshUser(); } catch {}
-                      setInfoModal({
-                        open: true,
-                        title: currentLanguage === 'tr' ? 'Oturumlar Sonlandırıldı' : currentLanguage === 'fr' ? 'Sessions terminées' : currentLanguage === 'de' ? 'Sitzungen beendet' : 'Sessions terminated',
-                        message: currentLanguage === 'tr' ? 'Diğer cihazlardaki oturumlar sonlandırıldı. Bu cihazda oturuma devam ediyorsunuz.' : currentLanguage === 'fr' ? 'Les autres appareils ont été déconnectés. Vous continuez sur cet appareil.' : currentLanguage === 'de' ? 'Andere Geräte wurden abgemeldet. Sie bleiben auf diesem Gerät angemeldet.' : 'Other devices were signed out. You remain signed in here.',
-                        tone: 'success',
-                        // Ek seçenek: Bu cihazdan da çıkış yap
-                        cancelLabel: currentLanguage === 'tr' ? 'Bu cihazdan da çık' : currentLanguage === 'fr' ? 'Se déconnecter ici aussi' : currentLanguage === 'de' ? 'Auch hier abmelden' : 'Sign out here too',
-                        onCancel: async () => {
-                          try { await logout(); } catch {}
-                          setInfoModal(m => ({ ...m, open: false }));
-                        },
-                        confirmLabel: currentLanguage === 'tr' ? 'Tamam' : currentLanguage === 'fr' ? 'OK' : currentLanguage === 'de' ? 'OK' : 'OK',
-                        onConfirm: () => setInfoModal(m => ({ ...m, open: false })),
-                      });
+        {isOwnerLike && (
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div>
+              <div className="font-medium text-gray-900">{text.security.cards.activeSessions.title}</div>
+              <div className="text-sm text-gray-500">{text.security.cards.activeSessions.description}</div>
+            </div>
+            <button
+              onClick={() => {
+                setInfoModal({
+                  open: true,
+                  title: currentLanguage === 'tr' ? 'Oturumları Sonlandır' : currentLanguage === 'fr' ? 'Terminer les sessions' : currentLanguage === 'de' ? 'Sitzungen beenden' : 'Terminate Sessions',
+                  message: currentLanguage === 'tr'
+                    ? 'Tüm cihazlardaki oturumlar sonlandırılsın mı? Bu cihazda oturuma devam edebilmeniz için yeni bir token oluşturulacak.'
+                    : currentLanguage === 'fr'
+                    ? 'Mettre fin à toutes les sessions sur tous les appareils ? Un nouveau jeton sera émis pour continuer ici.'
+                    : currentLanguage === 'de'
+                    ? 'Alle Sitzungen auf allen Geräten beenden? Für dieses Gerät wird ein neues Token ausgestellt.'
+                    : 'Terminate sessions on all devices? A new token will be issued to continue here.'
+                  ,
+                  tone: 'info',
+                  confirmLabel: currentLanguage === 'tr' ? 'Evet, Sonlandır' : currentLanguage === 'fr' ? 'Oui, terminer' : currentLanguage === 'de' ? 'Ja, beenden' : 'Yes, terminate',
+                  cancelLabel: currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel',
+                  onConfirm: async () => {
+                    try {
+                      const res = await usersApi.terminateAllSessions();
+                      if (res?.token) {
+                        localStorage.setItem('auth_token', res.token);
+                        try { await refreshUser(); } catch {}
+                        setInfoModal({
+                          open: true,
+                          title: currentLanguage === 'tr' ? 'Oturumlar Sonlandırıldı' : currentLanguage === 'fr' ? 'Sessions terminées' : currentLanguage === 'de' ? 'Sitzungen beendet' : 'Sessions terminated',
+                          message: currentLanguage === 'tr' ? 'Diğer cihazlardaki oturumlar sonlandırıldı. Bu cihazda oturuma devam ediyorsunuz.' : currentLanguage === 'fr' ? 'Les autres appareils ont été déconnectés. Vous continuez sur cet appareil.' : currentLanguage === 'de' ? 'Andere Geräte wurden abgemeldet. Sie bleiben auf diesem Gerät angemeldet.' : 'Other devices were signed out. You remain signed in here.',
+                          tone: 'success',
+                          cancelLabel: currentLanguage === 'tr' ? 'Bu cihazdan da çık' : currentLanguage === 'fr' ? 'Se déconnecter ici aussi' : currentLanguage === 'de' ? 'Auch hier abmelden' : 'Sign out here too',
+                          onCancel: async () => {
+                            try { await logout(); } catch {}
+                            setInfoModal(m => ({ ...m, open: false }));
+                          },
+                          confirmLabel: currentLanguage === 'tr' ? 'Tamam' : currentLanguage === 'fr' ? 'OK' : currentLanguage === 'de' ? 'OK' : 'OK',
+                          onConfirm: () => setInfoModal(m => ({ ...m, open: false })),
+                        });
+                      }
+                    } catch (e: any) {
+                      openInfo('Sessions', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
                     }
-                  } catch (e: any) {
-                    openInfo('Sessions', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
-                  }
-                },
-                onCancel: () => setInfoModal(m => ({ ...m, open: false })),
-              });
-            }}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            {text.security.cards.activeSessions.action}
-          </button>
-        </div>
+                  },
+                  onCancel: () => setInfoModal(m => ({ ...m, open: false })),
+                });
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              {text.security.cards.activeSessions.action}
+            </button>
+          </div>
+        )}
       </div>
     </div>
 
-    {/* Audit Logs Section */}
-    <div id="audit-logs-section" className="border-t pt-6">
-      <AuditLogComponent />
-    </div>
+    {/* Audit Logs Section - sadece owner/admin */}
+    {isOwnerLike && (
+      <div id="audit-logs-section" className="border-t pt-6">
+        <AuditLogComponent />
+      </div>
+    )}
   </div>
 );
 
@@ -4020,7 +4117,7 @@ export default function SettingsPage({
         <div className="p-6">
           {activeTab === 'profile' && renderProfileTab()}
           {activeTab === 'company' && renderCompanyTab()}
-          {activeTab === 'plan' && isOwnerLike && (
+          {activeTab === 'plan' && canManageSettings && (
             <PlanTab tenant={tenant} currentLanguage={currentLanguage} text={text} />
           )}
           {activeTab === 'organization' && <OrganizationMembersPage />}

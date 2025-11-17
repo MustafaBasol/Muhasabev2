@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { X, Receipt, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 
 type ExpenseListItem = {
   expenseNumber: string;
@@ -32,9 +33,9 @@ export default function SupplierHistoryModal({
   const { t } = useTranslation();
 
   const statusLabels = useMemo(() => ({
-    paid: `✅ ${t('status.paid')}`,
-    approved: `📋 ${t('status.approved')}`,
-    draft: `📝 ${t('status.draft')}`
+    paid: `✅ ${resolveStatusLabel(t, 'paid')}`,
+    approved: `📋 ${resolveStatusLabel(t, 'approved')}`,
+    draft: `📝 ${resolveStatusLabel(t, 'draft')}`
   }), [t]);
 
   if (!isOpen || !supplier) return null;
@@ -121,7 +122,10 @@ export default function SupplierHistoryModal({
                         -{formatAmount(expense.amount)}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {statusLabels[expense.status as keyof typeof statusLabels] || expense.status}
+                        {(() => {
+                          const key = normalizeStatusKey(String(expense.status || ''));
+                          return statusLabels[key as keyof typeof statusLabels] || resolveStatusLabel(t, key);
+                        })()}
                       </div>
                     </div>
                   </div>

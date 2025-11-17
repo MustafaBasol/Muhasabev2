@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { X, Download, Edit, Calendar, Mail, MapPin } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 
 interface Invoice {
   id: string;
@@ -45,10 +46,10 @@ export default function InvoiceViewModal({
   const { t } = useTranslation();
 
   const statusConfig = useMemo(() => ({
-    draft: { label: t('status.draft'), class: 'bg-gray-100 text-gray-800' },
-    sent: { label: t('status.sent'), class: 'bg-blue-100 text-blue-800' },
-    paid: { label: t('status.paid'), class: 'bg-green-100 text-green-800' },
-    overdue: { label: t('status.overdue'), class: 'bg-red-100 text-red-800' }
+    draft: { label: resolveStatusLabel(t, 'draft'), class: 'bg-gray-100 text-gray-800' },
+    sent: { label: resolveStatusLabel(t, 'sent'), class: 'bg-blue-100 text-blue-800' },
+    paid: { label: resolveStatusLabel(t, 'paid'), class: 'bg-green-100 text-green-800' },
+    overdue: { label: resolveStatusLabel(t, 'overdue'), class: 'bg-red-100 text-red-800' }
   }), [t]);
 
   if (!isOpen || !invoice) return null;
@@ -63,7 +64,8 @@ export default function InvoiceViewModal({
   };
 
   const getStatusBadge = (status: string) => {
-    const config = statusConfig[status as keyof typeof statusConfig];
+    const key = normalizeStatusKey(status);
+    const config = statusConfig[key as keyof typeof statusConfig] || { label: resolveStatusLabel(t, key), class: 'bg-gray-100 text-gray-800' } as any;
     return (
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.class}`}>
         {config.label}

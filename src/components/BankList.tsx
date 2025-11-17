@@ -202,13 +202,11 @@ export default function BankList({
                         <span className="truncate">{bank.accountNumber}</span>
                       </span>
                       {getAccountTypeBadge(bank.accountType)}
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        bank.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {bank.isActive ? 'Aktif' : 'Pasif'}
-                      </span>
+                      {(() => { const active = bank?.isActive !== false; return (
+                        <span className={`text-xs px-2 py-1 rounded-full ${active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                          {active ? 'Aktif' : 'Pasif'}
+                        </span>
+                      ); })()}
                     </div>
 
                     {/* Mobile actions */}

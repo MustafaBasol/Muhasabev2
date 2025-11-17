@@ -54,8 +54,8 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
   const [confirmAccept, setConfirmAccept] = React.useState(false);
 
   const statusMap = useMemo(() => ({
-    draft: { label: t('status.draft'), className: 'bg-gray-100 text-gray-800' },
-    sent: { label: t('status.sent'), className: 'bg-blue-100 text-blue-800' },
+    draft: { label: t('common:status.draft'), className: 'bg-gray-100 text-gray-800' },
+    sent: { label: t('common:status.sent'), className: 'bg-blue-100 text-blue-800' },
     viewed: { label: t('quotes.statusLabels.viewed'), className: 'bg-indigo-100 text-indigo-800' },
     accepted: { label: t('quotes.statusLabels.accepted'), className: 'bg-green-100 text-green-800' },
     declined: { label: t('quotes.statusLabels.declined'), className: 'bg-red-100 text-red-800' },

@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { X, Plus, Trash2, Calculator, Search, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { resolveStatusLabel } from '../utils/status';
 import type { Product } from '../types';
 
 interface Customer {
@@ -600,11 +601,11 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                 onChange={(event) => setInvoiceData({ ...invoiceData, status: event.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
-                <option value="draft">{t('status.draft')}</option>
-                <option value="sent">{t('status.sent')}</option>
-                <option value="paid">{t('status.paid')}</option>
-                <option value="overdue">{t('status.overdue')}</option>
-                <option value="cancelled">{t('status.cancelled')}</option>
+                <option value="draft">{resolveStatusLabel(t, 'draft')}</option>
+                <option value="sent">{resolveStatusLabel(t, 'sent')}</option>
+                <option value="paid">{resolveStatusLabel(t, 'paid')}</option>
+                <option value="overdue">{resolveStatusLabel(t, 'overdue')}</option>
+                <option value="cancelled">{resolveStatusLabel(t, 'cancelled')}</option>
               </select>
             </div>
           </div>

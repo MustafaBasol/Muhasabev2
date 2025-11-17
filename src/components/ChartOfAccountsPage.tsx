@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus, Trash2, Search, FolderOpen, Folder, X, Check } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+// Debug bileşeni sadece çeviri sorunlarını teşhis etmek için (dev mod / query param)
+import TranslationDebug from './TranslationDebug';
 
 interface Account {
   id: string;
@@ -32,7 +34,7 @@ export default function ChartOfAccountsPage({
   customers = []
 }: ChartOfAccountsPageProps) {
   const { formatCurrency, getCurrencySymbol } = useCurrency();
-  const { t } = useTranslation();
+  const { t } = useTranslation('common');
   
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -820,6 +822,13 @@ export default function ChartOfAccountsPage({
 
   return (
     <div className="space-y-6">
+      {/* Çeviri tanılama (yalnızca debugTranslations query paramı varsa göster) */}
+      {typeof window !== 'undefined' && window.location.search.includes('debugTranslations') && (
+        <div className="border border-yellow-300 rounded-lg bg-yellow-50 p-4">
+          <p className="text-sm font-medium text-yellow-800 mb-2">Çeviri Tanılama Paneli</p>
+          <TranslationDebug />
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">

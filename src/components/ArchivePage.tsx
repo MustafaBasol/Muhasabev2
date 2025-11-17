@@ -18,6 +18,7 @@ import {
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 
 interface ArchivePageProps {
   invoices?: any[];
@@ -51,7 +52,7 @@ export default function ArchivePage({
   onDownloadSale
 }: ArchivePageProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t } = useTranslation('common');
   
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -131,6 +132,7 @@ export default function ArchivePage({
   };
 
   const getStatusBadge = (status: string, _type: string) => {
+    const key = normalizeStatusKey(status);
     const statusColors = {
       // Invoice statuses
       paid: 'bg-green-100 text-green-800',
@@ -140,10 +142,10 @@ export default function ArchivePage({
       cancelled: 'bg-red-100 text-red-800'
     };
     
-    const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
+    const colorClass = statusColors[key as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${colorClass}`}>
-        {t(`status.${status}`, status)}
+        {resolveStatusLabel(t, key)}
       </span>
     );
   };
