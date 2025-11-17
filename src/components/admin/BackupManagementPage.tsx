@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Database, 
   Download, 
@@ -16,6 +17,7 @@ import { backupsApi, type BackupMetadata, type BackupStatistics } from '../../ap
 import { adminApi } from '../../api/admin';
 
 export default function BackupManagementPage() {
+  const { t } = useTranslation('common');
   const [backups, setBackups] = useState<BackupMetadata[]>([]);
   const [statistics, setStatistics] = useState<BackupStatistics | null>(null);
   interface AdminUser { id: string; firstName: string; lastName: string; email: string }
@@ -137,7 +139,7 @@ export default function BackupManagementPage() {
   };
 
   const handleDelete = async (backupId: string) => {
-    if (!confirm('Bu yedeği silmek istediğinizden emin misiniz?')) return;
+    if (!confirm(t('admin.backups.deleteConfirm', 'Bu yedeği silmek istediğinizden emin misiniz?'))) return;
 
     try {
       setLoading(true);
@@ -153,7 +155,7 @@ export default function BackupManagementPage() {
   };
 
   const handleCleanup = async () => {
-    if (!confirm('30 günden eski tüm yedekleri silmek istediğinizden emin misiniz?')) return;
+    if (!confirm(t('admin.backups.deleteOlderThanConfirm', '30 günden eski tüm yedekleri silmek istediğinizden emin misiniz?'))) return;
 
     try {
       setLoading(true);

@@ -3,6 +3,15 @@
     "name": "comptario",
     "subtitle": "Accounting System"
   },
+  "presets": {
+    "thisMonth": "This Month",
+    "lastMonth": "Last Month",
+    "thisYear": "This Year",
+    "addedThisMonth": "Added This Month",
+    "withEmail": "Has Email",
+    "withPhone": "Has Phone",
+    "withCompany": "Has Company"
+  },
   "landing": {
     "nav.features": "Features",
     "nav.pricing": "Pricing",
@@ -252,6 +261,7 @@
     "back": "Back",
     "save": "Save",
     "cancel": "Cancel",
+    "confirm": "Confirm",
     "delete": "Delete",
     "edit": "Edit",
     "view": "View",
@@ -296,6 +306,24 @@
   "dateRanges.thisYear": "This year",
   "common.total": "Total",
   "common.exportCSV": "Export CSV",
+      "modal": {
+        "newTitle": "Add New Supplier",
+        "editTitle": "Edit Supplier",
+        "subtitle": "Enter supplier details",
+        "nameLabel": "Supplier Name",
+        "companyLabel": "Company Name",
+        "emailLabel": "Email",
+        "phoneLabel": "Phone",
+        "categoryLabel": "Category",
+        "taxNumberLabel": "Tax Number",
+        "addressLabel": "Address",
+        "namePlaceholder": "ABC Supply Ltd.",
+        "companyPlaceholder": "ABC Supply Inc.",
+        "emailPlaceholder": "info@abcsupply.com",
+        "phonePlaceholder": "+1 555 123 4567",
+        "taxNumberPlaceholder": "Tax ID",
+        "addressPlaceholder": "Full address information..."
+      },
   "filters.status": "Status",
   "filters.filterByStatus": "Filter by status",
   "actions.clear": "Clear",
@@ -319,7 +347,13 @@
     "check": "Check",
     "email": "Email",
     "quantity": "Quantity",
-    "status": "Status",
+    "statusLabel": "Status",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "paid": "Paid",
+      "rejected": "Rejected"
+    },
     "notes": "Notes"
   },
   "currencies": {
@@ -967,7 +1001,25 @@
     "phone": "Phone",
     "totalExpenses": "Total Expenses",
     "totalAmount": "Total Amount",
-    "actions": "Actions"
+    "actions": "Actions",
+    "modal": {
+      "newTitle": "Add New Supplier",
+      "editTitle": "Edit Supplier",
+      "subtitle": "Enter supplier details",
+      "nameLabel": "Supplier Name",
+      "companyLabel": "Company Name",
+      "emailLabel": "Email",
+      "phoneLabel": "Phone",
+      "categoryLabel": "Category",
+      "taxNumberLabel": "Tax Number",
+      "addressLabel": "Address",
+      "namePlaceholder": "ABC Supply Ltd.",
+      "companyPlaceholder": "ABC Supply Inc.",
+      "emailPlaceholder": "info@abcsupply.com",
+      "phonePlaceholder": "+1 555 123 4567",
+      "taxNumberPlaceholder": "Tax ID",
+      "addressPlaceholder": "Full address information..."
+    }
   },
   "banks": {
     "title": "Bank Accounts",
@@ -1004,7 +1056,8 @@
     "addAccount": "Add Account",
     "routingNumber": "Routing Number (ABA)",
     "swiftBic": "SWIFT/BIC",
-    "branchCode": "Branch Code"
+    "branchCode": "Branch Code",
+    "deleteConfirm": "Are you sure you want to delete this bank account?"
   },
   "settings": {
     "title": "Settings",
@@ -1036,6 +1089,86 @@
     }
   },
   "common.remindMeLater": "Remind Me Later",
+  "common.now": "Now",
+  "common.generic": {
+    "customer": "Customer",
+    "supplier": "Supplier",
+    "expense": "Expense",
+    "quote": "Quote"
+  },
+  "toasts": {
+    "common": {
+      "dataLoadError": "An error occurred while loading data"
+    },
+    "invoices": {
+      "updateSuccess": "Invoice updated",
+      "updateError": "Invoice could not be updated",
+      "createPartialError": "Invoice created, but sale record could not be created",
+      "createWithSaleSuccess": "Invoice and sale created",
+      "cancelSuccess": "Invoice voided",
+      "cancelError": "Invoice could not be voided",
+      "restoreSuccess": "Invoice restored",
+      "restoreError": "Invoice could not be restored",
+      "createSuccess": "Invoice created successfully"
+    },
+    "customers": {
+      "updateSuccess": "Customer updated",
+      "createSuccess": "Customer added",
+      "deleteSuccess": "Customer deleted",
+      "deleteError": "Customer could not be deleted"
+    },
+    "suppliers": {
+      "updateSuccess": "Supplier updated",
+      "createSuccess": "Supplier added",
+      "deleteSuccess": "Supplier deleted",
+      "deleteError": "Supplier could not be deleted"
+    },
+    "sales": {
+      "customerNotSelected": "No customer selected! Please choose a valid customer.",
+      "insufficientStock": "❌ Insufficient stock! {{name}} - Available: {{available}}, Requested: {{requested}}",
+      "createSuccess": "Sale saved",
+      "updateSuccess": "Sale updated",
+      "localSaved": "Sale saved locally (offline)",
+      "stockUpdateFailed": "Sale saved but stock could not be updated",
+      "deleteError": "Sale could not be deleted",
+      "deleteSuccess": "Sale deleted successfully",
+      "customerNotFound": "Customer not found! Please create a customer first."
+    },
+    "expenses": {
+      "updateSuccess": "Expense updated",
+      "createSuccess": "Expense added",
+      "cancelSuccess": "Expense voided",
+      "cancelError": "Expense could not be voided",
+      "statusUpdateSuccess": "Expense status updated",
+      "restoreSuccess": "Expense restored",
+      "restoreError": "Expense could not be restored"
+    },
+    "products": {
+      "updateSuccess": "Product updated",
+      "createSuccess": "Product added",
+      "deleteSuccess": "Product deleted",
+      "deleteError": "Product could not be deleted",
+      "bulkRemoved": "{{count}} products removed",
+      "bulkNotFound": "Selected products not found",
+      "bulkArchived": "{{count}} products archived",
+      "bulkAlreadyArchived": "Selected products are already archived",
+      "bulkPriceUpdateSaved": "Your selection for bulk price update is saved. You can edit on the product detail."
+    },
+    "categories": {
+      "added": "Category {{name}} added (VAT: %{{taxRate}})",
+      "addError": "Category could not be added",
+      "updateSuccess": "Category updated",
+      "deleteSuccess": "Category deleted",
+      "assignmentInfo": "For category assignment, use the category layout on the left panel."
+    },
+    "bank": {
+      "deleteError": "Bank account could not be deleted"
+    },
+    "quotes": {
+      "createSuccess": "Quote created",
+      "createError": "Quote could not be created"
+    }
+  },
   "notifications": {
     "invoices": {
       "overdue": { "title": "Overdue invoice payment", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysOverdue}} days overdue)" },
@@ -1834,8 +1967,35 @@
         "count": "{{count}} pending invitations",
         "resend": "Resend",
         "cancel": "Cancel",
+        "cancelConfirm": "Are you sure you want to cancel this invite? ({{email}})",
         "expires": "Expires on {{date}}"
       }
+    }
+  },
+  "admin": {
+    "users": {
+      "updateConfirm": "Are you sure you want to update this user?",
+      "passwordResetConfirm": "Send password reset email?",
+      "deactivateConfirm": "Are you sure you want to deactivate this user?",
+      "activateConfirm": "Are you sure you want to activate this user?"
+    },
+    "tenants": {
+      "updatePlanConfirm": "Are you sure you want to update plan to '{{plan}}' for {{name}}?",
+      "updateStatusConfirm": "Are you sure you want to update status to '{{status}}' for {{name}}?",
+      "updateNextPaymentConfirm": "Are you sure you want to update next payment date to '{{date}}' for {{name}}?",
+      "cancelSubscriptionConfirm": "Are you sure you want to cancel subscription for {{name}}?",
+      "dangerDeleteTenantConfirm": "Warning! Do you want to permanently delete tenant '{{name}}'? This action cannot be undone."
+    },
+    "backups": {
+      "deleteConfirm": "Are you sure you want to delete this backup?",
+      "deleteOlderThanConfirm": "Are you sure you want to delete all backups older than {{days}} days?"
+    }
+  },
+  "plans": {
+    "limitExceeded": {
+      "title": "Plan limit exceeded",
+      "invoicesMessage": "You have reached the maximum number of invoices for your current plan. Upgrade your plan to create more invoices.",
+      "expensesMessage": "You have reached the maximum number of expenses for your current plan. Upgrade your plan to add more expenses."
     }
   },
   "planTab": {

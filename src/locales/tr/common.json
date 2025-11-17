@@ -3,6 +3,24 @@
     "name": "comptario",
     "subtitle": "Muhasebe Sistemi"
   },
+  "presets": {
+    "thisMonth": "Bu Ay",
+    "lastMonth": "Geçen Ay",
+    "thisYear": "Bu Yıl",
+    "addedThisMonth": "Bu Ay Eklenenler",
+    "withEmail": "E-posta var",
+    "withPhone": "Telefon var",
+    "withCompany": "Şirketi olanlar"
+  },
+  "presets": {
+    "thisMonth": "Bu Ay",
+    "lastMonth": "Geçen Ay",
+    "thisYear": "Bu Yıl",
+    "addedThisMonth": "Bu Ay Eklenenler",
+    "withEmail": "E-posta var",
+    "withPhone": "Telefon var",
+    "withCompany": "Şirketi olanlar"
+  },
   "landing": {
     "nav.features": "Özellikler",
     "nav.pricing": "Fiyatlar",
@@ -325,6 +343,24 @@
       "noActivePeriod": "Aktif dönem yok",
       "periodsOverlapping": "Çakışan dönemler var",
       "allPeriodsLocked": "Tüm dönemler kilitli",
+      "modal": {
+        "newTitle": "Yeni Tedarikçi Ekle",
+        "editTitle": "Tedarikçiyi Düzenle",
+        "subtitle": "Tedarikçi bilgilerini girin",
+        "nameLabel": "Tedarikçi Adı",
+        "companyLabel": "Şirket Adı",
+        "emailLabel": "E-posta",
+        "phoneLabel": "Telefon",
+        "categoryLabel": "Kategori",
+        "taxNumberLabel": "Vergi Numarası",
+        "addressLabel": "Adres",
+        "namePlaceholder": "ABC Tedarik Ltd.",
+        "companyPlaceholder": "ABC Tedarik Ltd. Şti.",
+        "emailPlaceholder": "info@abctedarik.com",
+        "phonePlaceholder": "+90 555 123 45 67",
+        "taxNumberPlaceholder": "1234567890",
+        "addressPlaceholder": "Tam adres bilgisi..."
+      },
       "createActivePeriod": "Aktif dönem oluşturun",
       "managePeriods": "Dönemleri Yönet",
       "warnings": {
@@ -343,6 +379,7 @@
     "back": "Geri",
     "save": "Kaydet",
     "cancel": "İptal",
+    "confirm": "Onay",
     "delete": "Sil",
     "edit": "Düzenle",
     "view": "Görüntüle",
@@ -410,7 +447,13 @@
   "check": "Çek",
     "email": "E-posta",
     "quantity": "Miktar",
-    "status": "Durum",
+    "statusLabel": "Durum",
+    "status": {
+      "pending": "Beklemede",
+      "approved": "Onaylandı",
+      "paid": "Ödendi",
+      "rejected": "Reddedildi"
+    },
     "notes": "Notlar"
 },
   "currencies": {
@@ -1080,7 +1123,25 @@
     "phone": "Telefon",
     "totalExpenses": "Toplam Gider",
     "totalAmount": "Toplam Tutar",
-    "actions": "İşlemler"
+    "actions": "İşlemler",
+    "modal": {
+      "newTitle": "Yeni Tedarikçi Ekle",
+      "editTitle": "Tedarikçiyi Düzenle",
+      "subtitle": "Tedarikçi bilgilerini girin",
+      "nameLabel": "Tedarikçi Adı",
+      "companyLabel": "Şirket Adı",
+      "emailLabel": "E-posta",
+      "phoneLabel": "Telefon",
+      "categoryLabel": "Kategori",
+      "taxNumberLabel": "Vergi Numarası",
+      "addressLabel": "Adres",
+      "namePlaceholder": "ABC Tedarik Ltd.",
+      "companyPlaceholder": "ABC Tedarik Ltd. Şti.",
+      "emailPlaceholder": "info@abctedarik.com",
+      "phonePlaceholder": "+90 555 123 45 67",
+      "taxNumberPlaceholder": "Vergi Numarası",
+      "addressPlaceholder": "Tam adres bilgisi..."
+    }
   },
   "banks": {
     "title": "Banka Hesapları",
@@ -1117,7 +1178,8 @@
     "addAccount": "Hesap Ekle",
     "routingNumber": "Routing Numarası (ABA)",
     "swiftBic": "SWIFT/BIC",
-    "branchCode": "Şube Kodu"
+    "branchCode": "Şube Kodu",
+    "deleteConfirm": "Bu banka hesabını silmek istediğinizden emin misiniz?"
   },
   "settings": {
     "title": "Ayarlar",
@@ -1149,6 +1211,86 @@
     }
   },
   "common.remindMeLater": "Daha Sonra Hatırlat",
+  "common.now": "Şimdi",
+  "common.generic": {
+    "customer": "Müşteri",
+    "supplier": "Tedarikçi",
+    "expense": "Gider",
+    "quote": "Teklif"
+  },
+  "toasts": {
+    "common": {
+      "dataLoadError": "Veriler yüklenirken hata oluştu"
+    },
+    "invoices": {
+      "updateSuccess": "Fatura güncellendi",
+      "updateError": "Fatura güncellenemedi",
+      "createPartialError": "Fatura oluşturuldu, ancak satış kaydı oluşturulamadı",
+      "createWithSaleSuccess": "Fatura ve satış oluşturuldu",
+      "cancelSuccess": "Fatura iptal edildi",
+      "cancelError": "Fatura iptal edilemedi",
+      "restoreSuccess": "Fatura geri yüklendi",
+      "restoreError": "Fatura geri yüklenemedi",
+      "createSuccess": "Fatura başarıyla oluşturuldu"
+    },
+    "customers": {
+      "updateSuccess": "Müşteri güncellendi",
+      "createSuccess": "Müşteri eklendi",
+      "deleteSuccess": "Müşteri silindi",
+      "deleteError": "Müşteri silinemedi"
+    },
+    "suppliers": {
+      "updateSuccess": "Tedarikçi güncellendi",
+      "createSuccess": "Tedarikçi eklendi",
+      "deleteSuccess": "Tedarikçi silindi",
+      "deleteError": "Tedarikçi silinemedi"
+    },
+    "sales": {
+      "customerNotSelected": "Müşteri seçilmedi! Lütfen geçerli bir müşteri seçin.",
+      "insufficientStock": "❌ Yetersiz stok! {{name}} - Mevcut: {{available}}, İstenen: {{requested}}",
+      "createSuccess": "Satış kaydedildi",
+      "updateSuccess": "Satış güncellendi",
+      "localSaved": "Satış yerel olarak kaydedildi (offline)",
+      "stockUpdateFailed": "Satış kaydedildi ancak stok güncellenemedi",
+      "deleteError": "Satış silinemedi",
+      "deleteSuccess": "Satış başarıyla silindi",
+      "customerNotFound": "Müşteri bulunamadı! Lütfen önce müşteri oluşturun."
+    },
+    "expenses": {
+      "updateSuccess": "Gider güncellendi",
+      "createSuccess": "Gider eklendi",
+      "cancelSuccess": "Gider iptal edildi",
+      "cancelError": "Gider iptal edilemedi",
+      "statusUpdateSuccess": "Gider durumu güncellendi",
+      "restoreSuccess": "Gider geri yüklendi",
+      "restoreError": "Gider geri yüklenemedi"
+    },
+    "products": {
+      "updateSuccess": "Ürün güncellendi",
+      "createSuccess": "Ürün eklendi",
+      "deleteSuccess": "Ürün silindi",
+      "deleteError": "Ürün silinemedi",
+      "bulkRemoved": "{{count}} ürün silindi",
+      "bulkNotFound": "Seçilen ürünler bulunamadı",
+      "bulkArchived": "{{count}} ürün arşivlendi",
+      "bulkAlreadyArchived": "Seçilen ürünler zaten arşivde",
+      "bulkPriceUpdateSaved": "Toplu fiyat güncelleme için seçiminizi kaydettik. Düzenlemeyi ürün detayında yapabilirsiniz."
+    },
+    "categories": {
+      "added": "{{name}} kategorisi eklendi (KDV: %{{taxRate}})",
+      "addError": "Kategori eklenemedi",
+      "updateSuccess": "Kategori güncellendi",
+      "deleteSuccess": "Kategori silindi",
+      "assignmentInfo": "Kategori ataması için sol paneldeki kategori düzenini kullanabilirsiniz."
+    },
+    "bank": {
+      "deleteError": "Banka silinemedi"
+    },
+    "quotes": {
+      "createSuccess": "Teklif oluşturuldu",
+      "createError": "Teklif oluşturulamadı"
+    }
+  },
   "notifications": {
     "invoices": {
       "overdue": { "title": "Gecikmiş fatura ödemesi", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysOverdue}} gün gecikmiş)" },
@@ -1927,6 +2069,7 @@
         "count": "{{count}} bekleyen davet",
         "resend": "Tekrar Gönder",
         "cancel": "İptal Et",
+        "cancelConfirm": "Bu daveti iptal etmek istediğinizden emin misiniz? ({{email}})",
         "resendSuccess": "Davet tekrar gönderildi",
         "cancelSuccess": "Davet iptal edildi",
         "expires": "{{date}} tarihinde sona eriyor"
@@ -1964,6 +2107,32 @@
         "subtitle": "Bu organizasyonun zaten bir üyesisiniz",
         "action": "Panele Git"
       }
+    }
+  },
+  "admin": {
+    "users": {
+      "updateConfirm": "Bu kullanıcıyı güncellemek istediğinize emin misiniz?",
+      "passwordResetConfirm": "Şifre sıfırlama e-postası gönderilsin mi?",
+      "deactivateConfirm": "Kullanıcıyı devre dışı bırakmak istediğinize emin misiniz?",
+      "activateConfirm": "Kullanıcıyı aktifleştirmek istediğinize emin misiniz?"
+    },
+    "tenants": {
+      "updatePlanConfirm": "{{name}} için planı '{{plan}}' olarak güncellemek istediğinize emin misiniz?",
+      "updateStatusConfirm": "{{name}} için durumu '{{status}}' olarak güncellemek istediğinize emin misiniz?",
+      "updateNextPaymentConfirm": "{{name}} için sonraki ödeme tarihini '{{date}}' olarak güncellemek istediğinize emin misiniz?",
+      "cancelSubscriptionConfirm": "{{name}} aboneliğini iptal etmek istediğinize emin misiniz?",
+      "dangerDeleteTenantConfirm": "Dikkat! '{{name}}' kiracısını kalıcı olarak silmek istiyor musunuz? Bu işlem geri alınamaz."
+    },
+    "backups": {
+      "deleteConfirm": "Bu yedeği silmek istediğinizden emin misiniz?",
+      "deleteOlderThanConfirm": "{{days}} günden eski tüm yedekleri silmek istediğinizden emin misiniz?"
+    }
+  },
+  "plans": {
+    "limitExceeded": {
+      "title": "Plan limiti aşıldı",
+      "invoicesMessage": "Mevcut planınızda maksimum fatura sayısına ulaştınız. Daha fazla fatura oluşturmak için planınızı yükseltin.",
+      "expensesMessage": "Mevcut planınızda maksimum gider sayısına ulaştınız. Daha fazla gider eklemek için planınızı yükseltin."
     }
   },
   "planTab": {

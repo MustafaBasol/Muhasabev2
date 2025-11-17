@@ -45,6 +45,52 @@ export default function InvoiceViewModal({
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
 
+  // Dil bilgisi ve yerelleştirilmiş yardımcılar
+  const getActiveLang = () => {
+    try {
+      const stored = localStorage.getItem('i18nextLng');
+      if (stored && typeof stored === 'string' && stored.length >= 2) {
+        return stored.slice(0,2).toLowerCase();
+      }
+    } catch {}
+    const i18 = (t as any)?.i18n;
+    const cand = (i18?.resolvedLanguage || i18?.language || 'en') as string;
+    return cand.slice(0,2).toLowerCase();
+  };
+  const lang = getActiveLang();
+  const toLocale = (l: string) => l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US';
+  const labels: Record<string, Record<string, string>> = {
+    tr: {
+      createdBy: 'Oluşturan',
+      createdAt: 'Oluşturulma',
+      updatedBy: 'Son güncelleyen',
+      updatedAt: 'Son güncelleme',
+      noCustomer: 'Müşteri Yok',
+    },
+    en: {
+      createdBy: 'Created by',
+      createdAt: 'Created at',
+      updatedBy: 'Last updated by',
+      updatedAt: 'Last updated',
+      noCustomer: 'No Customer',
+    },
+    de: {
+      createdBy: 'Erstellt von',
+      createdAt: 'Erstellt am',
+      updatedBy: 'Zuletzt aktualisiert von',
+      updatedAt: 'Zuletzt aktualisiert',
+      noCustomer: 'Kein Kunde',
+    },
+    fr: {
+      createdBy: 'Créé par',
+      createdAt: 'Créé le',
+      updatedBy: 'Dernière mise à jour par',
+      updatedAt: 'Dernière mise à jour',
+      noCustomer: 'Aucun Client',
+    }
+  };
+  const L = labels[lang] || labels.en;
+
   const statusConfig = useMemo(() => ({
     draft: { label: resolveStatusLabel(t, 'draft'), class: 'bg-gray-100 text-gray-800' },
     sent: { label: resolveStatusLabel(t, 'sent'), class: 'bg-blue-100 text-blue-800' },
@@ -55,7 +101,7 @@ export default function InvoiceViewModal({
   if (!isOpen || !invoice) return null;
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+    return new Date(dateString).toLocaleDateString(toLocale(lang));
   };
 
   const formatAmount = (amount: number | string) => {
@@ -113,11 +159,11 @@ export default function InvoiceViewModal({
         </div>
 
         <div className="p-6" id={`invoice-${invoice.id}`}>
-          {/* Oluşturan / Güncelleyen Bilgisi */}
+          {/* Oluşturan / Güncelleyen Bilgisi - i18n */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-xs text-gray-600">
             <div>
               <div>
-                <span className="text-gray-500">Oluşturan:</span>{' '}
+                <span className="text-gray-500">{L.createdBy}:</span>{' '}
                 <span className="font-medium">{
                   ((invoice as any).createdByName
                     || [
@@ -130,13 +176,13 @@ export default function InvoiceViewModal({
                 }</span>
               </div>
               <div>
-                <span className="text-gray-500">Oluşturulma:</span>{' '}
-                <span className="font-medium">{(invoice as any).createdAt ? new Date((invoice as any).createdAt).toLocaleString('tr-TR') : '—'}</span>
+                <span className="text-gray-500">{L.createdAt}:</span>{' '}
+                <span className="font-medium">{(invoice as any).createdAt ? new Date((invoice as any).createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
             <div>
               <div>
-                <span className="text-gray-500">Son güncelleyen:</span>{' '}
+                <span className="text-gray-500">{L.updatedBy}:</span>{' '}
                 <span className="font-medium">{
                   ((invoice as any).updatedByName
                     || [
@@ -149,8 +195,8 @@ export default function InvoiceViewModal({
                 }</span>
               </div>
               <div>
-                <span className="text-gray-500">Son güncelleme:</span>{' '}
-                <span className="font-medium">{(invoice as any).updatedAt ? new Date((invoice as any).updatedAt).toLocaleString('tr-TR') : '—'}</span>
+                <span className="text-gray-500">{L.updatedAt}:</span>{' '}
+                <span className="font-medium">{(invoice as any).updatedAt ? new Date((invoice as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
           </div>
@@ -191,7 +237,7 @@ export default function InvoiceViewModal({
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('invoice.customerInfo')}</h3>
               <div className="space-y-2">
-                <div className="font-medium text-gray-900">{invoice.customer?.name || invoice.customerName || 'Müşteri Yok'}</div>
+                <div className="font-medium text-gray-900">{invoice.customer?.name || invoice.customerName || t('common:noCustomer', { defaultValue: L.noCustomer })}</div>
                 {(invoice.customer?.email || invoice.customerEmail) && (
                   <div className="flex items-center text-sm text-gray-600">
                     <Mail className="w-4 h-4 mr-2" />

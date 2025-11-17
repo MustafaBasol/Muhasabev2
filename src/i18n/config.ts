@@ -64,6 +64,13 @@ function normalizeCommonResource(obj: any) {
         }
       }
     }
+    // If some locales mistakenly nested notifications/security under sales, hoist them
+    if (!copy.notifications && copy.sales && typeof copy.sales.notifications === 'object') {
+      copy.notifications = copy.sales.notifications;
+    }
+    if (!copy.security && copy.sales && typeof copy.sales.security === 'object') {
+      copy.security = copy.sales.security;
+    }
     return copy;
   } catch {
     return obj || {};

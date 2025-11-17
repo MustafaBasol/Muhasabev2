@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
-import { getPresetLabel } from '../utils/presetLabels';
+// preset etiketleri i18n'den alınır
 
 interface Supplier {
   id: string;
@@ -189,7 +189,7 @@ export default function SupplierList({
                 { id:'cat-office', label: getCategoryLabel('Ofis Malzemeleri'), apply:()=> setCategoryFilter('Ofis Malzemeleri') },
                 { id:'cat-technology', label: getCategoryLabel('Teknoloji'), apply:()=> setCategoryFilter('Teknoloji') },
                 { id:'cat-services', label: getCategoryLabel('Hizmet'), apply:()=> setCategoryFilter('Hizmet') },
-                { id:'added-this-month', label: getPresetLabel('added-this-month', i18n.language), apply:()=>{
+                { id:'added-this-month', label: t('presets.addedThisMonth'), apply:()=>{
                   const d = new Date();
                   const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
                   const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);

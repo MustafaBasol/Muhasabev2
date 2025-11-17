@@ -22,6 +22,10 @@ interface CustomerModalProps {
 
 export default function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerModalProps) {
   const { t } = useTranslation();
+  const tx = (key: string, def: string) => {
+    const v = t(key as any, { defaultValue: '' }) as string;
+    return v && v !== key && v.trim() !== '' ? v : def;
+  };
   
   const [customerData, setCustomerData] = useState({
     name: customer?.name || '',
@@ -93,9 +97,9 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {customer ? (t('customers.editCustomer') || 'Müşteriyi Düzenle') : (t('customers.newCustomer') || 'Yeni Müşteri Ekle')}
+                {customer ? tx('customers.editCustomer', 'Edit Customer') : tx('customers.newCustomer', 'Add New Customer')}
               </h2>
-              <p className="text-sm text-gray-500">{t('customers.enterCustomerInfo') || 'Müşteri bilgilerini girin'}</p>
+              <p className="text-sm text-gray-500">{tx('customers.enterCustomerInfo', 'Enter customer information')}</p>
             </div>
           </div>
           <button
@@ -143,28 +147,28 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Mail className="w-4 h-4 inline mr-2" />
-                E-posta *
+                {tx('customers.email', 'Email')} *
               </label>
               <input
                 type="email"
                 value={customerData.email}
                 onChange={(e) => setCustomerData({...customerData, email: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="ahmet@example.com"
+                placeholder={tx('customers.emailPlaceholder', 'name@example.com')}
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Phone className="w-4 h-4 inline mr-2" />
-                Telefon
+                {tx('customers.phone', 'Phone')}
               </label>
               <input
                 type="tel"
                 value={customerData.phone}
                 onChange={(e) => setCustomerData({...customerData, phone: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="+90 555 123 45 67"
+                placeholder={tx('customers.phonePlaceholder', '+1 555 123 4567')}
               />
             </div>
           </div>
@@ -187,7 +191,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <MapPin className="w-4 h-4 inline mr-2" />
-              Adres
+              {tx('customers.address', 'Address')}
             </label>
             <textarea
               value={customerData.address}
@@ -205,7 +209,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            İptal
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}

@@ -536,7 +536,7 @@ export default function ChartOfAccountsPage({
   };
 
   const deleteAccount = (accountId: string) => {
-    if (confirm('Bu hesabı silmek istediğinizden emin misiniz?')) {
+    if (confirm(t('chartOfAccounts.deleteConfirm', 'Bu hesabı silmek istediğinizden emin misiniz?'))) {
       // Check if account has children
       const hasChildren = currentAccounts.some(acc => acc.parentId === accountId);
       if (hasChildren) {
@@ -755,7 +755,7 @@ export default function ChartOfAccountsPage({
                   ? 'bg-green-100 text-green-800 hover:bg-green-200' 
                   : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
               }`}
-              title="Durumu değiştirmek için tıklayın"
+              title={t('chartOfAccounts.tooltips.toggleStatus', { defaultValue: 'Durumu değiştirmek için tıklayın' }) as string}
             >
               {account.isActive ? t('chartOfAccounts.statusLabels.active') : t('chartOfAccounts.statusLabels.inactive')}
             </button>
@@ -765,14 +765,14 @@ export default function ChartOfAccountsPage({
               <button 
                 onClick={() => addNewAccount(account.id)}
                 className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                title="Alt hesap ekle"
+                title={t('chartOfAccounts.tooltips.addSubAccount', { defaultValue: 'Alt hesap ekle' }) as string}
               >
                 <Plus className="w-4 h-4" />
               </button>
               <button 
                 onClick={() => deleteAccount(account.id)}
                 className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                title="Hesabı sil"
+                title={t('chartOfAccounts.tooltips.deleteAccount', { defaultValue: 'Hesabı sil' }) as string}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -1028,7 +1028,7 @@ export default function ChartOfAccountsPage({
                   }}
                   className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                 >
-                  İptal
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>

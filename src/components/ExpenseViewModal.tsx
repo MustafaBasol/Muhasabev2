@@ -40,6 +40,35 @@ export default function ExpenseViewModal({
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
 
+  // Güçlü çeviri: önce common: ile dener, sonra çıplak anahtarı, en sonda varsayılan metni verir
+  const te = (key: string, def: string) => {
+    const v1 = t(`common:${key}`, { defaultValue: '' });
+    if (v1 && v1 !== `common:${key}` && v1.trim() !== '') return v1;
+    const v2 = t(key as any, { defaultValue: '' });
+    if (v2 && v2 !== key && v2.trim() !== '') return v2;
+    return def;
+  };
+
+  // Sadece oluşturma/güncelleme bölümünde kullanılacak dil ve etiket yardımcıları
+  const getActiveLang = () => {
+    try {
+      const stored = localStorage.getItem('i18nextLng');
+      if (stored && typeof stored === 'string' && stored.length >= 2) return stored.slice(0,2).toLowerCase();
+    } catch {}
+    const i18 = (t as any)?.i18n;
+    const cand = (i18?.resolvedLanguage || i18?.language || 'en') as string;
+    return cand.slice(0,2).toLowerCase();
+  };
+  const toLocale = (l: string) => (l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US');
+  const labels: Record<string, Record<string, string>> = {
+    tr: { createdBy: 'Oluşturan', createdAt: 'Oluşturulma', updatedBy: 'Son güncelleyen', updatedAt: 'Son güncelleme' },
+    en: { createdBy: 'Created by', createdAt: 'Created at', updatedBy: 'Last updated by', updatedAt: 'Last updated' },
+    de: { createdBy: 'Erstellt von', createdAt: 'Erstellt am', updatedBy: 'Zuletzt aktualisiert von', updatedAt: 'Zuletzt aktualisiert' },
+    fr: { createdBy: 'Créé par', createdAt: 'Créé le', updatedBy: 'Dernière mise à jour par', updatedAt: 'Dernière mise à jour' },
+  };
+  const lang = getActiveLang();
+  const L = labels[lang] || labels.en;
+
   const statusConfig = useMemo(() => ({
     draft: { label: resolveStatusLabel(t, 'draft'), class: 'bg-gray-100 text-gray-800' },
     approved: { label: resolveStatusLabel(t, 'approved'), class: 'bg-blue-100 text-blue-800' },
@@ -104,7 +133,7 @@ export default function ExpenseViewModal({
           <div className="flex items-center space-x-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{expense.expenseNumber}</h2>
-              <p className="text-sm text-gray-500">{t('expense.details')}</p>
+              <p className="text-sm text-gray-500">{te('expense.details', 'Expense Details')}</p>
             </div>
             {getStatusBadge(expense.status)}
           </div>
@@ -142,49 +171,49 @@ export default function ExpenseViewModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-xs text-gray-600">
             <div>
               <div>
-                <span className="text-gray-500">Oluşturan:</span>{' '}
+                <span className="text-gray-500">{L.createdBy}:</span>{' '}
                 <span className="font-medium">{(expense as any).createdByName || '—'}</span>
               </div>
               <div>
-                <span className="text-gray-500">Oluşturulma:</span>{' '}
-                <span className="font-medium">{(expense as any).createdAt ? new Date((expense as any).createdAt).toLocaleString('tr-TR') : '—'}</span>
+                <span className="text-gray-500">{L.createdAt}:</span>{' '}
+                <span className="font-medium">{(expense as any).createdAt ? new Date((expense as any).createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
             <div>
               <div>
-                <span className="text-gray-500">Son güncelleyen:</span>{' '}
+                <span className="text-gray-500">{L.updatedBy}:</span>{' '}
                 <span className="font-medium">{(expense as any).updatedByName || '—'}</span>
               </div>
               <div>
-                <span className="text-gray-500">Son güncelleme:</span>{' '}
-                <span className="font-medium">{(expense as any).updatedAt ? new Date((expense as any).updatedAt).toLocaleString('tr-TR') : '—'}</span>
+                <span className="text-gray-500">{L.updatedAt}:</span>{' '}
+                <span className="font-medium">{(expense as any).updatedAt ? new Date((expense as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
           </div>
           {/* Expense Header */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('expense.information')}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{te('expense.information', 'Expense Information')}</h3>
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">{t('expense.date')}:</span>
+                  <span className="text-gray-600">{te('expense.date', 'Expense Date')}:</span>
                   <span className="ml-2 font-medium">{formatDate(expense.expenseDate)}</span>
                 </div>
                 <div className="flex items-center text-sm">
                   <Tag className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">{t('expense.category')}:</span>
+                  <span className="text-gray-600">{te('expense.category', 'Category')}:</span>
                   <span className="ml-2 font-medium">{getCategoryLabel(expense.category)}</span>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('expense.supplier')}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{te('expense.supplier', 'Supplier')}</h3>
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <Building2 className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">{t('expense.supplier')}:</span>
+                  <span className="text-gray-600">{te('expense.supplier', 'Supplier')}:</span>
                   <span className="ml-2 font-medium">{getSupplierDisplay(
                     typeof (expense as any).supplier === 'string' 
                       ? String((expense as any).supplier) 
@@ -217,10 +246,10 @@ export default function ExpenseViewModal({
 
           {/* Amount */}
           <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('expense.amount')}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{te('expense.amount', 'Amount')}</h3>
             <div className="bg-red-50 rounded-lg p-6 border border-red-200">
               <div className="flex justify-between items-center">
-                <span className="text-red-800 font-medium text-lg">{t('expense.amount')}:</span>
+                <span className="text-red-800 font-medium text-lg">{te('expense.amount', 'Amount')}:</span>
                 <span className="text-2xl font-bold text-red-600">
                   {formatAmount(expense.amount)}
                 </span>
@@ -231,7 +260,7 @@ export default function ExpenseViewModal({
           {/* Receipt */}
           {expense.receiptUrl && (
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('expense.receipt')}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{te('expense.receipt', 'Receipt')}</h3>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center space-x-3">
                   <Receipt className="w-5 h-5 text-blue-600" />
@@ -241,7 +270,7 @@ export default function ExpenseViewModal({
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-700 font-medium underline"
                   >
-                    {t('expense.viewReceipt')}
+                    {te('expense.viewReceipt', 'View Receipt')}
                   </a>
                 </div>
               </div>

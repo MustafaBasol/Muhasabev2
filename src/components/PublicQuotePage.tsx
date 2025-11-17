@@ -207,12 +207,12 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
 
   const handleAccept = async () => {
     if (!quote) return;
-    if (!window.confirm(t('quotes.confirmAccept') || 'Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) return;
+    if (!window.confirm(t('quotes.confirmAccept', { defaultValue: 'Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.' }))) return;
     setProcessing('accept');
     try {
       const updated = await acceptPublic(String(quoteId));
       setQuote(updated);
-      setInfo(t('quotes.acceptedThanks') || 'Teşekkürler, teklif kabul edildi.');
+      setInfo(t('quotes.acceptedThanks', { defaultValue: 'Teşekkürler, teklif kabul edildi.' }));
     } finally {
       setProcessing(false);
     }
@@ -220,12 +220,12 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
 
   const handleDecline = async () => {
     if (!quote) return;
-    if (!window.confirm(t('quotes.confirmDecline') || 'Teklifi reddetmek istediğinizden emin misiniz?')) return;
+    if (!window.confirm(t('quotes.confirmDecline', { defaultValue: 'Teklifi reddetmek istediğinizden emin misiniz?' }))) return;
     setProcessing('decline');
     try {
       const updated = await declinePublic(String(quoteId));
       setQuote(updated);
-      setInfo(t('quotes.declinedInfo') || 'Teklif reddedildi.');
+      setInfo(t('quotes.declinedInfo', { defaultValue: 'Teklif reddedildi.' }));
     } finally {
       setProcessing(false);
     }

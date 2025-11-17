@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
-import { getPresetLabel } from '../utils/presetLabels';
+// preset etiketleri i18n'den alınır
 
 export interface Customer {
   id?: string | number;
@@ -51,6 +51,24 @@ export default function CustomerList({
   selectionMode = false,
 }: CustomerListProps) {
   const { t, i18n } = useTranslation();
+  const getActiveLang = () => {
+    try {
+      const stored = localStorage.getItem('i18nextLng');
+      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
+    } catch {}
+    const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
+    return cand.slice(0,2).toLowerCase();
+  };
+  const toLocale = (l: string) => (l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US');
+  const lang = getActiveLang();
+  const L = {
+    emailExists: { tr: 'E-posta var', en: 'Has email', fr: 'E-mail présent', de: 'E-Mail vorhanden' }[lang as 'tr'|'en'|'fr'|'de'] || 'Has email',
+    phoneExists: { tr: 'Telefon var', en: 'Has phone', fr: 'Téléphone présent', de: 'Telefon vorhanden' }[lang as 'tr'|'en'|'fr'|'de'] || 'Has phone',
+    companyExists: { tr: 'Şirketi olanlar', en: 'Has company', fr: 'A une entreprise', de: 'Hat Firma' }[lang as 'tr'|'en'|'fr'|'de'] || 'Has company',
+    from: { tr: 'Başlangıç', en: 'From', fr: 'De', de: 'Von' }[lang as 'tr'|'en'|'fr'|'de'] || 'From',
+    to: { tr: 'Bitiş', en: 'To', fr: 'À', de: 'Bis' }[lang as 'tr'|'en'|'fr'|'de'] || 'To',
+    clear: { tr: 'Temizle', en: 'Clear', fr: 'Effacer', de: 'Löschen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Clear',
+  };
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [hasEmailOnly, setHasEmailOnly] = useState<boolean>(false);
@@ -230,23 +248,23 @@ export default function CustomerList({
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-sm text-gray-700 inline-flex items-center gap-2">
               <input type="checkbox" className="rounded" checked={hasEmailOnly} onChange={(e)=>setHasEmailOnly(e.target.checked)} />
-              E-posta var
+              {L.emailExists}
             </label>
             <label className="text-sm text-gray-700 inline-flex items-center gap-2">
               <input type="checkbox" className="rounded" checked={hasPhoneOnly} onChange={(e)=>setHasPhoneOnly(e.target.checked)} />
-              Telefon var
+              {L.phoneExists}
             </label>
             <label className="text-sm text-gray-700 inline-flex items-center gap-2">
               <input type="checkbox" className="rounded" checked={hasCompanyOnly} onChange={(e)=>setHasCompanyOnly(e.target.checked)} />
-              Şirketi olanlar
+              {L.companyExists}
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Başlangıç</span>
-              <input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
-              <span className="text-sm text-gray-700">Bitiş</span>
-              <input type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
+              <span className="text-sm text-gray-700">{L.from}</span>
+              <input type="date" lang={toLocale(lang)} value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
+              <span className="text-sm text-gray-700">{L.to}</span>
+              <input type="date" lang={toLocale(lang)} value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
               {(startDate || endDate) && (
-                <button onClick={()=>{setStartDate(''); setEndDate('');}} className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200">Temizle</button>
+                <button onClick={()=>{setStartDate(''); setEndDate('');}} className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200">{L.clear}</button>
               )}
             </div>
           </div>
@@ -265,10 +283,10 @@ export default function CustomerList({
               if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
             }}
             presets={[
-              { id:'with-email', label:getPresetLabel('with-email', i18n.language), apply:()=>{ setHasEmailOnly(true); setHasPhoneOnly(false); setHasCompanyOnly(false); }},
-              { id:'with-phone', label:getPresetLabel('with-phone', i18n.language), apply:()=>{ setHasPhoneOnly(true); setHasEmailOnly(false); setHasCompanyOnly(false); }},
-              { id:'with-company', label:getPresetLabel('with-company', i18n.language), apply:()=>{ setHasCompanyOnly(true); setHasEmailOnly(false); setHasPhoneOnly(false); }},
-              { id:'added-this-month', label:getPresetLabel('added-this-month', i18n.language), apply:()=>{
+              { id:'with-email', label:t('presets.withEmail'), apply:()=>{ setHasEmailOnly(true); setHasPhoneOnly(false); setHasCompanyOnly(false); }},
+              { id:'with-phone', label:t('presets.withPhone'), apply:()=>{ setHasPhoneOnly(true); setHasEmailOnly(false); setHasCompanyOnly(false); }},
+              { id:'with-company', label:t('presets.withCompany'), apply:()=>{ setHasCompanyOnly(true); setHasEmailOnly(false); setHasPhoneOnly(false); }},
+              { id:'added-this-month', label:t('presets.addedThisMonth'), apply:()=>{
                 const d = new Date();
                 const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
                 const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);

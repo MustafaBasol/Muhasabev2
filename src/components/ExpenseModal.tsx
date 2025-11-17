@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Receipt, Calendar, Building2, Tag } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { resolveStatusLabel } from '../utils/status';
 import { useTranslation } from 'react-i18next';
 
 interface Expense {
@@ -347,17 +348,17 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('common.status') || 'Durum'}
+                {t('common:statusLabel') || t('common:statusLabel', { lng: 'en' }) || 'Status'}
               </label>
               <select
                 value={expenseData.status}
                 onChange={(e) => setExpenseData({...expenseData, status: e.target.value as any})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               >
-                <option value="pending">{t('common:status.pending') || 'Beklemede'}</option>
-                <option value="approved">{t('common:status.approved') || 'Onaylandı'}</option>
-                <option value="paid">{t('common:status.paid') || 'Ödendi'}</option>
-                <option value="rejected">{t('common:status.rejected') || 'Reddedildi'}</option>
+                <option value="pending">{resolveStatusLabel(t,'pending')}</option>
+                <option value="approved">{resolveStatusLabel(t,'approved')}</option>
+                <option value="paid">{resolveStatusLabel(t,'paid')}</option>
+                <option value="rejected">{resolveStatusLabel(t,'rejected')}</option>
               </select>
             </div>
           </div>

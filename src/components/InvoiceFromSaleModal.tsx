@@ -429,7 +429,7 @@ export default function InvoiceFromSaleModal({
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            İptal
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}

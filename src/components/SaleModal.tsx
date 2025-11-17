@@ -525,7 +525,7 @@ export default function SaleModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('common.status')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('common:statusLabel')}</label>
               <select
                 value={saleData.status}
                 onChange={(event) => setSaleData({ ...saleData, status: event.target.value as Sale['status'] })}

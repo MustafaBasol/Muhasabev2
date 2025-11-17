@@ -207,7 +207,9 @@ const OrganizationMembersPage: React.FC = () => {
   const handleCancelInvite = async (invite: Invite) => {
     if (!currentOrganization) return;
 
-    const confirmed = window.confirm(`${invite.email} adresine gönderilen daveti iptal etmek istediğinizden emin misiniz?`);
+    const confirmed = window.confirm(
+      t('org.members.pendingInvites.cancelConfirm', { email: invite.email, defaultValue: `${invite.email} adresine gönderilen daveti iptal etmek istediğinizden emin misiniz?` })
+    );
     if (!confirmed) return;
 
     try {
@@ -365,11 +367,11 @@ const OrganizationMembersPage: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleCopyInviteLink(invite)}
-                        title="Davet bağlantısını kopyala"
+                        title={t('common.actions.copyLink', { defaultValue: 'Bağlantıyı kopyala' }) as string}
                         className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors"
                       >
                         <Copy className="w-3 h-3" />
-                        <span>Kopyala</span>
+                        <span>{t('common.actions.copyLink', { defaultValue: 'Bağlantıyı kopyala' })}</span>
                       </button>
                       <button
                         onClick={() => handleResendInvite(invite)}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, User, Mail, Phone, MapPin, Building2, Tag } from 'lucide-react';
 
 interface Supplier {
@@ -20,9 +21,12 @@ interface SupplierModalProps {
   supplier?: Supplier | null;
 }
 
-const categories = ['Ofis Malzemeleri', 'Teknoloji', 'Hizmet', 'Üretim', 'Lojistik', 'Diğer'];
+// Temel kategori anahtarları (depoda Türkçe stringler kullanılıyordu; görüntü çok-dilli)
+const baseCategories = ['Ofis Malzemeleri', 'Teknoloji', 'Hizmet', 'Üretim', 'Lojistik', 'Diğer'];
 
 export default function SupplierModal({ isOpen, onClose, onSave, supplier }: SupplierModalProps) {
+  const { t } = useTranslation('common');
+  const { i18n } = useTranslation();
   const [supplierData, setSupplierData] = useState({
     name: supplier?.name || '',
     email: supplier?.email || '',
@@ -32,6 +36,17 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
     company: supplier?.company || '',
     category: supplier?.category || 'Diğer'
   });
+
+  // Kategori etiketleri (SupplierList ile tutarlı)
+  const categoryLabels: Record<string, Record<string, string>> = {
+    'Ofis Malzemeleri': { tr: 'Ofis Malzemeleri', en: 'Office Supplies', fr: 'Fournitures de bureau', de: 'Büromaterial' },
+    'Teknoloji': { tr: 'Teknoloji', en: 'Technology', fr: 'Technologie', de: 'Technologie' },
+    'Hizmet': { tr: 'Hizmet', en: 'Services', fr: 'Services', de: 'Dienstleistungen' },
+    'Üretim': { tr: 'Üretim', en: 'Manufacturing', fr: 'Production', de: 'Fertigung' },
+    'Lojistik': { tr: 'Lojistik', en: 'Logistics', fr: 'Logistique', de: 'Logistik' },
+    'Diğer': { tr: 'Diğer', en: 'Other', fr: 'Autre', de: 'Sonstiges' },
+  };
+  const getCategoryLabel = (val: string) => categoryLabels[val]?.[i18n.language] || val;
 
   // Reset form when modal opens
   React.useEffect(() => {
@@ -95,9 +110,9 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {supplier ? 'Tedarikçiyi Düzenle' : 'Yeni Tedarikçi Ekle'}
+                {supplier ? (t('suppliers.modal.editTitle') || 'Tedarikçiyi Düzenle') : (t('suppliers.modal.newTitle') || 'Yeni Tedarikçi Ekle')}
               </h2>
-              <p className="text-sm text-gray-500">Tedarikçi bilgilerini girin</p>
+              <p className="text-sm text-gray-500">{t('suppliers.modal.subtitle') || 'Tedarikçi bilgilerini girin'}</p>
             </div>
           </div>
           <button
@@ -114,28 +129,28 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <User className="w-4 h-4 inline mr-2" />
-                Tedarikçi Adı *
+                {t('suppliers.modal.nameLabel') || 'Tedarikçi Adı'} *
               </label>
               <input
                 type="text"
                 value={supplierData.name}
                 onChange={(e) => setSupplierData({...supplierData, name: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="ABC Tedarik Ltd."
+                placeholder={t('suppliers.modal.namePlaceholder') || 'ABC Tedarik Ltd.'}
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Building2 className="w-4 h-4 inline mr-2" />
-                Şirket Adı
+                {t('suppliers.modal.companyLabel') || 'Şirket Adı'}
               </label>
               <input
                 type="text"
                 value={supplierData.company}
                 onChange={(e) => setSupplierData({...supplierData, company: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="ABC Tedarik Ltd. Şti."
+                placeholder={t('suppliers.modal.companyPlaceholder') || 'ABC Tedarik Ltd. Şti.'}
               />
             </div>
           </div>
@@ -145,28 +160,28 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Mail className="w-4 h-4 inline mr-2" />
-                E-posta *
+                {t('suppliers.modal.emailLabel') || 'E-posta'} *
               </label>
               <input
                 type="email"
                 value={supplierData.email}
                 onChange={(e) => setSupplierData({...supplierData, email: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="info@abctedarik.com"
+                placeholder={t('suppliers.modal.emailPlaceholder') || 'info@abctedarik.com'}
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Phone className="w-4 h-4 inline mr-2" />
-                Telefon
+                {t('suppliers.modal.phoneLabel') || 'Telefon'}
               </label>
               <input
                 type="tel"
                 value={supplierData.phone}
                 onChange={(e) => setSupplierData({...supplierData, phone: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="+90 555 123 45 67"
+                placeholder={t('suppliers.modal.phonePlaceholder') || '+90 555 123 45 67'}
               />
             </div>
           </div>
@@ -176,7 +191,7 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Tag className="w-4 h-4 inline mr-2" />
-                Kategori *
+                {t('suppliers.modal.categoryLabel') || 'Kategori'} *
               </label>
               <select
                 value={supplierData.category}
@@ -184,21 +199,21 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                 required
               >
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                {baseCategories.map(category => (
+                  <option key={category} value={category}>{getCategoryLabel(category)}</option>
                 ))}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vergi Numarası
+                {t('suppliers.modal.taxNumberLabel') || 'Vergi Numarası'}
               </label>
               <input
                 type="text"
                 value={supplierData.taxNumber}
                 onChange={(e) => setSupplierData({...supplierData, taxNumber: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="1234567890"
+                placeholder={t('suppliers.modal.taxNumberPlaceholder') || '1234567890'}
               />
             </div>
           </div>
@@ -207,14 +222,14 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <MapPin className="w-4 h-4 inline mr-2" />
-              Adres
+              {t('suppliers.modal.addressLabel') || 'Adres'}
             </label>
             <textarea
               value={supplierData.address}
               onChange={(e) => setSupplierData({...supplierData, address: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               rows={3}
-              placeholder="Tam adres bilgisi..."
+              placeholder={t('suppliers.modal.addressPlaceholder') || 'Tam adres bilgisi...'}
             />
           </div>
         </div>
@@ -225,14 +240,14 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier }: Sup
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            İptal
+            {t('cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!supplierData.name || !supplierData.email}
             className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {supplier ? 'Güncelle' : 'Tedarikçi Ekle'}
+            {supplier ? (t('update') || 'Güncelle') : (t('suppliers.newSupplier') || 'Tedarikçi Ekle')}
           </button>
         </div>
       </div>

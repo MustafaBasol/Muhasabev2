@@ -82,9 +82,9 @@ export default function BankList({
 
   const getAccountTypeBadge = (type: string) => {
     const typeConfig = {
-      checking: { label: 'Vadesiz', class: 'bg-blue-100 text-blue-800' },
-      savings: { label: 'Vadeli', class: 'bg-green-100 text-green-800' },
-      business: { label: 'Ticari', class: 'bg-purple-100 text-purple-800' }
+      checking: { label: t('banks.accountTypes.checking', { defaultValue: 'Vadesiz Hesap' }) as string, class: 'bg-blue-100 text-blue-800' },
+      savings: { label: t('banks.accountTypes.savings', { defaultValue: 'Vadeli Hesap' }) as string, class: 'bg-green-100 text-green-800' },
+      business: { label: t('banks.accountTypes.business', { defaultValue: 'Ticari Hesap' }) as string, class: 'bg-purple-100 text-purple-800' }
     };
     
     const config = typeConfig[type as keyof typeof typeConfig];
@@ -189,7 +189,7 @@ export default function BankList({
                     <button
                       onClick={() => onViewBank(bank)}
                       className="font-semibold text-green-600 hover:text-green-800 transition-colors cursor-pointer text-left"
-                      title="Hesap detaylarını görüntüle"
+                      title={t('common.view') as string}
                     >
                       {bank.bankName}
                     </button>
@@ -204,7 +204,7 @@ export default function BankList({
                       {getAccountTypeBadge(bank.accountType)}
                       {(() => { const active = bank?.isActive !== false; return (
                         <span className={`text-xs px-2 py-1 rounded-full ${active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {active ? 'Aktif' : 'Pasif'}
+                          {active ? (t('chartOfAccounts.active', { defaultValue: 'Aktif' }) as string) : (t('chartOfAccounts.passive', { defaultValue: 'Pasif' }) as string)}
                         </span>
                       ); })()}
                     </div>
@@ -254,21 +254,21 @@ export default function BankList({
                     <button
                       onClick={() => onViewBank(bank)}
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Görüntüle"
+                      title={t('common.view') as string}
                     >
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => onEditBank(bank)}
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Düzenle"
+                      title={t('common.edit') as string}
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => onDeleteBank(bank.id)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Sil"
+                      title={t('common.delete') as string}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

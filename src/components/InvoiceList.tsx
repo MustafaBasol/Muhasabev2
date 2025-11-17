@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
-import { getPresetLabel } from '../utils/presetLabels';
+// preset etiketleri i18n'den alınır
 
 // Archive threshold: invoices older than this many days will only appear in archive
 const ARCHIVE_THRESHOLD_DAYS = 365; // 1 year
@@ -431,19 +431,19 @@ export default function InvoiceList({
                 if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
               }}
               presets={[
-                { id: 'this-month', label: getPresetLabel('this-month', i18n.language), apply: () => {
+                { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
                   const d = new Date();
                   const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
                   const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
                   setStartDate(start); setEndDate(end);
                 }},
-                { id: 'last-month', label: getPresetLabel('last-month', i18n.language), apply: () => {
+                { id: 'last-month', label: t('presets.lastMonth'), apply: () => {
                   const d = new Date();
                   const start = new Date(d.getFullYear(), d.getMonth()-1, 1).toISOString().slice(0,10);
                   const end = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().slice(0,10);
                   setStartDate(start); setEndDate(end);
                 }},
-                { id: 'this-year', label: getPresetLabel('this-year', i18n.language), apply: () => {
+                { id: 'this-year', label: t('presets.thisYear'), apply: () => {
                   const d = new Date();
                   const start = new Date(d.getFullYear(), 0, 1).toISOString().slice(0,10);
                   const end = new Date(d.getFullYear(), 11, 31).toISOString().slice(0,10);
@@ -675,7 +675,7 @@ export default function InvoiceList({
                               ? 'text-gray-300 cursor-not-allowed' 
                               : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                           }`}
-                          title={invoice.isVoided ? 'İptal edilmiş fatura düzenlenemez' : t('invoices.edit')}
+                          title={invoice.isVoided ? t('invoices.cannotEditVoided', { defaultValue: 'İptal edilmiş fatura düzenlenemez' }) : t('invoices.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -694,7 +694,7 @@ export default function InvoiceList({
                           <button 
                             onClick={() => handleRestoreInvoice(invoice.id)}
                             className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="Faturayı geri yükle"
+                            title={t('invoices.restore', { defaultValue: 'Geri Yükle' })}
                           >
                             <RotateCcw className="w-4 h-4" />
                           </button>
@@ -702,7 +702,7 @@ export default function InvoiceList({
                           <button 
                             onClick={() => handleVoidInvoice(invoice)}
                             className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-                            title="Faturayı iptal et"
+                            title={t('invoices.void', { defaultValue: 'Faturayı İptal Et' })}
                           >
                             <Ban className="w-4 h-4" />
                           </button>
@@ -739,23 +739,23 @@ export default function InvoiceList({
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Faturayı İptal Et
+              {t('invoices.void', { defaultValue: 'Faturayı İptal Et' })}
             </h3>
             
             <p className="text-sm text-gray-600 mb-4">
-              <strong>{voidingInvoice.invoiceNumber}</strong> numaralı faturayı iptal etmek istediğinizden emin misiniz?
+              {t('invoices.voidConfirm', { defaultValue: '{{invoiceNumber}} numaralı faturayı iptal etmek istediğinizden emin misiniz?', invoiceNumber: voidingInvoice.invoiceNumber })}
             </p>
             
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                İptal Nedeni *
+                {t('invoices.voidReason', { defaultValue: 'İptal Nedeni' })} *
               </label>
               <textarea
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 rows={3}
-                placeholder="İptal nedenini açıklayın..."
+                placeholder={t('invoices.voidReasonPlaceholder', { defaultValue: 'İptal nedenini açıklayın...' })}
                 required
               />
             </div>
@@ -769,14 +769,14 @@ export default function InvoiceList({
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                İptal
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleConfirmVoid}
                 disabled={!voidReason.trim()}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Faturayı İptal Et
+                {t('invoices.void', { defaultValue: 'Faturayı İptal Et' })}
               </button>
             </div>
           </div>

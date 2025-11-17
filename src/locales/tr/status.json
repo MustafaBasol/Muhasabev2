@@ -23,5 +23,9 @@
     "title": "Sorun mu görüyorsunuz?",
     "text": "Bir sorun fark ederseniz lütfen destek ekibimizle iletişime geçin:",
     "email": "support@comptario.com adresinden bize yazın"
-  }
+  },
+  "pending": "Beklemede",
+  "approved": "Onaylandı",
+  "paid": "Ödendi",
+  "rejected": "Reddedildi"
 }

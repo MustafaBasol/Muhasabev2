@@ -210,7 +210,7 @@ export default function CustomerHistoryModal({
                         <button
                           onClick={() => onViewInvoice?.(invoice)}
                           className="font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                          title="Faturayı görüntüle"
+                          title={t('common.view', { defaultValue: 'Görüntüle' }) as string}
                         >
                           {invoice.invoiceNumber}
                         </button>

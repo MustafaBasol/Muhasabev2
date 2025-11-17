@@ -78,14 +78,14 @@ export default function BankViewModal({
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{bankData.bankName}</h2>
-              <p className="text-sm text-gray-500">Banka Hesap Detayları</p>
+              <p className="text-sm text-gray-500">{t('banks.viewDetails', { defaultValue: 'Banka Hesap Detayları' })}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => onEdit(bankData)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Düzenle"
+              title={t('common.edit') as string}
             >
               <Edit className="w-5 h-5 text-gray-500" />
             </button>
@@ -110,7 +110,7 @@ export default function BankViewModal({
               <div className="text-right">
                 {(() => { const active = (bankData as any)?.isActive !== false; return (
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${active ? 'bg-green-400 text-green-900' : 'bg-gray-400 text-gray-900'}`}>
-                    {active ? 'Aktif' : 'Pasif'}
+                    {active ? (t('chartOfAccounts.active', { defaultValue: 'Aktif' }) as string) : (t('chartOfAccounts.passive', { defaultValue: 'Pasif' }) as string)}
                   </span>
                 ); })()}
               </div>

@@ -23,5 +23,9 @@
     "title": "Problem bemerkt?",
     "text": "Wenn Sie ein Problem feststellen, kontaktieren Sie bitte unser Support-Team:",
     "email": "Schreiben Sie uns an support@comptario.com"
-  }
+  },
+  "pending": "Ausstehend",
+  "approved": "Genehmigt",
+  "paid": "Bezahlt",
+  "rejected": "Abgelehnt"
 }

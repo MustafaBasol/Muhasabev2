@@ -90,6 +90,20 @@ export default function ProductList({
 }: ProductListProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
+  // Lokal sözlük: sadece bu sayfadaki eksik başlıklar için
+  const getActiveLang = () => {
+    try {
+      const s = localStorage.getItem('i18nextLng');
+      if (s && s.length >= 2) return s.slice(0,2).toLowerCase();
+    } catch {}
+    return 'en';
+  };
+  const lang = getActiveLang();
+  const L = {
+    sort: { tr: 'Sıralama', en: 'Sort', fr: 'Tri', de: 'Sortierung' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sort',
+    showArchived: { tr: 'Arşivlenmişleri göster', en: 'Show archived', fr: 'Afficher archivés', de: 'Archivierte anzeigen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Show archived',
+    hideArchived: { tr: 'Arşivlenmişleri gizle', en: 'Hide archived', fr: 'Masquer archivés', de: 'Archivierte ausblenden' }[lang as 'tr'|'en'|'fr'|'de'] || 'Hide archived',
+  };
   const [infoModal, setInfoModal] = useState<{ title: string; message: string } | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -820,7 +834,7 @@ export default function ProductList({
                   onClick={() => setShowArchivedCategories(prev => !prev)}
                   className="text-[11px] text-indigo-600 hover:text-indigo-700"
                 >
-                  {showArchivedCategories ? t('products.hideArchived') : t('products.showArchived')}
+                  {showArchivedCategories ? (t('products.hideArchived') || L.hideArchived) : (t('products.showArchived') || L.showArchived)}
                 </button>
               </div>
               {availableCategories.length === 0 ? (
@@ -848,7 +862,6 @@ export default function ProductList({
                             <span className="truncate flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
                               {translateCategoryName(mainCategory, t)}
-
                             </span>
                             <span className="text-xs text-gray-500">{mainUsage}</span>
                           </button>

@@ -6,7 +6,7 @@ import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X,
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
-import { getPresetLabel } from '../utils/presetLabels';
+// preset etiketleri i18n'den alınır
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderExpenses, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
 import { useAuth } from '../contexts/AuthContext';
@@ -420,19 +420,19 @@ export default function ExpenseList({
                 if (st.pageSize && [20,50,100].includes(st.pageSize)) setPageSize(st.pageSize);
               }}
               presets={[
-                { id: 'this-month', label: getPresetLabel('this-month', i18n.language), apply: () => {
+                { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
                   const d = new Date();
                   const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
                   const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
                   setStartDate(start); setEndDate(end);
                 }},
-                { id: 'last-month', label: getPresetLabel('last-month', i18n.language), apply: () => {
+                { id: 'last-month', label: t('presets.lastMonth'), apply: () => {
                   const d = new Date();
                   const start = new Date(d.getFullYear(), d.getMonth()-1, 1).toISOString().slice(0,10);
                   const end = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().slice(0,10);
                   setStartDate(start); setEndDate(end);
                 }},
-                { id: 'this-year', label: getPresetLabel('this-year', i18n.language), apply: () => {
+                { id: 'this-year', label: t('presets.thisYear'), apply: () => {
                   const d = new Date();
                   const start = new Date(d.getFullYear(), 0, 1).toISOString().slice(0,10);
                   const end = new Date(d.getFullYear(), 11, 31).toISOString().slice(0,10);

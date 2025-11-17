@@ -75,6 +75,24 @@
       }
     },
     "configuration": "Configuration",
+        "modal": {
+          "newTitle": "Ajouter un Fournisseur",
+          "editTitle": "Modifier le Fournisseur",
+          "subtitle": "Saisissez les informations du fournisseur",
+          "nameLabel": "Nom du Fournisseur",
+          "companyLabel": "Nom de la Société",
+          "emailLabel": "E-mail",
+          "phoneLabel": "Téléphone",
+          "categoryLabel": "Catégorie",
+          "taxNumberLabel": "Numéro Fiscal",
+          "addressLabel": "Adresse",
+          "namePlaceholder": "ABC Fourniture SARL",
+          "companyPlaceholder": "ABC Fourniture SAS",
+          "emailPlaceholder": "info@abcfourniture.com",
+          "phonePlaceholder": "+33 6 12 34 56 78",
+          "taxNumberPlaceholder": "Numéro fiscal",
+          "addressPlaceholder": "Informations complètes d'adresse..."
+        },
     "billingCycle": "Cycle de facturation",
     "seatsAddon": "Sièges supplémentaires",
     "seatsAddonHelper": "Facturés 5€/siège/mois. Proratisation appliquée.",
@@ -120,7 +138,13 @@
         "number": "Numéro",
         "date": "Date",
         "amount": "Montant",
-        "status": "Statut",
+        "statusLabel": "Statut",
+        "status": {
+          "pending": "En attente",
+          "approved": "Approuvé",
+          "paid": "Payé",
+          "rejected": "Rejeté"
+        },
         "actions": "Actions"
       },
       "footerNote": "Les factures sont récupérées depuis le prestataire ; les montants sont affichés dans la devise de facturation."
@@ -273,6 +297,7 @@
     "success": "Succès",
     "warning": "Avertissement",
     "ok": "OK",
+    "now": "Maintenant",
     "periodLockedError": "Cet enregistrement ne peut pas être supprimé car il appartient à une période fiscale verrouillée",
   "description": "Description",
   "dueDate": "Date d'échéance",
@@ -344,7 +369,12 @@
     "email": "E-mail",
     "quantity": "Quantité",
     "status": "Statut",
-    "notes": "Notes"
+    "notes": "Notes",
+    "generic": {
+      "customer": "Client",
+      "supplier": "Fournisseur",
+      "expense": "Dépense"
+    }
   },
   "currencies": {
     "TRY": "Livre Turque",
@@ -578,6 +608,7 @@
     "thisMonth": "ce mois",
     "all": "tout"
   },
+  "statusLabel": "Statut",
   "status": {
     "paid": "Payé",
     "unpaid": "Impayé",
@@ -977,7 +1008,25 @@
     "phone": "Téléphone",
     "totalExpenses": "Total Dépenses",
     "totalAmount": "Montant Total",
-    "actions": "Actions"
+    "actions": "Actions",
+    "modal": {
+      "newTitle": "Ajouter un Fournisseur",
+      "editTitle": "Modifier le Fournisseur",
+      "subtitle": "Saisissez les informations du fournisseur",
+      "nameLabel": "Nom du Fournisseur",
+      "companyLabel": "Nom de la Société",
+      "emailLabel": "E-mail",
+      "phoneLabel": "Téléphone",
+      "categoryLabel": "Catégorie",
+      "taxNumberLabel": "Numéro Fiscal",
+      "addressLabel": "Adresse",
+      "namePlaceholder": "ABC Fourniture SARL",
+      "companyPlaceholder": "ABC Fourniture SAS",
+      "emailPlaceholder": "info@abcfourniture.com",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "taxNumberPlaceholder": "Numéro fiscal",
+      "addressPlaceholder": "Informations complètes d'adresse..."
+    }
   },
   "banks": {
     "title": "Comptes Bancaires",
@@ -1824,7 +1873,6 @@
       "makeAdmin": "Faire Administrateur",
       "makeMember": "Faire Membre",
       "limitFull": "Limite Atteinte",
-      "sending": "Envoi en cours...",
       "invite": {
         "title": "Inviter un Membre",
         "button": "Envoyer l'Invitation",

@@ -174,13 +174,23 @@ const AppContent: React.FC = () => {
   const { prefs } = useNotificationPreferences();
 
   // i18n fallback yardımcı: çeviri yoksa anahtar yerine fallback metni döndür
-  const tOr = React.useCallback((key: string, fallback: string, params?: Record<string, any>) => {
+  const tOr = React.useCallback((key: string, fallback: string, params?: Record<string, any>): string => {
     try {
-      const val = t(key as any, params as any);
-      return val === key ? fallback : val;
+      const val = t(key as any, params as any) as unknown as string;
+      return val === key ? fallback : String(val);
     } catch {
       return fallback;
     }
+  }, [t]);
+  // Birden fazla anahtarı sırayla dener
+  const tOrFirst = React.useCallback((keys: string[], fallback: string, params?: Record<string, any>): string => {
+    for (const key of keys) {
+      try {
+        const val = t(key as any, params as any) as unknown as string;
+        if (val !== key) return String(val);
+      } catch {}
+    }
+    return fallback;
   }, [t]);
   
   const [currentPage, setCurrentPage] = useState("dashboard");
@@ -446,13 +456,22 @@ const AppContent: React.FC = () => {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        // Eski notification'ların ID'lerini yeniden oluştur (duplicate key önleme)
-        return parsed.map((notif: HeaderNotification, index: number) => ({
-          ...notif,
-          id: notif.relatedId 
-            ? `${notif.relatedId}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
-            : `notif-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
-        }));
+        return parsed.map((notif: any, index: number) => {
+          let id = String(notif?.id || '');
+          if (!id) {
+            id = notif?.relatedId
+              ? `${notif.relatedId}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
+              : `notif-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
+          }
+          // firstSeenAt tahmini: varsa kullan; yoksa ID içindeki 13 haneli timestamp'i dene; olmadı şimdi
+          const tsFromIdMatch = String(id).match(/\b\d{13}\b/);
+          const guessedTs = tsFromIdMatch ? Number(tsFromIdMatch[0]) : Date.now();
+          const firstSeenAt = typeof notif?.firstSeenAt === 'number' ? notif.firstSeenAt : guessedTs;
+          const timeStr = notif?.time && typeof notif.time === 'string' && notif.time.trim()
+            ? notif.time
+            : new Date(firstSeenAt).toLocaleString((navigator.language || 'tr').slice(0,2));
+          return { ...notif, id, firstSeenAt, time: timeStr } as HeaderNotification;
+        });
       } catch (e) {
         console.error('Notifications parse error:', e);
       }
@@ -765,7 +784,7 @@ const AppContent: React.FC = () => {
         console.log('💾 Tüm veriler localStorage\'a kaydedildi');
       } catch (error) {
         console.error('❌ Backend veri yükleme hatası:', error);
-        showToast('Veriler yüklenirken hata oluştu', 'error');
+        showToast(t('toasts.common.dataLoadError'), 'error');
       } finally {
         setIsLoadingData(false);
       }
@@ -1292,9 +1311,9 @@ const AppContent: React.FC = () => {
     }
 
     // 2FA etkin değilse: kalıcı/günlük tekrar eden bildirim ekle (kategori filtresine takılmaması için link vermiyoruz)
-    const title = tOr('security.twofa.reminderTitle', 'İki Aşamalı Doğrulamayı Etkinleştirin');
-    const description = tOr('security.twofa.reminderDesc', 'Hesabınızı korumak için 2FA’yı etkinleştirmeniz önerilir.');
-    addNotification(title, description, 'warning', undefined, { persistent: true, repeatDaily: true, relatedId: 'twofa-reminder' });
+    const title = tOrFirst(['security.twofa.reminderTitle','sales.security.twofa.reminderTitle'], 'İki Aşamalı Doğrulamayı Etkinleştirin');
+    const description = tOrFirst(['security.twofa.reminderDesc','sales.security.twofa.reminderDesc'], 'Hesabınızı korumak için 2FA’yı etkinleştirmeniz önerilir.');
+    addNotification(title, description, 'warning', undefined, { persistent: true, repeatDaily: true, relatedId: 'twofa-reminder', i18nTitleKey: 'security.twofa.reminderTitle', i18nDescKey: 'security.twofa.reminderDesc' });
 
     // İlk açılış modali: kullanıcı/tenant bazlı, HER OTURUMDA bir kez göster (2FA etkinleşene kadar)
     try {
@@ -1307,12 +1326,12 @@ const AppContent: React.FC = () => {
       const shownThisSession = sessionStorage.getItem(key);
       if (!shownThisSession) {
         setInfoModal({
-          title: tOr('security.twofa.modalTitle', 'Hesabınızı Güvenceye Alın'),
-          message: tOr('security.twofa.modalMessage', 'İki Aşamalı Doğrulama (2FA) hesap güvenliğinizi önemli ölçüde artırır. Şimdi etkinleştirmek ister misiniz?'),
+          title: tOrFirst(['security.twofa.modalTitle','sales.security.twofa.modalTitle'], 'Hesabınızı Güvenceye Alın'),
+          message: tOrFirst(['security.twofa.modalMessage','sales.security.twofa.modalMessage'], 'İki Aşamalı Doğrulama (2FA) hesap güvenliğinizi önemli ölçüde artırır. Şimdi etkinleştirmek ister misiniz?'),
           tone: 'info',
-          confirmLabel: tOr('security.twofa.enableNow', 'Şimdi Etkinleştir'),
+          confirmLabel: tOrFirst(['security.twofa.enableNow','sales.security.twofa.enableNow'], 'Şimdi Etkinleştir'),
           cancelLabel: tOr('common.remindMeLater', 'Daha Sonra'),
-          extraLabel: tOr('security.twofa.neverRemind', 'Bir daha hatırlatma'),
+          extraLabel: tOrFirst(['security.twofa.neverRemind','sales.security.twofa.neverRemind'], 'Bir daha hatırlatma'),
           onConfirm: () => {
             try { sessionStorage.setItem(key, '1'); } catch {}
             openSettingsOn('security');
@@ -1357,7 +1376,7 @@ const AppContent: React.FC = () => {
           dueDate.setHours(0, 0, 0, 0);
           const dueDateMs = dueDate.getTime();
           
-          const customerName = invoice.customer?.name || 'Müşteri';
+          const customerName = invoice.customer?.name || tOr('common.generic.customer', 'Müşteri');
           const invoiceNumber = invoice.invoiceNumber || `#${invoice.id}`;
           
           if (dueDateMs < todayMs) {
@@ -1368,7 +1387,7 @@ const AppContent: React.FC = () => {
               tOr('notifications.invoices.overdue.desc', `${invoiceNumber} - ${customerName} (${daysOverdue} gün gecikmiş)`, { invoiceNumber, customerName, daysOverdue }),
               'danger',
               'invoices',
-              { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
+              { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}`, i18nTitleKey: 'notifications.invoices.overdue.title', i18nDescKey: 'notifications.invoices.overdue.desc', i18nParams: { invoiceNumber, customerName, daysOverdue } }
             );
           } else if (dueDateMs <= threeDaysLater.getTime()) {
             // 3 gün içinde ödeme
@@ -1378,7 +1397,7 @@ const AppContent: React.FC = () => {
               tOr('notifications.invoices.upcoming.desc', `${invoiceNumber} - ${customerName} (${daysLeft} gün kaldı)`, { invoiceNumber, customerName, daysLeft }),
               'warning',
               'invoices',
-              { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}` }
+              { persistent: true, repeatDaily: true, relatedId: `invoice-${invoice.id}`, i18nTitleKey: 'notifications.invoices.upcoming.title', i18nDescKey: 'notifications.invoices.upcoming.desc', i18nParams: { invoiceNumber, customerName, daysLeft } }
             );
           }
         });
@@ -1395,8 +1414,8 @@ const AppContent: React.FC = () => {
           dueDate.setHours(0, 0, 0, 0);
           const dueDateMs = dueDate.getTime();
           
-          const supplierName = expense.supplier?.name || expense.supplier || 'Tedarikçi';
-          const description = expense.description || 'Gider';
+          const supplierName = expense.supplier?.name || expense.supplier || tOr('common.generic.supplier', 'Tedarikçi');
+          const description = expense.description || tOr('common.generic.expense', 'Gider');
           
           if (dueDateMs < todayMs) {
             // Ödeme tarihi geçmiş
@@ -1406,7 +1425,7 @@ const AppContent: React.FC = () => {
               tOr('notifications.expenses.overdue.desc', `${description} - ${supplierName} (${daysOverdue} gün gecikmiş)`, { description, supplierName, daysOverdue }),
               'danger',
               'expenses',
-              { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
+              { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}`, i18nTitleKey: 'notifications.expenses.overdue.title', i18nDescKey: 'notifications.expenses.overdue.desc', i18nParams: { description, supplierName, daysOverdue } }
             );
           } else if (dueDateMs <= threeDaysLater.getTime()) {
             // 3 gün içinde ödeme
@@ -1416,7 +1435,7 @@ const AppContent: React.FC = () => {
               tOr('notifications.expenses.upcoming.desc', `${description} - ${supplierName} (${daysLeft} gün kaldı)`, { description, supplierName, daysLeft }),
               'warning',
               'expenses',
-              { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}` }
+              { persistent: true, repeatDaily: true, relatedId: `expense-${expense.id}`, i18nTitleKey: 'notifications.expenses.upcoming.title', i18nDescKey: 'notifications.expenses.upcoming.desc', i18nParams: { description, supplierName, daysLeft } }
             );
           }
         });
@@ -1433,13 +1452,13 @@ const AppContent: React.FC = () => {
               addNotification(
                 tOr('notifications.products.outOfStock.title', 'Stok tükendi'),
                 tOr('notifications.products.outOfStock.desc', `${p.name} - Stok tükendi!`, { name: p.name }),
-                'danger', 'products', { persistent: true, repeatDaily: true, relatedId: `out-of-stock-${p.id}` }
+                'danger', 'products', { persistent: true, repeatDaily: true, relatedId: `out-of-stock-${p.id}`, i18nTitleKey: 'notifications.products.outOfStock.title', i18nDescKey: 'notifications.products.outOfStock.desc', i18nParams: { name: p.name } }
               );
             } else {
               addNotification(
                 tOr('notifications.products.lowStock.title', 'Düşük stok uyarısı'),
                 tOr('notifications.products.lowStock.desc', `${p.name} - Stok seviyesi minimum limitin altında! (${stock}/${min})`, { name: p.name, stock, min }),
-                'warning', 'products', { persistent: true, repeatDaily: true, relatedId: `low-stock-${p.id}` }
+                'warning', 'products', { persistent: true, repeatDaily: true, relatedId: `low-stock-${p.id}`, i18nTitleKey: 'notifications.products.lowStock.title', i18nDescKey: 'notifications.products.lowStock.desc', i18nParams: { name: p.name, stock, min } }
               );
             }
           });
@@ -1513,14 +1532,14 @@ const AppContent: React.FC = () => {
           if (dueMs < todayMs) {
             addNotification(
               tOr('notifications.quotes.expired.title', 'Teklif süresi doldu'),
-              tOr('notifications.quotes.expired.desc', `${q.quoteNumber || 'Teklif'} - süre doldu`, { quoteNumber: q.quoteNumber || 'Teklif' }),
-              'danger', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-expired-${q.id}` }
+              tOr('notifications.quotes.expired.desc', `${q.quoteNumber || tOr('common.generic.quote','Teklif')} - süre doldu`, { quoteNumber: q.quoteNumber || tOr('common.generic.quote','Teklif') }),
+              'danger', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-expired-${q.id}`, i18nTitleKey: 'notifications.quotes.expired.title', i18nDescKey: 'notifications.quotes.expired.desc', i18nParams: { quoteNumber: q.quoteNumber || 'Teklif' } }
             );
           } else if (diffDays <= 3) {
             addNotification(
               tOr('notifications.quotes.dueSoon.title', 'Teklif süresi yaklaşıyor'),
-              tOr('notifications.quotes.dueSoon.desc', `${q.quoteNumber || 'Teklif'} - ${diffDays} gün kaldı`, { quoteNumber: q.quoteNumber || 'Teklif', diffDays }),
-              'warning', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-due-${q.id}` }
+              tOr('notifications.quotes.dueSoon.desc', `${q.quoteNumber || tOr('common.generic.quote','Teklif')} - ${diffDays} gün kaldı`, { quoteNumber: q.quoteNumber || tOr('common.generic.quote','Teklif'), diffDays }),
+              'warning', 'quotes', { persistent: true, repeatDaily: true, relatedId: `quote-due-${q.id}`, i18nTitleKey: 'notifications.quotes.dueSoon.title', i18nDescKey: 'notifications.quotes.dueSoon.desc', i18nParams: { quoteNumber: q.quoteNumber || 'Teklif', diffDays } }
             );
           }
         });
@@ -1530,6 +1549,220 @@ const AppContent: React.FC = () => {
     const interval = setInterval(loadAndNotifyQuotes, 6 * 60 * 60 * 1000); // 6 saatte bir
     return () => clearInterval(interval);
   }, [isAuthenticated, prefs]);
+
+  // Dil değişince (veya veriler güncellenince) bildirimleri yeniden yerelleştir
+  useEffect(() => {
+    const relocalize = () => {
+      setNotifications(current => current.map(n => {
+        // 0) Öncelikle bilinen pattern'lere göre her durumda yeniden yerelleştir
+        try {
+          if (n.relatedId === 'twofa-reminder') {
+            return {
+              ...n,
+              i18nTitleKey: 'security.twofa.reminderTitle',
+              i18nDescKey: 'security.twofa.reminderDesc',
+              title: tOrFirst(['security.twofa.reminderTitle','sales.security.twofa.reminderTitle'], n.title),
+              description: tOrFirst(['security.twofa.reminderDesc','sales.security.twofa.reminderDesc'], n.description),
+            } as HeaderNotification;
+          }
+          if (n.relatedId?.startsWith('out-of-stock-')) {
+            const pid = n.relatedId.split('out-of-stock-')[1];
+            const p = products.find(x => String(x.id) === String(pid));
+            const name = p?.name || '';
+            return {
+              ...n,
+              i18nTitleKey: 'notifications.products.outOfStock.title',
+              i18nDescKey: 'notifications.products.outOfStock.desc',
+              i18nParams: { name },
+              title: tOr('notifications.products.outOfStock.title', n.title),
+              description: tOr('notifications.products.outOfStock.desc', n.description, { name }),
+            } as HeaderNotification;
+          }
+          if (n.relatedId?.startsWith('low-stock-')) {
+            const pid = n.relatedId.split('low-stock-')[1];
+            const p: any = products.find(x => String((x as any).id) === String(pid));
+            const name = p?.name || '';
+            const stock = Number(p?.stockQuantity || 0);
+            const min = Number(p?.reorderLevel || 0);
+            return {
+              ...n,
+              i18nTitleKey: 'notifications.products.lowStock.title',
+              i18nDescKey: 'notifications.products.lowStock.desc',
+              i18nParams: { name, stock, min },
+              title: tOr('notifications.products.lowStock.title', n.title),
+              description: tOr('notifications.products.lowStock.desc', n.description, { name, stock, min }),
+            } as HeaderNotification;
+          }
+          if (n.relatedId?.startsWith('invoice-')) {
+            const id = n.relatedId.split('invoice-')[1];
+            const inv: any = invoices.find(x => String((x as any).id) === String(id));
+            const customerName = inv?.customer?.name || tOr('common.generic.customer', 'Müşteri');
+            const invoiceNumber = inv?.invoiceNumber || `#${inv?.id || ''}`;
+            const dueDate = inv?.dueDate ? new Date(inv.dueDate) : null;
+            if (dueDate) {
+              const today = new Date(); today.setHours(0,0,0,0);
+              dueDate.setHours(0,0,0,0);
+              const todayMs = today.getTime();
+              const dueMs = dueDate.getTime();
+              if (dueMs < todayMs) {
+                const daysOverdue = Math.floor((todayMs - dueMs) / 86400000);
+                return {
+                  ...n,
+                  i18nTitleKey: 'notifications.invoices.overdue.title',
+                  i18nDescKey: 'notifications.invoices.overdue.desc',
+                  i18nParams: { invoiceNumber, customerName, daysOverdue },
+                  title: tOr('notifications.invoices.overdue.title', n.title),
+                  description: tOr('notifications.invoices.overdue.desc', n.description, { invoiceNumber, customerName, daysOverdue }),
+                } as HeaderNotification;
+              } else {
+                const daysLeft = Math.ceil((dueMs - todayMs) / 86400000);
+                return {
+                  ...n,
+                  i18nTitleKey: 'notifications.invoices.upcoming.title',
+                  i18nDescKey: 'notifications.invoices.upcoming.desc',
+                  i18nParams: { invoiceNumber, customerName, daysLeft },
+                  title: tOr('notifications.invoices.upcoming.title', n.title),
+                  description: tOr('notifications.invoices.upcoming.desc', n.description, { invoiceNumber, customerName, daysLeft }),
+                } as HeaderNotification;
+              }
+            }
+          }
+          if (n.relatedId?.startsWith('expense-')) {
+            const id = n.relatedId.split('expense-')[1];
+            const exp: any = expenses.find(x => String((x as any).id) === String(id));
+            const supplierName = exp?.supplier?.name || exp?.supplier || tOr('common.generic.supplier', 'Tedarikçi');
+            const description = exp?.description || tOr('common.generic.expense', 'Gider');
+            const dueDate = exp?.dueDate || exp?.expenseDate ? new Date(exp?.dueDate || exp?.expenseDate) : null;
+            if (dueDate) {
+              const today = new Date(); today.setHours(0,0,0,0);
+              dueDate.setHours(0,0,0,0);
+              const todayMs = today.getTime();
+              const dueMs = dueDate.getTime();
+              if (dueMs < todayMs) {
+                const daysOverdue = Math.floor((todayMs - dueMs) / 86400000);
+                return {
+                  ...n,
+                  i18nTitleKey: 'notifications.expenses.overdue.title',
+                  i18nDescKey: 'notifications.expenses.overdue.desc',
+                  i18nParams: { description, supplierName, daysOverdue },
+                  title: tOr('notifications.expenses.overdue.title', n.title),
+                  description: tOr('notifications.expenses.overdue.desc', n.description, { description, supplierName, daysOverdue }),
+                } as HeaderNotification;
+              } else {
+                const daysLeft = Math.ceil((dueMs - todayMs) / 86400000);
+                return {
+                  ...n,
+                  i18nTitleKey: 'notifications.expenses.upcoming.title',
+                  i18nDescKey: 'notifications.expenses.upcoming.desc',
+                  i18nParams: { description, supplierName, daysLeft },
+                  title: tOr('notifications.expenses.upcoming.title', n.title),
+                  description: tOr('notifications.expenses.upcoming.desc', n.description, { description, supplierName, daysLeft }),
+                } as HeaderNotification;
+              }
+            }
+          }
+          if (n.relatedId?.startsWith('quote-expired-')) {
+            const id = n.relatedId.split('quote-expired-')[1];
+            return {
+              ...n,
+              i18nTitleKey: 'notifications.quotes.expired.title',
+              i18nDescKey: 'notifications.quotes.expired.desc',
+              i18nParams: { quoteNumber: n.i18nParams?.quoteNumber || `#${id}` },
+              title: tOr('notifications.quotes.expired.title', n.title),
+              description: tOr('notifications.quotes.expired.desc', n.description, { quoteNumber: n.i18nParams?.quoteNumber || `#${id}` }),
+            } as HeaderNotification;
+          }
+          if (n.relatedId?.startsWith('quote-due-')) {
+            const id = n.relatedId.split('quote-due-')[1];
+            const diffDays = n.i18nParams?.diffDays ?? 0;
+            return {
+              ...n,
+              i18nTitleKey: 'notifications.quotes.dueSoon.title',
+              i18nDescKey: 'notifications.quotes.dueSoon.desc',
+              i18nParams: { quoteNumber: n.i18nParams?.quoteNumber || `#${id}`, diffDays },
+              title: tOr('notifications.quotes.dueSoon.title', n.title),
+              description: tOr('notifications.quotes.dueSoon.desc', n.description, { quoteNumber: n.i18nParams?.quoteNumber || `#${id}`, diffDays }),
+            } as HeaderNotification;
+          }
+          // 'created' türündeki eski bildirimler: relatedId yok; link kategorisine göre yeniden yerelleştir
+          if (!n.i18nTitleKey && !n.i18nDescKey) {
+            if (n.link === 'customers') {
+              return {
+                ...n,
+                i18nTitleKey: 'notifications.customers.created.title',
+                i18nDescKey: 'notifications.customers.created.desc',
+                // Parametre yoksa mevcut başlık/açıklamayı koru
+                title: n.i18nParams ? tOr('notifications.customers.created.title', n.title) : n.title,
+                description: n.i18nParams ? tOr('notifications.customers.created.desc', n.description, n.i18nParams) : n.description,
+              } as HeaderNotification;
+            }
+            if (n.link === 'suppliers') {
+              return {
+                ...n,
+                i18nTitleKey: 'notifications.suppliers.created.title',
+                i18nDescKey: 'notifications.suppliers.created.desc',
+                title: n.i18nParams ? tOr('notifications.suppliers.created.title', n.title) : n.title,
+                description: n.i18nParams ? tOr('notifications.suppliers.created.desc', n.description, n.i18nParams) : n.description,
+              } as HeaderNotification;
+            }
+            if (n.link === 'invoices' && !n.relatedId) {
+              return {
+                ...n,
+                i18nTitleKey: 'notifications.invoices.created.title',
+                i18nDescKey: 'notifications.invoices.created.desc',
+                title: n.i18nParams ? tOr('notifications.invoices.created.title', n.title) : n.title,
+                description: n.i18nParams ? tOr('notifications.invoices.created.desc', n.description, n.i18nParams) : n.description,
+              } as HeaderNotification;
+            }
+            if (n.link === 'expenses' && !n.relatedId) {
+              return {
+                ...n,
+                i18nTitleKey: 'notifications.expenses.created.title',
+                i18nDescKey: 'notifications.expenses.created.desc',
+                title: n.i18nParams ? tOr('notifications.expenses.created.title', n.title) : n.title,
+                description: n.i18nParams ? tOr('notifications.expenses.created.desc', n.description, n.i18nParams) : n.description,
+              } as HeaderNotification;
+            }
+            if (n.link === 'sales' && !n.relatedId) {
+              return {
+                ...n,
+                i18nTitleKey: 'notifications.sales.created.title',
+                i18nDescKey: 'notifications.sales.created.desc',
+                title: n.i18nParams ? tOr('notifications.sales.created.title', n.title) : n.title,
+                description: n.i18nParams ? tOr('notifications.sales.created.desc', n.description, n.i18nParams) : n.description,
+              } as HeaderNotification;
+            }
+          }
+        } catch {}
+
+        // 1) i18n meta'ya göre genel yeniden çeviri
+        if (n.i18nTitleKey || n.i18nDescKey) {
+          // Özel durum: 2FA anahtarlarını alternatif path'lerle dene
+          if (n.relatedId === 'twofa-reminder' || String(n.i18nTitleKey || '').startsWith('security.twofa') || String(n.i18nDescKey || '').startsWith('security.twofa')) {
+            return {
+              ...n,
+              title: tOrFirst(['security.twofa.reminderTitle','sales.security.twofa.reminderTitle'], n.title, n.i18nParams),
+              description: tOrFirst(['security.twofa.reminderDesc','sales.security.twofa.reminderDesc'], n.description, n.i18nParams),
+                
+            } as HeaderNotification;
+          }
+          return {
+            ...n,
+            title: n.i18nTitleKey ? tOr(n.i18nTitleKey, n.title, n.i18nParams) : n.title,
+            description: n.i18nDescKey ? tOr(n.i18nDescKey, n.description, n.i18nParams) : n.description,
+              
+          };
+        }
+
+        // 2) Başka bir şey değilse hiçbir alanı değiştirme
+        return { ...n };
+      }
+      
+      ));
+    };
+
+    relocalize();
+  }, [i18n.language, invoices, expenses, products]);
 
   const normalizeId = (value?: string | number) => String(value ?? Date.now());
 
@@ -1809,10 +2042,10 @@ const AppContent: React.FC = () => {
         } catch {}
         return next;
       });
-      showToast('Fatura güncellendi', 'success');
+      showToast(t('toasts.invoices.updateSuccess'), 'success');
     } catch (error: any) {
       console.error('Inline invoice update error:', error);
-      showToast(error?.response?.data?.message || 'Fatura güncellenemedi', 'error');
+      showToast(error?.response?.data?.message || t('toasts.invoices.updateError'), 'error');
     }
   };
 
@@ -1852,6 +2085,9 @@ const AppContent: React.FC = () => {
       persistent?: boolean;
       repeatDaily?: boolean;
       relatedId?: string;
+      i18nTitleKey?: string;
+      i18nDescKey?: string;
+      i18nParams?: Record<string, any>;
     }
   ) => {
     // Kategori bazlı filtre: sadece talep edilenler
@@ -1908,17 +2144,23 @@ const AppContent: React.FC = () => {
       ? `${options.relatedId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
       : `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
+    const nowTs = Date.now();
+    const timeStr = new Date(nowTs).toLocaleString((navigator.language || 'tr').slice(0,2));
     const newNotification: HeaderNotification = {
       id: uniqueId,
       title,
       description,
-      time: 'Şimdi',
+      time: timeStr,
+      firstSeenAt: nowTs,
       type,
       read: false,
       link,
       persistent: options?.persistent,
       repeatDaily: options?.repeatDaily,
       relatedId: options?.relatedId,
+      i18nTitleKey: options?.i18nTitleKey,
+      i18nDescKey: options?.i18nDescKey,
+      i18nParams: options?.i18nParams,
     };
     
     // Aynı relatedId'ye sahip eski bildirimi kaldır (tekrar gösterilmemesi için)
@@ -1948,7 +2190,7 @@ const AppContent: React.FC = () => {
         // Update existing
         const updated = await customersApi.updateCustomer(String(customerData.id), cleanData);
         setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c));
-        showToast('Müşteri güncellendi', 'success');
+        showToast(t('toasts.customers.updateSuccess'), 'success');
       } else {
         // Duplicate email preflight (case-insensitive, trimmed)
         const normalizedEmail = (cleanData.email || '').trim().toLowerCase();
@@ -1974,14 +2216,15 @@ const AppContent: React.FC = () => {
         // Create new
         const created = await customersApi.createCustomer(cleanData);
         setCustomers(prev => [...prev, created]);
-        showToast('Müşteri eklendi', 'success');
+        showToast(t('toasts.customers.createSuccess'), 'success');
         
         // 🔔 Bildirim ekle
         addNotification(
           tOr('notifications.customers.created.title', 'Yeni müşteri eklendi'),
           tOr('notifications.customers.created.desc', `${created.name} sisteme kaydedildi.`, { name: created.name }),
           'success',
-          'customers'
+          'customers',
+          { i18nTitleKey: 'notifications.customers.created.title', i18nDescKey: 'notifications.customers.created.desc', i18nParams: { name: created.name } }
         );
       }
     } catch (error: any) {
@@ -2017,13 +2260,13 @@ const AppContent: React.FC = () => {
   };
 
   const deleteCustomer = async (customerId: string | number) => {
-    if (typeof window !== "undefined" && !window.confirm("Bu müşteriyi silmek istediğinizden emin misiniz?")) {
+    if (typeof window !== "undefined" && !window.confirm(t('customers.deleteConfirm', { defaultValue: 'Bu müşteriyi silmek istediğinizden emin misiniz?' }))) {
       return;
     }
     try {
       await customersApi.deleteCustomer(String(customerId));
       setCustomers(prev => prev.filter(customer => String(customer.id) !== String(customerId)));
-      showToast('Müşteri silindi', 'success');
+      showToast(t('toasts.customers.deleteSuccess'), 'success');
     } catch (error: any) {
       console.error('Customer delete error:', error);
       
@@ -2037,7 +2280,7 @@ const AppContent: React.FC = () => {
         });
         setShowDeleteWarning(true);
       } else {
-        showToast(error.response?.data?.message || 'Müşteri silinemedi', 'error');
+        showToast(error.response?.data?.message || t('toasts.customers.deleteError'), 'error');
       }
     }
   };
@@ -2474,18 +2717,19 @@ const AppContent: React.FC = () => {
       if (supplierData.id) {
         const updated = await suppliersApi.updateSupplier(String(supplierData.id), cleanData);
         setSuppliers(prev => prev.map(s => s.id === updated.id ? updated : s));
-        showToast('Tedarikçi güncellendi', 'success');
+        showToast(t('toasts.suppliers.updateSuccess'), 'success');
       } else {
         const created = await suppliersApi.createSupplier(cleanData);
         setSuppliers(prev => [...prev, created]);
-        showToast('Tedarikçi eklendi', 'success');
+        showToast(t('toasts.suppliers.createSuccess'), 'success');
         
         // 🔔 Bildirim ekle
         addNotification(
           tOr('notifications.suppliers.created.title', 'Yeni tedarikçi eklendi'),
           tOr('notifications.suppliers.created.desc', `${created.name} sisteme kaydedildi.`, { name: created.name }),
           'success',
-          'suppliers'
+          'suppliers',
+          { i18nTitleKey: 'notifications.suppliers.created.title', i18nDescKey: 'notifications.suppliers.created.desc', i18nParams: { name: created.name } }
         );
       }
     } catch (error: any) {
@@ -2496,13 +2740,13 @@ const AppContent: React.FC = () => {
   };
 
   const deleteSupplier = async (supplierId: string | number) => {
-    if (typeof window !== "undefined" && !window.confirm("Bu tedarikçiyi silmek istediğinizden emin misiniz?")) {
+    if (typeof window !== "undefined" && !window.confirm(t('suppliers.deleteConfirm', { defaultValue: 'Bu tedarikçiyi silmek istediğinizden emin misiniz?' }))) {
       return;
     }
     try {
       await suppliersApi.deleteSupplier(String(supplierId));
       setSuppliers(prev => prev.filter(supplier => String(supplier.id) !== String(supplierId)));
-      showToast('Tedarikçi silindi', 'success');
+      showToast(t('toasts.suppliers.deleteSuccess'), 'success');
     } catch (error: any) {
       console.error('Supplier delete error:', error);
       
@@ -2516,7 +2760,7 @@ const AppContent: React.FC = () => {
         });
         setShowDeleteWarning(true);
       } else {
-        showToast(error.response?.data?.message || 'Tedarikçi silinemedi', 'error');
+        showToast(error.response?.data?.message || t('toasts.suppliers.deleteError'), 'error');
       }
     }
   };
@@ -2537,7 +2781,7 @@ const AppContent: React.FC = () => {
           customerName: invoiceData.customerName,
           availableCustomers: customers.map(c => ({ id: c.id, name: c.name }))
         });
-        showToast('Müşteri seçilmedi! Lütfen geçerli bir müşteri seçin.', 'error');
+        showToast(t('toasts.sales.customerNotSelected'), 'error');
         return;
       }
       
@@ -2585,8 +2829,8 @@ const AppContent: React.FC = () => {
         const MAX = 5;
         if (used >= MAX) {
           setInfoModal({
-            title: 'Plan Limiti Aşıldı',
-            message: 'Starter/Free planda bir ayda en fazla 5 fatura oluşturabilirsiniz. Daha fazla fatura için planınızı yükseltin.'
+            title: t('plans.limitExceeded.title', { defaultValue: 'Plan Limiti Aşıldı' }),
+            message: t('plans.limitExceeded.invoicesMessage', { defaultValue: 'Starter/Free planda bir ayda en fazla 5 fatura oluşturabilirsiniz. Daha fazla fatura için planınızı yükseltin.' })
           });
           // İsteğe bağlı: Ayarlar sayfasını açmak isterseniz yorumdan çıkartın
           // openSettingsOn('organization');
@@ -2594,10 +2838,10 @@ const AppContent: React.FC = () => {
         } else if (used === MAX - 1) {
           addNotification(
             tOr('notifications.plan.limit.title', 'Plan limiti uyarısı'),
-            tOr('notifications.plan.limit.invoices.desc', 'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).'),
+            tOr('notifications.plan.limit.invoices.desc', 'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).', { used: used, limit: MAX }),
             'info',
             'invoices',
-            { relatedId: 'plan-limit-invoices' }
+            { relatedId: 'plan-limit-invoices', i18nTitleKey: 'notifications.plan.limit.title', i18nDescKey: 'notifications.plan.limit.invoices.desc', i18nParams: { used: used, limit: MAX } }
           );
         }
       }
@@ -2646,7 +2890,7 @@ const AppContent: React.FC = () => {
         }
         
         console.log('💾 Fatura cache güncellendi (update)');
-        showToast('Fatura güncellendi', 'success');
+        showToast(t('toasts.invoices.updateSuccess'), 'success');
         return updated; // Güncellenen faturayı return et
       } else {
         const created = await invoicesApi.createInvoice(cleanData);
@@ -2760,10 +3004,11 @@ const AppContent: React.FC = () => {
               const prefs = JSON.parse(localStorage.getItem(key) || '{}');
               if (prefs?.salesNotifications !== false) {
                 addNotification(
-                  'Yeni satış gerçekleşti',
-                  `${savedSale.saleNumber || ''} - ${customerName}: ${(Number(savedSale.total)||0)} TL`,
+                  tOr('notifications.sales.created.title', 'Yeni satış kaydedildi'),
+                  tOr('notifications.sales.created.desc', `${customerName} - ${String((savedSale as any)?.items?.[0]?.productName || '')}: ${Number(savedSale.total)||0}`, { customerName, summary: String((savedSale as any)?.items?.[0]?.productName || ''), totalAmount: Number(savedSale.total)||0 }),
                   'success',
-                  'sales'
+                  'sales',
+                  { i18nTitleKey: 'notifications.sales.created.title', i18nDescKey: 'notifications.sales.created.desc', i18nParams: { customerName, summary: String((savedSale as any)?.items?.[0]?.productName || ''), totalAmount: Number(savedSale.total)||0 } }
                 );
               }
             } catch {}
@@ -2771,7 +3016,7 @@ const AppContent: React.FC = () => {
           } catch (saleError) {
             console.error('⚠️ Otomatik satış (backend) oluşturulamadı:', saleError);
             // Fatura başarılı oldu ama satış oluşturulamadıysa kullanıcıya bilgi ver (fatura kaydı bozulmasın)
-            showToast('Fatura oluşturuldu, ancak satış kaydı oluşturulamadı', 'error');
+            showToast(t('toasts.invoices.createPartialError'), 'error');
           }
         }
         
@@ -2783,7 +3028,7 @@ const AppContent: React.FC = () => {
           localStorage.setItem(iKey, JSON.stringify(newInvoices));
         } catch {}
         console.log('💾 Fatura cache güncellendi (create)');
-        showToast('Fatura ve satış oluşturuldu', 'success');
+        showToast(t('toasts.invoices.createWithSaleSuccess'), 'success');
         
         // 🔔 Bildirim ekle
         const customerInfo = customers.find(c => c.id === cleanData.customerId);
@@ -2791,7 +3036,8 @@ const AppContent: React.FC = () => {
           tOr('notifications.invoices.created.title', 'Yeni fatura oluşturuldu'),
           tOr('notifications.invoices.created.desc', `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`, { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' }),
           'success',
-          'invoices'
+          'invoices',
+          { i18nTitleKey: 'notifications.invoices.created.title', i18nDescKey: 'notifications.invoices.created.desc', i18nParams: { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' } }
         );
         
         return created; // Oluşturulan faturayı return et
@@ -2880,10 +3126,10 @@ const AppContent: React.FC = () => {
         }
       }
       
-      showToast('Fatura iptal edildi', 'success');
+      showToast(t('toasts.invoices.cancelSuccess'), 'success');
     } catch (error: any) {
       console.error('Invoice void error:', error);
-      showToast(error.response?.data?.message || 'Fatura iptal edilemedi', 'error');
+      showToast(error.response?.data?.message || t('toasts.invoices.cancelError'), 'error');
     }
   };
 
@@ -2901,10 +3147,10 @@ const AppContent: React.FC = () => {
         const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
         localStorage.setItem(iKey, JSON.stringify(updatedInvoices));
       } catch {}
-      showToast('Fatura geri yüklendi', 'success');
+      showToast(t('toasts.invoices.restoreSuccess'), 'success');
     } catch (error: any) {
       console.error('Invoice restore error:', error);
-      showToast(error.response?.data?.message || 'Fatura geri yüklenemedi', 'error');
+      showToast(error.response?.data?.message || t('toasts.invoices.restoreError'), 'error');
     }
   };
 
@@ -2916,18 +3162,18 @@ const AppContent: React.FC = () => {
         const MAX = 5;
         if (used >= MAX) {
           setInfoModal({
-            title: 'Plan Limiti Aşıldı',
-            message: 'Starter/Free planda bir ayda en fazla 5 gider kaydı oluşturabilirsiniz. Daha fazlası için planınızı yükseltin.'
+            title: t('plans.limitExceeded.title', { defaultValue: 'Plan Limiti Aşıldı' }),
+            message: t('plans.limitExceeded.expensesMessage', { defaultValue: 'Starter/Free planda bir ayda en fazla 5 gider kaydı oluşturabilirsiniz. Daha fazlası için planınızı yükseltin.' })
           });
           // openSettingsOn('organization');
           return;
         } else if (used === MAX - 1) {
           addNotification(
             tOr('notifications.plan.limit.title', 'Plan limiti uyarısı'),
-            tOr('notifications.plan.limit.expenses.desc', 'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).'),
+            tOr('notifications.plan.limit.expenses.desc', 'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).', { used: used, limit: MAX }),
             'info',
             'expenses',
-            { relatedId: 'plan-limit-expenses' }
+            { relatedId: 'plan-limit-expenses', i18nTitleKey: 'notifications.plan.limit.title', i18nDescKey: 'notifications.plan.limit.expenses.desc', i18nParams: { used: used, limit: MAX } }
           );
         }
       }
@@ -2957,7 +3203,7 @@ const AppContent: React.FC = () => {
           const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
           localStorage.setItem(eKey, JSON.stringify(newExpenses));
         } catch {}
-        showToast('Gider güncellendi', 'success');
+        showToast(t('toasts.expenses.updateSuccess'), 'success');
       } else {
         const created = await expensesApi.createExpense(cleanData);
         const mappedCreated: any = {
@@ -2973,7 +3219,7 @@ const AppContent: React.FC = () => {
           const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
           localStorage.setItem(eKey, JSON.stringify(newExpenses));
         } catch {}
-        showToast('Gider eklendi', 'success');
+        showToast(t('toasts.expenses.createSuccess'), 'success');
         
         // 🔔 Bildirim ekle
         const supplierName = mappedCreated.supplier?.name || 'Tedarikçi';
@@ -2981,7 +3227,8 @@ const AppContent: React.FC = () => {
           tOr('notifications.expenses.created.title', 'Yeni gider kaydedildi'),
           tOr('notifications.expenses.created.desc', `${supplierName} - ${mappedCreated.description}: ${mappedCreated.amount} TL`, { supplierName, description: mappedCreated.description, amount: mappedCreated.amount }),
           'info',
-          'expenses'
+          'expenses',
+          { i18nTitleKey: 'notifications.expenses.created.title', i18nDescKey: 'notifications.expenses.created.desc', i18nParams: { supplierName, description: mappedCreated.description, amount: mappedCreated.amount } }
         );
       }
     } catch (error: any) {
@@ -3039,10 +3286,10 @@ const AppContent: React.FC = () => {
         const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
         localStorage.setItem(eKey, JSON.stringify(updatedExpenses));
       } catch {}
-      showToast('Gider iptal edildi', 'success');
+      showToast(t('toasts.expenses.cancelSuccess'), 'success');
     } catch (error: any) {
       console.error('Expense void error:', error);
-      showToast(error.response?.data?.message || 'Gider iptal edilemedi', 'error');
+      showToast(error.response?.data?.message || t('toasts.expenses.cancelError'), 'error');
     }
   };
 
@@ -3065,7 +3312,7 @@ const AppContent: React.FC = () => {
         const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
         localStorage.setItem(eKey, JSON.stringify(next));
       } catch {}
-      showToast('Gider durumu güncellendi', 'success');
+      showToast(t('toasts.expenses.statusUpdateSuccess'), 'success');
     } catch (error: any) {
       console.error('Expense status update error:', error);
       const msg = String(error?.response?.data?.message || error?.message || 'Gider durumu güncellenemedi');
@@ -3091,10 +3338,10 @@ const AppContent: React.FC = () => {
         const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
         localStorage.setItem(eKey, JSON.stringify(updatedExpenses));
       } catch {}
-      showToast('Gider geri yüklendi', 'success');
+      showToast(t('toasts.expenses.restoreSuccess'), 'success');
     } catch (error: any) {
       console.error('Expense restore error:', error);
-      showToast(error.response?.data?.message || 'Gider geri yüklenemedi', 'error');
+      showToast(error.response?.data?.message || t('toasts.expenses.restoreError'), 'error');
     }
   };
 
@@ -3112,7 +3359,7 @@ const AppContent: React.FC = () => {
         const availableStock = Number(product.stockQuantity || 0);
         const requestedQty = Number(li.quantity || 0);
         if (availableStock < requestedQty) {
-          showToast(`❌ Yetersiz stok! ${product.name} - Mevcut: ${availableStock}, İstenen: ${requestedQty}`,'error');
+          showToast(t('toasts.sales.insufficientStock', { name: product.name, available: availableStock, requested: requestedQty }), 'error');
           return; // Satışı oluşturma
         }
       }
@@ -3192,7 +3439,7 @@ const AppContent: React.FC = () => {
           try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
           return next;
         });
-        showToast('Satış kaydedildi', 'success');
+        showToast(t('toasts.sales.createSuccess'), 'success');
       } else {
         const id = String(saleData.id);
         const patch: salesApi.UpdateSaleDto = {
@@ -3220,7 +3467,7 @@ const AppContent: React.FC = () => {
           try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
           return next;
         });
-        showToast('Satış güncellendi', 'success');
+        showToast(t('toasts.sales.updateSuccess'), 'success');
       }
     } catch (err: any) {
       console.error('❌ Sales upsert error:', err);
@@ -3242,7 +3489,7 @@ const AppContent: React.FC = () => {
         try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
         return next;
       });
-      showToast(getErrorMessage(err) || 'Satış yerel olarak kaydedildi (offline)', 'info');
+      showToast(getErrorMessage(err) || t('toasts.sales.localSaved'), 'info');
     }
     
     // 📦 YENİ SATIŞ İÇİN STOK DÜŞÜR (çoklu ürün uyumlu)
@@ -3280,7 +3527,7 @@ const AppContent: React.FC = () => {
           }
         } catch (stockError) {
           console.error('Manuel satış - Stok güncellenemedi:', stockError);
-          showToast('Satış kaydedildi ancak stok güncellenemedi', 'error');
+          showToast(t('toasts.sales.stockUpdateFailed'), 'error');
         }
       }
     }
@@ -3302,16 +3549,16 @@ const AppContent: React.FC = () => {
   };
 
   const handleDeleteSale = async (saleId: string) => {
-    if (!confirm('Bu satışı silmek istediğinizden emin misiniz?')) {
+    if (!confirm(t('sales.deleteConfirm', { defaultValue: 'Bu satışı silmek istediğinizden emin misiniz?' }))) {
       return;
     }
     console.log('🗑️ Satış silme talebi:', saleId);
-    const prevSnapshot = [...sales];
+    // const prevSnapshot = [...sales];
     try {
       await salesApi.deleteSale(String(saleId));
     } catch (err: any) {
       console.error('❌ Satış backend üzerinde silinemedi:', err);
-      showToast(getErrorMessage(err) || 'Satış silinemedi', 'error');
+      showToast(getErrorMessage(err) || t('toasts.sales.deleteError'), 'error');
       return; // Başarısızsa yerel olarak silme, veri tutarlılığı korunur
     }
     setSales(prev => {
@@ -3326,7 +3573,7 @@ const AppContent: React.FC = () => {
       console.log('✅ Satış silindi, kalan satış sayısı:', filtered.length);
       return filtered;
     });
-    showToast('Satış başarıyla silindi', 'success');
+    showToast(t('toasts.sales.deleteSuccess'), 'success');
     setShowSaleViewModal(false);
     setSelectedSale(null);
   };
@@ -3383,7 +3630,7 @@ const AppContent: React.FC = () => {
           categoryTaxRateOverride: (updated as any).categoryTaxRateOverride ? Number((updated as any).categoryTaxRateOverride) : undefined,
           status: updated.stock === 0 ? 'out-of-stock' : updated.stock <= updated.minStock ? 'low' : 'active'
         } as Product : p));
-        showToast('Ürün güncellendi', 'success');
+        showToast(t('toasts.products.updateSuccess'), 'success');
       } else {
         // Create new
         const created = await productsApi.createProduct(backendData);
@@ -3398,7 +3645,7 @@ const AppContent: React.FC = () => {
           categoryTaxRateOverride: (created as any).categoryTaxRateOverride ? Number((created as any).categoryTaxRateOverride) : undefined,
           status: created.stock === 0 ? 'out-of-stock' : created.stock <= created.minStock ? 'low' : 'active'
         } as Product]);
-        showToast('Ürün eklendi', 'success');
+        showToast(t('toasts.products.createSuccess'), 'success');
         
         // Ürün eklendi bildirimi kaldırıldı (yalnızca düşük stok/tükenmiş stok bildirimleri gösterilecek)
         
@@ -3421,16 +3668,16 @@ const AppContent: React.FC = () => {
   };
 
   const deleteProduct = async (productId: string | number) => {
-    if (!confirmAction("Bu ürünü silmek istediğinizden emin misiniz?")) {
+    if (!confirmAction(t('products.deleteConfirm', { defaultValue: 'Bu ürünü silmek istediğinizden emin misiniz?' }))) {
       return;
     }
     try {
       await productsApi.deleteProduct(String(productId));
       setProducts(prev => prev.filter(product => product.id !== String(productId)));
-      showToast('Ürün silindi', 'success');
+      showToast(t('toasts.products.deleteSuccess'), 'success');
     } catch (error: any) {
       console.error('Product delete error:', error);
-      showToast(error.response?.data?.message || 'Ürün silinemedi', 'error');
+      showToast(error.response?.data?.message || t('toasts.products.deleteError'), 'error');
     }
   };
 
@@ -3468,11 +3715,11 @@ const AppContent: React.FC = () => {
       });
 
       if (taxRate !== undefined) {
-        showToast(`${normalized} kategorisi eklendi (KDV: %${taxRate})`, 'success');
+        showToast(t('toasts.categories.added', { name: normalized, taxRate }), 'success');
       }
     } catch (error: any) {
       console.error('Kategori ekleme hatası:', error);
-      showToast(error.response?.data?.message || 'Kategori eklenemedi', 'error');
+      showToast(error.response?.data?.message || t('toasts.categories.addError'), 'error');
     }
   };
 
@@ -3508,7 +3755,7 @@ const AppContent: React.FC = () => {
           : product
       )
     );
-    showToast("Kategori guncellendi", "success");
+    showToast(t('toasts.categories.updateSuccess'), 'success');
   };
 
   const deleteProductCategory = (categoryName: string) => {
@@ -3546,7 +3793,7 @@ const AppContent: React.FC = () => {
           : product
       )
     );
-    showToast("Kategori silindi", "success");
+    showToast(t('toasts.categories.deleteSuccess'), 'success');
   };
 
   const handleProductBulkAction = (action: ProductBulkAction, productIds: string[]) => {
@@ -3562,9 +3809,9 @@ const AppContent: React.FC = () => {
         const next = prev.filter(product => !productIds.includes(product.id));
         const removedCount = prev.length - next.length;
         if (removedCount > 0) {
-          showToast(`${removedCount} urun silindi`, "success");
+          showToast(t('toasts.products.bulkRemoved', { count: removedCount }), 'success');
         } else {
-          showToast("Secilen urunler bulunamadi", "info");
+          showToast(t('toasts.products.bulkNotFound'), 'info');
         }
         return next;
       });
@@ -3582,9 +3829,9 @@ const AppContent: React.FC = () => {
           return product;
         });
         if (changed > 0) {
-          showToast(`${changed} urun arsivlendi`, "success");
+          showToast(t('toasts.products.bulkArchived', { count: changed }), 'success');
         } else {
-          showToast("Secilen urunler zaten arsivde", "info");
+          showToast(t('toasts.products.bulkAlreadyArchived'), 'info');
         }
         return next;
       });
@@ -3592,12 +3839,12 @@ const AppContent: React.FC = () => {
     }
 
     if (action === "update-price") {
-      showToast("Toplu fiyat guncelleme icin seciminizi kaydettik. Duzenlemeyi urun detayinda yapabilirsiniz.", "info");
+      showToast(t('toasts.products.bulkPriceUpdateSaved'), 'info');
       return;
     }
 
     if (action === "assign-category") {
-      showToast("Kategori atamasi icin sol paneldeki kategori duzenini kullanabilirsiniz.", "info");
+      showToast(t('toasts.categories.assignmentInfo'), 'info');
     }
   };
 
@@ -3711,11 +3958,7 @@ const AppContent: React.FC = () => {
   };
 
   const deleteBank = async (bankId: string | number) => {
-    if (!confirmAction(i18n.language==='tr'? 'Bu banka hesabını silmek istediğinizden emin misiniz?'
-      : i18n.language==='en'? 'Are you sure you want to delete this bank account?'
-      : i18n.language==='fr'? 'Voulez-vous vraiment supprimer ce compte bancaire ?'
-      : i18n.language==='de'? 'Möchten Sie dieses Bankkonto wirklich löschen?'
-      : 'Are you sure you want to delete this bank account?')) return;
+    if (!confirmAction(t('banks.deleteConfirm', { defaultValue: 'Bu banka hesabını silmek istediğinizden emin misiniz?' }))) return;
     try {
       const { bankAccountsApi } = await import('./api/bank-accounts');
       await bankAccountsApi.remove(String(bankId));
@@ -3727,7 +3970,7 @@ const AppContent: React.FC = () => {
       showToast(msgDeleted, 'success');
     } catch (e: any) {
       console.error('Bank delete failed:', e);
-      showToast(e?.response?.data?.message || 'Banka silinemedi', 'error');
+      showToast(e?.response?.data?.message || t('toasts.bank.deleteError'), 'error');
     }
   };
 
@@ -3840,7 +4083,7 @@ const AppContent: React.FC = () => {
       }
       
       if (!customerId) {
-        showToast('Müşteri bulunamadı! Lütfen önce müşteri oluşturun.', 'error');
+        showToast(t('toasts.sales.customerNotFound'), 'error');
         throw new Error('customerId gerekli');
       }
       
@@ -3921,10 +4164,11 @@ const AppContent: React.FC = () => {
         tOr('notifications.invoices.created.title', 'Yeni fatura oluşturuldu'),
         tOr('notifications.invoices.created.desc', `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`, { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' }),
         'success',
-        'invoices'
+        'invoices',
+        { i18nTitleKey: 'notifications.invoices.created.title', i18nDescKey: 'notifications.invoices.created.desc', i18nParams: { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' } }
       );
       
-      showToast('Fatura başarıyla oluşturuldu', 'success');
+      showToast(t('toasts.invoices.createSuccess'), 'success');
       
       // Modal'ları kapat
       setShowInvoiceFromSaleModal(false);
@@ -4869,10 +5113,10 @@ const AppContent: React.FC = () => {
               const updated = [next, ...(Array.isArray(list) ? list : [])];
               localStorage.setItem(key, JSON.stringify(updated));
               setShowQuoteCreateModal(false);
-              showToast('Teklif oluşturuldu', 'success');
+              showToast(t('toasts.quotes.createSuccess'), 'success');
             } catch (e) {
               console.error('Quote create (dashboard) failed:', e);
-              showToast('Teklif oluşturulamadı', 'error');
+              showToast(t('toasts.quotes.createError'), 'error');
             }
           }}
         />

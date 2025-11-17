@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminApi } from '../api/admin';
 import { Edit, Trash2, ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
 import BackupManagementPage from './admin/BackupManagementPage';
@@ -49,6 +50,7 @@ interface TableData {
 }
 
 const AdminPage: React.FC = () => {
+  const { t } = useTranslation('common');
   const { tenant: authTenant } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: 'owner', password: '' });
@@ -101,7 +103,7 @@ const AdminPage: React.FC = () => {
   const closeEditUser = () => setEditingUser(null);
   const saveEditUser = async () => {
     if (!editingUser) return;
-    if (!window.confirm('Bu kullanıcıyı güncellemek istediğinize emin misiniz?')) return;
+    if (!window.confirm(t('admin.users.updateConfirm', 'Bu kullanıcıyı güncellemek istediğinize emin misiniz?'))) return;
     try {
       setLoading(true);
       await adminApi.updateUserDetails(editingUser.id, editForm);
@@ -119,7 +121,7 @@ const AdminPage: React.FC = () => {
   };
   const sendPasswordResetEmail = async () => {
     if (!editingUser) return;
-    if (!window.confirm('Şifre sıfırlama e-postası gönderilsin mi?')) return;
+    if (!window.confirm(t('admin.users.passwordResetConfirm', 'Şifre sıfırlama e-postası gönderilsin mi?'))) return;
     try {
       setLoading(true);
       await adminApi.sendPasswordReset(editingUser.id);
@@ -492,7 +494,9 @@ const AdminPage: React.FC = () => {
   const toggleUserActive = async (userId: string, isActive: boolean) => {
     try {
       setLoading(true);
-      const confirmMsg = isActive ? 'Kullanıcıyı pasifleştirmek istediğinize emin misiniz?' : 'Kullanıcıyı aktifleştirmek istediğinize emin misiniz?';
+      const confirmMsg = isActive
+        ? t('admin.users.deactivateConfirm', 'Kullanıcıyı pasifleştirmek istediğinize emin misiniz?')
+        : t('admin.users.activateConfirm', 'Kullanıcıyı aktifleştirmek istediğinize emin misiniz?');
       if (!window.confirm(confirmMsg)) return;
       await adminApi.updateUserStatus(userId, !isActive);
       // Mevcut filtre ile kullanıcıları tazele
@@ -942,7 +946,7 @@ const AdminPage: React.FC = () => {
                             onChange={(e) => {
                               const displayPlan = e.target.value;
                               const apiPlan = planDisplayToApi(displayPlan);
-                              if (!window.confirm(`${tenant.companyName || tenant.name} için planı '${displayPlan}' olarak güncellemek istediğinize emin misiniz?`)) return;
+                              if (!window.confirm(t('admin.tenants.updatePlanConfirm', { name: tenant.companyName || tenant.name, plan: displayPlan, defaultValue: `${tenant.companyName || tenant.name} için planı '${displayPlan}' olarak güncellemek istediğinize emin misiniz?` }))) return;
                               adminApi.updateTenantSubscription(tenant.id, { plan: apiPlan })
                                 .then(() => {
                                   setTenants(prev => prev.map(x => x.id === tenant.id ? { ...x, subscriptionPlan: apiPlan } : x));
@@ -977,7 +981,7 @@ const AdminPage: React.FC = () => {
                             onBlur={() => toggleEditSet(setEditingStatusIds, tenant.id, false)}
                             onChange={(e) => {
                               const newStatus = e.target.value;
-                              if (!window.confirm(`${tenant.companyName || tenant.name} için durumu '${newStatus}' olarak güncellemek istediğinize emin misiniz?`)) return;
+                              if (!window.confirm(t('admin.tenants.updateStatusConfirm', { name: tenant.companyName || tenant.name, status: newStatus, defaultValue: `${tenant.companyName || tenant.name} için durumu '${newStatus}' olarak güncellemek istediğinize emin misiniz?` }))) return;
                               adminApi.updateTenantSubscription(tenant.id, { status: newStatus })
                                 .then(() => {
                                   setTenants(prev => prev.map(x => x.id === tenant.id ? { ...x, status: newStatus } : x));
@@ -1020,7 +1024,7 @@ const AdminPage: React.FC = () => {
                             onChange={(e) => {
                               const val = e.target.value;
                               if (!val) return;
-                              if (!window.confirm(`${tenant.companyName || tenant.name} için sonraki ödeme tarihini ${val} olarak ayarlamak istediğinize emin misiniz?`)) return;
+                              if (!window.confirm(t('admin.tenants.updateNextPaymentConfirm', { name: tenant.companyName || tenant.name, date: val, defaultValue: `${tenant.companyName || tenant.name} için sonraki ödeme tarihini ${val} olarak ayarlamak istediğinize emin misiniz?` }))) return;
                               adminApi.updateTenantSubscription(tenant.id, { nextBillingAt: val })
                                 .then(() => {
                                   setActionMessage('Sonraki ödeme tarihi güncellendi');
@@ -1037,7 +1041,7 @@ const AdminPage: React.FC = () => {
                         <h3 className="font-semibold text-gray-800">Abonelik</h3>
                         <button
                           onClick={() => {
-                            if (!window.confirm(`${tenant.companyName || tenant.name} için aboneliği iptal etmek istediğinize emin misiniz?`)) return;
+                            if (!window.confirm(t('admin.tenants.cancelSubscriptionConfirm', { name: tenant.companyName || tenant.name, defaultValue: `${tenant.companyName || tenant.name} için aboneliği iptal etmek istediğinize emin misiniz?` }))) return;
                             adminApi.updateTenantSubscription(tenant.id, { cancel: true })
                               .then(() => {
                                 setActionMessage('Abonelik iptal edildi');
@@ -1056,7 +1060,7 @@ const AdminPage: React.FC = () => {
                           <button
                             onClick={async () => {
                               const name = tenant.companyName || tenant.name;
-                              const confirmed = window.confirm(`DİKKAT: '${name}' hesabını ve tüm verilerini KALICI olarak silmek üzeresiniz. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?`);
+                              const confirmed = window.confirm(t('admin.tenants.dangerDeleteTenantConfirm', { name, defaultValue: `DİKKAT: '${name}' hesabını ve tüm verilerini KALICI olarak silmek üzeresiniz. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?` }));
                               if (!confirmed) return;
                               try {
                                 setLoading(true);
@@ -1375,7 +1379,7 @@ const AdminPage: React.FC = () => {
                   Şifre Sıfırlama Maili Gönder
                 </button>
                 <div className="flex items-center gap-2">
-                  <button onClick={closeEditUser} className="px-4 py-2 text-sm border rounded-lg">İptal</button>
+                  <button onClick={closeEditUser} className="px-4 py-2 text-sm border rounded-lg">{t('common.cancel')}</button>
                   <button onClick={saveEditUser} className="px-4 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700">Kaydet</button>
                 </div>
               </div>
@@ -1430,7 +1434,7 @@ const AdminPage: React.FC = () => {
                   onClick={() => setDeleteModalUser(null)}
                   className="px-4 py-2 text-sm rounded-lg border bg-white hover:bg-gray-50"
                   disabled={deleteLoading}
-                >İptal</button>
+                >{t('common.cancel')}</button>
                 <button
                   onClick={async () => {
                     if (!deleteModalUser) return;

@@ -23,5 +23,9 @@
     "title": "Seeing an issue?",
     "text": "If you notice a problem, please contact our support team:",
     "email": "Email us at support@comptario.com"
-  }
+  },
+  "pending": "Pending",
+  "approved": "Approved",
+  "paid": "Paid",
+  "rejected": "Rejected"
 }

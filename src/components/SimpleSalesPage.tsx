@@ -14,7 +14,7 @@ import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
-import { getPresetLabel } from '../utils/presetLabels';
+// preset etiketleri i18n'den alınır
 
 
 
@@ -748,7 +748,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                   if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
                 }}
                 presets={[
-                  { id: 'this-month', label: getPresetLabel('this-month', i18n.language), apply: () => {
+                  { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
                     const d = new Date();
                     const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
                     const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);

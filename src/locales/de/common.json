@@ -5,6 +5,50 @@
     "next": "Weiter",
     "range": "{{start}}-{{end}} / {{total}}"
   },
+  "admin": {
+    "users": {
+      "updateConfirm": "Sind Sie sicher, dass Sie diesen Benutzer aktualisieren möchten?",
+      "passwordResetConfirm": "E-Mail zum Zurücksetzen des Passworts senden?",
+      "deactivateConfirm": "Möchten Sie diesen Benutzer wirklich deaktivieren?",
+      "activateConfirm": "Möchten Sie diesen Benutzer wirklich aktivieren?"
+    },
+    "tenants": {
+      "updatePlanConfirm": "Möchten Sie den Plan für {{name}} wirklich auf '{{plan}}' aktualisieren?",
+      "updateStatusConfirm": "Möchten Sie den Status für {{name}} wirklich auf '{{status}}' aktualisieren?",
+      "updateNextPaymentConfirm": "Möchten Sie das nächste Zahlungsdatum für {{name}} wirklich auf '{{date}}' aktualisieren?",
+      "cancelSubscriptionConfirm": "Möchten Sie das Abonnement für {{name}} wirklich kündigen?",
+      "dangerDeleteTenantConfirm": "Achtung! Möchten Sie den Mandanten '{{name}}' dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "backups": {
+      "deleteConfirm": "Möchten Sie dieses Backup wirklich löschen?",
+      "deleteOlderThanConfirm": "Möchten Sie alle Backups löschen, die älter als {{days}} Tage sind?",
+      "modal": {
+        "newTitle": "Neuen Lieferanten hinzufügen",
+        "editTitle": "Lieferanten bearbeiten",
+        "subtitle": "Lieferantendaten eingeben",
+        "nameLabel": "Lieferantenname",
+        "companyLabel": "Firmenname",
+        "emailLabel": "E-Mail",
+        "phoneLabel": "Telefon",
+        "categoryLabel": "Kategorie",
+        "taxNumberLabel": "Steuernummer",
+        "addressLabel": "Adresse",
+        "namePlaceholder": "ABC Versorgung GmbH",
+        "companyPlaceholder": "ABC Versorgung GmbH",
+        "emailPlaceholder": "info@abcversorgung.de",
+        "phonePlaceholder": "+49 170 1234567",
+        "taxNumberPlaceholder": "Steuernummer",
+        "addressPlaceholder": "Vollständige Adressinformationen..."
+      }
+    }
+  },
+  "plans": {
+    "limitExceeded": {
+      "title": "Planlimit überschritten",
+      "invoicesMessage": "Sie haben die maximale Anzahl an Rechnungen für Ihren aktuellen Plan erreicht. Aktualisieren Sie Ihren Plan, um weitere Rechnungen zu erstellen.",
+      "expensesMessage": "Sie haben die maximale Anzahl an Ausgaben für Ihren aktuellen Plan erreicht. Aktualisieren Sie Ihren Plan, um weitere Ausgaben hinzuzufügen."
+    }
+  },
   "billing": {
     "subscriptionUpdated": "Abo aktualisiert.",
     "payment": {
@@ -31,6 +75,15 @@
   "app": {
     "name": "comptario",
     "subtitle": "Buchhaltungssystem"
+  },
+  "presets": {
+    "thisMonth": "Dieser Monat",
+    "lastMonth": "Letzter Monat",
+    "thisYear": "Dieses Jahr",
+    "addedThisMonth": "Diesen Monat hinzugefügt",
+    "withEmail": "E-Mail vorhanden",
+    "withPhone": "Telefon vorhanden",
+    "withCompany": "Mit Firma"
   },
   "landing": {
     "nav.features": "Funktionen",
@@ -193,6 +246,7 @@
   "common": {
     "save": "Speichern",
     "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
     "delete": "Löschen",
     "edit": "Bearbeiten",
     "view": "Ansehen",
@@ -261,7 +315,13 @@
     "check": "Scheck",
     "email": "E-Mail",
     "quantity": "Menge",
-    "status": "Status",
+    "statusLabel": "Status",
+    "status": {
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "paid": "Bezahlt",
+      "rejected": "Abgelehnt"
+    },
     "notes": "Notizen"
   },
   "currencies": {
@@ -899,7 +959,25 @@
     "phone": "Telefon",
     "totalExpenses": "Ausgaben Gesamt",
     "totalAmount": "Gesamtbetrag",
-    "actions": "Aktionen"
+    "actions": "Aktionen",
+    "modal": {
+      "newTitle": "Neuen Lieferanten hinzufügen",
+      "editTitle": "Lieferanten bearbeiten",
+      "subtitle": "Lieferantendaten eingeben",
+      "nameLabel": "Lieferantenname",
+      "companyLabel": "Firmenname",
+      "emailLabel": "E-Mail",
+      "phoneLabel": "Telefon",
+      "categoryLabel": "Kategorie",
+      "taxNumberLabel": "Steuernummer",
+      "addressLabel": "Adresse",
+      "namePlaceholder": "ABC Versorgung GmbH",
+      "companyPlaceholder": "ABC Versorgung GmbH",
+      "emailPlaceholder": "info@abcversorgung.de",
+      "phonePlaceholder": "+49 170 1234567",
+      "taxNumberPlaceholder": "Steuernummer",
+      "addressPlaceholder": "Vollständige Adressinformationen..."
+    }
   },
   "banks": {
     "title": "Bankkonten",
@@ -936,7 +1014,8 @@
     "addAccount": "Konto Hinzufügen",
     "routingNumber": "Routing-Nummer (ABA)",
     "swiftBic": "SWIFT/BIC",
-    "branchCode": "Filialcode"
+    "branchCode": "Filialcode",
+    "deleteConfirm": "Möchten Sie dieses Bankkonto wirklich löschen?"
   },
   "settings": {
     "title": "Einstellungen",
@@ -1027,6 +1106,86 @@
     }
   },
   "common.remindMeLater": "Später Erinnern",
+  "common.now": "Jetzt",
+  "common.generic": {
+    "customer": "Kunde",
+    "supplier": "Lieferant",
+    "expense": "Ausgabe",
+    "quote": "Angebot"
+  },
+  "toasts": {
+    "common": {
+      "dataLoadError": "Beim Laden der Daten ist ein Fehler aufgetreten"
+    },
+    "invoices": {
+      "updateSuccess": "Rechnung aktualisiert",
+      "updateError": "Rechnung konnte nicht aktualisiert werden",
+      "createPartialError": "Rechnung erstellt, aber Verkauf konnte nicht erstellt werden",
+      "createWithSaleSuccess": "Rechnung und Verkauf erstellt",
+      "cancelSuccess": "Rechnung storniert",
+      "cancelError": "Rechnung konnte nicht storniert werden",
+      "restoreSuccess": "Rechnung wiederhergestellt",
+      "restoreError": "Rechnung konnte nicht wiederhergestellt werden",
+      "createSuccess": "Rechnung erfolgreich erstellt"
+    },
+    "customers": {
+      "updateSuccess": "Kunde aktualisiert",
+      "createSuccess": "Kunde hinzugefügt",
+      "deleteSuccess": "Kunde gelöscht",
+      "deleteError": "Kunde konnte nicht gelöscht werden"
+    },
+    "suppliers": {
+      "updateSuccess": "Lieferant aktualisiert",
+      "createSuccess": "Lieferant hinzugefügt",
+      "deleteSuccess": "Lieferant gelöscht",
+      "deleteError": "Lieferant konnte nicht gelöscht werden"
+    },
+    "sales": {
+      "customerNotSelected": "Kein Kunde ausgewählt! Bitte wählen Sie einen gültigen Kunden.",
+      "insufficientStock": "❌ Unzureichender Bestand! {{name}} - Verfügbar: {{available}}, Angefordert: {{requested}}",
+      "createSuccess": "Verkauf gespeichert",
+      "updateSuccess": "Verkauf aktualisiert",
+      "localSaved": "Verkauf lokal gespeichert (offline)",
+      "stockUpdateFailed": "Verkauf gespeichert, aber Bestand konnte nicht aktualisiert werden",
+      "deleteError": "Verkauf konnte nicht gelöscht werden",
+      "deleteSuccess": "Verkauf erfolgreich gelöscht",
+      "customerNotFound": "Kunde nicht gefunden! Bitte erstellen Sie zuerst einen Kunden."
+    },
+    "expenses": {
+      "updateSuccess": "Ausgabe aktualisiert",
+      "createSuccess": "Ausgabe hinzugefügt",
+      "cancelSuccess": "Ausgabe storniert",
+      "cancelError": "Ausgabe konnte nicht storniert werden",
+      "statusUpdateSuccess": "Ausgabenstatus aktualisiert",
+      "restoreSuccess": "Ausgabe wiederhergestellt",
+      "restoreError": "Ausgabe konnte nicht wiederhergestellt werden"
+    },
+    "products": {
+      "updateSuccess": "Produkt aktualisiert",
+      "createSuccess": "Produkt hinzugefügt",
+      "deleteSuccess": "Produkt gelöscht",
+      "deleteError": "Produkt konnte nicht gelöscht werden",
+      "bulkRemoved": "{{count}} Produkte entfernt",
+      "bulkNotFound": "Ausgewählte Produkte nicht gefunden",
+      "bulkArchived": "{{count}} Produkte archiviert",
+      "bulkAlreadyArchived": "Ausgewählte Produkte sind bereits archiviert",
+      "bulkPriceUpdateSaved": "Ihre Auswahl für die Massenpreisaktualisierung wurde gespeichert. Bearbeiten Sie dies in der Produktdetailansicht."
+    },
+    "categories": {
+      "added": "Kategorie {{name}} hinzugefügt (MwSt.: %{{taxRate}})",
+      "addError": "Kategorie konnte nicht hinzugefügt werden",
+      "updateSuccess": "Kategorie aktualisiert",
+      "deleteSuccess": "Kategorie gelöscht",
+      "assignmentInfo": "Für die Kategoriezuteilung verwenden Sie das Kategoriemenü im linken Bereich."
+    },
+    "bank": {
+      "deleteError": "Bank konnte nicht gelöscht werden"
+    },
+    "quotes": {
+      "createSuccess": "Angebot erstellt",
+      "createError": "Angebot konnte nicht erstellt werden"
+    }
+  },
   "notifications": {
     "invoices": {
       "overdue": { "title": "Überfällige Rechnungszahlung", "desc": "{{invoiceNumber}} - {{customerName}} ({{daysOverdue}} Tage überfällig)" },
@@ -1765,6 +1924,7 @@
         "count": "{{count}} ausstehende Einladungen",
         "resend": "Erneut senden",
         "cancel": "Abbrechen",
+        "cancelConfirm": "Sind Sie sicher, dass Sie diese Einladung stornieren möchten? ({{email}})",
         "expires": "Läuft ab am {{date}}"
       }
     }
