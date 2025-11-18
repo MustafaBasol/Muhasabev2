@@ -168,8 +168,24 @@ export default function ProductList({
   const selectAllCheckboxRef = React.useRef<HTMLInputElement | null>(null);
 
   const defaultCategoryName = 'Genel';
+  const toCanonical = (name: string): string => {
+    const raw = (name || '').trim();
+    const lower = raw
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase();
+    const servicesAliases = [
+      'hizmet', 'hizmetler', 'services', 'servisler', 'dienstleistungen'
+    ];
+    const productsAliases = [
+      'urun', 'urunler', 'ürün', 'ürünler', 'products', 'produits', 'produkte'
+    ];
+    if (servicesAliases.includes(lower)) return '__MAIN_SERVICES__';
+    if (productsAliases.includes(lower)) return '__MAIN_PRODUCTS__';
+    return raw;
+  };
   const categoriesEqual = (left: string, right: string) =>
-    left.localeCompare(right, 'tr-TR', { sensitivity: 'accent' }) === 0;
+    toCanonical(left).localeCompare(toCanonical(right), 'tr-TR', { sensitivity: 'accent' }) === 0;
 
   const availableCategories = useMemo(
     () => {
@@ -185,6 +201,28 @@ export default function ProductList({
 
   const archivedCategories = useMemo(
     () => categoryObjects.filter(cat => !cat.isActive).sort((a, b) => a.name.localeCompare(b.name, 'tr-TR')),
+    [categoryObjects]
+  );
+
+  const findCategoryByName = React.useCallback(
+    (name: string) =>
+      categoryObjects.find(
+        (cat) => cat.name.localeCompare(name, 'tr-TR', { sensitivity: 'accent' }) === 0
+      ) || null,
+    [categoryObjects]
+  );
+
+  const isDescendantOrSame = React.useCallback(
+    (candidate: ProductCategory, ancestor: ProductCategory): boolean => {
+      if (!candidate || !ancestor) return false;
+      let cur: ProductCategory | undefined = candidate;
+      const byId = new Map(categoryObjects.map((c) => [c.id, c] as const));
+      while (cur) {
+        if (cur.id === ancestor.id) return true;
+        cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+      }
+      return false;
+    },
     [categoryObjects]
   );
 
@@ -320,6 +358,14 @@ export default function ProductList({
 
     const matchesCategory = (product: Product) => {
       if (categoryFilter === 'all') return true;
+      const selectedObj = findCategoryByName(categoryFilter);
+      if (selectedObj) {
+        const productCatObj = findCategoryByName(product.category);
+        if (!productCatObj) {
+          return categoriesEqual(product.category, categoryFilter);
+        }
+        return isDescendantOrSame(productCatObj, selectedObj);
+      }
       return categoriesEqual(product.category, categoryFilter);
     };
 
@@ -546,7 +592,7 @@ export default function ProductList({
 
   const categoryOptions = [
     { value: 'all', label: t('products.filterCategory') },
-    ...availableCategories.map(category => ({ value: category, label: category })),
+    ...availableCategories.map(category => ({ value: category, label: translateCategoryName(category, t) })),
   ];
 
   const stockFilterLabels: Record<string, string> = {
@@ -571,7 +617,7 @@ export default function ProductList({
       id: 'category',
       label: t('products.category'),
       value: categoryFilter,
-      display: categoryFilter === 'all' ? t('products.filterCategory') : categoryFilter,
+      display: categoryFilter === 'all' ? t('products.filterCategory') : translateCategoryName(categoryFilter, t),
       options: categoryOptions,
       onChange: setCategoryFilter,
       defaultValue: 'all',
@@ -579,7 +625,7 @@ export default function ProductList({
     },
     {
       id: 'stock',
-      label: 'Stok',
+      label: t('products.stock'),
       value: stockFilter,
       display: stockFilterLabels[stockFilter] ?? stockFilter,
       options: Object.entries(stockFilterLabels).map(([value, label]) => ({ value, label })),
@@ -589,7 +635,7 @@ export default function ProductList({
     },
     {
       id: 'sort',
-      label: 'Siralama',
+      label: t('products.sort', { defaultValue: L.sort }),
       value: sortOption,
       display: sortOptionLabels[sortOption] ?? sortOption,
       options: Object.entries(sortOptionLabels).map(([value, label]) => ({ value, label })),
@@ -834,7 +880,9 @@ export default function ProductList({
                   onClick={() => setShowArchivedCategories(prev => !prev)}
                   className="text-[11px] text-indigo-600 hover:text-indigo-700"
                 >
-                  {showArchivedCategories ? (t('products.hideArchived') || L.hideArchived) : (t('products.showArchived') || L.showArchived)}
+                  {showArchivedCategories
+                    ? t('products.hideArchived', { defaultValue: L.hideArchived })
+                    : t('products.showArchived', { defaultValue: L.showArchived })}
                 </button>
               </div>
               {availableCategories.length === 0 ? (
@@ -1161,7 +1209,7 @@ export default function ProductList({
                       onClick={handleClearFilters}
                       className="ml-auto text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-700"
                     >
-                      Tumunu temizle
+                      {t('archive.clearFilters', { defaultValue: t('common.actions.clear') })}
                     </button>
                   )}
                 </div>

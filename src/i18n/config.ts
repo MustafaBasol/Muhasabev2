@@ -71,6 +71,41 @@ function normalizeCommonResource(obj: any) {
     if (!copy.security && copy.sales && typeof copy.sales.security === 'object') {
       copy.security = copy.sales.security;
     }
+
+    // Ensure landing.pricing.* keys are properly nested under landing.pricing
+    // Some locale files place pricing keys under landing with dotted keys like "pricing.title"
+    // This block nests only the pricing section without touching other parts of landing
+    if (copy.landing && typeof copy.landing === 'object') {
+      const landingObj: any = copy.landing;
+
+      const setPathIfMissing = (base: any, segments: string[], value: any) => {
+        let cur = base;
+        for (let i = 0; i < segments.length; i++) {
+          const key = segments[i];
+          const isLeaf = i === segments.length - 1;
+          if (isLeaf) {
+            if (cur[key] == null) {
+              cur[key] = value;
+            }
+          } else {
+            if (cur[key] == null || typeof cur[key] !== 'object') {
+              cur[key] = {};
+            }
+            cur = cur[key];
+          }
+        }
+      };
+
+      Object.keys(landingObj).forEach((k) => {
+        if (k.startsWith('pricing.')) {
+          const rest = k.slice('pricing.'.length);
+          if (rest) {
+            const segments = ['pricing', ...rest.split('.')];
+            setPathIfMissing(landingObj, segments, landingObj[k]);
+          }
+        }
+      });
+    }
     return copy;
   } catch {
     return obj || {};

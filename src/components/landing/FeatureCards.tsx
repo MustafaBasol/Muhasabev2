@@ -82,14 +82,7 @@ const FeatureCards: React.FC = () => {
           })}
         </div>
 
-        {/* Additional info */}
-        <div className="mt-16 text-center">
-          <div className="inline-flex items-center px-6 py-3 rounded-full bg-gray-100 text-gray-700">
-            <span className="text-sm font-medium">
-              ✨ {t('landing.value.title')}
-            </span>
-          </div>
-        </div>
+        {/* Additional info removed per request */}
       </div>
     </section>
   );

@@ -11,7 +11,7 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
 
   const plans = [
     {
-      name: t('landing.pricing.starter'),
+      name: t('landing.pricing.planNames.starter'),
       price: t('landing.pricing.price.free'),
       priceMonthly: t('landing.pricing.price.free'),
       annualLine: t('landing.pricing.annualLine.free', ''),
@@ -24,41 +24,41 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
         t('landing.pricing.features.pdf'),
         t('landing.pricing.features.quotesBasic')
       ],
-      cta: t('landing.pricing.cta'),
+      cta: t('landing.pricing.ctaStarter'),
       popular: false
     },
     {
-      name: t('landing.pricing.pro'),
+      name: t('landing.pricing.planNames.pro'),
       price: t('landing.pricing.price.pro'),
       priceMonthly: t('landing.pricing.price.pro'),
       annualLine: t('landing.pricing.annualLine.pro'),
       description: t('landing.pricing.plans.pro.desc'),
       features: [
         t('landing.pricing.features.users3'),
+        t('landing.pricing.features.quoteTemplate1'),
         t('landing.pricing.features.unlimitedInvoicesExpenses'),
         t('landing.pricing.features.customerSupplierUnlimited'),
-        t('landing.pricing.features.quotesAdvanced'),
+        t('landing.pricing.features.quotesBasic'),
         t('landing.pricing.features.products'),
         t('landing.pricing.features.reports')
       ],
-      cta: t('landing.pricing.cta'),
+      cta: t('landing.pricing.ctaPro'),
       popular: true
     },
     {
-      name: t('landing.pricing.business'),
+      name: t('landing.pricing.planNames.business'),
       price: t('landing.pricing.price.biz'),
       priceMonthly: t('landing.pricing.price.biz'),
       annualLine: t('landing.pricing.annualLine.biz', ''),
       description: t('landing.pricing.plans.business.desc'),
       features: [
-        t('landing.pricing.features.usersUnlimited'),
         t('landing.pricing.features.everythingPro'),
-        t('landing.pricing.features.teamCollaboration'),
-        t('landing.pricing.features.dedicatedSupport'),
-        t('landing.pricing.features.bankUnlimited'),
-        t('landing.pricing.features.reports')
+        t('landing.pricing.features.users10'),
+        t('landing.pricing.features.quoteTemplatesUnlimited'),
+        t('landing.pricing.features.saveListViews'),
+        t('landing.pricing.features.dedicatedSupport')
       ],
-      cta: t('landing.pricing.ctaContact') || 'Contact us',
+      cta: t('landing.pricing.ctaBusiness'),
       popular: false
     }
   ];
@@ -121,7 +121,7 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   {plan.name}
                 </h3>
-                <div className="text-4xl font-bold text-gray-900 mb-1">
+                <div className="text-4xl font-bold text-gray-900 mb-3">
                   {plan.priceMonthly}
                 </div>
                 {plan.annualLine && (
@@ -132,7 +132,7 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
                 <p className="text-gray-600">
                   {plan.description}
                 </p>
-                {index === 1 && (
+                {(index === 1 || index === 2) && (
                   <p className="text-xs text-gray-500 mt-2">
                     {t('landing.pricing.pro.extraUser')}
                   </p>
@@ -153,14 +153,7 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
 
               {/* CTA button */}
               <button
-                onClick={() => {
-                  if (index === 2) {
-                    // Business plan: contact us mailto
-                    window.location.href = 'mailto:support@comptario.com?subject=Business Plan Inquiry';
-                  } else {
-                    handlePlanClick();
-                  }
-                }}
+                onClick={handlePlanClick}
                 className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center ${
                   plan.popular
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 shadow-lg hover:shadow-xl'
@@ -182,19 +175,19 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
         </div>
 
         {/* Notes and social proof */}
-        <div className="max-w-3xl mx-auto mt-12">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center text-gray-700">
-              <Info className="h-5 w-5 text-gray-500 mr-2" />
-              <span>{t('landing.pricing.notes.vatAndCurrency')}</span>
-            </div>
-            <div className="flex items-center text-gray-700">
-              <Check className="h-5 w-5 text-emerald-500 mr-2" />
-              <span>{t('landing.pricing.notes.cancelAnytime')}</span>
-            </div>
-            <div className="flex items-center text-gray-700">
-              <Check className="h-5 w-5 text-emerald-500 mr-2" />
-              <span>{t('landing.pricing.features.noCredit')}</span>
+        <div className="max-w-6xl mx-auto mt-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3">
+            <div className="flex justify-center lg:col-start-2 lg:col-span-1">
+              <div className="inline-flex flex-col sm:flex-row items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-fit">
+                <div className="flex items-center text-gray-700">
+                  <Info className="h-5 w-5 text-gray-500 mr-2" />
+                  <span>{t('landing.pricing.notes.vatAndCurrency')}</span>
+                </div>
+                <div className="flex items-center text-gray-700">
+                  <Check className="h-5 w-5 text-emerald-500 mr-2" />
+                  <span>{t('landing.pricing.notes.cancelAnytime')}</span>
+                </div>
+              </div>
             </div>
           </div>
           <p className="text-center text-sm text-gray-500 mt-4">

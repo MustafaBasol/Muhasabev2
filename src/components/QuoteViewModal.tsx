@@ -81,8 +81,8 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
   } as const;
 
   const statusMap = useMemo(() => ({
-    draft: { label: t('common.status.draft', { defaultValue: L.status.draft }), className: 'bg-gray-100 text-gray-800' },
-    sent: { label: t('common.status.sent', { defaultValue: L.status.sent }), className: 'bg-blue-100 text-blue-800' },
+    draft: { label: t('quotes.statusLabels.draft', { defaultValue: L.status.draft }), className: 'bg-gray-100 text-gray-800' },
+    sent: { label: t('quotes.statusLabels.sent', { defaultValue: L.status.sent }), className: 'bg-blue-100 text-blue-800' },
     viewed: { label: t('quotes.statusLabels.viewed', { defaultValue: L.status.viewed }), className: 'bg-indigo-100 text-indigo-800' },
     accepted: { label: t('quotes.statusLabels.accepted', { defaultValue: L.status.accepted }), className: 'bg-green-100 text-green-800' },
     declined: { label: t('quotes.statusLabels.declined', { defaultValue: L.status.declined }), className: 'bg-red-100 text-red-800' },
@@ -110,8 +110,8 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
     const key = String(status) as keyof typeof L.status;
     const defaults = L.status as any;
     switch (key) {
-      case 'draft': return t('common.status.draft', { defaultValue: defaults.draft });
-      case 'sent': return t('common.status.sent', { defaultValue: defaults.sent });
+      case 'draft': return t('quotes.statusLabels.draft', { defaultValue: defaults.draft });
+      case 'sent': return t('quotes.statusLabels.sent', { defaultValue: defaults.sent });
       case 'viewed': return t('quotes.statusLabels.viewed', { defaultValue: defaults.viewed });
       case 'accepted': return t('quotes.statusLabels.accepted', { defaultValue: defaults.accepted });
       case 'declined': return t('quotes.statusLabels.declined', { defaultValue: defaults.declined });

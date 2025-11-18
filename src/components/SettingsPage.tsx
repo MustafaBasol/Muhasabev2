@@ -752,42 +752,71 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       {/* Kullanıcı ekleme ve hızlı işlemler (tek kartta birleşik) */}
       <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="text-sm font-semibold text-gray-900 mb-3">{currentLanguage === 'tr' ? 'Ek Kullanıcı' : currentLanguage === 'fr' ? 'Utilisateur supplémentaire' : currentLanguage === 'de' ? 'Zusätzlicher Benutzer' : 'Additional User'}</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          {/* Ek Kullanıcı adedi */}
-          <div>
-            <div className="text-xs text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Ek kullanıcı adedi' : currentLanguage === 'fr' ? 'Nombre d’utilisateurs' : currentLanguage === 'de' ? 'Anzahl zusätzlicher Benutzer' : 'Additional user count'}</div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setAdditionalUsersToAdd(v=>Math.max(1, (v||1)-1))} className="w-8 h-8 rounded-md border text-lg leading-none">−</button>
-              <div className="w-16 text-center font-semibold">{additionalUsersToAdd}</div>
-              <button onClick={() => setAdditionalUsersToAdd(v=> (v||1)+1)} className="w-8 h-8 rounded-md border text-lg leading-none">+</button>
-              <div className="ml-3 text-xs text-gray-500">{currentLanguage === 'tr' ? 'Kullanıcı başına 5€/ay. Faturalandırma plan dönemine göre yapılır.' : currentLanguage === 'fr' ? '5€/mo par utilisateur. Facturation selon la période du plan.' : currentLanguage === 'de' ? '5€/Monat pro Benutzer. Abrechnung nach Planzeitraum.' : '€5/month per user. Billed per plan period.'}</div>
+        {/* 2 sütunlu düzen: Sol = ekleme + aksiyonlar, Sağ = azaltma + açıklama */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white border border-gray-200 rounded-md p-4 flex flex-col gap-3">
+            {/* Başlık */}
+            <div className="text-sm font-semibold text-gray-900 mb-2">
+              {currentLanguage === 'tr' ? 'Ek Kullanıcı' : currentLanguage === 'fr' ? 'Utilisateur supplémentaire' : currentLanguage === 'de' ? 'Zusätzlicher Benutzer' : 'Additional User'}
             </div>
+            {/* Ek Kullanıcı adedi */}
+            <div>
+              <div className="text-xs text-gray-600 mb-1">{currentLanguage === 'tr' ? 'Ek kullanıcı adedi' : currentLanguage === 'fr' ? 'Nombre d’utilisateurs' : currentLanguage === 'de' ? 'Anzahl zusätzlicher Benutzer' : 'Additional user count'}</div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setAdditionalUsersToAdd(v=>Math.max(1, (v||1)-1))} className="w-8 h-8 rounded-md border text-lg leading-none">−</button>
+                <div className="w-16 text-center font-semibold">{additionalUsersToAdd}</div>
+                <button onClick={() => setAdditionalUsersToAdd(v=> (v||1)+1)} className="w-8 h-8 rounded-md border text-lg leading-none">+</button>
+                <div className="ml-3 text-xs text-gray-500">{currentLanguage === 'tr' ? 'Kullanıcı başına 5€/ay. Faturalandırma plan dönemine göre yapılır.' : currentLanguage === 'fr' ? '5€/mo par utilisateur. Facturation selon la période du plan.' : currentLanguage === 'de' ? '5€/Monat pro Benutzer. Abrechnung nach Planzeitraum.' : '€5/month per user. Billed per plan period.'}</div>
+              </div>
+            </div>
+            {/* Hızlı aksiyonlar */}
+            {canModifySeats && (
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setAddonConfirm({ open: true, mode: 'now', count: additionalUsersToAdd })}
+                  disabled={busy || (additionalUsersToAdd||0) < 1}
+                  className="w-full md:w-56 px-3 py-2 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                >{currentLanguage === 'tr' ? 'Hemen Tahsil Et' : currentLanguage === 'fr' ? 'Encaisser maintenant' : currentLanguage === 'de' ? 'Sofort belasten' : 'Charge now'}</button>
+                <button
+                  onClick={() => setAddonConfirm({ open: true, mode: 'later', count: additionalUsersToAdd })}
+                  disabled={busy || (additionalUsersToAdd||0) < 1}
+                  className="w-full md:w-56 px-3 py-2 text-sm rounded-md bg-indigo-100 text-indigo-800 hover:bg-indigo-200 disabled:opacity-50"
+                >{currentLanguage === 'tr' ? 'Dönem Sonunda Faturalandır' : currentLanguage === 'fr' ? 'Facturer en fin de période' : currentLanguage === 'de' ? 'Am Periodenende abrechnen' : 'Invoice at period end'}</button>
+              </div>
+            )}
           </div>
 
-          {/* Hızlı aksiyonlar */}
+          {/* Sağ sütun: Azaltma kutusu */}
           {canModifySeats && (
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => setAddonConfirm({ open: true, mode: 'now', count: additionalUsersToAdd })}
-                disabled={busy || (additionalUsersToAdd||0) < 1}
-                className="px-3 py-2 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-              >{currentLanguage === 'tr' ? 'Hemen Tahsil Et' : currentLanguage === 'fr' ? 'Encaisser maintenant' : currentLanguage === 'de' ? 'Sofort belasten' : 'Charge now'}</button>
-              <button
-                onClick={() => setAddonConfirm({ open: true, mode: 'later', count: additionalUsersToAdd })}
-                disabled={busy || (additionalUsersToAdd||0) < 1}
-                className="px-3 py-2 text-sm rounded-md bg-indigo-100 text-indigo-800 hover:bg-indigo-200 disabled:opacity-50"
-              >{currentLanguage === 'tr' ? 'Dönem Sonunda Faturalandır' : currentLanguage === 'fr' ? 'Facturer en fin de période' : currentLanguage === 'de' ? 'Am Periodenende abrechnen' : 'Invoice at period end'}</button>
-            </div>
-          )}
-
-          {/* Azaltma */}
-          {canModifySeats && (
-            <div className="flex items-center md:justify-end">
-              <button
-                onClick={removeOneSeat}
-                disabled={busy}
-                className="px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50"
-              >{currentLanguage === 'tr' ? '1 kullanıcı azalt' : currentLanguage === 'fr' ? 'Réduire de 1 utilisateur' : currentLanguage === 'de' ? '1 Benutzer reduzieren' : 'Reduce 1 user'}</button>
+            <div className="bg-white border border-gray-200 rounded-md p-4 flex flex-col gap-2">
+              {/* Başlık */}
+              <div className="text-sm font-semibold text-gray-900 mb-2">
+                {currentLanguage === 'tr'
+                  ? 'Kullanıcı Azaltma'
+                  : currentLanguage === 'fr'
+                  ? 'Réduction des utilisateurs'
+                  : currentLanguage === 'de'
+                  ? 'Benutzerreduzierung'
+                  : 'User reduction'}
+              </div>
+              {/* Açıklama */}
+              <div className="text-xs text-gray-500 max-w-md">
+                {currentLanguage === 'tr'
+                  ? 'Plana dahil kullanıcılar azaltılamaz; yalnızca ekstra alınan kullanıcılar azaltılabilir.'
+                  : currentLanguage === 'fr'
+                  ? "Les utilisateurs inclus dans le plan ne peuvent pas être réduits; seuls les utilisateurs supplémentaires peuvent être réduits."
+                  : currentLanguage === 'de'
+                  ? 'Im Plan enthaltene Benutzer können nicht reduziert werden; nur zusätzlich erworbene Benutzer können reduziert werden.'
+                  : 'Users included in the plan cannot be reduced; only additional purchased users can be reduced.'}
+              </div>
+              {/* Buton en altta */}
+              <div className="flex items-start md:justify-start">
+                <button
+                  onClick={removeOneSeat}
+                  disabled={busy}
+                  className="w-full md:w-56 px-3 py-2 text-sm rounded-md bg-rose-100 text-rose-800 hover:bg-rose-200 disabled:opacity-50"
+                >{currentLanguage === 'tr' ? '1 kullanıcı azalt' : currentLanguage === 'fr' ? 'Réduire de 1 utilisateur' : currentLanguage === 'de' ? '1 Benutzer reduzieren' : 'Reduce 1 user'}</button>
+              </div>
             </div>
           )}
         </div>

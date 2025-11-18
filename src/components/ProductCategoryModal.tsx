@@ -90,19 +90,19 @@ export default function ProductCategoryModal({
   const handleSubmit = () => {
     const normalized = name.trim();
     if (!normalized) {
-      setError('Kategori adı zorunludur');
+      setError(t('products.categoryModal.nameRequired'));
       return;
     }
 
     // Yeni kategori ekleniyorsa parent ID zorunlu
     if (!isEditMode && !parentId) {
-      setError('Ana kategori seçimi zorunludur');
+      setError(t('products.categoryModal.parentRequired'));
       return;
     }
 
     const taxRateNum = parseFloat(taxRate);
     if (isNaN(taxRateNum) || taxRateNum < 0 || taxRateNum > 100) {
-      setError('KDV oranı 0-100 arasında olmalıdır');
+      setError(t('products.categoryModal.taxInvalid'));
       return;
     }
 
@@ -118,7 +118,7 @@ export default function ProductCategoryModal({
       .includes(normalized.toLocaleLowerCase('tr-TR'));
 
     if (exists) {
-      setError('Bu kategori zaten mevcut');
+      setError(t('products.categoryModal.nameExists'));
       return;
     }
 
@@ -136,10 +136,10 @@ export default function ProductCategoryModal({
             </span>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
-                {isEditMode ? 'Kategori Düzenle' : 'Kategori Ekle'}
+                {isEditMode ? t('products.categoryModal.titleEdit') : t('products.categoryModal.titleNew')}
               </h2>
               <p className="text-sm text-gray-500">
-                {isEditMode ? 'Kategori bilgilerini güncelleyin.' : 'Yeni ürün kategorisini kaydedin.'}
+                {isEditMode ? t('products.categoryModal.subtitleEdit') : t('products.categoryModal.subtitleNew')}
               </p>
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function ProductCategoryModal({
             type="button"
             onClick={onClose}
             className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-            aria-label="Kapat"
+            aria-label={t('common.close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -158,7 +158,7 @@ export default function ProductCategoryModal({
             <>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="parent-category">
                 <Layers className="h-4 w-4 text-gray-400" />
-                Ana Kategori
+                {t('products.categoryModal.parentLabel')}
               </label>
               <select
                 id="parent-category"
@@ -177,13 +177,13 @@ export default function ProductCategoryModal({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-gray-500">Bu kategori hangi ana kategoriye ait olacak?</p>
+              <p className="mt-1 text-xs text-gray-500">{t('products.categoryModal.parentHelper')}</p>
             </>
           )}
 
           <label className={`flex items-center gap-2 text-sm font-medium text-gray-700 ${!isEditMode && parentCategories.length > 0 ? 'mt-4' : ''}`} htmlFor="category-name">
             <Tag className="h-4 w-4 text-gray-400" />
-            Kategori adı
+            {t('products.categoryModal.nameLabel')}
           </label>
           <input
             id="category-name"
@@ -196,12 +196,12 @@ export default function ProductCategoryModal({
               }
             }}
             className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="Örn: Elektronik"
+            placeholder={t('products.categoryModal.namePlaceholder')}
           />
           
           <label className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="category-tax-rate">
             <Percent className="h-4 w-4 text-gray-400" />
-            KDV Oranı (%)
+            {t('products.categoryModal.taxLabel')}
           </label>
           <input
             id="category-tax-rate"
@@ -217,12 +217,12 @@ export default function ProductCategoryModal({
               }
             }}
             className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="Örn: 18"
+            placeholder={t('products.categoryModal.taxPlaceholder')}
           />
           <p className="mt-1 text-xs text-gray-500">
             {!isEditMode && parentCategories.length > 0 
-              ? 'Alt kategori KDV\'si varsa ana kategori KDV\'sini geçersiz kılar'
-              : 'Bu kategorideki ürünler için varsayılan KDV oranı'}
+              ? t('products.categoryModal.taxHelperChildOverrides')
+              : t('products.categoryModal.taxHelperDefault')}
           </p>
           
           {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
@@ -259,14 +259,14 @@ export default function ProductCategoryModal({
             onClick={onClose}
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
           >
-            Vazgeç
+            {t('common.cancel')}
           </button>
           <button
             type="button"
             onClick={handleSubmit}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
           >
-            Kaydet
+            {t('common.save')}
           </button>
         </div>
       </div>
