@@ -15,7 +15,20 @@ interface QuoteEditModalProps {
 }
 
 const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote, onSave, products = [] }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const getActiveLang = () => {
+    try {
+      const stored = localStorage.getItem('i18nextLng');
+      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
+    } catch {}
+    const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
+    return cand.slice(0,2).toLowerCase();
+  };
+  const lang = getActiveLang();
+  const L = {
+    draft: { tr:'Taslak', en:'Draft', fr:'Brouillon', de:'Entwurf' }[lang as 'tr'|'en'|'fr'|'de'] || 'Draft',
+    sent: { tr:'Gönderildi', en:'Sent', fr:'Envoyé', de:'Gesendet' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sent',
+  } as const;
   const [form, setForm] = useState<Quote | null>(null);
   const [lines, setLines] = useState<NonNullable<Quote['items']>>([]);
   const [activeProductDropdown, setActiveProductDropdown] = useState<string | null>(null);
@@ -198,8 +211,8 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
                 onChange={(e) => setForm({ ...form, status: e.target.value as QuoteStatus })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
               >
-                <option value="draft">{t('common:status.draft')}</option>
-                <option value="sent">{t('common:status.sent')}</option>
+                <option value="draft">{t('common:status.draft', { defaultValue: L.draft })}</option>
+                <option value="sent">{t('common:status.sent', { defaultValue: L.sent })}</option>
                 <option value="viewed">{t('quotes.statusLabels.viewed')}</option>
                 <option value="accepted">{t('quotes.statusLabels.accepted')}</option>
                 <option value="declined">{t('quotes.statusLabels.declined')}</option>
@@ -273,9 +286,7 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
                             </div>
                           )}
                         </div>
-                        {(l as any).unit && (
-                          <p className="mt-1 text-xs text-gray-500">Birim: {(l as any).unit}</p>
-                        )}
+                        {/* Unit hint removed as requested */}
                       </td>
                       <td className="px-3 py-2">
                         <input

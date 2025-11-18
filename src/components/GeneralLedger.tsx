@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import InvoiceViewModal from './InvoiceViewModal';
 import ExpenseViewModal from './ExpenseViewModal';
 import SaleViewModal from './SaleViewModal';
@@ -72,6 +73,7 @@ export default function GeneralLedger({
   sales
 }: GeneralLedgerProps) {
   const { formatCurrency } = useCurrency();
+  const { t, i18n } = useTranslation();
   
   const [searchTerm] = useState('');
   const [startDate] = useState('');
@@ -155,12 +157,14 @@ export default function GeneralLedger({
           runningBalance += invTotal;
         }
 
-        const category = invoice.type === 'product' ? 'Ürün Satış Geliri' : 'Hizmet Geliri';
+        const category = invoice.type === 'product'
+          ? t('chartOfAccounts.accountNames.601')
+          : t('chartOfAccounts.accountNames.602');
 
         entries.push({
           id: `inv-${invoice.id}`,
           date: invoice.issueDate,
-          description: `Fatura - ${invoice.customerName || invoice.customer?.name || 'Müşteri'}`,
+          description: `${t('ledger.entry.invoicePrefix')} - ${invoice.customerName || invoice.customer?.name || t('common.generic.customer')}`,
           reference: invoice.invoiceNumber,
           customer: invoice.customerName || invoice.customer?.name || '',
           category,
@@ -181,10 +185,10 @@ export default function GeneralLedger({
         entries.push({
           id: `exp-${expense.id}`,
           date: expense.expenseDate,
-          description: `Gider - ${expense.description}`,
+          description: `${t('ledger.entry.expensePrefix')} - ${expense.description}`,
           reference: expense.expenseNumber,
           customer: expense.supplier?.name || expense.supplier || '',
-          category: expense.category,
+          category: t(`expenseCategories.${expense.category}`, { defaultValue: expense.category }),
           debit: expense.status === 'paid' ? expAmount : 0,
           credit: 0,
           displayDebit: expAmount,
@@ -202,10 +206,10 @@ export default function GeneralLedger({
         entries.push({
           id: `sal-${sale.id}`,
           date: sale.date,
-          description: `Direkt Satış - ${sale.productName}`,
+          description: `${t('ledger.entry.salePrefix')} - ${sale.productName}`,
           reference: sale.saleNumber || `SAL-${sale.id}`,
           customer: sale.customerName,
-          category: 'Direkt Satış Geliri',
+          category: t('chartOfAccounts.accountNames.601'),
           debit: 0,
           credit: sale.status === 'completed' ? saleAmount : 0,
           displayCredit: saleAmount,
@@ -217,7 +221,8 @@ export default function GeneralLedger({
     });
 
     return entries;
-  }, [invoices, expenses, sales]);
+  // Dil değiştiğinde yeniden oluştur (i18n.language bağımlılığı eklendi)
+  }, [invoices, expenses, sales, i18n.language]);
 
   // Filters
   const filteredEntries = useMemo(() => {
@@ -298,19 +303,19 @@ export default function GeneralLedger({
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-4 rounded-lg bg-white shadow">
-          <div className="text-sm text-gray-500">Toplam Credit</div>
+          <div className="text-sm text-gray-500">{t('ledger.totalCredit')}</div>
           <div className="text-xl font-semibold">
             {formatAmount(filteredEntries.reduce((sum, e) => sum + e.credit, 0))}
           </div>
         </div>
         <div className="p-4 rounded-lg bg-white shadow">
-          <div className="text-sm text-gray-500">Toplam Debit</div>
+          <div className="text-sm text-gray-500">{t('ledger.totalDebit')}</div>
           <div className="text-xl font-semibold">
             {formatAmount(filteredEntries.reduce((sum, e) => sum + e.debit, 0))}
           </div>
         </div>
         <div className="p-4 rounded-lg bg-white shadow">
-          <div className="text-sm text-gray-500">Net Bakiye</div>
+          <div className="text-sm text-gray-500">{t('ledger.netBalance')}</div>
           <div className="text-xl font-semibold">
             {formatAmount(
               filteredEntries.reduce((sum, e) => sum + e.credit - e.debit, 0)

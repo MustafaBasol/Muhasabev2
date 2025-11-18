@@ -43,12 +43,50 @@ export default function SaleViewModal({
   onDownload
 }: SaleViewModalProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   if (!isOpen || !sale) return null;
 
+  // Dil yardımcıları ve sözlük
+  const getActiveLang = () => {
+    try {
+      const stored = localStorage.getItem('i18nextLng');
+      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
+    } catch {}
+    const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
+    return cand.slice(0,2).toLowerCase();
+  };
+  const toLocale = (l: string) => (l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US');
+  const lang = getActiveLang();
+
+  const L = {
+    details: { tr:'Satış Detayları', en:'Sale Details', fr:'Détails de vente', de:'Verkaufsdetails' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sale Details',
+    createdBy: { tr:'Oluşturan', en:'Created by', fr:'Créé par', de:'Erstellt von' }[lang as 'tr'|'en'|'fr'|'de'] || 'Created by',
+    createdAt: { tr:'Oluşturulma', en:'Created at', fr:'Créé le', de:'Erstellt am' }[lang as 'tr'|'en'|'fr'|'de'] || 'Created at',
+    updatedBy: { tr:'Son güncelleyen', en:'Last updated by', fr:'Dernière mise à jour par', de:'Zuletzt aktualisiert von' }[lang as 'tr'|'en'|'fr'|'de'] || 'Last updated by',
+    updatedAt: { tr:'Son güncelleme', en:'Last updated', fr:'Dernière mise à jour', de:'Zuletzt aktualisiert' }[lang as 'tr'|'en'|'fr'|'de'] || 'Last updated',
+    saleInfo: { tr:'Satış Bilgileri', en:'Sale Information', fr:'Informations de vente', de:'Verkaufsinformationen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sale Information',
+    saleDate: { tr:'Satış Tarihi', en:'Sale Date', fr:'Date de vente', de:'Verkaufsdatum' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sale Date',
+    paymentMethod: { tr:'Ödeme Yöntemi', en:'Payment Method', fr:"Méthode de paiement", de:'Zahlungsmethode' }[lang as 'tr'|'en'|'fr'|'de'] || 'Payment Method',
+    customerInfo: { tr:'Müşteri Bilgileri', en:'Customer Information', fr:'Informations client', de:'Kundeninformationen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Customer Information',
+    customer: { tr:'Müşteri', en:'Customer', fr:'Client', de:'Kunde' }[lang as 'tr'|'en'|'fr'|'de'] || 'Customer',
+    email: { tr:'E-posta', en:'Email', fr:'E-mail', de:'E-Mail' }[lang as 'tr'|'en'|'fr'|'de'] || 'Email',
+    itemsInfo: { tr:'Ürün/Hizmet Bilgileri', en:'Product/Service Information', fr:'Informations Produit/Service', de:'Produkt-/Dienstleistungsinformationen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Product/Service Information',
+    productService: { tr:'Ürün/Hizmet', en:'Product/Service', fr:'Produit/Service', de:'Produkt/Dienstleistung' }[lang as 'tr'|'en'|'fr'|'de'] || 'Product/Service',
+    quantity: { tr:'Miktar', en:'Quantity', fr:'Quantité', de:'Menge' }[lang as 'tr'|'en'|'fr'|'de'] || 'Quantity',
+    unitPrice: { tr:'Birim Fiyat', en:'Unit Price', fr:'Prix unitaire', de:'Stückpreis' }[lang as 'tr'|'en'|'fr'|'de'] || 'Unit Price',
+    total: { tr:'Toplam', en:'Total', fr:'Total', de:'Gesamt' }[lang as 'tr'|'en'|'fr'|'de'] || 'Total',
+    grandTotalExclVat: { tr:'Genel Toplam (KDV Hariç):', en:'Grand Total (excl. VAT):', fr:'Total général (HT):', de:'Gesamtsumme (ohne MwSt.):' }[lang as 'tr'|'en'|'fr'|'de'] || 'Grand Total (excl. VAT):',
+    downloadPdf: { tr:'PDF İndir', en:'Download PDF', fr:'Télécharger PDF', de:'PDF herunterladen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Download PDF',
+    edit: { tr:'Düzenle', en:'Edit', fr:'Modifier', de:'Bearbeiten' }[lang as 'tr'|'en'|'fr'|'de'] || 'Edit',
+    delete: { tr:'Sil', en:'Delete', fr:'Supprimer', de:'Löschen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Delete',
+    amountInfo: { tr:'Tutar Bilgileri', en:'Amount Information', fr:'Informations de montant', de:'Betragsinformationen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Amount Information',
+    totalExclVat: { tr:'Toplam Tutar (KDV Hariç):', en:'Total Amount (excl. VAT):', fr:'Montant total (HT):', de:'Gesamtbetrag (ohne MwSt.):' }[lang as 'tr'|'en'|'fr'|'de'] || 'Total Amount (excl. VAT):',
+    notes: { tr:'Notlar', en:'Notes', fr:'Notes', de:'Notizen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Notes',
+  };
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+    return new Date(dateString).toLocaleDateString(toLocale(lang));
   };
 
   const formatAmount = (amount: any) => {
@@ -97,7 +135,7 @@ export default function SaleViewModal({
               <h2 className="text-2xl font-bold text-gray-900">
                 {sale.saleNumber || `SAL-${sale.id}`}
               </h2>
-              <p className="text-sm text-gray-500">{t('sales.details', 'Satış Detayları')}</p>
+              <p className="text-sm text-gray-500">{t('sales.details', L.details)}</p>
             </div>
             {getStatusBadge(sale.status)}
           </div>
@@ -108,7 +146,7 @@ export default function SaleViewModal({
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Download className="w-4 h-4" />
-                <span>PDF İndir</span>
+                <span>{L.downloadPdf}</span>
               </button>
             )}
             <button
@@ -116,7 +154,7 @@ export default function SaleViewModal({
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Edit className="w-4 h-4" />
-              <span>Düzenle</span>
+              <span>{L.edit}</span>
             </button>
             {onDelete && (
               <button
@@ -124,7 +162,7 @@ export default function SaleViewModal({
                 className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>Sil</span>
+                <span>{L.delete}</span>
               </button>
             )}
             <button
@@ -141,22 +179,22 @@ export default function SaleViewModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-xs text-gray-600">
             <div>
               <div>
-                <span className="text-gray-500">Oluşturan:</span>{' '}
+                <span className="text-gray-500">{L.createdBy}:</span>{' '}
                 <span className="font-medium">{(sale as any).createdByName || '—'}</span>
               </div>
               <div>
-                <span className="text-gray-500">Oluşturulma:</span>{' '}
-                <span className="font-medium">{(sale as any).createdAt ? new Date((sale as any).createdAt).toLocaleString('tr-TR') : '—'}</span>
+                <span className="text-gray-500">{L.createdAt}:</span>{' '}
+                <span className="font-medium">{(sale as any).createdAt ? new Date((sale as any).createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
             <div>
               <div>
-                <span className="text-gray-500">Son güncelleyen:</span>{' '}
+                <span className="text-gray-500">{L.updatedBy}:</span>{' '}
                 <span className="font-medium">{(sale as any).updatedByName || '—'}</span>
               </div>
               <div>
-                <span className="text-gray-500">Son güncelleme:</span>{' '}
-                <span className="font-medium">{(sale as any).updatedAt ? new Date((sale as any).updatedAt).toLocaleString('tr-TR') : '—'}</span>
+                <span className="text-gray-500">{L.updatedAt}:</span>{' '}
+                <span className="font-medium">{(sale as any).updatedAt ? new Date((sale as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
           </div>
@@ -164,17 +202,17 @@ export default function SaleViewModal({
           {/* Sale Header */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Satış Bilgileri</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{L.saleInfo}</h3>
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">Satış Tarihi:</span>
+                  <span className="text-gray-600">{L.saleDate}:</span>
                   <span className="ml-2 font-medium">{formatDate(sale.date)}</span>
                 </div>
                 {sale.paymentMethod && (
                   <div className="flex items-center text-sm">
                     <CreditCard className="w-4 h-4 text-gray-400 mr-2" />
-                    <span className="text-gray-600">Ödeme Yöntemi:</span>
+                    <span className="text-gray-600">{L.paymentMethod}:</span>
                     <span className="ml-2 font-medium">{getPaymentMethodLabel(sale.paymentMethod)}</span>
                   </div>
                 )}
@@ -182,17 +220,17 @@ export default function SaleViewModal({
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Müşteri Bilgileri</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{L.customerInfo}</h3>
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <User className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">Müşteri:</span>
+                  <span className="text-gray-600">{L.customer}:</span>
                   <span className="ml-2 font-medium">{sale.customerName}</span>
                 </div>
                 {sale.customerEmail && (
                   <div className="flex items-center text-sm">
                     <span className="w-4 h-4 text-gray-400 mr-2 text-xs">@</span>
-                    <span className="text-gray-600">E-posta:</span>
+                    <span className="text-gray-600">{L.email}:</span>
                     <span className="ml-2 font-medium">{sale.customerEmail}</span>
                   </div>
                 )}
@@ -202,7 +240,7 @@ export default function SaleViewModal({
 
           {/* Product Info */}
           <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Ürün/Hizmet Bilgileri</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{L.itemsInfo}</h3>
             
             {/* Çoklu ürün varsa tablo göster */}
             {sale.items && sale.items.length > 0 ? (
@@ -211,16 +249,16 @@ export default function SaleViewModal({
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Ürün/Hizmet
+                        {L.productService}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Miktar
+                        {L.quantity}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Birim Fiyat
+                        {L.unitPrice}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Toplam
+                        {L.total}
                       </th>
                     </tr>
                   </thead>
@@ -248,7 +286,7 @@ export default function SaleViewModal({
                   <tfoot className="bg-gray-50 border-t-2 border-gray-300">
                     <tr>
                       <td colSpan={3} className="px-4 py-4 text-right font-semibold text-gray-900">
-                        Genel Toplam (KDV Hariç):
+                        {L.grandTotalExclVat}
                       </td>
                       <td className="px-4 py-4 text-right font-bold text-green-600 text-lg">
                         {formatAmount(sale.items.reduce((sum, it) => sum + toNumber(it.unitPrice) * toNumber(it.quantity), 0))}
@@ -280,10 +318,10 @@ export default function SaleViewModal({
           {/* Amount - Sadece tek ürün varsa göster */}
           {(!sale.items || sale.items.length === 0) && (
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Tutar Bilgileri</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{L.amountInfo}</h3>
               <div className="bg-green-50 rounded-lg p-6 border border-green-200">
                 <div className="flex justify-between items-center">
-                  <span className="text-green-800 font-medium text-lg">{t('sales.totalExclVat', 'Toplam Tutar (KDV Hariç):')}</span>
+                  <span className="text-green-800 font-medium text-lg">{t('sales.totalExclVat', L.totalExclVat)}</span>
                   <span className="text-2xl font-bold text-green-600">
                     {formatAmount(toNumber(sale.unitPrice) * toNumber(sale.quantity))}
                   </span>
@@ -295,7 +333,7 @@ export default function SaleViewModal({
           {/* Notes */}
           {sale.notes && (
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Notlar</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{L.notes}</h3>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <p className="text-gray-700">{sale.notes}</p>
               </div>

@@ -13,6 +13,7 @@ import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
 import { useAuth } from '../contexts/AuthContext';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 // preset etiketleri i18n'den alınır
 
 interface QuotesPageProps {
@@ -59,7 +60,7 @@ interface QuoteItem {
 }
 
 const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { formatCurrency, currency: defaultCurrency } = useCurrency();
   const { tenant } = useAuth();
   const planRaw = String((tenant as any)?.subscriptionPlan || '').toLowerCase();
@@ -89,6 +90,21 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<'status' | 'issueDate' | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
+
+  // Sadece 'draft' ve 'sent' için güvenli fallback sözlüğü
+  const getActiveLang = () => {
+    try {
+      const stored = localStorage.getItem('i18nextLng');
+      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
+    } catch {}
+    const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
+    return cand.slice(0,2).toLowerCase();
+  };
+  const lang = getActiveLang();
+  const L = {
+    draft: { tr:'Taslak', en:'Draft', fr:'Brouillon', de:'Entwurf' }[lang as 'tr'|'en'|'fr'|'de'] || 'Draft',
+    sent: { tr:'Gönderildi', en:'Sent', fr:'Envoyé', de:'Gesendet' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sent',
+  } as const;
 
   // Default kaydedilmiş görünümü uygula
   const { getDefault } = useSavedListViews<{ searchTerm: string; statusFilter: typeof statusFilter; startDate?: string; endDate?: string; sortBy?: typeof sortBy; sortDir?: typeof sortDir; pageSize?: number }>({ listType: 'quotes' });
@@ -129,7 +145,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           validUntil: q.validUntil ? String(q.validUntil).slice(0,10) : undefined,
           currency: q.currency,
           total: Number(q.total) || 0,
-          status: q.status,
+          status: normalizeStatusKey(String(q.status)) as QuoteStatus,
           version: q.version || 1,
           scopeOfWorkHtml: q.scopeOfWorkHtml || '',
           items: Array.isArray(q.items) ? q.items.map((it: any) => ({ id: it.id || `${Math.random()}`, description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })) : [],
@@ -221,16 +237,18 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const formatAmount = (amount: number, currencyCode: QuoteItem['currency']) => formatCurrency(amount, currencyCode);
 
   const statusBadge = (status: QuoteStatus) => {
-    const map: Record<QuoteStatus, { label: string; className: string }> = {
-      draft:    { label: t('common:status.draft'),    className: 'bg-gray-100 text-gray-800' },
-      sent:     { label: t('common:status.sent'),     className: 'bg-blue-100 text-blue-800' },
-      viewed:   { label: t('quotes.statusLabels.viewed'),   className: 'bg-indigo-100 text-indigo-800' },
-      accepted: { label: t('quotes.statusLabels.accepted'), className: 'bg-green-100 text-green-800' },
-      declined: { label: t('quotes.statusLabels.declined'), className: 'bg-red-100 text-red-800' },
-      expired:  { label: t('quotes.statusLabels.expired'),  className: 'bg-yellow-100 text-yellow-800' },
+    const key = normalizeStatusKey(String(status));
+    const label = resolveStatusLabel(t, key);
+    const classMap: Record<string, string> = {
+      draft: 'bg-gray-100 text-gray-800',
+      sent: 'bg-blue-100 text-blue-800',
+      viewed: 'bg-indigo-100 text-indigo-800',
+      accepted: 'bg-green-100 text-green-800',
+      declined: 'bg-red-100 text-red-800',
+      expired: 'bg-yellow-100 text-yellow-800',
     };
-    const cfg = map[status];
-    return <span className={`px-2 py-1 rounded-full text-xs font-medium ${cfg.className}`}>{cfg.label}</span>;
+    const cls = classMap[key] || 'bg-gray-100 text-gray-800';
+    return <span className={`px-2 py-1 rounded-full text-xs font-medium ${cls}`}>{label}</span>;
   };
 
   // Yeni teklif oluşturma modalı artık ayrı bir bileşende (QuoteCreateModal)
@@ -319,8 +337,9 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
       if (editingField === 'status') {
         const nextStatus = tempValue as QuoteStatus;
         const updated = await quotesApi.updateQuote(String(quote.id), { status: nextStatus });
-        setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: updated.status } : q));
-        setSelectedQuote(prev => (prev && prev.id === quote.id) ? { ...(prev as any), status: updated.status } : prev);
+        const ns = normalizeStatusKey(String(updated.status)) as QuoteStatus;
+        setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: ns } : q));
+        setSelectedQuote(prev => (prev && prev.id === quote.id) ? { ...(prev as any), status: ns } : prev);
       }
       if (editingField === 'issueDate') {
         const nextDate = tempValue;
@@ -398,7 +417,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                 validUntil: created.validUntil ? String(created.validUntil).slice(0,10) : undefined,
                 currency: created.currency,
                 total: Number(created.total) || 0,
-                status: created.status,
+                status: normalizeStatusKey(String(created.status)) as QuoteStatus,
                 version: created.version || 1,
                 scopeOfWorkHtml: created.scopeOfWorkHtml || '',
                 items: Array.isArray(created.items) ? created.items : [],
@@ -448,7 +467,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
               } as any);
               setQuotes(prev => prev.map(item => item.id === target.id ? {
                 ...item,
-                status: updated.status,
+                status: normalizeStatusKey(String(updated.status)) as QuoteStatus,
                 issueDate: String(updated.issueDate).slice(0,10),
                 validUntil: updated.validUntil ? String(updated.validUntil).slice(0,10) : undefined,
                 version: updated.version || item.version,
@@ -516,8 +535,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="all">{t('quotes.filterAll')}</option>
-            <option value="draft">{t('common:status.draft')}</option>
-            <option value="sent">{t('common:status.sent')}</option>
+            <option value="draft">{t('common:status.draft', { defaultValue: L.draft })}</option>
+            <option value="sent">{t('common:status.sent', { defaultValue: L.sent })}</option>
             <option value="viewed">{t('quotes.statusLabels.viewed')}</option>
             <option value="accepted">{t('quotes.statusLabels.accepted')}</option>
             <option value="declined">{t('quotes.statusLabels.declined')}</option>
@@ -664,8 +683,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                               onChange={(e) => setTempValue(e.target.value)}
                               className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                             >
-                              <option value="draft">{t('common:status.draft')}</option>
-                              <option value="sent">{t('common:status.sent')}</option>
+                              <option value="draft">{t('common:status.draft', { defaultValue: L.draft })}</option>
+                              <option value="sent">{t('common:status.sent', { defaultValue: L.sent })}</option>
                               <option value="viewed">{t('quotes.statusLabels.viewed')}</option>
                               <option value="accepted">{t('quotes.statusLabels.accepted')}</option>
                               <option value="declined">{t('quotes.statusLabels.declined')}</option>
@@ -950,8 +969,9 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
         onChangeStatus={async (q, status) => {
           try {
             const updated = await quotesApi.updateQuote(String(q.id), { status });
-            setQuotes(prev => prev.map(item => item.id === q.id ? { ...item, status: updated.status } : item));
-            setSelectedQuote(prev => (prev && prev.id === q.id) ? { ...(prev as any), status: updated.status } : prev);
+            const ns = normalizeStatusKey(String(updated.status)) as QuoteStatus;
+            setQuotes(prev => prev.map(item => item.id === q.id ? { ...item, status: ns } : item));
+            setSelectedQuote(prev => (prev && prev.id === q.id) ? { ...(prev as any), status: ns } : prev);
             setQuotes(prev => prev.map(item => item.id === q.id ? { ...item, updatedAt: updated.updatedAt || item.updatedAt } : item));
           } catch (e) {
             console.error('Quote status update failed:', e);
@@ -985,7 +1005,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
               validUntil: saved.validUntil ? String(saved.validUntil).slice(0,10) : undefined,
               currency: saved.currency,
               total: Number(saved.total) || 0,
-              status: saved.status,
+              status: normalizeStatusKey(String(saved.status)) as QuoteStatus,
               version: saved.version || q.version,
               scopeOfWorkHtml: saved.scopeOfWorkHtml || '',
               items: Array.isArray(saved.items) ? saved.items : q.items,
@@ -999,7 +1019,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
               validUntil: saved.validUntil ? String(saved.validUntil).slice(0,10) : undefined,
               currency: saved.currency,
               total: Number(saved.total) || 0,
-              status: saved.status,
+              status: normalizeStatusKey(String(saved.status)) as QuoteStatus,
               version: saved.version || (prev as any).version,
               scopeOfWorkHtml: saved.scopeOfWorkHtml || '',
               items: Array.isArray(saved.items) ? saved.items : (prev as any).items,

@@ -49,17 +49,44 @@ interface QuoteViewModalProps {
 }
 
 const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote, onEdit, onChangeStatus, onRevise }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { formatCurrency } = useCurrency();
   const [confirmAccept, setConfirmAccept] = React.useState(false);
 
+  // Yalnızca işaretlenen alanlar için dil yardımcıları ve etiketler
+  const getActiveLang = () => {
+    try {
+      const stored = localStorage.getItem('i18nextLng');
+      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
+    } catch {}
+    const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
+    return cand.slice(0,2).toLowerCase();
+  };
+  const toLocale = (l: string) => (l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US');
+  const lang = getActiveLang();
+
+  const L = {
+    createdBy: { tr:'Oluşturan', en:'Created by', fr:'Créé par', de:'Erstellt von' }[lang as 'tr'|'en'|'fr'|'de'] || 'Created by',
+    createdAt: { tr:'Oluşturulma', en:'Created at', fr:'Créé le', de:'Erstellt am' }[lang as 'tr'|'en'|'fr'|'de'] || 'Created at',
+    updatedBy: { tr:'Son güncelleyen', en:'Last updated by', fr:'Dernière mise à jour par', de:'Zuletzt aktualisiert von' }[lang as 'tr'|'en'|'fr'|'de'] || 'Last updated by',
+    updatedAt: { tr:'Son güncelleme', en:'Last updated', fr:'Dernière mise à jour', de:'Zuletzt aktualisiert' }[lang as 'tr'|'en'|'fr'|'de'] || 'Last updated',
+    status: {
+      draft: { tr:'Taslak', en:'Draft', fr:'Brouillon', de:'Entwurf' }[lang as 'tr'|'en'|'fr'|'de'] || 'Draft',
+      sent: { tr:'Gönderildi', en:'Sent', fr:'Envoyé', de:'Gesendet' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sent',
+      viewed: { tr:'Görüntülendi', en:'Viewed', fr:'Consulté', de:'Gesehen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Viewed',
+      accepted: { tr:'Kabul Edildi', en:'Accepted', fr:'Accepté', de:'Angenommen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Accepted',
+      declined: { tr:'Reddedildi', en:'Declined', fr:'Refusé', de:'Abgelehnt' }[lang as 'tr'|'en'|'fr'|'de'] || 'Declined',
+      expired: { tr:'Süresi Doldu', en:'Expired', fr:'Expiré', de:'Abgelaufen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Expired',
+    }
+  } as const;
+
   const statusMap = useMemo(() => ({
-    draft: { label: t('common:status.draft'), className: 'bg-gray-100 text-gray-800' },
-    sent: { label: t('common:status.sent'), className: 'bg-blue-100 text-blue-800' },
-    viewed: { label: t('quotes.statusLabels.viewed'), className: 'bg-indigo-100 text-indigo-800' },
-    accepted: { label: t('quotes.statusLabels.accepted'), className: 'bg-green-100 text-green-800' },
-    declined: { label: t('quotes.statusLabels.declined'), className: 'bg-red-100 text-red-800' },
-    expired: { label: t('quotes.statusLabels.expired'), className: 'bg-yellow-100 text-yellow-800' },
+    draft: { label: t('common.status.draft', { defaultValue: L.status.draft }), className: 'bg-gray-100 text-gray-800' },
+    sent: { label: t('common.status.sent', { defaultValue: L.status.sent }), className: 'bg-blue-100 text-blue-800' },
+    viewed: { label: t('quotes.statusLabels.viewed', { defaultValue: L.status.viewed }), className: 'bg-indigo-100 text-indigo-800' },
+    accepted: { label: t('quotes.statusLabels.accepted', { defaultValue: L.status.accepted }), className: 'bg-green-100 text-green-800' },
+    declined: { label: t('quotes.statusLabels.declined', { defaultValue: L.status.declined }), className: 'bg-red-100 text-red-800' },
+    expired: { label: t('quotes.statusLabels.expired', { defaultValue: L.status.expired }), className: 'bg-yellow-100 text-yellow-800' },
   }), [t]);
 
   // Hooks must not be called conditionally across renders.
@@ -76,7 +103,22 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
 
   if (!isOpen || !quote) return null;
 
-  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('tr-TR');
+  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString(toLocale(lang));
+
+  // Revizyon tablosu için durum etiketi (yalnızca işaretlenen alan)
+  const getStatusLabel = (status: string) => {
+    const key = String(status) as keyof typeof L.status;
+    const defaults = L.status as any;
+    switch (key) {
+      case 'draft': return t('common.status.draft', { defaultValue: defaults.draft });
+      case 'sent': return t('common.status.sent', { defaultValue: defaults.sent });
+      case 'viewed': return t('quotes.statusLabels.viewed', { defaultValue: defaults.viewed });
+      case 'accepted': return t('quotes.statusLabels.accepted', { defaultValue: defaults.accepted });
+      case 'declined': return t('quotes.statusLabels.declined', { defaultValue: defaults.declined });
+      case 'expired': return t('quotes.statusLabels.expired', { defaultValue: defaults.expired });
+      default: return status;
+    }
+  };
   const todayISO = new Date().toISOString().slice(0,10);
   const isTerminal = quote.status === 'accepted' || quote.status === 'declined' || quote.status === 'expired';
   const isLocked = quote.status === 'accepted';
@@ -170,22 +212,22 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="text-xs text-gray-600">
               <div>
-                <span className="text-gray-500">Oluşturan:</span>{' '}
+                <span className="text-gray-500">{L.createdBy}:</span>{' '}
                 <span className="font-medium">{(quote as any).createdByName || '—'}</span>
               </div>
               <div>
-                <span className="text-gray-500">Oluşturulma:</span>{' '}
-                <span className="font-medium">{(quote as any).createdAt ? new Date((quote as any).createdAt).toLocaleString('tr-TR') : '—'}</span>
+                <span className="text-gray-500">{L.createdAt}:</span>{' '}
+                <span className="font-medium">{(quote as any).createdAt ? new Date((quote as any).createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
             <div className="text-xs text-gray-600">
               <div>
-                <span className="text-gray-500">Son güncelleyen:</span>{' '}
+                <span className="text-gray-500">{L.updatedBy}:</span>{' '}
                 <span className="font-medium">{(quote as any).updatedByName || '—'}</span>
               </div>
               <div>
-                <span className="text-gray-500">Son güncelleme:</span>{' '}
-                <span className="font-medium">{(quote as any).updatedAt ? new Date((quote as any).updatedAt).toLocaleString('tr-TR') : '—'}</span>
+                <span className="text-gray-500">{L.updatedAt}:</span>{' '}
+                <span className="font-medium">{(quote as any).updatedAt ? new Date((quote as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
           </div>
@@ -293,7 +335,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                         <td className="px-3 py-2 text-sm text-gray-800">v{rev.version}</td>
                         <td className="px-3 py-2 text-sm text-gray-700">{formatDate(rev.issueDate)}</td>
                         <td className="px-3 py-2 text-sm text-gray-700">{rev.validUntil ? formatDate(rev.validUntil) : '-'}</td>
-                        <td className="px-3 py-2 text-sm text-gray-700">{rev.status}</td>
+                        <td className="px-3 py-2 text-sm text-gray-700">{getStatusLabel(rev.status)}</td>
                         <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{formatCurrency(Number(rev.total || 0), quote.currency)}</td>
                       </tr>
                     ))}

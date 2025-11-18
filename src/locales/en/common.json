@@ -491,6 +491,8 @@
   "declinedInfo": "The quote has been declined.",
     "duplicateConfirm": "Proceed with duplication?",
     "reviseConfirm": "Do you want to revise this quote? The current version will be archived and a new version will be created.",
+    "createConfirm": "Are you sure you want to save this quote?",
+    "saveConfirm": "Are you sure you want to save the changes?",
     "actions": {
       "send": "Send",
       "accept": "Accept",
@@ -1076,7 +1078,14 @@
     "success": "Success",
     "error": "Error",
     "saved": "Settings saved",
-    "saveFailed": "Settings could not be saved"
+    "saveFailed": "Settings could not be saved",
+    "companyFields": {
+      "officialName": "Legal Company Name",
+      "brandName": "Invoice/Brand Name",
+      "brandNameHelper": "This will appear as the brand name on invoices and public screens.",
+      "officialNameTooltip": "Only the owner or an admin can update the legal company name",
+      "officialNameOwnerOnly": "This field can only be changed by the company owner."
+    }
   },
   "security": {
     "twofa": {
@@ -1424,6 +1433,16 @@
     "info": {
       "title": "About Archive",
       "description": "The archive page stores your completed transactions. Paid invoices, approved expenses, and completed sales are automatically listed here. These records are read-only and can be used for historical analysis and audit purposes."
+    }
+  },
+  "ledger": {
+    "totalCredit": "Total Credit",
+    "totalDebit": "Total Debit",
+    "netBalance": "Net Balance",
+    "entry": {
+      "invoicePrefix": "Invoice",
+      "expensePrefix": "Expense",
+      "salePrefix": "Direct Sale"
     }
   },
   "legal": {

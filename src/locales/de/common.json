@@ -454,6 +454,8 @@
   "acceptedThanks": "Danke, das Angebot wurde angenommen.",
   "confirmDecline": "Sind Sie sicher, dass Sie dieses Angebot ablehnen möchten?",
   "declinedInfo": "Das Angebot wurde abgelehnt.",
+  "createConfirm": "Möchten Sie dieses Angebot wirklich speichern?",
+  "saveConfirm": "Möchten Sie die Änderungen wirklich speichern?",
   "duplicateConfirm": "Mit der Duplizierung fortfahren?",
   "reviseConfirm": "Möchten Sie dieses Angebot überarbeiten? Die aktuelle Version wird archiviert und eine neue Version wird erstellt.",
     "viewModal": {
@@ -1034,7 +1036,14 @@
     "success": "Erfolg",
     "error": "Fehler",
     "saved": "Einstellungen gespeichert",
-    "saveFailed": "Einstellungen konnten nicht gespeichert werden"
+    "saveFailed": "Einstellungen konnten nicht gespeichert werden",
+    "companyFields": {
+      "officialName": "Rechtlicher Firmenname",
+      "brandName": "Rechnungs-/Markenname",
+      "brandNameHelper": "Dieser Name erscheint als Markenname auf Rechnungen und öffentlichen Ansichten.",
+      "officialNameTooltip": "Nur der Inhaber oder ein Admin kann den rechtlichen Firmennamen aktualisieren",
+      "officialNameOwnerOnly": "Dieses Feld kann nur vom Firmeninhaber geändert werden."
+    }
   },
   "sales": {
     "title": "Verkäufe",
@@ -1288,6 +1297,16 @@
     "expenseCategoryPerformance": "Ausgabenkategorieleistung",
     "noSupplier": "Kein Lieferant",
     "noCustomer": "Kein Kunde"
+  },
+  "ledger": {
+    "totalCredit": "Gesamtgutschrift",
+    "totalDebit": "Gesamtbelastung",
+    "netBalance": "Nettosaldo",
+    "entry": {
+      "invoicePrefix": "Rechnung",
+      "expensePrefix": "Ausgabe",
+      "salePrefix": "Direktverkauf"
+    }
   },
   "expenseCategories": {
     "equipment": "Ausrüstung",

@@ -138,8 +138,8 @@
         "number": "Numéro",
         "date": "Date",
         "amount": "Montant",
-        "statusLabel": "Statut",
-        "status": {
+        "status": "Statut",
+        "statusValues": {
           "pending": "En attente",
           "approved": "Approuvé",
           "paid": "Payé",
@@ -290,6 +290,7 @@
     "close": "Fermer",
     "back": "Retour",
     "backToHome": "Retour à l'accueil",
+    "confirm": "Confirmation",
     "yes": "Oui",
     "no": "Non",
     "loading": "Chargement...",
@@ -507,6 +508,8 @@
   "acceptedThanks": "Merci, le devis a été accepté.",
   "confirmDecline": "Êtes-vous sûr de vouloir refuser ce devis ?",
   "declinedInfo": "Le devis a été refusé.",
+  "createConfirm": "Êtes-vous sûr de vouloir enregistrer ce devis ?",
+  "saveConfirm": "Êtes-vous sûr de vouloir enregistrer les modifications ?",
   "duplicateConfirm": "Voulez-vous continuer l'opération de duplication ?",
   "reviseConfirm": "Voulez-vous réviser ce devis ? La version actuelle sera archivée et une nouvelle version sera créée.",
     "actions": {
@@ -824,8 +827,12 @@
       "inactive": "Inactif"
     },
     "tooltips": {
-      "editHint": "Cliquez sur la ligne du compte pour modifier"
+      "editHint": "Cliquez sur la ligne du compte pour modifier",
+      "toggleStatus": "Cliquer pour changer le statut",
+      "addSubAccount": "Ajouter un sous-compte",
+      "deleteAccount": "Supprimer le compte"
     },
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce compte ?",
     "accountNames": {
       "100": "ACTIFS CIRCULANTS",
       "101": "Caisse",
@@ -1082,7 +1089,14 @@
     "success": "Succès",
     "error": "Erreur",
     "saved": "Paramètres enregistrés",
-    "saveFailed": "Les paramètres n'ont pas pu être enregistrés"
+    "saveFailed": "Les paramètres n'ont pas pu être enregistrés",
+    "companyFields": {
+      "officialName": "Nom Légal de l'Entreprise",
+      "brandName": "Nom de Facture/Marque",
+      "brandNameHelper": "Ce nom apparaîtra comme nom de marque sur les factures et les écrans publics.",
+      "officialNameTooltip": "Seul le propriétaire ou un administrateur peut mettre à jour le nom légal",
+      "officialNameOwnerOnly": "Ce champ ne peut être modifié que par le propriétaire de l'entreprise."
+    }
   },
   "sales": {
     "title": "Ventes",
@@ -1256,6 +1270,16 @@
     "expenseCategoryPerformance": "Performance des Catégories de Dépenses",
     "noSupplier": "Aucun Fournisseur",
     "noCustomer": "Aucun Client"
+  },
+  "ledger": {
+    "totalCredit": "Crédit Total",
+    "totalDebit": "Débit Total",
+    "netBalance": "Solde Net",
+    "entry": {
+      "invoicePrefix": "Facture",
+      "expensePrefix": "Dépense",
+      "salePrefix": "Vente Directe"
+    }
   },
   "expenseCategories": {
     "equipment": "Équipement",

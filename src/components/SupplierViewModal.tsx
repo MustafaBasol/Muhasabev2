@@ -31,7 +31,7 @@ export default function SupplierViewModal({
   onCreateExpense,
   onViewHistory
 }: SupplierViewModalProps) {
-  if (!supplier) {
+  if (!isOpen || !supplier) {
     return null;
   }
 
@@ -87,22 +87,13 @@ export default function SupplierViewModal({
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => {
-                onClose();
-                setTimeout(() => onEdit(supplier), 100);
-              }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Edit className="w-5 h-5 text-gray-500" />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
         </div>
 
         <div className="p-6" id={`supplier-${supplier.id}`}>

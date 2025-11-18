@@ -3305,9 +3305,9 @@ export default function SettingsPage({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Resmi Şirket Adı (Backend) */}
+            {/* Official Company Name (i18n) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Resmi Şirket Adı</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('settings.companyFields.officialName')}</label>
               <input
                 type="text"
                 value={officialCompanyName}
@@ -3317,23 +3317,23 @@ export default function SettingsPage({
                 }}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canManageSettings ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
                 disabled={!canManageSettings}
-                title={!canManageSettings ? 'Şirket adını yalnızca şirket sahibi veya yönetici güncelleyebilir' : undefined}
+                title={!canManageSettings ? t('settings.companyFields.officialNameTooltip') : undefined}
               />
               {!isOwnerLike && (
-                <p className="mt-1 text-xs text-gray-500">Bu alan yalnızca şirket sahibi tarafından değiştirilebilir.</p>
+                <p className="mt-1 text-xs text-gray-500">{t('settings.companyFields.officialNameOwnerOnly')}</p>
               )}
             </div>
 
-            {/* Fatura/Marka Adı (Yerel) */}
+            {/* Invoice/Brand Name (i18n) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Fatura/Marka Adı</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('settings.companyFields.brandName')}</label>
               <input
                 type="text"
                 value={companyData.name}
                 onChange={e => handleCompanyChange('name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <p className="mt-1 text-xs text-gray-500">Bu alan faturada/ekranda marka adı olarak kullanılabilir.</p>
+              <p className="mt-1 text-xs text-gray-500">{t('settings.companyFields.brandNameHelper')}</p>
             </div>
             {hasCountry && (
               <>

@@ -13,6 +13,7 @@ import {
   Target
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 
 /* __REPORTS_HELPERS__ */
 // numeric
@@ -632,18 +633,18 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                   <div>
                     <h4 className="font-medium text-gray-900 mb-3">{t('reports.invoiceStatuses')}</h4>
                     <div className="space-y-2">
-                      {['paid', 'sent', 'draft', 'overdue'].map(status => {
-                        const count = invoices.filter(inv => inv.status === status).length;
+                      {(['paid', 'sent', 'draft', 'overdue'] as const).map(statusKey => {
+                        const count = invoices.filter(inv => normalizeStatusKey(String((inv as any).status)) === statusKey).length;
                         const colors = {
                           paid: 'bg-green-100 text-green-800',
                           sent: 'bg-blue-100 text-blue-800',
                           draft: 'bg-gray-100 text-gray-800',
                           overdue: 'bg-red-100 text-red-800'
-                        };
+                        } as const;
                         return (
-                          <div key={status} className="flex justify-between items-center">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors]}`}>
-                              {t(`common:status.${status}`)}
+                          <div key={statusKey} className="flex justify-between items-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[statusKey]}`}>
+                              {resolveStatusLabel(t, statusKey)}
                             </span>
                             <span className="font-medium">{count}</span>
                           </div>
@@ -654,17 +655,17 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                   <div>
                     <h4 className="font-medium text-gray-900 mb-3">{t('reports.expenseStatuses')}</h4>
                     <div className="space-y-2">
-                      {['paid', 'approved', 'draft'].map(status => {
-                        const count = expenses.filter(exp => exp.status === status).length;
+                      {(['paid', 'approved', 'draft'] as const).map(statusKey => {
+                        const count = expenses.filter(exp => normalizeStatusKey(String((exp as any).status)) === statusKey).length;
                         const colors = {
                           paid: 'bg-green-100 text-green-800',
                           approved: 'bg-blue-100 text-blue-800',
                           draft: 'bg-gray-100 text-gray-800'
-                        };
+                        } as const;
                         return (
-                          <div key={status} className="flex justify-between items-center">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors]}`}>
-                              {t(`common:status.${status}`)}
+                          <div key={statusKey} className="flex justify-between items-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[statusKey]}`}>
+                              {resolveStatusLabel(t, statusKey)}
                             </span>
                             <span className="font-medium">{count}</span>
                           </div>

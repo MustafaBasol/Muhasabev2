@@ -452,7 +452,10 @@
       "pending": "Beklemede",
       "approved": "Onaylandı",
       "paid": "Ödendi",
-      "rejected": "Reddedildi"
+      "rejected": "Reddedildi",
+      "sent": "Gönderildi",
+      "draft": "Taslak",
+      "overdue": "Vadesi Geçti"
     },
     "notes": "Notlar"
 },
@@ -590,6 +593,8 @@
   "declinedInfo": "Teklif reddedildi.",
     "duplicateConfirm": "Yinele işlemine devam edilsin mi?",
     "reviseConfirm": "Bu teklifi revize etmek istiyor musunuz? Mevcut sürüm geçmişe taşınacak ve yeni bir sürüm oluşturulacak.",
+    "createConfirm": "Bu teklifi kaydetmek istediğinizden emin misiniz?",
+    "saveConfirm": "Değişiklikleri kaydetmek istediğinizden emin misiniz?",
     "actions": {
       "send": "Gönder",
       "accept": "Kabul Et",
@@ -1198,7 +1203,14 @@
     "success": "Başarılı",
     "error": "Hata",
     "saved": "Ayarlar kaydedildi",
-    "saveFailed": "Ayarlar kaydedilemedi"
+    "saveFailed": "Ayarlar kaydedilemedi",
+    "companyFields": {
+      "officialName": "Resmi Şirket Adı",
+      "brandName": "Fatura/Marka Adı",
+      "brandNameHelper": "Bu alan faturada/ekranda marka adı olarak kullanılabilir.",
+      "officialNameTooltip": "Şirket adını yalnızca şirket sahibi veya yönetici güncelleyebilir",
+      "officialNameOwnerOnly": "Bu alan yalnızca şirket sahibi tarafından değiştirilebilir."
+    }
   },
   "security": {
     "twofa": {
@@ -1453,6 +1465,16 @@
     "expenseCategoryPerformance": "Gider Kategori Performansı",
     "noSupplier": "Tedarikçi Yok",
     "noCustomer": "Müşteri Yok"
+  },
+  "ledger": {
+    "totalCredit": "Toplam Alacak",
+    "totalDebit": "Toplam Borç",
+    "netBalance": "Net Bakiye",
+    "entry": {
+      "invoicePrefix": "Fatura",
+      "expensePrefix": "Gider",
+      "salePrefix": "Direkt Satış"
+    }
   },
   "expenseCategories": {
     "equipment": "Ekipman",
