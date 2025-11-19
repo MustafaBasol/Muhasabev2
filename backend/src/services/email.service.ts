@@ -185,7 +185,7 @@ export class EmailService {
         <p>If you did not request this deletion or have changed your mind, please contact our support team immediately at:</p>
         
         <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0;"><strong>Support Email:</strong> support@moneyflow.com</p>
+          <p style="margin: 0;"><strong>Support Email:</strong> support@comptario.com</p>
           <p style="margin: 5px 0 0 0;"><strong>Support Phone:</strong> +90 (212) 123-4567</p>
         </div>
         
@@ -195,7 +195,7 @@ export class EmailService {
         
         <p style="font-size: 12px; color: #6b7280;">
           This is an automated message. Please do not reply to this email.<br>
-          MoneyFlow Accounting System | Istanbul, Turkey
+          Comptario Accounting System | Istanbul, Turkey
         </p>
       </div>
     `;
@@ -215,14 +215,14 @@ IMPORTANT INFORMATION:
 
 If you did not request this deletion or have changed your mind, please contact our support team immediately:
 
-Support Email: support@moneyflow.com
+Support Email: support@comptario.com
 Support Phone: +90 (212) 123-4567
 
 Thank you for using our service.
 
 ---
 This is an automated message. Please do not reply to this email.
-MoneyFlow Accounting System | Istanbul, Turkey
+Comptario Accounting System | Istanbul, Turkey
     `;
 
     return this.sendEmail({
@@ -269,7 +269,7 @@ MoneyFlow Accounting System | Istanbul, Turkey
         <p>If you have any questions about your data export, please contact our support team:</p>
         
         <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0;"><strong>Support Email:</strong> support@moneyflow.com</p>
+          <p style="margin: 0;"><strong>Support Email:</strong> support@comptario.com</p>
           <p style="margin: 5px 0 0 0;"><strong>Support Phone:</strong> +90 (212) 123-4567</p>
         </div>
         
@@ -279,7 +279,7 @@ MoneyFlow Accounting System | Istanbul, Turkey
         
         <p style="font-size: 12px; color: #6b7280;">
           This is an automated message. Please do not reply to this email.<br>
-          MoneyFlow Accounting System | Istanbul, Turkey
+          Comptario Accounting System | Istanbul, Turkey
         </p>
       </div>
     `;

@@ -1,6 +1,6 @@
 # Üretime Geçiş Hazırlık Dokümanı (PROD)
 
-Bu doküman, MoneyFlow uygulamasını üretim ortamına taşırken değiştirmeniz gereken ayarları ve izlenmesi önerilen adımları özetler. Aşağıdaki kontrol listesi ve detaylı açıklamalar, mevcut kod tabanı ve yapılandırmalar dikkate alınarak hazırlanmıştır.
+Bu doküman, Comptario uygulamasını üretim ortamına taşırken değiştirmeniz gereken ayarları ve izlenmesi önerilen adımları özetler. Aşağıdaki kontrol listesi ve detaylı açıklamalar, mevcut kod tabanı ve yapılandırmalar dikkate alınarak hazırlanmıştır.
 
 ---
 

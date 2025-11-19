@@ -54,7 +54,7 @@ secureStorage.getJSON<Type>('key');
 - **Etki**: Hassas bilgilerin koddan ayrılması
 
 ```bash
-VITE_DEMO_EMAIL=demo@moneyflow.com
+VITE_DEMO_EMAIL=demo@comptario.com
 VITE_DEMO_PASSWORD=demo123
 VITE_ENABLE_ENCRYPTION=true
 ```

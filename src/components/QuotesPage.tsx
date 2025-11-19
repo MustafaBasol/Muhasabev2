@@ -62,7 +62,7 @@ interface QuoteItem {
 const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }) => {
   const { t, i18n } = useTranslation();
   const { formatCurrency, currency: defaultCurrency } = useCurrency();
-  const { tenant } = useAuth();
+  const { tenant, user: authUser } = useAuth();
   const planRaw = String((tenant as any)?.subscriptionPlan || '').toLowerCase();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -128,11 +128,13 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000);
   const iso = (d: Date) => d.toISOString().slice(0,10);
   const [quotes, setQuotes] = useState<QuoteItem[]>([]);
+  const [isLoadingQuotes, setIsLoadingQuotes] = useState<boolean>(true);
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        setIsLoadingQuotes(true);
         const data = await quotesApi.getQuotes();
         if (cancelled) return;
         const mapped = (Array.isArray(data) ? data : []).map((q: any) => ({
@@ -160,6 +162,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
       } catch (e) {
         console.error('Quotes yüklenemedi:', e);
         setQuotes([]);
+      } finally {
+        setIsLoadingQuotes(false);
       }
     })();
     return () => { cancelled = true; };
@@ -588,7 +592,15 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
         </div>
         {/* Liste */}
         <div className="divide-y divide-gray-200">
-          {filtered.length === 0 ? (
+          {isLoadingQuotes ? (
+            <div className="p-6">
+              <div className="animate-pulse space-y-4">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-10 bg-gray-100 rounded" />
+                ))}
+              </div>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="p-8 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <FileText className="w-8 h-8 text-gray-400" />
@@ -901,6 +913,11 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                 items: payload.items.map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })),
                 scopeOfWorkHtml: payload.scopeOfWorkHtml || '',
               });
+              const currentUserName = (() => {
+                const full = `${(authUser as any)?.firstName || ''} ${(authUser as any)?.lastName || ''}`.trim();
+                if (full) return full;
+                return (authUser as any)?.name || '';
+              })();
               const next: QuoteItem = {
                 id: created.id,
                 publicId: created.publicId,
@@ -917,6 +934,8 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                 items: Array.isArray(created.items) ? created.items : payload.items,
                 createdAt: created.createdAt || new Date().toISOString(),
                 updatedAt: created.updatedAt || new Date().toISOString(),
+                createdByName: (created as any)?.createdByName || currentUserName,
+                updatedByName: (created as any)?.updatedByName || currentUserName,
               };
               setQuotes(prev => [next, ...prev]);
             } catch (e) {

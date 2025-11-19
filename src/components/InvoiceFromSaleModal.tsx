@@ -3,6 +3,7 @@ import { X, FileText, Calendar, User, Package, Loader2 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { getProducts, type Product } from '../api/products';
+import StockWarningModal from './StockWarningModal';
 import { productCategoriesApi } from '../api/product-categories';
 
 interface Sale {
@@ -43,6 +44,7 @@ export default function InvoiceFromSaleModal({
   const [productsCache, setProductsCache] = React.useState<Product[] | null>(null);
   const [categoriesCache, setCategoriesCache] = React.useState<Array<{ name: string; taxRate: number }> | null>(null);
   const [loadingMeta, setLoadingMeta] = React.useState(false);
+  const [stockWarning, setStockWarning] = React.useState<{ product: Product; requested: number; available: number } | null>(null);
 
   // Modal açıldığında ürün ve kategori verilerini hafızaya al (localStorage'a güvenme)
   React.useEffect(() => {
@@ -207,6 +209,28 @@ export default function InvoiceFromSaleModal({
     }, 0);
     const previewTotal = previewSubtotal + previewTax;
 
+    // Stok kontrolü: ürün cache'inden doğrula
+    try {
+      const prods = Array.isArray(productsCache) ? productsCache : [];
+      for (const li of lineItems) {
+        let p: Product | undefined = undefined;
+        if (li.productId) p = prods.find(x => String(x.id) === String(li.productId));
+        if (!p && li.description) {
+          const nameLc = String(li.description).trim().toLowerCase();
+          p = prods.find(x => String(x.name || '').trim().toLowerCase() === nameLc)
+            || prods.find(x => String(x.name || '').toLowerCase().includes(nameLc));
+        }
+        if (p) {
+          const available = Number((p as any).stock ?? (p as any).stockQuantity ?? NaN);
+          const requested = Number(li.quantity) || 0;
+          if (Number.isFinite(available) && requested > available) {
+            setStockWarning({ product: p, requested, available });
+            return; // Uyarıyı göster, kaydetmeyi durdur
+          }
+        }
+      }
+    } catch {}
+
     const newInvoice = {
       saleId: sale.id,
       issueDate: new Date().toISOString().split('T')[0],
@@ -280,6 +304,7 @@ export default function InvoiceFromSaleModal({
   const previewTotalUi = previewSubtotalUi + previewTaxUi;
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -441,5 +466,15 @@ export default function InvoiceFromSaleModal({
         </div>
       </div>
     </div>
+    {stockWarning && (
+      <StockWarningModal
+        isOpen={true}
+        product={stockWarning.product}
+        requested={stockWarning.requested}
+        available={stockWarning.available}
+        onClose={() => setStockWarning(null)}
+      />
+    )}
+    </>
   );
 }

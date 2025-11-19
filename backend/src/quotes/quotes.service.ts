@@ -18,6 +18,34 @@ export class QuotesService {
     private readonly bankAccountsRepo: Repository<BankAccount>,
   ) {}
 
+  private isPast(date: Date | null | undefined): boolean {
+    if (!date) return false;
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return d.getTime() < today.getTime();
+  }
+
+  private async maybeExpire(q: Quote): Promise<Quote> {
+    if (!q) return q;
+    // Sadece taslak/gönderildi/görüldü statülerinde ve geçerlilik tarihi geçmişse expire et
+    const eligible =
+      q.status === QuoteStatus.DRAFT ||
+      q.status === QuoteStatus.SENT ||
+      q.status === QuoteStatus.VIEWED;
+    if (eligible && this.isPast(q.validUntil)) {
+      q.status = QuoteStatus.EXPIRED;
+      try {
+        return await this.repo.save(q);
+      } catch {
+        // Sessizce devam et; statü güncellemesi başarısız olsa bile listeleme çalışsın
+        return q;
+      }
+    }
+    return q;
+  }
+
   private isUuid(val?: string | null) {
     if (!val) return false;
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -135,16 +163,19 @@ export class QuotesService {
   }
 
   async findAll(tenantId: string) {
-    return this.repo.find({
+    const list = await this.repo.find({
       where: { tenantId },
       order: { createdAt: 'DESC' },
     });
+    // Otomatik expire kontrolü
+    const updated = await Promise.all(list.map((q) => this.maybeExpire(q)));
+    return updated;
   }
 
   async findOne(tenantId: string, id: string) {
     const q = await this.repo.findOne({ where: { id, tenantId } });
     if (!q) throw new NotFoundException('Quote not found');
-    return q;
+    return this.maybeExpire(q);
   }
 
   async update(tenantId: string, id: string, dto: UpdateQuoteDto) {
@@ -186,7 +217,9 @@ export class QuotesService {
       const tenant = await this.tenantsRepo.findOne({
         where: { id: q.tenantId },
       });
-      if (!tenant) return q;
+      // Public isteklerde de expire kontrolünü uygula
+      const base = await this.maybeExpire(q);
+      if (!tenant) return base;
 
       // Logo & preferences from tenant.settings.brand
       const brand = ((tenant.settings || {}) as any)?.brand || {};
@@ -207,7 +240,7 @@ export class QuotesService {
       }
 
       return {
-        ...q,
+        ...base,
         tenantPublicProfile: {
           name: tenant.companyName || tenant.name,
           address: tenant.address || '',
@@ -241,7 +274,7 @@ export class QuotesService {
         },
       } as any;
     } catch {
-      return q;
+      return base;
     }
   }
 

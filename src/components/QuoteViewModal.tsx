@@ -410,6 +410,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
               </button>
             )}
 
+            {/* E-postayı yeniden gönder butonu istenmediği için gizlendi
             {(quote.status === 'sent' || quote.status === 'viewed') && (
               <button
                 onClick={() => {
@@ -424,6 +425,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                 <span className="text-sm font-medium">{t('quotes.actions.resendEmail')}</span>
               </button>
             )}
+            */}
           </div>
         </div>
       </div>

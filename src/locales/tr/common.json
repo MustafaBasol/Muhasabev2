@@ -1014,6 +1014,8 @@
   "invoices": {
     "title": "Faturalar",
     "newInvoice": "Yeni Fatura",
+    "deleteConfirm": "Bu faturayı silmek istediğinizden emin misiniz?",
+    "deleteSuccess": "Fatura silindi",
     "search": "Fatura numarası veya müşteri ara...",
     "filterAll": "Tüm Durumlar",
     "invoicesRegistered": "fatura kayıtlı",
@@ -1528,7 +1530,16 @@
     "expenseEfficiency": "Gider Verimliliği Analizi",
     "expenseCategoryPerformance": "Gider Kategori Performansı",
     "noSupplier": "Tedarikçi Yok",
-    "noCustomer": "Müşteri Yok"
+    "noCustomer": "Müşteri Yok",
+    "quoteAnalysis": "Teklif Analizi",
+    "quoteStatuses": "Teklif Durumları",
+    "totalQuotes": "Toplam Teklif",
+    "acceptedRate": "Kabul Oranı",
+    "averageQuote": "Ortalama Teklif",
+    "expiringSoon": "Süresi Yaklaşanlar",
+    "recentQuotes": "Son Teklifler",
+    "daysLeft": "Gün Kaldı",
+    "quotes": "teklif"
   },
   "ledger": {
     "totalCredit": "Toplam Alacak",

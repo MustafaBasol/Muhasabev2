@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "� MoneyFlow Services Status (PM2)"
+echo "� Comptario Services Status (PM2)"
 echo "=================================="
 pm2 status
 

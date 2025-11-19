@@ -1,4 +1,4 @@
-# MoneyFlow Muhasebe v2
+# Comptario Muhasebe v2
 
 NOT: Bu dosyanın temiz ve güncel sürümü için README_CLEAN.md dosyasına bakın. Bu dosya yakında sadeleştirilecektir.
 
@@ -201,7 +201,7 @@ npm run start:dev
 
 # Terminal 2 - Frontend (Development)
 
-npm run dev# Frontend bağımlılıklarıVITE_DEMO_EMAIL=demo@moneyflow.com
+npm run dev# Frontend bağımlılıklarıVITE_DEMO_EMAIL=demo@comptario.com
 
 # Frontend: http://localhost:5173
 
@@ -321,7 +321,7 @@ Detaylı bilgi: [SECURITY_IMPROVEMENTS.md](./SECURITY_IMPROVEMENTS.md)cd backend
 
 1. Tarayıcıda `http://localhost:5050` aç# 2. Backend'i başlat## � Dokümantasyon
 
-2. Login: `admin@moneyflow.com` / `admin123`
+2. Login: `admin@comptario.com` / `admin123`
 
 3. Yeni server ekle:npm run start:dev
 

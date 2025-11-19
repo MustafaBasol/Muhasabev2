@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, Plus, Trash2, Check } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import type { Customer, Product } from '../types';
+import StockWarningModal from './StockWarningModal';
 import ConfirmModal from './ConfirmModal';
 import RichTextEditor from './RichTextEditor';
 
@@ -60,6 +61,7 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
   const [scopeDirty, setScopeDirty] = useState(false);
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; html: string }>>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [stockWarning, setStockWarning] = useState<{ itemId: string; product: Product; requested: number; available: number } | null>(null);
 
   const filteredCustomers = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
@@ -210,11 +212,35 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
       };
     }));
     setActiveProductDropdown(null);
+    const available = Number((product as any).stock ?? (product as any).stockQuantity ?? NaN);
+    const requested = items.find(i => i.id === itemId)?.quantity || 1;
+    if (Number.isFinite(available) && requested > available) {
+      setStockWarning({ itemId, product, requested, available });
+    }
   };
 
   const handleCreate = () => {
     if (!selectedCustomer) return;
     if (items.length === 0 || items.every(it => !it.description || (Number(it.total) || 0) <= 0)) return;
+    // Stok kontrolü (kaydetmeden önce)
+    for (const it of items) {
+      const id = (it as any).productId;
+      let prod: Product | undefined = undefined;
+      if (id) prod = products.find(p => String(p.id) === String(id));
+      if (!prod && it.description) {
+        const nameLc = String(it.description).trim().toLowerCase();
+        prod = products.find(p => String(p.name || '').trim().toLowerCase() === nameLc)
+          || products.find(p => String(p.name || '').toLowerCase().includes(nameLc));
+      }
+      if (prod) {
+        const available = Number((prod as any).stock ?? (prod as any).stockQuantity ?? NaN);
+        const requested = Number(it.quantity) || 0;
+        if (Number.isFinite(available) && requested > available) {
+          setStockWarning({ itemId: String(it.id), product: prod, requested, available });
+          return; // Uyarıyı göster ve kaydı durdur
+        }
+      }
+    }
     // Kayıt öncesi onay al
     setConfirmData({
       title: t('common.confirm', { defaultValue: 'Onay' }),
@@ -400,7 +426,20 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
                           <input
                             type="number"
                             value={it.quantity}
-                            onChange={(e) => updateItem(it.id, 'quantity', parseInt(e.target.value, 10) || 1)}
+                            onChange={(e) => {
+                              const q = parseInt(e.target.value, 10) || 1;
+                              updateItem(it.id, 'quantity', q);
+                              const current = items.find(x => x.id === it.id);
+                              if (current?.productId) {
+                                const p = products.find(pr => String(pr.id) === String(current.productId));
+                                if (p) {
+                                  const available = Number((p as any).stock ?? (p as any).stockQuantity ?? NaN);
+                                  if (Number.isFinite(available) && q > available) {
+                                    setStockWarning({ itemId: it.id, product: p, requested: q, available });
+                                  }
+                                }
+                              }
+                            }}
                             className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
                             min={1}
                             step={1}
@@ -489,6 +528,18 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
         </div>
       </div>
     </div>
+    {stockWarning && (
+      <StockWarningModal
+        isOpen={true}
+        product={stockWarning.product}
+        requested={stockWarning.requested}
+        available={stockWarning.available}
+        onAdjust={() => {
+          setItems(prev => prev.map(it => it.id === stockWarning.itemId ? { ...it, quantity: stockWarning.available, total: stockWarning.available * (Number(it.unitPrice)||0) } : it));
+        }}
+        onClose={() => setStockWarning(null)}
+      />
+    )}
     {confirmData && (
       <ConfirmModal
         isOpen={true}

@@ -59,9 +59,10 @@ interface SimpleSalesPageProps {
   onEditInvoice?: (invoice: any) => void;
   onDownloadSale?: (sale: Sale) => void;
   products?: Product[];
+  onDeleteSale?: (id: string | number) => Promise<void> | void; // Opsiyonel: üst komponent kalıcı silsin
 }
 
-export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale }: SimpleSalesPageProps) {
+export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale, onDeleteSale }: SimpleSalesPageProps) {
   const { t, i18n } = useTranslation('common');
   const { formatCurrency } = useCurrency();
   
@@ -221,17 +222,19 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     }
   };
 
-  const handleDeleteSale = (saleId: string | number) => {
-    if (confirm(t('sales.deleteConfirm'))) {
-      const updatedSales = sales.filter(sale => String(sale.id) !== String(saleId));
-      if (onSalesUpdate) {
-        onSalesUpdate(updatedSales);
-      }
-      // Eğer detay modalından silindiyse modalı kapat
-      if (showSaleViewModal) {
-        setShowSaleViewModal(false);
-        setViewingSale(null);
-      }
+  const handleDeleteSale = async (saleId: string | number) => {
+    if (onDeleteSale) {
+      // Üst komponent (App) kendi ConfirmModal'ını gösterecek
+      await onDeleteSale(saleId);
+      return;
+    }
+    // Geriye uyumluluk: yerel listeden kaldırmadan önce basit onay
+    if (!confirm(t('sales.deleteConfirm'))) return;
+    const updatedSales = sales.filter(sale => String(sale.id) !== String(saleId));
+    onSalesUpdate?.(updatedSales);
+    if (showSaleViewModal) {
+      setShowSaleViewModal(false);
+      setViewingSale(null);
     }
   };
 

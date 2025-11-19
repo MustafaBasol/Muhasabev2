@@ -1,4 +1,4 @@
-# MoneyFlow Muhasebe v2
+# Comptario Muhasebe v2
 
 Modern, güvenli ve ölçeklenebilir (multi-tenant) muhasebe ve finans yönetim sistemi.
 

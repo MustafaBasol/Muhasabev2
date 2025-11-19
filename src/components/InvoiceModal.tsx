@@ -1,8 +1,9 @@
 ﻿import React, { useState } from 'react';
-import { X, Plus, Trash2, Calculator, Search, Check } from 'lucide-react';
+import { X, Plus, Trash2, Calculator, Search, Check, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { resolveStatusLabel } from '../utils/status';
 import type { Product } from '../types';
+import StockWarningModal from './StockWarningModal';
 
 interface Customer {
   id: string;
@@ -61,6 +62,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   const [activeProductDropdown, setActiveProductDropdown] = useState<string | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>(defaultItems);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [stockWarning, setStockWarning] = useState<{ itemId: string; product: Product; requested: number; available: number } | null>(null);
 
   React.useEffect(() => {
     if (!invoice) {
@@ -217,6 +220,19 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         return updated;
       })
     );
+    if (field === 'quantity') {
+      const target = items.find(i => i.id === id);
+      if (target?.productId) {
+        const product = products.find(p => String(p.id) === String(target.productId));
+        if (product) {
+          const available = Number((product as any).stock ?? (product as any).stockQuantity ?? NaN);
+          const requested = Number(value) || 0;
+          if (Number.isFinite(available) && requested > available) {
+            setStockWarning({ itemId: id, product, requested, available });
+          }
+        }
+      }
+    }
   };
 
   // Real-time özet hesaplama - Her ürün kendi KDV oranıyla
@@ -291,7 +307,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       categoryTaxRateOverride: product.categoryTaxRateOverride,
       finalTaxRate: product.categoryTaxRateOverride ?? product.taxRate ?? 18
     });
-    
+    const available = Number((product as any).stock ?? (product as any).stockQuantity ?? NaN);
     setItems(prev =>
       prev.map(item => {
         if (item.id !== itemId) {
@@ -314,15 +330,42 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       })
     );
     setActiveProductDropdown(null);
+    if (Number.isFinite(available)) {
+      const requested = items.find(i => i.id === itemId)?.quantity || 1;
+      if (requested > available) {
+        setStockWarning({ itemId, product, requested, available });
+      }
+    }
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
     console.log('🔍 InvoiceModal handleSave - Validation başlıyor:', {
       customerId: invoiceData.customerId,
       customerName: invoiceData.customerName,
       selectedCustomer: selectedCustomer?.name,
       customerSearch: customerSearch
     });
+
+    // Stok yeterliliği kontrolü (kaydetmeden önce son kontrol)
+    for (const it of items) {
+      const pid = (it as any).productId;
+      let prod: Product | undefined = undefined;
+      if (pid) prod = products.find(p => String(p.id) === String(pid));
+      if (!prod && it.description) {
+        const nameLc = String(it.description).trim().toLowerCase();
+        prod = products.find(p => String(p.name || '').trim().toLowerCase() === nameLc)
+          || products.find(p => String(p.name || '').toLowerCase().includes(nameLc));
+      }
+      if (prod) {
+        const available = Number((prod as any).stock ?? (prod as any).stockQuantity ?? NaN);
+        const requested = Number(it.quantity) || 0;
+        if (Number.isFinite(available) && requested > available) {
+          setStockWarning({ itemId: String(it.id), product: prod, requested, available });
+          return; // Uyarıyı göster ve kaydetmeyi durdur
+        }
+      }
+    }
 
     // Validation
     if (!invoiceData.customerId) {
@@ -410,8 +453,21 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       itemCount: newInvoice.items.length,
       total: newInvoice.total
     });
-    
-    await onSave(newInvoice);
+    // Kaydetme işlemini anında başlat ve modalı hemen kapat (kullanıcı beklemesin)
+    try {
+      setIsSaving(true);
+      const maybePromise = onSave(newInvoice);
+      if (maybePromise && typeof (maybePromise as any).then === 'function') {
+        (maybePromise as Promise<any>)
+          .catch(() => {})
+          .finally(() => setIsSaving(false));
+      } else {
+        setIsSaving(false);
+      }
+    } catch {
+      setIsSaving(false);
+    }
+    // Modalı hemen kapat – başarı/toast App seviyesinde gösterilecek
     onClose();
   };
 
@@ -751,8 +807,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                                         {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                                       </span>
                                       <span className="text-gray-500">
-                                        Stok: <span className={product.stockQuantity > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                                          {product.stockQuantity}
+                                        Stok: <span className={(Number((product as any).stockQuantity) > 0) ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                                          {Math.max(0, Number((product as any).stockQuantity ?? (product as any).stock ?? 0))}
                                         </span>
                                       </span>
                                     </div>
@@ -841,15 +897,24 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            disabled={isSaving}
+            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t('common.cancel') || 'Iptal'}
           </button>
           <button
             onClick={handleSave}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            disabled={isSaving}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {invoice ? (t('common.update') || 'Guncelle') : (t('invoices.createInvoice') || 'Fatura Olustur')}
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{t('common.creating', { defaultValue: 'Oluşturuluyor…' })}</span>
+              </>
+            ) : (
+              invoice ? (t('common.update') || 'Guncelle') : (t('invoices.createInvoice') || 'Fatura Olustur')
+            )}
           </button>
         </div>
       </div>
@@ -879,6 +944,18 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
             </div>
           </div>
         </div>
+      )}
+      {stockWarning && (
+        <StockWarningModal
+          isOpen={true}
+          product={stockWarning.product}
+          requested={stockWarning.requested}
+          available={stockWarning.available}
+          onAdjust={() => {
+            setItems(prev => prev.map(it => it.id === stockWarning.itemId ? { ...it, quantity: stockWarning.available, total: stockWarning.available * (Number(it.unitPrice)||0) } : it));
+          }}
+          onClose={() => setStockWarning(null)}
+        />
       )}
     </div>
   );

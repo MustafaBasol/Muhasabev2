@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import type { Product } from '../types';
 import type { Sale } from '../types';
+import StockWarningModal from './StockWarningModal';
 
 interface Customer {
   id: string;
@@ -58,6 +59,7 @@ export default function SaleModal({
     paymentMethod: sale?.paymentMethod || 'cash',
     notes: sale?.notes || '',
   });
+  const [stockWarning, setStockWarning] = useState<{ product: Product; requested: number; available: number } | null>(null);
 
   const [customerSearch, setCustomerSearch] = useState(sale?.customerName || '');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -224,6 +226,10 @@ export default function SaleModal({
     if (errors.productName) {
       setErrors(current => ({ ...current, productName: '' }));
     }
+    const available = Number((product as any).stock ?? (product as any).stockQuantity ?? NaN);
+    if (Number.isFinite(available) && nextQuantity > available) {
+      setStockWarning({ product, requested: nextQuantity, available });
+    }
   };
 
   const validateForm = () => {
@@ -275,6 +281,20 @@ export default function SaleModal({
   };
 
   const handleSave = () => {
+    // Stok kontrolü (kaydetmeden önce)
+    if (saleData.productId) {
+      const prod = products.find(p => String(p.id) === String(saleData.productId))
+        || products.find(p => String(p.name || '').trim().toLowerCase() === String(saleData.productName || '').trim().toLowerCase());
+      if (prod) {
+        const available = Number((prod as any).stock ?? (prod as any).stockQuantity ?? NaN);
+        const requested = Number(saleData.quantity) || 0;
+        if (Number.isFinite(available) && requested > available) {
+          setStockWarning({ product: prod, requested, available });
+          return; // Uyarıyı göster ve kaydı durdur
+        }
+      }
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -318,6 +338,7 @@ export default function SaleModal({
   });
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -456,7 +477,7 @@ export default function SaleModal({
             </div>
             {selectedProductOption && (
               <p className="mt-1 text-xs text-gray-500">
-                {t('products.stock')}: {selectedProductOption.stockQuantity} {selectedProductOption.unit || ''} | {t('products.price')}: {selectedProductOption.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                {t('products.stock')}: {Math.max(0, Number((selectedProductOption as any).stockQuantity ?? (selectedProductOption as any).stock ?? 0))} {selectedProductOption.unit || ''} | {t('products.price')}: {selectedProductOption.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
               </p>
             )}
             {errors.productName && <p className="text-red-500 text-xs mt-1">{errors.productName}</p>}
@@ -478,7 +499,7 @@ export default function SaleModal({
                       {(product.sku ? `SKU: ${product.sku}` : '')}{product.sku && product.category ? ' • ' : ''}{product.category || ''}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {t('products.price')}: {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} | {t('products.stock')}: {product.stockQuantity}
+                      {t('products.price')}: {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} | {t('products.stock')}: {Math.max(0, Number((product as any).stockQuantity ?? (product as any).stock ?? 0))}
                     </div>
                   </button>
                 ))}
@@ -492,7 +513,19 @@ export default function SaleModal({
               <input
                 type="number"
                 value={saleData.quantity}
-                onChange={(event) => setSaleData({ ...saleData, quantity: parseInt(event.target.value, 10) || 1 })}
+                onChange={(event) => {
+                  const q = parseInt(event.target.value, 10) || 1;
+                  setSaleData({ ...saleData, quantity: q });
+                  if (saleData.productId) {
+                    const p = products.find(pr => String(pr.id) === String(saleData.productId));
+                    if (p) {
+                      const available = Number((p as any).stock ?? (p as any).stockQuantity ?? NaN);
+                      if (Number.isFinite(available) && q > available) {
+                        setStockWarning({ product: p, requested: q, available });
+                      }
+                    }
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 min="1"
                 step="1"
@@ -582,6 +615,19 @@ export default function SaleModal({
         </div>
       </div>
     </div>
+    {stockWarning && (
+      <StockWarningModal
+        isOpen={true}
+        product={stockWarning.product}
+        requested={stockWarning.requested}
+        available={stockWarning.available}
+        onAdjust={() => {
+          setSaleData(d => ({ ...d, quantity: stockWarning.available }));
+        }}
+        onClose={() => setStockWarning(null)}
+      />
+    )}
+    </>
   );
 }
 

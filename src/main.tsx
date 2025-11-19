@@ -11,7 +11,7 @@ import { logger } from './utils/logger';
 
 // Konsol gürültüsünü azalt: debug/info varsayılan olarak susturulur
 logger.installConsoleMute();
-logger.info('🚀 MoneyFlow uygulaması başlatılıyor...');
+logger.info('🚀 Comptario uygulaması başlatılıyor...');
 
 // Root element'i kontrol et
 const root = document.getElementById('root');
@@ -35,7 +35,7 @@ try {
     </StrictMode>
   );
   
-  logger.info('✅ MoneyFlow uygulaması başarıyla yüklendi!');
+  logger.info('✅ Comptario uygulaması başarıyla yüklendi!');
 } catch (err: unknown) {
   if (err instanceof Error) {
     logger.error('❌ Uygulama yüklenemedi:', err);

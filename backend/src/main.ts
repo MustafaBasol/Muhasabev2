@@ -219,7 +219,7 @@ async function bootstrap() {
 
   // Swagger setup
   const config = new DocumentBuilder()
-    .setTitle('MoneyFlow API')
+    .setTitle('Comptario API')
     .setDescription('Multi-tenant accounting and finance management API')
     .setVersion('1.0')
     .addBearerAuth()

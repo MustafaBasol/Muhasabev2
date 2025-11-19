@@ -61,6 +61,7 @@ import ExpenseViewModal from "./components/ExpenseViewModal";
 import SaleViewModal from "./components/SaleViewModal";
 import BankViewModal from "./components/BankViewModal";
 import InfoModal from "./components/InfoModal";
+import ConfirmModal from "./components/ConfirmModal";
 import QuoteViewModal, { type Quote as QuoteModel } from "./components/QuoteViewModal";
 import QuoteEditModal from "./components/QuoteEditModal";
 
@@ -526,6 +527,8 @@ const AppContent: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedBank, setSelectedBank] = useState<any>(null);
   const [supplierForExpense, setSupplierForExpense] = useState<any>(null);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
+  const [saleToDelete, setSaleToDelete] = useState<string | null>(null);
 
   const [customers, setCustomers] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -659,17 +662,23 @@ const AppContent: React.FC = () => {
         });
         
         // Map backend product fields to frontend format
-        const mappedProducts = safeProductsData.map((p: any) => ({
+        const mappedProducts = safeProductsData.map((p: any) => {
+          const rawStock = Number(p.stock);
+          const clampedStock = Number.isFinite(rawStock) ? Math.max(0, rawStock) : 0;
+          const minStock = Number(p.minStock) || 0;
+          const status = clampedStock === 0 ? 'out-of-stock' : clampedStock <= minStock ? 'low' : 'active';
+          return ({
           ...p,
           sku: p.code,
           unitPrice: Number(p.price) || 0,
           costPrice: Number(p.cost) || 0,
-          stockQuantity: Number(p.stock) || 0,
-          reorderLevel: Number(p.minStock) || 0,
+          stockQuantity: clampedStock,
+          reorderLevel: minStock,
           taxRate: Number(p.taxRate) || 0, // KDV oranı (decimal -> number)
           categoryTaxRateOverride: p.categoryTaxRateOverride ? Number(p.categoryTaxRateOverride) : null, // Özel KDV
-          status: p.stock === 0 ? 'out-of-stock' : p.stock <= p.minStock ? 'low' : 'active'
-        }));
+          status
+        });
+        });
         setProducts(mappedProducts);
         
         // Map backend expense fields to frontend format (supplier normalizasyonu dahil)
@@ -700,6 +709,11 @@ const AppContent: React.FC = () => {
           // Satışları haritalarken müşteri adını ve temel ürün alanlarını doldur
           // Öncelik: backend s.customer?.name -> s.customerName -> customers listesinden s.customerId eşleşmesi
           const mappedSales = salesData.map((s: any) => {
+            const resolvePersonName = (p: any): string | undefined => {
+              if (!p) return undefined;
+              const full = `${p.firstName || ''} ${p.lastName || ''}`.trim();
+              return full || p.name || p.email || undefined;
+            };
             const customerNameFromRel = s?.customer?.name;
             const customerNameFromSelf = s?.customerName;
             const customerFromList = s?.customerId
@@ -729,6 +743,18 @@ const AppContent: React.FC = () => {
               return 'completed';
             })();
 
+            // Oluşturan / Güncelleyen bilgilerini mümkün olan en erken aşamada doldur
+            const createdByName = s?.createdByName
+              || resolvePersonName(s?.createdBy)
+              || (s?.createdById && authUser?.id && String(s.createdById) === String(authUser.id)
+                    ? `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.email || undefined
+                    : undefined);
+            const updatedByName = s?.updatedByName
+              || resolvePersonName(s?.updatedBy)
+              || (s?.updatedById && authUser?.id && String(s.updatedById) === String(authUser.id)
+                    ? `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.email || undefined
+                    : undefined);
+
             return {
               ...s,
               customerName,
@@ -741,6 +767,10 @@ const AppContent: React.FC = () => {
               date: s.saleDate ? String(s.saleDate).slice(0, 10) : s.date,
               amount: Number(s.total ?? s.amount ?? 0),
               status: normalizedStatus,
+              createdByName: createdByName,
+              updatedByName: updatedByName,
+              createdAt: s?.createdAt || s?.createdDate || s?.createdOn || s?.saleDate,
+              updatedAt: s?.updatedAt || s?.updatedDate || s?.updatedOn || s?.saleDate,
             };
           });
           // Backend'ten gelen liste, kullanıcı eklerken tamamlanan ilk yükleme tarafından
@@ -2893,6 +2923,27 @@ const AppContent: React.FC = () => {
         showToast(t('toasts.invoices.updateSuccess'), 'success');
         return updated; // Güncellenen faturayı return et
       } else {
+        // Ek güvenlik: backend'e gitmeden önce stok kontrolü (modal kaçsa da engelle)
+        try {
+          for (const it of (cleanData.items || [])) {
+            let prod: any = undefined;
+            if (it.productId) prod = products.find(p => String(p.id) === String(it.productId));
+            if (!prod && it.productName) {
+              const nameLc = String(it.productName).trim().toLowerCase();
+              prod = products.find(p => String(p.name || '').trim().toLowerCase() === nameLc)
+                  || products.find(p => String(p.name || '').toLowerCase().includes(nameLc));
+            }
+            if (prod) {
+              const available = Number((prod as any).stock ?? (prod as any).stockQuantity ?? NaN);
+              const requested = Number(it.quantity) || 0;
+              if (Number.isFinite(available) && requested > available) {
+                showToast(t('validation.insufficientStock', { defaultValue: `Stok yetersiz: ${prod.name} (İstenen: ${requested}, Mevcut: ${available})` }), 'error');
+                return; // Fatura/satış oluşturmayı durdur
+              }
+            }
+          }
+        } catch {}
+
         const created = await invoicesApi.createInvoice(cleanData);
         console.log('✅ Fatura oluşturuldu:', {
           id: created.id,
@@ -3051,8 +3102,6 @@ const AppContent: React.FC = () => {
   };
 
   const deleteInvoice = async (invoiceId: string | number) => {
-    if (!confirmAction(t('invoices.deleteConfirm'))) return;
-    
     try {
       // Backend'e silme isteği gönder
       await invoicesApi.deleteInvoice(String(invoiceId));
@@ -3066,7 +3115,7 @@ const AppContent: React.FC = () => {
         localStorage.setItem(iKey, JSON.stringify(newInvoices));
       } catch {}
       console.log('💾 Fatura cache güncellendi (delete)');
-      showToast(t('invoices.deleteSuccess'), 'success');
+      showToast(t('invoices.deleteSuccess', { defaultValue: 'Fatura silindi' }), 'success');
     } catch (error: any) {
       console.error('Invoice delete error:', error);
       const errorMessage = error.response?.data?.message || '';
@@ -3081,6 +3130,11 @@ const AppContent: React.FC = () => {
         showToast(errorMessage || t('invoices.deleteError'), 'error');
       }
     }
+  };
+
+  // UI'dan çağrılan silme isteği: önce onay modalı aç
+  const requestDeleteInvoice = (invoiceId: string | number) => {
+    setInvoiceToDelete(String(invoiceId));
   };
 
   const voidInvoice = async (invoiceId: string, reason: string) => {
@@ -3428,6 +3482,10 @@ const AppContent: React.FC = () => {
           paymentMethod: saleData.paymentMethod || 'cash',
           notes: dto.notes,
           invoiceId: saved.invoiceId,
+          createdByName: saved?.createdByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || user.name,
+          updatedByName: saved?.updatedByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || user.name,
+          createdAt: saved?.createdAt || new Date().toISOString(),
+          updatedAt: saved?.updatedAt || new Date().toISOString(),
         } as any;
 
         setSales(prev => {
@@ -3459,6 +3517,8 @@ const AppContent: React.FC = () => {
             total: Number(updated.total ?? s.total) || 0,
             items: Array.isArray(updated.items) ? updated.items : s.items,
             notes: updated.notes ?? s.notes,
+            updatedByName: updated?.updatedByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || s.updatedByName,
+            updatedAt: updated?.updatedAt || new Date().toISOString(),
           } : s);
           const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
           const key = tid ? `sales_${tid}` : 'sales';
@@ -3479,6 +3539,10 @@ const AppContent: React.FC = () => {
           saleNumber: saleData.saleNumber || `SAL-${new Date().toISOString().slice(0,7)}-OFF`,
           date: saleData?.date || new Date().toISOString().split('T')[0],
           amount: saleData.amount || (Number(saleData.quantity||1) * Number(saleData.unitPrice||0)),
+          createdByName: `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || user.name,
+          updatedByName: `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || user.name,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
         const existsIdx = prev.findIndex(p => String(p.id) === String(newItem.id));
         const next = existsIdx >= 0 ? prev.map((p, i) => i === existsIdx ? newItem : p) : [...prev, newItem];
@@ -3548,9 +3612,11 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleDeleteSale = async (saleId: string) => {
-    if (!confirm(t('sales.deleteConfirm', { defaultValue: 'Bu satışı silmek istediğinizden emin misiniz?' }))) {
-      return;
+  const handleDeleteSale = async (saleId: string, opts?: { skipConfirm?: boolean }) => {
+    if (!opts?.skipConfirm) {
+      if (!confirm(t('sales.deleteConfirm', { defaultValue: 'Bu satışı silmek istediğinizden emin misiniz?' }))) {
+        return;
+      }
     }
     console.log('🗑️ Satış silme talebi:', saleId);
     // const prevSnapshot = [...sales];
@@ -3576,6 +3642,10 @@ const AppContent: React.FC = () => {
     showToast(t('toasts.sales.deleteSuccess'), 'success');
     setShowSaleViewModal(false);
     setSelectedSale(null);
+  };
+
+  const requestDeleteSale = (saleId: string | number) => {
+    setSaleToDelete(String(saleId));
   };
 
   // Sales state değiştiğinde cache'i senkron tut (çapraz sekme uyumu)
@@ -4509,29 +4579,48 @@ const AppContent: React.FC = () => {
 
     const sum = (items: any[], selector: (item: any) => number) => items.reduce((total, item) => total + selector(item), 0);
 
+    // Status yardımcıları (raporlarla aynı mantık)
+    const isPaidLike = (status: any) => {
+      const s = String(status || '').toLowerCase();
+      return s.includes('paid') || s.includes('öden') || s.includes('odendi') || s.includes('ödendi');
+    };
+    const isCompletedLike = (status: any) => {
+      const s = String(status || '').toLowerCase();
+      return s.includes('completed') || s.includes('tamam');
+    };
+    // Satış faturalandırılmış mı? (sale.invoiceId, invoice.saleId, notlarda saleNumber)
+    const isSaleInvoiced = (sale: any): boolean => {
+      try {
+        const sid = String(sale?.id || '');
+        if (!sid) return false;
+        if (sale?.invoiceId) return true;
+        const bySaleId = invoices.some(inv => String((inv as any)?.saleId || '') === sid);
+        if (bySaleId) return true;
+        const sn = sale?.saleNumber || `SAL-${sid}`;
+        const byNotes = invoices.some(inv => typeof (inv as any)?.notes === 'string' && (inv as any).notes.includes(sn));
+        return !!byNotes;
+      } catch { return false; }
+    };
+
     // Sadece ödenmiş giderler
     const paidExpenses = expenses.filter(exp => {
       const s = String(exp.status || '').toLowerCase();
       return s.includes('paid') || s.includes('öden') || s.includes('odendi') || s.includes('ödenendi');
     });
 
-    const hasInvoiceForSale = (sale: any) =>
-      Boolean(sale?.invoiceId) ||
-      invoices.some(inv => String(inv?.saleId || '') === String(sale?.id || ''));
-
     // Gelir: Ödenmiş faturalar + faturaya dönüşmeyen tamamlanmış satışlar
-    const paidInvoicesCurrent = invoices.filter(inv => inv.status === 'paid' && isInMonth(inv?.issueDate, currentMonth, currentYear));
-    const paidInvoicesPrevious = invoices.filter(inv => inv.status === 'paid' && isInMonth(inv?.issueDate, previousMonth, previousYear));
+    const paidInvoicesCurrent = invoices.filter(inv => isPaidLike(inv.status) && isInMonth(inv?.issueDate, currentMonth, currentYear));
+    const paidInvoicesPrevious = invoices.filter(inv => isPaidLike(inv.status) && isInMonth(inv?.issueDate, previousMonth, previousYear));
 
     const completedSalesCurrent = sales.filter(sale =>
-      String(sale?.status).toLowerCase() === 'completed' &&
+      isCompletedLike(sale?.status) &&
       isInMonth(sale?.date || sale?.saleDate, currentMonth, currentYear) &&
-      !hasInvoiceForSale(sale)
+      !isSaleInvoiced(sale)
     );
     const completedSalesPrevious = sales.filter(sale =>
-      String(sale?.status).toLowerCase() === 'completed' &&
+      isCompletedLike(sale?.status) &&
       isInMonth(sale?.date || sale?.saleDate, previousMonth, previousYear) &&
-      !hasInvoiceForSale(sale)
+      !isSaleInvoiced(sale)
     );
 
     const revenueCurrent = sum(paidInvoicesCurrent, invoiceAmount) + sum(completedSalesCurrent, saleAmount);
@@ -4542,7 +4631,7 @@ const AppContent: React.FC = () => {
 
     // Bekleyen: yalnızca pozitif tutarlı (tahsil edilecek) ve ödenmemiş faturalar
     const outstandingInvoices = invoices.filter(
-      (invoice) => invoice.status !== "paid" && Number(invoice?.total ?? 0) > 0
+      (invoice) => !isPaidLike(invoice.status) && Number(invoice?.total ?? 0) > 0
     );
     const outstandingAmount = sum(outstandingInvoices, invoiceAmount);
     const outstandingCurrent = outstandingInvoices.filter((invoice) =>
@@ -4844,7 +4933,7 @@ const AppContent: React.FC = () => {
             invoices={invoices}
             onAddInvoice={() => openInvoiceModal()}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
-            onDeleteInvoice={deleteInvoice}
+            onDeleteInvoice={requestDeleteInvoice}
             onViewInvoice={(invoice) => { openInvoiceView(invoice); }}
             onUpdateInvoice={handleInlineUpdateInvoice}
             onDownloadInvoice={handleDownloadInvoice}
@@ -4898,12 +4987,32 @@ const AppContent: React.FC = () => {
             onCreateInvoice={upsertInvoice}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
             onDownloadSale={handleDownloadSale}
+            onDeleteSale={(id) => requestDeleteSale(String(id))}
           />
         );
       case "quotes":
         return <QuotesPage customers={customers} products={products} />;
       case "reports":
-        return <ReportsPage invoices={invoices} expenses={expenses} sales={sales} customers={customers} />;
+        return (
+          <ReportsPage 
+            invoices={invoices} 
+            expenses={expenses} 
+            sales={sales} 
+            customers={customers}
+            quotes={(() => {
+              // Quotes: Raporlar sayfası için local cache'den oku (tenant scoped)
+              let list: any[] = [];
+              try {
+                const tid = tenant?.id || (authUser?.tenantId ? String(authUser.tenantId) : undefined);
+                const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+                const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+                const parsed = raw ? JSON.parse(raw) : [];
+                if (Array.isArray(parsed)) list = parsed;
+              } catch {}
+              return list;
+            })()}
+          />
+        );
       case "general-ledger":
         return (
           <GeneralLedger
@@ -5495,6 +5604,40 @@ const AppContent: React.FC = () => {
           extraLabel={infoModal.extraLabel}
           onExtra={infoModal.onExtra}
           onClose={() => setInfoModal(null)}
+        />
+      )}
+
+      {Boolean(invoiceToDelete) && (
+        <ConfirmModal
+          isOpen={true}
+          title={t('common.confirm', { defaultValue: 'Onay' })}
+          message={t('invoices.deleteConfirm', { defaultValue: 'Bu faturayı silmek istediğinizden emin misiniz?' })}
+          confirmText={t('common.delete', { defaultValue: 'Sil' })}
+          cancelText={t('common.cancel', { defaultValue: 'İptal' })}
+          danger
+          onConfirm={async () => {
+            const id = invoiceToDelete!;
+            setInvoiceToDelete(null);
+            await deleteInvoice(id);
+          }}
+          onCancel={() => setInvoiceToDelete(null)}
+        />
+      )}
+
+      {Boolean(saleToDelete) && (
+        <ConfirmModal
+          isOpen={true}
+          title={t('common.confirm', { defaultValue: 'Onay' })}
+          message={t('sales.deleteConfirm', { defaultValue: 'Bu satışı silmek istediğinizden emin misiniz?' })}
+          confirmText={t('common.delete', { defaultValue: 'Sil' })}
+          cancelText={t('common.cancel', { defaultValue: 'İptal' })}
+          danger
+          onConfirm={async () => {
+            const id = saleToDelete!;
+            setSaleToDelete(null);
+            await handleDeleteSale(id, { skipConfirm: true });
+          }}
+          onCancel={() => setSaleToDelete(null)}
         />
       )}
     </>

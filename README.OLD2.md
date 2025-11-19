@@ -1,4 +1,4 @@
-# MoneyFlow - Multi-Tenant Muhasebe Sistemi# MoneyFlow Muhasebe v2
+# Comptario - Multi-Tenant Muhasebe Sistemi# Comptario Muhasebe v2
 
 
 
@@ -86,7 +86,7 @@ npm install
 
 ```bash
 
-# Frontend bağımlılıklarıVITE_DEMO_EMAIL=demo@moneyflow.com
+# Frontend bağımlılıklarıVITE_DEMO_EMAIL=demo@comptario.com
 
 cd ..VITE_DEMO_PASSWORD=demo123
 

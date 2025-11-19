@@ -267,7 +267,7 @@ export class OrganizationsService {
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
             
             <p style="font-size: 12px; color: #6b7280;">
-              MoneyFlow Accounting System | Istanbul, Turkey
+              Comptario Accounting System | Istanbul, Turkey
             </p>
             <hr style="margin: 24px 0; border:none; border-top: 1px solid #e5e7eb;" />
             <h3 style="color:#374151; margin-top:0;">TR</h3>
@@ -283,7 +283,7 @@ Accept invitation: ${inviteUrl}
 
 This invitation will expire in 7 days.
 
-MoneyFlow Accounting System
+Comptario Accounting System
         `,
       });
 

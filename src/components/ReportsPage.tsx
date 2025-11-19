@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   TrendingUp, 
@@ -10,9 +10,11 @@ import {
   ChevronUp,
   BarChart3,
   Activity,
-  Target
+  Target,
+  FileText
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import * as quotesApi from '../api/quotes';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 
 /* __REPORTS_HELPERS__ */
@@ -84,6 +86,20 @@ const getSaleAmount = (sale: any): number => {
   return toNumber(sale?.quantity) * toNumber(sale?.unitPrice);
 };
 
+// Satış faturalandırılmış mı? (invoiceId, invoice.saleId veya notlarla eşleşme)
+const isSaleInvoiced = (sale: any, allInvoices: any[]): boolean => {
+  try {
+    const sid = String(sale?.id || '');
+    if (!sid) return false;
+    if (sale?.invoiceId) return true;
+    const viaSaleId = allInvoices.some(inv => String((inv as any)?.saleId || '') === sid);
+    if (viaSaleId) return true;
+    const sn = sale?.saleNumber || `SAL-${sid}`;
+    const viaNotes = allInvoices.some(inv => typeof (inv as any)?.notes === 'string' && (inv as any).notes.includes(sn));
+    return !!viaNotes;
+  } catch { return false; }
+};
+
 // date getters
 const getInvoiceDate = (inv: any): Date => parseMaybeDate(inv?.issueDate ?? inv?.date);
 const getExpenseDate = (exp: any): Date => parseMaybeDate(exp?.expenseDate ?? exp?.date);
@@ -93,20 +109,106 @@ interface ReportsPageProps {
   expenses?: any[];
   sales?: any[];
   customers?: any[];
+  quotes?: any[];
 }
 
 export default function ReportsPage({ 
   invoices = [], 
   expenses = [], 
   sales = [],
-  customers = []
+  customers = [],
+  quotes = []
 }: ReportsPageProps) {
+    const getQuoteDate = (q: any): Date => parseMaybeDate(q?.issueDate);
+    const getQuoteTotal = (q: any): number => toNumber((q && (q.total ?? q.amount)) ?? 0);
+    const isOpenQuoteStatus = (status: any) => {
+      const s = normalizeStatusKey(String(status || ''));
+      return s === 'draft' || s === 'sent' || s === 'viewed';
+    };
   const { t } = useTranslation('common');
   const { formatCurrency } = useCurrency();
   const currentDate = new Date(); // Current date for report display
   
   // DEBUG: Gider verisi ve toplamı logla
   console.log('DEBUG expenses (first 5):', expenses.slice(0, 5));
+  
+  // Teklifler: anlık senkronizasyon için localStorage dinleme ile canlı state
+  const [liveQuotes, setLiveQuotes] = useState<any[]>(Array.isArray(quotes) ? quotes : []);
+  useEffect(() => {
+    setLiveQuotes(Array.isArray(quotes) ? quotes : []);
+  }, [quotes]);
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key) return;
+      if (e.key.includes('quotes_cache')) {
+        try {
+          const next = e.newValue ? JSON.parse(e.newValue) : [];
+          if (Array.isArray(next)) setLiveQuotes(next);
+        } catch {}
+      }
+    };
+    const refreshFromLocal = () => {
+      try {
+        const keys = Object.keys(localStorage).filter(k => k.includes('quotes_cache'));
+        for (const k of keys) {
+          const raw = localStorage.getItem(k);
+          const parsed = raw ? JSON.parse(raw) : [];
+          if (Array.isArray(parsed)) { setLiveQuotes(parsed); break; }
+        }
+      } catch {}
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshFromLocal(); };
+    window.addEventListener('storage', onStorage);
+    // @ts-ignore - custom event olabilir
+    window.addEventListener('quotes-cache-updated', refreshFromLocal as any);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      // @ts-ignore
+      window.removeEventListener('quotes-cache-updated', refreshFromLocal as any);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+  // Fallback: localStorage henüz yazılmadıysa teklifleri arka uçtan çek ve önbelleğe yaz
+  useEffect(() => {
+    let cancelled = false;
+    const hydrateQuotesIfEmpty = async () => {
+      try {
+        if (Array.isArray(liveQuotes) && liveQuotes.length > 0) return;
+        const data = await quotesApi.getQuotes();
+        if (cancelled) return;
+        const mapped = (Array.isArray(data) ? data : []).map((q: any) => ({
+          id: String(q.id),
+          quoteNumber: q.quoteNumber,
+          customerName: q.customer?.name || q.customerName || '',
+          customerId: q.customerId,
+          issueDate: String(q.issueDate).slice(0,10),
+          validUntil: q.validUntil ? String(q.validUntil).slice(0,10) : undefined,
+          currency: q.currency,
+          total: (q.total != null) ? Number(q.total) || 0 : 0,
+          status: normalizeStatusKey(String(q.status)),
+          version: q.version || 1,
+          scopeOfWorkHtml: q.scopeOfWorkHtml || '',
+          items: Array.isArray(q.items) ? q.items.map((it: any) => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })) : [],
+          createdAt: q.createdAt || q.created_at || undefined,
+          updatedAt: q.updatedAt || q.updated_at || undefined,
+        }));
+        if (mapped.length > 0) {
+          setLiveQuotes(mapped);
+          try {
+            const tid = (localStorage.getItem('tenantId') || '') as string;
+            const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+            localStorage.setItem(key, JSON.stringify(mapped));
+            try { window.dispatchEvent(new Event('quotes-cache-updated')); } catch {}
+          } catch {}
+        }
+      } catch (e) {
+        console.error('Reports quotes preload failed:', e);
+      }
+    };
+    hydrateQuotesIfEmpty();
+    return () => { cancelled = true; };
+  }, [liveQuotes]);
   
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
@@ -155,12 +257,11 @@ export default function ReportsPage({
       
       // Get completed sales for this month (that haven't been converted to invoices)
       const monthSales = sales.filter(sale => {
-  if (!isCompletedLike(sale.status)) return false;
-  const hasInvoice = invoices.some(inv => inv.notes && (inv.notes.includes(sale.saleNumber || `SAL-${sale.id}`)));
-  if (hasInvoice) return false;
-  const d = getSaleDate(sale);
-  return d.getMonth() === monthIndex && d.getFullYear() === year;
-});
+        if (!isCompletedLike(sale.status)) return false;
+        if (isSaleInvoiced(sale, invoices)) return false;
+        const d = getSaleDate(sale);
+        return d.getMonth() === monthIndex && d.getFullYear() === year;
+      });
         
       
       // Calculate income from both invoices and direct sales
@@ -189,20 +290,14 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
   // Calculate metrics
   // Calculate total revenue from paid invoices
   const paidInvoiceRevenue = invoices
-    .filter(invoice => invoice.status === 'paid')
+    .filter(invoice => isPaidLike(invoice.status))
     .reduce((sum, invoice) => sum + getInvoiceTotal(invoice), 0);
   
   // Calculate revenue from direct sales (not converted to invoices)
   const directSalesRevenue = sales
     .filter(sale => {
-      if (sale.status !== 'completed') return false;
-      
-      // Check if this sale has been converted to an invoice
-      const hasInvoice = invoices.some(invoice => 
-        invoice.notes && invoice.notes.includes(sale.saleNumber || `SAL-${sale.id}`)
-      );
-      
-      return !hasInvoice;
+      if (!isCompletedLike(sale.status)) return false;
+      return !isSaleInvoiced(sale, invoices);
     })
     .reduce((sum, sale) => sum + getSaleAmount(sale), 0);
   
@@ -238,7 +333,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
     
     // Add products from paid invoices
     invoices
-      .filter(invoice => invoice.status === 'paid')
+      .filter(invoice => isPaidLike(invoice.status))
       .forEach(invoice => {
         (invoice.items || []).forEach((item: any) => {
           const existing = productMap.get(item.description) || { name: item.description, total: 0, count: 0 };
@@ -250,13 +345,8 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
     
     // Add direct sales that haven't been converted to invoices
     sales.forEach(sale => {
-      if (sale.status === 'completed') {
-        // Check if this sale has been converted to an invoice
-        const hasInvoice = invoices.some(invoice => 
-          invoice.notes && invoice.notes.includes(sale.saleNumber || `SAL-${sale.id}`)
-        );
-        
-        if (!hasInvoice) {
+      if (isCompletedLike(sale.status)) {
+        if (!isSaleInvoiced(sale, invoices)) {
           const existing = productMap.get(sale.productName) || { name: sale.productName, total: 0, count: 0 };
           existing.total += toNumber(sale.amount);
           existing.count += 1;
@@ -275,7 +365,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
     const categoryMap = new Map();
     
     expenses
-      .filter(expense => expense.status === 'paid')
+      .filter(expense => isPaidLike(expense.status))
       .forEach(expense => {
         const existing = categoryMap.get(expense.category) || { category: expense.category, total: 0, count: 0 };
         existing.total += toNumber(expense.amount);
@@ -293,7 +383,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
     
     // Get customer data from paid invoices
     invoices
-      .filter(invoice => invoice.status === 'paid')
+      .filter(invoice => isPaidLike(invoice.status))
       .forEach(invoice => {
         const existing = customerMap.get(invoice.customerName) || { 
           name: invoice.customerName, 
@@ -311,14 +401,9 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
     
     // Also include direct sales that haven't been converted to invoices
     sales
-      .filter(sale => sale.status === 'completed')
+      .filter(sale => isCompletedLike(sale.status))
       .forEach(sale => {
-        // Check if this sale has been converted to an invoice
-        const hasInvoice = invoices.some(invoice => 
-          invoice.notes && invoice.notes.includes(sale.saleNumber || `SAL-${sale.id}`)
-        );
-        
-        if (!hasInvoice) {
+        if (!isSaleInvoiced(sale, invoices)) {
           const existing = customerMap.get(sale.customerName) || { 
             name: sale.customerName, 
             total: 0, 
@@ -355,13 +440,10 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
     : 0;
 
   // Average sale amount
-  const paidInvoicesCount = invoices.filter(invoice => invoice.status === 'paid').length;
+  const paidInvoicesCount = invoices.filter(invoice => isPaidLike(invoice.status)).length;
   const completedSalesCount = sales.filter(sale => {
-    if (sale.status !== 'completed') return false;
-    const hasInvoice = invoices.some(invoice => 
-      invoice.notes && invoice.notes.includes(sale.saleNumber || `SAL-${sale.id}`)
-    );
-    return !hasInvoice;
+    if (!isCompletedLike(sale.status)) return false;
+    return !isSaleInvoiced(sale, invoices);
   }).length;
   
   const totalTransactions = paidInvoicesCount + completedSalesCount;
@@ -634,7 +716,15 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                     <h4 className="font-medium text-gray-900 mb-3">{t('reports.invoiceStatuses')}</h4>
                     <div className="space-y-2">
                       {(['paid', 'sent', 'draft', 'overdue'] as const).map(statusKey => {
-                        const count = invoices.filter(inv => normalizeStatusKey(String((inv as any).status)) === statusKey).length;
+                        const today = new Date(); today.setHours(0,0,0,0);
+                        const count = statusKey === 'overdue'
+                          ? invoices.filter(inv => {
+                              const due = (inv as any)?.dueDate ? new Date((inv as any).dueDate) : null;
+                              if (!due) return false;
+                              due.setHours(0,0,0,0);
+                              return due.getTime() < today.getTime() && !isPaidLike((inv as any).status);
+                            }).length
+                          : invoices.filter(inv => normalizeStatusKey(String((inv as any).status)) === statusKey).length;
                         const colors = {
                           paid: 'bg-green-100 text-green-800',
                           sent: 'bg-blue-100 text-blue-800',
@@ -821,7 +911,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                   const supplierMap = new Map();
                   
                   expenses
-                    .filter(expense => expense.status === 'paid')
+                    .filter(expense => isPaidLike(expense.status))
                     .forEach(expense => {
                       const existing = supplierMap.get(expense.supplier) || { 
                         name: expense.supplier, 
@@ -873,7 +963,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.recentExpenses')}</h3>
               <div className="space-y-2">
                 {expenses
-                  .filter(expense => expense.status === 'paid')
+                  .filter(expense => isPaidLike(expense.status))
                   .sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime())
                   .slice(0, 5)
                   .map((expense, index) => (
@@ -919,7 +1009,145 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
         )}
       </div>
 
-      {/* 4. Customer Analysis */}
+      {/* 4. Quote Analysis */}
+      <div className="bg-white rounded-xl border border-gray-200">
+        <div 
+          className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => toggleSection('quotes')}
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <FileText className="w-6 h-6 text-indigo-600 mr-3" />
+              {t('reports.quoteAnalysis')}
+            </h2>
+            {collapsedSections.has('quotes') ? (
+              <ChevronDown className="w-5 h-5 text-gray-400" />
+            ) : (
+              <ChevronUp className="w-5 h-5 text-gray-400" />
+            )}
+          </div>
+        </div>
+
+        {!collapsedSections.has('quotes') && (
+          <div className="p-6 space-y-6">
+            {/* Quote KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {(() => {
+                const totalQuotes = liveQuotes.length;
+                const accepted = liveQuotes.filter(q => normalizeStatusKey(q?.status) === 'accepted').length;
+                const expiringSoon = (() => {
+                  const today = new Date(); today.setHours(0,0,0,0);
+                  const in7 = new Date(today); in7.setDate(in7.getDate() + 7);
+                  return liveQuotes.filter(q => {
+                    const s = normalizeStatusKey(q?.status);
+                    if (s === 'accepted' || s === 'declined' || s === 'expired') return false;
+                    if (!q?.validUntil) return false;
+                    const d = parseMaybeDate(q.validUntil); d.setHours(0,0,0,0);
+                    return d.getTime() >= today.getTime() && d.getTime() <= in7.getTime();
+                  }).length;
+                })();
+                const avgQuote = totalQuotes > 0 ? (liveQuotes.reduce((sum, q) => sum + getQuoteTotal(q), 0) / totalQuotes) : 0;
+                const cards = [
+                  { label: t('reports.totalQuotes'), value: String(totalQuotes), color: 'indigo' },
+                  { label: t('reports.acceptedRate'), value: totalQuotes > 0 ? `${((accepted/totalQuotes)*100).toFixed(1)}%` : '0%', color: 'green' },
+                  { label: t('reports.averageQuote'), value: formatAmount(avgQuote), color: 'purple' },
+                  { label: t('reports.expiringSoon'), value: String(expiringSoon), color: 'orange' },
+                ];
+                return cards.map((c, idx) => (
+                  <div key={idx} className={`bg-${c.color}-50 rounded-lg p-4 border border-${c.color}-200`}>
+                    <div className={`text-sm text-${c.color}-600`}>{c.label}</div>
+                    <div className={`text-2xl font-bold text-${c.color}-700`}>{c.value}</div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Quote Statuses */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.quoteStatuses')}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <div className="space-y-2">
+                    {(['accepted','declined','expired','viewed','sent','draft'] as const).map(statusKey => {
+                      const count = liveQuotes.filter(q => normalizeStatusKey(String((q as any).status)) === statusKey).length;
+                      const colors = {
+                        accepted: 'bg-green-100 text-green-800',
+                        declined: 'bg-red-100 text-red-800',
+                        expired: 'bg-gray-100 text-gray-800',
+                        viewed: 'bg-blue-100 text-blue-800',
+                        sent: 'bg-indigo-100 text-indigo-800',
+                        draft: 'bg-yellow-100 text-yellow-800'
+                      } as const;
+                      return (
+                        <div key={statusKey} className="flex justify-between items-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[statusKey]}`}>
+                            {resolveStatusLabel(t, statusKey)}
+                          </span>
+                          <span className="font-medium">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Expiring soon list */}
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">{t('reports.expiringSoon')}</h4>
+                  <div className="space-y-2">
+                    {(() => {
+                      const today = new Date(); today.setHours(0,0,0,0);
+                      const in14 = new Date(today); in14.setDate(in14.getDate() + 14);
+                      const items = liveQuotes
+                        .filter(q => isOpenQuoteStatus(q?.status) && q?.validUntil)
+                        .map(q => ({
+                          q,
+                          dt: (() => { const d = parseMaybeDate(q.validUntil); d.setHours(0,0,0,0); return d; })()
+                        }))
+                        .filter(x => x.dt.getTime() >= today.getTime() && x.dt.getTime() <= in14.getTime())
+                        .sort((a, b) => a.dt.getTime() - b.dt.getTime())
+                        .slice(0, 5);
+                      return items.map(({ q, dt }, idx) => {
+                        const daysLeft = Math.ceil((dt.getTime() - today.getTime()) / (1000*60*60*24));
+                        return (
+                          <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                            <div className="text-sm text-gray-900 font-medium">{q.quoteNumber || '—'}</div>
+                            <div className="text-xs text-gray-500">
+                              {t('reports.daysLeft')}: {daysLeft} • {formatAmount(getQuoteTotal(q))}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Quotes */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.recentQuotes')}</h3>
+              <div className="space-y-2">
+                {liveQuotes
+                  .slice()
+                  .sort((a, b) => getQuoteDate(b).getTime() - getQuoteDate(a).getTime())
+                  .slice(0, 5)
+                  .map((q, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{q.quoteNumber || '—'}</div>
+                      <div className="text-xs text-gray-500">{resolveStatusLabel(t, normalizeStatusKey(q.status))} • {getQuoteDate(q).toLocaleDateString('tr-TR')}</div>
+                    </div>
+                    <div className="text-sm font-semibold text-indigo-600">
+                      {formatAmount(getQuoteTotal(q))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 5. Customer Analysis */}
       <div className="bg-white rounded-xl border border-gray-200">
         <div 
           className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -1012,7 +1240,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
         )}
       </div>
 
-      {/* 5. Performance Reports */}
+      {/* 6. Performance Reports */}
       <div className="bg-white rounded-xl border border-gray-200">
         <div 
           className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"

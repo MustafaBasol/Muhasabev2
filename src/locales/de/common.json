@@ -1424,6 +1424,7 @@
     "editInvoice": "Rechnung Bearbeiten",
     "enterInvoiceInfo": "Geben Sie Kundendaten und Produktdetails ein",
     "deleteConfirm": "Sind Sie sicher, dass Sie diese Rechnung löschen möchten?",
+    "deleteSuccess": "Rechnung gelöscht",
     "search": "Rechnungsnummer oder Kunde suchen...",
     "filterAll": "Alle Status",
     "invoicesRegistered": "Rechnungen registriert",
@@ -1446,6 +1447,7 @@
     "download": "Herunterladen",
     "delete": "Löschen",
     "viewInvoice": "Rechnung anzeigen",
+    "createInvoice": "Rechnung Erstellen",
     "selectInvoiceType": "Rechnungstyp auswählen",
     "newSale": "Neuer Verkauf",
     "newSaleDescription": "Neuen Verkaufsdatensatz erstellen und Rechnung ausstellen",
@@ -1962,7 +1964,16 @@
     "expenseCategoryPerformance": "Ausgabenkategorieleistung",
     "noSupplier": "Kein Lieferant",
     "noCustomer": "Kein Kunde",
-    "last6MonthsPerformance": "Leistung der letzten 6 Monate (neueste → älteste)"
+    "last6MonthsPerformance": "Leistung der letzten 6 Monate (neueste → älteste)",
+    "quoteAnalysis": "Angebotsanalyse",
+    "quoteStatuses": "Angebotsstatus",
+    "totalQuotes": "Gesamtangebote",
+    "acceptedRate": "Akzeptanzrate",
+    "averageQuote": "Durchschnittliches Angebot",
+    "expiringSoon": "Bald ablaufend",
+    "recentQuotes": "Aktuelle Angebote",
+    "daysLeft": "Verbleibende Tage",
+    "quotes": "Angebote"
   },
   "ledger": {
     "totalCredit": "Gesamtgutschrift",
@@ -2080,27 +2091,27 @@
       "lastUpdated": "Zuletzt aktualisiert: {{date}}",
       "section1": {
         "title": "1. Service-Übersicht",
-        "content": "MoneyFlow ist eine cloudbasierte Vorbuchhaltungs-Software-Plattform, die Unternehmen dabei hilft, ihre Rechnungen, Ausgaben und finanziellen Operationen zu verwalten. Die Plattform bietet Multi-Währungsunterstützung, automatisierte MwSt-Berechnungen und integrierte Berichtstools."
+        "content": "Comptario ist eine cloudbasierte Vorbuchhaltungs-Software-Plattform, die Unternehmen dabei hilft, ihre Rechnungen, Ausgaben und finanziellen Operationen zu verwalten. Die Plattform bietet Multi-Währungsunterstützung, automatisierte MwSt-Berechnungen und integrierte Berichtstools."
       },
       "section2": {
         "title": "2. Benutzerkonten und Registrierung",
-        "content": "Um MoneyFlow zu nutzen, müssen Sie ein Konto erstellen, indem Sie genaue und vollständige Informationen bereitstellen. Sie sind verantwortlich für die Vertraulichkeit Ihrer Kontoanmeldedaten und für alle Aktivitäten, die unter Ihrem Konto stattfinden."
+        "content": "Um Comptario zu nutzen, müssen Sie ein Konto erstellen, indem Sie genaue und vollständige Informationen bereitstellen. Sie sind verantwortlich für die Vertraulichkeit Ihrer Kontoanmeldedaten und für alle Aktivitäten, die unter Ihrem Konto stattfinden."
       },
       "section3": {
         "title": "3. Akzeptable Nutzung",
-        "content": "Sie stimmen zu, MoneyFlow nur für rechtmäßige Zwecke und in Übereinstimmung mit diesen Bedingungen zu verwenden. Sie dürfen den Service nicht für illegale Aktivitäten, Verletzung von Urheberrechten oder Störung der Plattformfunktionalität verwenden."
+        "content": "Sie stimmen zu, Comptario nur für rechtmäßige Zwecke und in Übereinstimmung mit diesen Bedingungen zu verwenden. Sie dürfen den Service nicht für illegale Aktivitäten, Verletzung von Urheberrechten oder Störung der Plattformfunktionalität verwenden."
       },
       "section4": {
         "title": "4. Dateneigentum und Datenschutz",
-        "content": "Sie behalten das Eigentum an allen Daten, die Sie in MoneyFlow eingeben. Wir verarbeiten Ihre Daten in Übereinstimmung mit unserer Datenschutzrichtlinie und geltenden Datenschutzgesetzen, einschließlich GDPR. Wir implementieren angemessene Sicherheitsmaßnahmen zum Schutz Ihrer Informationen."
+        "content": "Sie behalten das Eigentum an allen Daten, die Sie in Comptario eingeben. Wir verarbeiten Ihre Daten in Übereinstimmung mit unserer Datenschutzrichtlinie und geltenden Datenschutzgesetzen, einschließlich GDPR. Wir implementieren angemessene Sicherheitsmaßnahmen zum Schutz Ihrer Informationen."
       },
       "section5": {
         "title": "5. Service-Verfügbarkeit",
-        "content": "Während wir uns bemühen, 99,9% Betriebszeit aufrechtzuerhalten, kann MoneyFlow gelegentlich Service-Unterbrechungen für Wartung, Updates oder unvorhergesehene technische Probleme erleben. Wir werden im Voraus über geplante Wartungsarbeiten informieren, wann immer möglich."
+        "content": "Während wir uns bemühen, 99,9% Betriebszeit aufrechtzuerhalten, kann Comptario gelegentlich Service-Unterbrechungen für Wartung, Updates oder unvorhergesehene technische Probleme erleben. Wir werden im Voraus über geplante Wartungsarbeiten informieren, wann immer möglich."
       },
       "section6": {
         "title": "6. Abonnement und Abrechnung",
-        "content": "MoneyFlow bietet verschiedene Abonnementpläne mit unterschiedlichen Funktionen und Nutzungslimits. Die Abrechnung wird automatisch entsprechend Ihrem gewählten Plan verarbeitet. Sie können Ihr Abonnement jederzeit upgraden, downgraden oder kündigen."
+        "content": "Comptario bietet verschiedene Abonnementpläne mit unterschiedlichen Funktionen und Nutzungslimits. Die Abrechnung wird automatisch entsprechend Ihrem gewählten Plan verarbeitet. Sie können Ihr Abonnement jederzeit upgraden, downgraden oder kündigen."
       },
       "section7": {
         "title": "7. Datensicherung und Export",
@@ -2108,11 +2119,11 @@
       },
       "section8": {
         "title": "8. Haftungsbeschränkung",
-        "content": "MoneyFlows Haftung ist auf den Betrag beschränkt, den Sie für den Service in den 12 Monaten vor einem Anspruch bezahlt haben. Wir haften nicht für indirekte, zufällige oder Folgeschäden."
+        "content": "Comptarios Haftung ist auf den Betrag beschränkt, den Sie für den Service in den 12 Monaten vor einem Anspruch bezahlt haben. Wir haften nicht für indirekte, zufällige oder Folgeschäden."
       },
       "section9": {
         "title": "9. Geistiges Eigentum",
-        "content": "Die MoneyFlow-Plattform, einschließlich ihrer Software, ihres Designs und ihrer Inhalte, ist durch Gesetze zum geistigen Eigentum geschützt. Ihnen wird eine begrenzte Lizenz zur Nutzung des Services gemäß diesen Bedingungen gewährt."
+        "content": "Die Comptario-Plattform, einschließlich ihrer Software, ihres Designs und ihrer Inhalte, ist durch Gesetze zum geistigen Eigentum geschützt. Ihnen wird eine begrenzte Lizenz zur Nutzung des Services gemäß diesen Bedingungen gewährt."
       },
       "section10": {
         "title": "10. Kündigung",
@@ -2120,11 +2131,11 @@
       },
       "section11": {
         "title": "11. Geltendes Recht",
-        "content": "Diese Bedingungen unterliegen den Gesetzen der Europäischen Union und der Gerichtsbarkeit, wo MoneyFlow tätig ist. Alle Streitigkeiten werden durch verbindliche Schiedsverfahren gelöst."
+        "content": "Diese Bedingungen unterliegen den Gesetzen der Europäischen Union und der Gerichtsbarkeit, wo Comptario tätig ist. Alle Streitigkeiten werden durch verbindliche Schiedsverfahren gelöst."
       },
       "section12": {
         "title": "12. Änderungen der Bedingungen",
-        "content": "Wir können diese Bedingungen von Zeit zu Zeit aktualisieren. Wir werden Sie über wichtige Änderungen per E-Mail oder über die Plattform benachrichtigen. Die fortgesetzte Nutzung von MoneyFlow nach Änderungen stellt die Annahme der neuen Bedingungen dar."
+        "content": "Wir können diese Bedingungen von Zeit zu Zeit aktualisieren. Wir werden Sie über wichtige Änderungen per E-Mail oder über die Plattform benachrichtigen. Die fortgesetzte Nutzung von Comptario nach Änderungen stellt die Annahme der neuen Bedingungen dar."
       }
     },
     "privacy": {
@@ -2168,11 +2179,11 @@
       },
       "section10": {
         "title": "10. Datenschutz für Kinder",
-        "content": "MoneyFlow ist nicht für Nutzer unter 18 Jahren bestimmt. Wir sammeln wissentlich keine persönlichen Informationen von Kindern unter 18 Jahren."
+        "content": "Comptario ist nicht für Nutzer unter 18 Jahren bestimmt. Wir sammeln wissentlich keine persönlichen Informationen von Kindern unter 18 Jahren."
       },
       "section11": {
         "title": "11. Kontaktinformationen",
-        "content": "Für datenschutzbezogene Fragen oder zur Ausübung Ihrer Rechte kontaktieren Sie unseren Datenschutzbeauftragten unter privacy@moneyflow.com oder über unser Support-Portal."
+        "content": "Für datenschutzbezogene Fragen oder zur Ausübung Ihrer Rechte kontaktieren Sie unseren Datenschutzbeauftragten unter privacy@comptario.com oder über unser Support-Portal."
       }
     },
     "cookies": {
@@ -2224,11 +2235,11 @@
       "lastUpdated": "Zuletzt aktualisiert: {{date}}",
       "section1": {
         "title": "1. Definitionen und Geltungsbereich",
-        "content": "Diese Datenverarbeitungsvereinbarung (\"DPA\") ist Teil der Nutzungsbedingungen zwischen Ihnen (\"Verantwortlicher\") und MoneyFlow (\"Auftragsverarbeiter\"). Sie regelt die Verarbeitung personenbezogener Daten in Übereinstimmung mit GDPR und anderen anwendbaren Datenschutzgesetzen."
+        "content": "Diese Datenverarbeitungsvereinbarung (\"DPA\") ist Teil der Nutzungsbedingungen zwischen Ihnen (\"Verantwortlicher\") und Comptario (\"Auftragsverarbeiter\"). Sie regelt die Verarbeitung personenbezogener Daten in Übereinstimmung mit GDPR und anderen anwendbaren Datenschutzgesetzen."
       },
       "section2": {
         "title": "2. Einzelheiten der Datenverarbeitung",
-        "content": "MoneyFlow verarbeitet personenbezogene Daten nur auf dokumentierte Anweisungen des Verantwortlichen, für die Zwecke der Bereitstellung der Buchhaltungssoftware-Services und in Übereinstimmung mit geltenden Datenschutzgesetzen."
+        "content": "Comptario verarbeitet personenbezogene Daten nur auf dokumentierte Anweisungen des Verantwortlichen, für die Zwecke der Bereitstellung der Buchhaltungssoftware-Services und in Übereinstimmung mit geltenden Datenschutzgesetzen."
       },
       "section3": {
         "title": "3. Datenkategorien",
@@ -2236,7 +2247,7 @@
       },
       "section4": {
         "title": "4. Rechte der betroffenen Personen",
-        "content": "MoneyFlow unterstützt den Verantwortlichen bei der Erfüllung von Anträgen betroffener Personen, einschließlich Zugang, Berichtigung, Löschung, Einschränkung, Portabilität und Widerspruch. Wir stellen notwendige Tools und Kooperation zur Verfügung, um Compliance zu ermöglichen."
+        "content": "Comptario unterstützt den Verantwortlichen bei der Erfüllung von Anträgen betroffener Personen, einschließlich Zugang, Berichtigung, Löschung, Einschränkung, Portabilität und Widerspruch. Wir stellen notwendige Tools und Kooperation zur Verfügung, um Compliance zu ermöglichen."
       },
       "section5": {
         "title": "5. Sicherheitsmaßnahmen",
@@ -2244,7 +2255,7 @@
       },
       "section6": {
         "title": "6. Unterauftragsverarbeiter",
-        "content": "MoneyFlow kann Unterauftragsverarbeiter einsetzen, um bei der Bereitstellung von Services zu helfen. Alle Unterauftragsverarbeiter unterliegen Datenschutzverpflichtungen, die denen in dieser DPA entsprechen. Eine aktuelle Liste der Unterauftragsverarbeiter ist auf Anfrage verfügbar."
+        "content": "Comptario kann Unterauftragsverarbeiter einsetzen, um bei der Bereitstellung von Services zu helfen. Alle Unterauftragsverarbeiter unterliegen Datenschutzverpflichtungen, die denen in dieser DPA entsprechen. Eine aktuelle Liste der Unterauftragsverarbeiter ist auf Anfrage verfügbar."
       },
       "section7": {
         "title": "7. Datenübertragungen",
@@ -2252,23 +2263,23 @@
       },
       "section8": {
         "title": "8. Benachrichtigung bei Datenschutzverletzungen",
-        "content": "MoneyFlow wird den Verantwortlichen über alle Verletzungen des Schutzes personenbezogener Daten unverzüglich und binnen 72 Stunden nach Bekanntwerden der Verletzung benachrichtigen und alle relevanten Informationen für die Beurteilung und Meldepflichten bereitstellen."
+        "content": "Comptario wird den Verantwortlichen über alle Verletzungen des Schutzes personenbezogener Daten unverzüglich und binnen 72 Stunden nach Bekanntwerden der Verletzung benachrichtigen und alle relevanten Informationen für die Beurteilung und Meldepflichten bereitstellen."
       },
       "section9": {
         "title": "9. Datenschutz-Folgenabschätzung",
-        "content": "Auf Anfrage wird MoneyFlow angemessene Unterstützung beim Verantwortlichen bei der Durchführung von Datenschutz-Folgenabschätzungen (DSFA) und vorherigen Konsultationen mit Aufsichtsbehörden leisten."
+        "content": "Auf Anfrage wird Comptario angemessene Unterstützung beim Verantwortlichen bei der Durchführung von Datenschutz-Folgenabschätzungen (DSFA) und vorherigen Konsultationen mit Aufsichtsbehörden leisten."
       },
       "section10": {
         "title": "10. Prüfung und Compliance",
-        "content": "MoneyFlow führt Aufzeichnungen über Verarbeitungstätigkeiten und stellt dem Verantwortlichen Informationen zur Verfügung, die notwendig sind, um die Einhaltung von Datenschutzverpflichtungen zu demonstrieren, einschließlich Prüfungsrechten vorbehaltlich Vertraulichkeitsverpflichtungen."
+        "content": "Comptario führt Aufzeichnungen über Verarbeitungstätigkeiten und stellt dem Verantwortlichen Informationen zur Verfügung, die notwendig sind, um die Einhaltung von Datenschutzverpflichtungen zu demonstrieren, einschließlich Prüfungsrechten vorbehaltlich Vertraulichkeitsverpflichtungen."
       },
       "section11": {
         "title": "11. Datenrückgabe und Löschung",
-        "content": "Bei Beendigung der Services wird MoneyFlow nach Wahl des Verantwortlichen alle personenbezogenen Daten und bestehende Kopien zurückgeben oder löschen, es sei denn, die Aufbewahrung ist nach geltendem Recht erforderlich."
+        "content": "Bei Beendigung der Services wird Comptario nach Wahl des Verantwortlichen alle personenbezogenen Daten und bestehende Kopien zurückgeben oder löschen, es sei denn, die Aufbewahrung ist nach geltendem Recht erforderlich."
       },
       "section12": {
         "title": "12. Haftung und Entschädigung",
-        "content": "Die Haftung jeder Partei ist auf Schäden beschränkt, die direkt durch ihre Verletzung dieser DPA verursacht wurden. MoneyFlow wird den Verantwortlichen gegen Ansprüche entschädigen, die aus MoneyFlows Verletzung seiner Datenschutzverpflichtungen resultieren."
+        "content": "Die Haftung jeder Partei ist auf Schäden beschränkt, die direkt durch ihre Verletzung dieser DPA verursacht wurden. Comptario wird den Verantwortlichen gegen Ansprüche entschädigen, die aus Comptarios Verletzung seiner Datenschutzverpflichtungen resultieren."
       }
     },
     "subprocessors": {

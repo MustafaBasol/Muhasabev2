@@ -1,4 +1,4 @@
-# MoneyFlow Dokümantasyon İndeksi
+# Comptario Dokümantasyon İndeksi
 
 ## 📚 Mevcut Dokümantasyonlar
 

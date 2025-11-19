@@ -68,6 +68,17 @@ const toNum = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+// Basit ve güvenli HTML kaçışı (kullanıcı girdileri için)
+const escapeHtml = (s?: string): string => {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
 const formatIban = (iban?: string): string => {
   if (!iban) return '';
   return String(iban).replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
@@ -517,7 +528,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
         </div>
         <div style="text-align:right; line-height:1;">
           <div style="color:#3B82F6; font-size:28px; font-weight:800;">${tf('pdf.invoice.title')}</div>
-          <div style="color:#6B7280; font-size:12px; margin-top:4px;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'comptario')}</div>
+          <div style="color:#6B7280; font-size:12px; margin-top:4px;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'Comptario')}</div>
         </div>
       </div>
 
@@ -575,9 +586,19 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
         </div>
       </div>
 
+      ${invoice.notes ? `
+      <!-- Notlar -->
+      <div style="margin-top:8px;" data-avoid-split="true">
+        <h4 style="margin:0 0 6px 0; color:#111827;">${tf('invoice.notes')}</h4>
+        <div style="margin:0; padding:10px; background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px; color:#111827; white-space:pre-line;">
+          ${escapeHtml(invoice.notes)}
+        </div>
+      </div>
+      ` : ''}
+
       <!-- Footer: sayfanın dibinde -->
       <div style="text-align:center; margin-top:auto; padding-top:16px; border-top:1px solid #E5E7EB; color:#6B7280; font-size:11px;">
-        <p>${String(tf('pdf.invoice.footer')).replace(/MoneyFlow/gi, 'comptario').replace(/Comptario/g, 'comptario')}</p>
+        <p>${String(tf('pdf.invoice.footer')).replace(/MoneyFlow/gi, 'Comptario')}</p>
       </div>
     </div>
   `;
@@ -596,8 +617,8 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
   return `
   <div style="max-width: 170mm; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #DC2626; padding-bottom: 20px;">
-      <h1 style="color: #DC2626; font-size: 28px; margin: 0;">Comptraio</h1>
-      <p style="color: #6B7280; margin: 5px 0 0 0;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'Comptraio')}</p>
+      <h1 style="color: #DC2626; font-size: 28px; margin: 0;">Comptario</h1>
+      <p style="color: #6B7280; margin: 5px 0 0 0;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'Comptario')}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
       <div>
@@ -628,7 +649,7 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
       </div>
     </div>
     <div style="text-align: center; margin-top: 48px; padding-top: 20px; padding-bottom: 8px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
-      <p>${String(tf('pdf.expense.footer')).replace(/MoneyFlow/gi, 'Comptraio').replace(/comptario/gi, 'Comptraio')}</p>
+      <p>${String(tf('pdf.expense.footer')).replace(/MoneyFlow/gi, 'Comptario')}</p>
     </div>
   </div>
 `;
@@ -653,8 +674,8 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
   return `
   <div style="max-width: 170mm; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #10B981; padding-bottom: 20px;">
-  <h1 style="color: #10B981; font-size: 28px; margin: 0;">comptario</h1>
-  <p style="color: #6B7280; margin: 5px 0 0 0;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'comptario')}</p>
+  <h1 style="color: #10B981; font-size: 28px; margin: 0;">Comptario</h1>
+  <p style="color: #6B7280; margin: 5px 0 0 0;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'Comptario')}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
       <div>
@@ -699,7 +720,7 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
       </div>
     </div>
     <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
-      <p>${String(tf('pdf.sale.footer')).replace(/MoneyFlow/gi, 'comptario').replace(/Comptario/g, 'comptario')}</p>
+      <p>${String(tf('pdf.sale.footer')).replace(/MoneyFlow/gi, 'Comptario')}</p>
     </div>
   </div>
 `;

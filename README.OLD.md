@@ -1,4 +1,4 @@
-# MoneyFlow Muhasebe v2
+# Comptario Muhasebe v2
 
 Modern, güvenli ve kullanıcı dostu muhasebe yönetim sistemi.
 
@@ -42,7 +42,7 @@ npm run build
 ## 📝 Environment Variables
 
 ```bash
-VITE_DEMO_EMAIL=demo@moneyflow.com
+VITE_DEMO_EMAIL=demo@comptario.com
 VITE_DEMO_PASSWORD=demo123
 VITE_ENABLE_ENCRYPTION=true
 VITE_ENCRYPTION_KEY=your-key-here
