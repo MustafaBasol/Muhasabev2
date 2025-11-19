@@ -1487,7 +1487,12 @@
     "grandTotalInclVAT": "Gesamtsumme (inkl. MwSt.)",
     "grandTotalExclVAT": "Gesamtsumme (ohne MwSt.)",
     "createInvoiceFromSale": "Rechnung aus Verkauf Erstellen",
-    "completeInvoiceInfo": "Rechnungsinformationen vervollständigen"
+    "completeInvoiceInfo": "Rechnungsinformationen vervollständigen",
+    "invoiceInfo": "Rechnungsinformationen",
+    "invoiceStatus": "Rechnungsstatus",
+    "invoiceNotes": "Rechnungsnotizen",
+    "invoiceTotals": "Rechnungsbeträge",
+    "amountExclTax": "Betrag (ohne MwSt.)"
   },
   "expenses": {
     "title": "Ausgaben",

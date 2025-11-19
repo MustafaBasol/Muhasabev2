@@ -1598,7 +1598,12 @@
     "description": "Description",
     "quantity": "Quantité",
     "unitPriceExclVAT": "Prix Unitaire (HT)",
-    "totalInclVAT": "Total (TTC)"
+    "totalInclVAT": "Total (TTC)",
+    "invoiceInfo": "Informations de Facturation",
+    "invoiceStatus": "Statut de la Facture",
+    "invoiceNotes": "Notes de Facture",
+    "invoiceTotals": "Montants de la Facture",
+    "amountExclTax": "Montant (HT)"
   },
   "expenses": {
     "title": "Dépenses",

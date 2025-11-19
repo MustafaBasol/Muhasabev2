@@ -1080,7 +1080,12 @@
     "grandTotalInclVAT": "Genel Toplam (KDV Dahil)",
   "grandTotalExclVAT": "Genel Toplam (KDV Hariç)",
     "createInvoiceFromSale": "Satışa Fatura Kes",
-    "completeInvoiceInfo": "Fatura bilgilerini tamamlayın"
+    "completeInvoiceInfo": "Fatura bilgilerini tamamlayın",
+    "invoiceInfo": "Fatura Bilgileri",
+    "invoiceStatus": "Fatura Durumu",
+    "invoiceNotes": "Fatura Notları",
+    "invoiceTotals": "Fatura Tutarları",
+    "amountExclTax": "Tutar (KDV Hariç)"
   },
   "expenses": {
     "title": "Giderler",
@@ -2303,6 +2308,12 @@
       "title": "Faturalar",
       "loading": "Faturalar yükleniyor…",
       "empty": "Fatura bulunamadı",
+      "invoiceInfo": "Fatura Bilgileri",
+      "invoiceStatus": "Fatura Durumu",
+      "invoiceNotes": "Fatura Notları",
+      "invoiceTotals": "Fatura Tutarları",
+      "notesPlaceholder": "Fatura ile ilgili notlar...",
+      "amountExclTax": "Tutar (KDV Hariç)",
       "filters": {
         "status": "Durum",
         "all": "Tümü",

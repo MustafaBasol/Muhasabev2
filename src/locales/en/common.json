@@ -976,7 +976,13 @@
     "grandTotalInclVAT": "Grand Total (Incl. VAT)",
   "grandTotalExclVAT": "Grand Total (Excl. VAT)",
     "createInvoiceFromSale": "Create Invoice from Sale",
-    "completeInvoiceInfo": "Complete invoice information"
+    "completeInvoiceInfo": "Complete invoice information",
+    "invoiceInfo": "Invoice Information",
+    "invoiceStatus": "Invoice Status",
+    "invoiceNotes": "Invoice Notes",
+    "invoiceTotals": "Invoice Totals",
+    "amountExclVATLabel": "Amount (Excl. VAT)",
+    "amountExclTax": "Amount (Excl. VAT)"
   },
   "expenses": {
     "title": "Expenses",
@@ -2188,6 +2194,12 @@
       "title": "Invoices",
       "loading": "Loading invoices…",
       "empty": "No invoices found",
+      "invoiceInfo": "Invoice Information",
+      "invoiceStatus": "Invoice Status",
+      "invoiceNotes": "Invoice Notes",
+      "invoiceTotals": "Invoice Totals",
+      "notesPlaceholder": "Notes about the invoice...",
+      "amountExclTax": "Amount (Excl. VAT)",
       "filters": {
         "status": "Status",
         "all": "All",
