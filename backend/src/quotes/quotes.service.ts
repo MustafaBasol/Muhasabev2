@@ -213,12 +213,12 @@ export class QuotesService {
     const q = await this.repo.findOne({ where: { publicId } });
     if (!q) throw new NotFoundException('Quote not found');
     // Enrich with tenant public profile for display on public page
+    // Public isteklerde de expire kontrolünü uygula
+    const base = await this.maybeExpire(q);
     try {
       const tenant = await this.tenantsRepo.findOne({
         where: { id: q.tenantId },
       });
-      // Public isteklerde de expire kontrolünü uygula
-      const base = await this.maybeExpire(q);
       if (!tenant) return base;
 
       // Logo & preferences from tenant.settings.brand

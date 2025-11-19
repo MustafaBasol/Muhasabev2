@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Globe } from 'lucide-react';
-import { Calculator } from 'lucide-react';
+import { BrandLogo } from './BrandLogo';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const LegalHeader: React.FC = () => {
@@ -33,10 +33,7 @@ const LegalHeader: React.FC = () => {
             <div className="h-4 w-px bg-gray-300" />
             
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Calculator className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">Comptario</span>
+              <BrandLogo className="h-12 w-auto" />
             </div>
           </div>
 

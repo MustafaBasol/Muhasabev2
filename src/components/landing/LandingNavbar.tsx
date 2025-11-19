@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { Menu, X, ChevronDown, Calculator } from 'lucide-react';
+import { Menu, X, ChevronDown } from 'lucide-react';
+import { BrandLogo } from '../BrandLogo';
 
 interface LandingNavbarProps {
   onTryForFree: () => void;
@@ -50,10 +51,7 @@ const LandingNavbar: React.FC<LandingNavbarProps> = ({ onTryForFree, onSignIn })
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
-                <Calculator className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">Comptario</span>
+              <BrandLogo className="h-16 w-auto" />
             </div>
           </div>
 

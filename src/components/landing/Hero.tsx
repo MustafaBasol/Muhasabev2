@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Play, Calculator, FileText, CreditCard } from 'lucide-react';
+import { ArrowRight, Play, FileText, CreditCard } from 'lucide-react';
 
 interface HeroProps {
   onTryForFree: () => void;
@@ -26,7 +26,7 @@ const Hero: React.FC<HeroProps> = ({ onTryForFree, onSignIn, onWatchDemo }) => {
           <div className="text-center md:text-left">
             {/* Badge */}
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-700 text-sm font-medium mb-8 shadow-sm">
-              <Calculator className="h-4 w-4 mr-2 text-blue-600" />
+              <img src="/favicon-32x32.png" alt="Comptario" className="mr-2 w-4 h-4 rounded-sm" />
               {t('landing.hero.badge')}
             </div>
 
@@ -99,8 +99,8 @@ const Hero: React.FC<HeroProps> = ({ onTryForFree, onSignIn, onWatchDemo }) => {
                   <div className="text-sm text-gray-600">comptario.com</div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-md flex items-center justify-center">
-                    <Calculator className="h-4 w-4 text-white" />
+                  <div className="w-6 h-6 rounded-md flex items-center justify-center overflow-hidden">
+                    <img src="/favicon-32x32.png" alt="Comptario" className="w-6 h-6" />
                   </div>
                   <span className="text-sm font-semibold text-gray-900">Comptario</span>
                 </div>

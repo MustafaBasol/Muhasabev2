@@ -1,5 +1,6 @@
 import React from 'react';
-import { Calculator, Mail, Globe, Shield } from 'lucide-react';
+import { Mail, Globe, Shield } from 'lucide-react';
+import { BrandLogo } from '../BrandLogo';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 const LandingFooter: React.FC = () => {
@@ -205,10 +206,7 @@ const LandingFooter: React.FC = () => {
           {/* Company info */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <Calculator className="h-5 w-5 text-gray-900" />
-              </div>
-              <span className="text-xl font-bold">Comptario</span>
+              <BrandLogo className="h-16 w-auto" />
             </div>
             <p className="text-gray-400 mb-6 leading-relaxed">
               {t.description}

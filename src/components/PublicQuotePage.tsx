@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { BrandLogo } from './BrandLogo';
 import { FileDown, Link as LinkIcon, Check, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -250,7 +251,9 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
           <div className="flex items-end gap-3">
             {company?.logoDataUrl ? (
               <img src={company.logoDataUrl} alt="logo" className="h-16 object-contain" />
-            ) : null}
+            ) : (
+              <BrandLogo className="h-16 w-auto" />
+            )}
             <div className="hidden sm:block">
               <div className="text-indigo-600 font-extrabold text-xl">{L.title}</div>
               <div className="text-gray-500 text-xs">{L.appSubtitle}</div>

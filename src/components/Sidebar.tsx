@@ -15,6 +15,7 @@
   UserCircle
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { BrandLogo } from './BrandLogo';
 
 interface SidebarProps {
   currentPage: string;
@@ -84,16 +85,8 @@ export default function Sidebar({
         }`}
       >
         <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b border-gray-200 p-6">
-            <div className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-                <Calculator className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">{t('app.name')}</h1>
-                <p className="text-sm text-gray-500">{t('app.subtitle')}</p>
-              </div>
-            </div>
+          <div className="flex items-center justify-center border-b border-gray-200 p-6">
+            <BrandLogo className="h-24 w-auto" />
             {onClose && (
               <button
                 type="button"

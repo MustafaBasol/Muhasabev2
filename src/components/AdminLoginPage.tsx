@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Lock, Shield, Users, ArrowLeft } from 'lucide-react';
+import { BrandLogo } from './BrandLogo';
 import { adminApi } from '../api/admin';
 import { logger } from '../utils/logger';
 
@@ -61,9 +62,7 @@ export default function AdminLoginPage({ onBack }: AdminLoginPageProps) {
 
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 rounded-2xl mb-4">
-            <Shield className="w-8 h-8 text-white" />
-          </div>
+          <BrandLogo className="inline-block w-24 h-24 mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Panel</h1>
           <p className="text-gray-600">Yönetici girişi yapın</p>
         </div>
