@@ -2001,11 +2001,15 @@
         "actions": "Actions"
       },
       "edit": "Edit",
-      "remove": "Remove",
       "cancel": "Cancel",
       "resend": "Resend",
       "makeAdmin": "Make Admin",
       "makeMember": "Make Member",
+      "empty": {
+        "title": "No members yet",
+        "subtitle": "Start by inviting your first team member.",
+        "action": "Invite Member"
+      },
       "noMembers": "No members yet",
       "noMembersDesc": "Start by inviting your first team member.",
       "noPendingInvites": "No pending invites",
@@ -2048,6 +2052,20 @@
       "membersLabel": "Members",
       "plan": "Plan",
       "youLabel": "You",
+      "remove": {
+        "title": "Remove Member",
+        "message": "Are you sure you want to remove {{name}} from the organization?",
+        "warning": "This action cannot be undone.",
+        "confirm": "Yes, Remove",
+        "cancel": "Cancel",
+        "success": "Member removed successfully",
+        "error": "Failed to remove member",
+        "cannotRemoveOwner": "Owner role cannot be removed"
+      },
+      "updateRole": {
+        "success": "Member role updated",
+        "error": "Failed to update member role"
+      },
       "invite": {
         "title": "Invite Member",
         "button": "Send Invitation",
@@ -2067,7 +2085,9 @@
         "resend": "Resend",
         "cancel": "Cancel",
         "cancelConfirm": "Are you sure you want to cancel this invite? ({{email}})",
-        "expires": "Expires on {{date}}"
+        "expires": "Expires on {{date}}",
+        "resendSuccess": "Invitation resent successfully",
+        "cancelSuccess": "Invitation cancelled successfully"
       }
     }
   },

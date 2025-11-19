@@ -1,0 +1,40 @@
+{
+  "org": {
+    "members": {
+      "title": "Üyeler",
+      "subtitle": "Organizasyonunuzdaki üyeleri yönetin",
+      "memberCount": "{{count}} üye",
+      "roles": {
+        "OWNER": "Sahip",
+        "ADMIN": "Yönetici",
+        "MEMBER": "Üye"
+      },
+      "inviteButton": "Davet Gönder",
+      "organization": "Organizasyon",
+      "membersLabel": "Üyeler",
+      "plan": "Plan",
+      "youLabel": "Siz",
+      "makeAdmin": "Yönetici Yap",
+      "makeMember": "Üye Yap",
+      "remove": {
+        "title": "Üyeyi Çıkar",
+        "message": "{{name}} kişisini organizasyondan çıkarmak istediğinizden emin misiniz?",
+        "warning": "Bu işlem geri alınamaz.",
+        "confirm": "Evet, Çıkar",
+        "cancel": "İptal",
+        "success": "Üye başarıyla çıkarıldı",
+        "error": "Üye çıkarılırken hata oluştu",
+        "cannotRemoveOwner": "Sahip rolündeki üye çıkarılamaz"
+      },
+      "updateRole": {
+        "success": "Üye rolü güncellendi",
+        "error": "Rol güncellenirken hata oluştu"
+      },
+      "empty": {
+        "title": "Henüz üye yok",
+        "subtitle": "İlk üyenizi davet ederek başlayın",
+        "action": "Üye Davet Et"
+      }
+    }
+  }
+}

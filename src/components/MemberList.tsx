@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Crown, Shield, User, MoreVertical, UserMinus } from 'lucide-react';
 import { OrganizationMember, organizationsApi } from '../api/organizations';
@@ -23,6 +24,8 @@ const MemberList: React.FC<MemberListProps> = ({
   const { t, i18n } = useTranslation();
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [menuPositions, setMenuPositions] = useState<Record<string, { top: number; left: number; upward: boolean }>>({});
 
   const canManageMembers = currentUserRole === 'OWNER' || currentUserRole === 'ADMIN';
 
@@ -116,7 +119,66 @@ const MemberList: React.FC<MemberListProps> = ({
 
   const toggleMenu = (memberId: string) => {
     setOpenMenus(prev => ({ ...prev, [memberId]: !prev[memberId] }));
+    const btn = menuButtonRefs.current[memberId];
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      const menuWidth = 192;
+      const menuHeight = 200;
+      const upward = window.innerHeight - rect.bottom < menuHeight + 16;
+      // Fixed menü viewport koordinatlarında çalışır; scrollY eklenmez.
+      const top = upward ? rect.top - menuHeight : rect.bottom;
+      let left = rect.right - menuWidth; // sağa hizala
+      if (left < 8) left = 8;
+      if (left + menuWidth > window.innerWidth - 8) left = window.innerWidth - menuWidth - 8;
+      setMenuPositions(prev => ({ ...prev, [memberId]: { top, left, upward } }));
+    }
   };
+
+  // Dış tıklama ile menüyü kapat
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (Object.values(openMenus).every(v => !v)) return;
+      const target = e.target as HTMLElement;
+      const anyButton = Object.keys(menuButtonRefs.current).some(id => {
+        const btn = menuButtonRefs.current[id];
+        return btn && (btn === target || btn.contains(target));
+      });
+      if (anyButton) return; // butona tıklama
+      // Portal menüsünün içinde mi?
+      const portalMenu = document.querySelector('.member-menu-portal');
+      if (portalMenu && (portalMenu === target || portalMenu.contains(target))) return;
+      setOpenMenus({});
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, [openMenus]);
+
+  // Scroll/resize olduğunda açık menülerin pozisyonunu güncelle
+  useEffect(() => {
+    const updatePositions = () => {
+      Object.keys(openMenus).forEach(id => {
+        if (!openMenus[id]) return;
+        const btn = menuButtonRefs.current[id];
+        if (!btn) return;
+        const rect = btn.getBoundingClientRect();
+        const menuHeight = 200;
+        const upward = window.innerHeight - rect.bottom < menuHeight + 16;
+        const top = upward ? rect.top - menuHeight : rect.bottom;
+        let left = rect.right - 192;
+        if (left < 8) left = 8;
+        if (left + 192 > window.innerWidth - 8) left = window.innerWidth - 192 - 8;
+        setMenuPositions(prev => ({ ...prev, [id]: { top, left, upward } }));
+      });
+    };
+    if (Object.values(openMenus).some(v => v)) {
+      window.addEventListener('scroll', updatePositions, true);
+      window.addEventListener('resize', updatePositions);
+    }
+    return () => {
+      window.removeEventListener('scroll', updatePositions, true);
+      window.removeEventListener('resize', updatePositions);
+    };
+  }, [openMenus]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(i18n.language === 'tr' ? 'tr-TR' : i18n.language === 'de' ? 'de-DE' : i18n.language === 'fr' ? 'fr-FR' : 'en-US', {
@@ -141,7 +203,7 @@ const MemberList: React.FC<MemberListProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -224,17 +286,20 @@ const MemberList: React.FC<MemberListProps> = ({
                   {canManageMembers && (
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {canManageThisMember ? (
-                        <div className="relative">
+                        <div className="inline-block">
                           <button
+                            ref={el => { menuButtonRefs.current[member.id] = el; }}
                             onClick={() => toggleMenu(member.id)}
                             disabled={loadingActions[member.id]}
                             className="text-gray-400 hover:text-gray-500 p-1 rounded"
                           >
                             <MoreVertical className="w-4 h-4" />
                           </button>
-                          
-                          {openMenus[member.id] && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10">
+                          {openMenus[member.id] && menuPositions[member.id] && ReactDOM.createPortal(
+                            <div
+                              className="member-menu-portal fixed w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
+                              style={{ top: menuPositions[member.id].top, left: menuPositions[member.id].left }}
+                            >
                               <div className="py-1">
                                 {/* Role Change Options */}
                                 {member.role !== 'ADMIN' && currentUserRole === 'OWNER' && (
@@ -265,7 +330,8 @@ const MemberList: React.FC<MemberListProps> = ({
                                   {t('org.members.remove.title')}
                                 </button>
                               </div>
-                            </div>
+                            </div>,
+                            document.body
                           )}
                         </div>
                       ) : (

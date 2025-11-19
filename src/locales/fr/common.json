@@ -2586,9 +2586,15 @@
         "actions": "Actions"
       },
       "edit": "Modifier",
-      "remove": "Supprimer",
       "cancel": "Annuler",
       "resend": "Renvoyer",
+      "makeAdmin": "Faire Administrateur",
+      "makeMember": "Faire Membre",
+      "empty": {
+        "title": "Aucun membre pour le moment",
+        "subtitle": "Commencez par inviter votre premier membre d'équipe.",
+        "action": "Inviter un Membre"
+      },
       "noMembers": "Aucun membre pour le moment",
       "noMembersDesc": "Commencez par inviter votre premier membre d'équipe.",
       "noPendingInvites": "Aucune invitation en attente",
@@ -2633,7 +2639,7 @@
       "youLabel": "Vous",
       "makeAdmin": "Faire Administrateur",
       "makeMember": "Faire Membre",
-      "limitFull": "Limite Atteinte",
+      "limitFull": "Limite atteinte",
       "invite": {
         "title": "Inviter un Membre",
         "button": "Envoyer l'Invitation",
@@ -2648,12 +2654,28 @@
         }
       },
       "pendingInvites": {
-        "title": "Invitations en Attente",
+        "title": "Invitations en attente",
         "count": "{{count}} invitations en attente",
         "resend": "Renvoyer",
         "cancel": "Annuler",
         "expires": "Expire le {{date}}",
-        "cancelConfirm": "Voulez‑vous annuler cette invitation ?"
+        "cancelConfirm": "Voulez‑vous annuler cette invitation ?",
+        "resendSuccess": "Invitation renvoyée avec succès",
+        "cancelSuccess": "Invitation annulée avec succès"
+      },
+      "remove": {
+        "title": "Retirer le Membre",
+        "message": "Êtes-vous sûr de vouloir retirer {{name}} de l'organisation ?",
+        "warning": "Cette action est irréversible.",
+        "confirm": "Oui, Retirer",
+        "cancel": "Annuler",
+        "success": "Membre retiré avec succès",
+        "error": "Échec du retrait du membre",
+        "cannotRemoveOwner": "Le propriétaire ne peut pas être retiré"
+      },
+      "updateRole": {
+        "success": "Rôle du membre mis à jour",
+        "error": "Échec de la mise à jour du rôle du membre"
       }
     }
   },

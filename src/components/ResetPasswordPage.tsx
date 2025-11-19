@@ -19,7 +19,7 @@ function useQueryParam(paramName: string) {
 }
 
 export default function ResetPasswordPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation('common');
   const token = useQueryParam('token');
   const userId = useQueryParam('u');
   const [password, setPassword] = useState('');
@@ -79,14 +79,20 @@ export default function ResetPasswordPage() {
     }
   };
 
+  // (Temizlik) Artık debug dinleyicisi gerekmiyor; çeviri doğrudan t('back') ile geliyor.
+
   return (
     <div className="min-h-screen bg-slate-50">
       <LegalHeader />
       <div className="flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-            <button onClick={() => (window.location.hash = 'login')} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-4">
-              <ArrowLeft className="h-4 w-4" /> {t('common.back', 'Geri')}
+            <button
+              onClick={() => (window.location.hash = 'login')}
+              className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-4"
+              data-lang={i18n.language}
+            >
+              <ArrowLeft className="h-4 w-4" /> {t('back')}
             </button>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('auth.resetPassword', 'Şifre Sıfırla')}</h1>
             <p className="text-gray-600 mb-6">{t('auth.resetPasswordHelp', 'Yeni şifrenizi belirleyin.')}</p>

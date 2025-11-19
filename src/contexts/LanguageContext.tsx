@@ -44,13 +44,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const changeLanguage = (lang: Language) => {
     const norm = normalizeLang(lang);
-    i18n.changeLanguage(norm);
+    i18n.changeLanguage(norm); // Kaynaklar config'te zaten yüklendi; ek enjekte gerekmiyor.
     setCurrentLanguage(norm);
     try {
       const tenantId = (localStorage.getItem('tenantId') || '').toString();
       const scopedKey = tenantId ? `lang_${tenantId}` : 'i18nextLng';
       localStorage.setItem(scopedKey, norm);
-      // Global fallback'ı da güncel tut
       localStorage.setItem('i18nextLng', norm);
     } catch {}
   };

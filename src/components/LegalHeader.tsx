@@ -27,7 +27,7 @@ const LegalHeader: React.FC = () => {
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm font-medium">{t('common.backToHome', 'Back to Home')}</span>
+              <span className="text-sm font-medium">{t('backToHome', 'Back to Home')}</span>
             </button>
             
             <div className="h-4 w-px bg-gray-300" />

@@ -4,6 +4,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 
 // Import translation files
 import trCommonRaw from '../locales/tr/common.json';
+import trOrgMembers from '../locales/tr/org-members.json';
 import enCommonRaw from '../locales/en/common.json';
 import deCommonRaw from '../locales/de/common.json';
 import frCommonRaw from '../locales/fr/common.json';
@@ -106,6 +107,11 @@ function normalizeCommonResource(obj: any) {
         }
       });
     }
+    // Bazı durumlarda büyük dosya işlenirken org.members dalı yüklenmeyebiliyor; garanti altına al.
+    if (obj.org && obj.org.members && (!copy.org || !copy.org.members)) {
+      copy.org = copy.org || {};
+      copy.org.members = obj.org.members;
+    }
     return copy;
   } catch {
     return obj || {};
@@ -113,6 +119,15 @@ function normalizeCommonResource(obj: any) {
 }
 
 const trCommon = normalizeCommonResource(trCommonRaw as any);
+// Türkçe org.members yoksa ek bundle'dan ekle
+try {
+  if (!trCommon.org || !trCommon.org.members) {
+    if ((trOrgMembers as any)?.org?.members) {
+      trCommon.org = trCommon.org || {};
+      trCommon.org.members = (trOrgMembers as any).org.members;
+    }
+  }
+} catch {}
 const enCommon = normalizeCommonResource(enCommonRaw as any);
 const deCommon = normalizeCommonResource(deCommonRaw as any);
 const frCommon = normalizeCommonResource(frCommonRaw as any);
@@ -178,7 +193,9 @@ i18n
   // Init i18next
   .init({
     resources,
-    fallbackLng: ['tr', 'en'], // Varsayılan TR, eksikler için EN'e düş
+    // Fransızca seçildiğinde eksik anahtarların Türkçe'ye düşmesi UX'i bozuyor.
+    // Önce İngilizce'ye sonra Türkçe'ye düşecek şekilde sıra güncellendi.
+    fallbackLng: ['en', 'tr'],
   defaultNS: 'common',
   ns: ['common', 'help', 'status', 'api', 'about'],
     keySeparator: '.',
@@ -201,3 +218,8 @@ i18n
   });
 
 export default i18n;
+
+// Debug için tarayıcıya i18n referansı ekle
+// (Üretimde kaldırılabilir)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(globalThis as any).i18next = i18n;

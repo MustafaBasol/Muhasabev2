@@ -2555,9 +2555,15 @@
         "actions": "Aktionen"
       },
       "edit": "Bearbeiten",
-      "remove": "Entfernen",
       "cancel": "Abbrechen",
       "resend": "Erneut senden",
+      "makeAdmin": "Zum Administrator machen",
+      "makeMember": "Zum Mitglied machen",
+      "empty": {
+        "title": "Noch keine Mitglieder",
+        "subtitle": "Laden Sie Ihr erstes Teammitglied ein.",
+        "action": "Mitglied einladen"
+      },
       "noMembers": "Noch keine Mitglieder",
       "noMembersDesc": "Laden Sie Ihr erstes Teammitglied ein.",
       "noPendingInvites": "Keine ausstehenden Einladungen",
@@ -2602,7 +2608,7 @@
       "youLabel": "Sie",
       "makeAdmin": "Zum Administrator machen",
       "makeMember": "Zum Mitglied machen",
-      "limitFull": "Limit Erreicht",
+      "limitFull": "Limit erreicht",
       "invite": {
         "title": "Mitglied einladen",
         "button": "Einladung senden",
@@ -2622,7 +2628,23 @@
         "resend": "Erneut senden",
         "cancel": "Abbrechen",
         "cancelConfirm": "Sind Sie sicher, dass Sie diese Einladung stornieren möchten? ({{email}})",
-        "expires": "Läuft ab am {{date}}"
+        "expires": "Läuft ab am {{date}}",
+        "resendSuccess": "Einladung erneut gesendet",
+        "cancelSuccess": "Einladung storniert"
+      },
+      "remove": {
+        "title": "Mitglied Entfernen",
+        "message": "Sind Sie sicher, dass Sie {{name}} aus der Organisation entfernen möchten?",
+        "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+        "confirm": "Ja, Entfernen",
+        "cancel": "Abbrechen",
+        "success": "Mitglied erfolgreich entfernt",
+        "error": "Mitglied konnte nicht entfernt werden",
+        "cannotRemoveOwner": "Inhaber kann nicht entfernt werden"
+      },
+      "updateRole": {
+        "success": "Mitgliedsrolle aktualisiert",
+        "error": "Mitgliedsrolle konnte nicht aktualisiert werden"
       }
     }
   },
