@@ -142,8 +142,19 @@ export const authService = {
   },
 
   async forgotPassword(email: string) {
-    const response = await apiClient.post('/auth/forgot-password', { email });
-    return response.data;
+    // Öncelikle yeni hashed token akışını kullan (POST /auth/forgot)
+    // Eğer endpoint mevcut değilse (ör: eski backend) geriye uyumluluk için legacy /auth/forgot-password'e düş.
+    try {
+      const response = await apiClient.post('/auth/forgot', { email });
+      return response.data;
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 404) {
+        const legacy = await apiClient.post('/auth/forgot-password', { email });
+        return legacy.data;
+      }
+      throw err;
+    }
   },
 
   async resetPassword(token: string, newPassword: string) {

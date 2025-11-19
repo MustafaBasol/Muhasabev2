@@ -165,12 +165,12 @@ export default function SupplierList({
           </select>
           {/* Tarih filtreleri */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-700">Başlangıç</span>
-            <input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            <span className="text-sm text-gray-700">Bitiş</span>
-            <input type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <span className="text-sm text-gray-700 whitespace-nowrap">{t('startDate')}</span>
+            <input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
+            <span className="text-sm text-gray-700 whitespace-nowrap">{t('endDate')}</span>
+            <input type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
             {(startDate || endDate) && (
-              <button onClick={()=>{setStartDate(''); setEndDate('');}} className="px-3 py-2 text-sm bg-gray-100 rounded-lg hover:bg-gray-200">Temizle</button>
+              <button onClick={()=>{setStartDate(''); setEndDate('');}} className="px-3 py-2 text-sm bg-gray-100 rounded-lg hover:bg-gray-200">{t('archive.clearFilters')}</button>
             )}
           </div>
           <div className="ml-auto flex items-center">

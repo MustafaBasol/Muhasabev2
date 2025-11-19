@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Menu, X, ChevronDown } from 'lucide-react';
 import { BrandLogo } from '../BrandLogo';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface LandingNavbarProps {
   onTryForFree: () => void;
@@ -12,6 +13,7 @@ interface LandingNavbarProps {
 const LandingNavbar: React.FC<LandingNavbarProps> = ({ onTryForFree, onSignIn }) => {
   const { t } = useTranslation();
   const { currentLanguage, changeLanguage, languages } = useLanguage();
+  const { isAuthenticated } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -110,10 +112,16 @@ const LandingNavbar: React.FC<LandingNavbarProps> = ({ onTryForFree, onSignIn })
             </div>
 
             <button
-              onClick={onSignIn}
+              onClick={() => {
+                if (isAuthenticated) {
+                  window.location.hash = '';
+                } else {
+                  onSignIn();
+                }
+              }}
               className="text-gray-700 hover:text-gray-900 px-4 py-2 text-sm font-medium transition-colors"
             >
-              {t('landing.cta.signin')}
+              {isAuthenticated ? 'Dashboard' : t('landing.cta.signin')}
             </button>
             <button
               onClick={onTryForFree}
@@ -181,10 +189,16 @@ const LandingNavbar: React.FC<LandingNavbarProps> = ({ onTryForFree, onSignIn })
               {/* Mobile Actions */}
               <div className="border-t border-gray-200 pt-4 space-y-2">
                 <button
-                  onClick={onSignIn}
+                  onClick={() => {
+                    if (isAuthenticated) {
+                      window.location.hash = '';
+                    } else {
+                      onSignIn();
+                    }
+                  }}
                   className="text-gray-700 hover:text-gray-900 block px-3 py-2 text-base font-medium w-full text-left"
                 >
-                  {t('landing.cta.signin')}
+                  {isAuthenticated ? 'Dashboard' : t('landing.cta.signin')}
                 </button>
                 <button
                   onClick={onTryForFree}

@@ -106,30 +106,35 @@ export class AuthService {
       this.evtRepo.create({ userId: user.id, tokenHash, expiresAt }),
     );
 
-    // Send verification email
+    // Send verification email (locale-aware minimal EN by default)
+    const locale = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
     const frontendUrl =
       process.env.FRONTEND_URL ||
       process.env.APP_PUBLIC_URL ||
       'http://localhost:5174';
     const appBase = frontendUrl.replace(/\/?$/, '');
     const verifyLink = `${appBase}/auth/verify?token=${raw}&u=${user.id}`;
+    const subjectVerify = locale === 'tr' ? 'E-posta Doğrulama' : 'Email Verification';
+    const htmlVerify = locale === 'tr'
+      ? `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+          <h2 style="color:#059669;">E-posta Doğrulama</h2>
+          <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
+          <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
+          <p><a href="${verifyLink}">${verifyLink}</a></p>
+        </div>`
+      : `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+          <h2 style="color:#059669;">Email Verification</h2>
+          <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
+          <p>Please click the link below to verify your account:</p>
+          <p><a href="${verifyLink}">${verifyLink}</a></p>
+        </div>`;
     try {
       await this.emailService.sendEmail({
         to: user.email,
-        subject: 'E-posta Doğrulama',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto;">
-            <h2 style="color:#059669;">E-posta Doğrulama</h2>
-            <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
-            <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
-            <p><a href="${verifyLink}">${verifyLink}</a></p>
-            <hr style="margin:24px 0; border:none; border-top:1px solid #e5e7eb;" />
-            <h3 style="color:#374151; margin-top:0;">Email Verification (EN)</h3>
-            <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
-            <p>Please click the link below to verify your account:</p>
-            <p><a href="${verifyLink}">${verifyLink}</a></p>
-          </div>
-        `,
+        subject: subjectVerify,
+        html: htmlVerify,
         meta: {
           userId: user.id,
           tenantId: user.tenantId,
@@ -138,10 +143,7 @@ export class AuthService {
           type: 'verify',
         },
       });
-    } catch (err) {
-      // no-op: E-posta gönderimi başarısız olsa bile kayıt akışı devam eder
-      // (loglama seviyesi ve gerçek gönderim daha sonra entegre edilebilir)
-    }
+    } catch {}
 
     // Generate JWT token
     const payload = {
@@ -504,28 +506,31 @@ export class AuthService {
     const evt = await this.evtRepo.save(
       this.evtRepo.create({ userId: user.id, tokenHash, expiresAt }),
     );
+    const locale = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
     const frontendUrl =
       process.env.FRONTEND_URL ||
       process.env.APP_PUBLIC_URL ||
       'http://localhost:5174';
     const appBase = frontendUrl.replace(/\/?$/, '');
     const verifyLink = `${appBase}/auth/verify?token=${raw}&u=${user.id}`;
+    const subjectResend = locale === 'tr' ? 'E-posta Doğrulama (Yeniden)' : 'Email Verification (Resend)';
+    const htmlResend = locale === 'tr' ? `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+        <h2 style="color:#059669;">E-posta Doğrulama (Yeniden)</h2>
+        <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
+        <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
+        <p><a href="${verifyLink}">${verifyLink}</a></p>
+      </div>` : `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+        <h2 style="color:#059669;">Email Verification (Resend)</h2>
+        <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
+        <p>Please use the link below to verify your account:</p>
+        <p><a href="${verifyLink}">${verifyLink}</a></p>
+      </div>`;
     await this.emailService.sendEmail({
       to: user.email,
-      subject: 'E-posta Doğrulama',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto;">
-          <h2 style="color:#059669;">E-posta Doğrulama (Yeniden)</h2>
-          <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
-          <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
-          <p><a href="${verifyLink}">${verifyLink}</a></p>
-          <hr style="margin:24px 0; border:none; border-top:1px solid #e5e7eb;" />
-          <h3 style="color:#374151; margin-top:0;">Email Verification (Resend) - EN</h3>
-          <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
-          <p>Please use the link below to verify your account:</p>
-          <p><a href="${verifyLink}">${verifyLink}</a></p>
-        </div>
-      `,
+      subject: subjectResend,
+      html: htmlResend,
       meta: {
         userId: user.id,
         tenantId: user.tenantId,
@@ -618,28 +623,39 @@ export class AuthService {
     // Do not reveal existence
     if (!user) return { success: true };
     const token = this.securityService.generateRandomString(24);
-    const frontendUrl =
-      process.env.FRONTEND_URL ||
-      process.env.APP_PUBLIC_URL ||
-      'http://localhost:5174';
-    const resetLink = `${frontendUrl}/#reset-password?token=${token}`;
+    // Legacy akışta token'ı kullanıcı kaydına yazmak unutulmuş; bu nedenle /auth/reset-password çağrısı 404 düşüyordu.
+    // Güvenlik için sadece geçici süre (TTL) ekleyerek kaydediyoruz.
     try {
-      await this.emailService.sendEmail({
-        to: user.email,
-        subject: 'Şifre Sıfırlama Talebi',
-        html: `
-        <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto;">
+      const resetMinutes = this.getNumberEnv('RESET_TOKEN_TTL_MINUTES', 60);
+      const expiresAt = new Date(Date.now() + resetMinutes * 60 * 1000);
+      const repo: any = (this.usersService as any).userRepository;
+      await repo.update(user.id, {
+        passwordResetToken: token,
+        passwordResetExpiresAt: expiresAt,
+      });
+    } catch {}
+    const base = this.getFrontendBase();
+    const locale = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
+    const resetLink = `${base}/#reset-password?token=${token}`;
+    try {
+      const subject = locale === 'tr' ? 'Şifre Sıfırlama Talebi' : 'Password Reset Request';
+      const html = locale === 'tr' ? `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#b91c1c;">Şifre Sıfırlama</h2>
           <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
           <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanın (1 saat geçerlidir):</p>
           <p><a href="${resetLink}">${resetLink}</a></p>
-          <hr style="margin:24px 0; border:none; border-top:1px solid #e5e7eb;" />
-          <h3 style="color:#374151; margin-top:0;">Password Reset (EN)</h3>
+        </div>` : `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+          <h2 style="color:#b91c1c;">Password Reset</h2>
           <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
           <p>Use the link below to reset your password (valid for 1 hour):</p>
           <p><a href="${resetLink}">${resetLink}</a></p>
-        </div>
-      `,
+        </div>`;
+      await this.emailService.sendEmail({
+        to: user.email,
+        subject,
+        html,
       });
     } catch (err) {
       // E-posta sağlayıcısı hatası 500'e dönüşmesin — akışı sessizce başarılı kabul et
@@ -665,24 +681,28 @@ export class AuthService {
         ua: req?.headers?.['user-agent'],
       }),
     );
-    const frontendUrl =
-      process.env.FRONTEND_URL ||
-      process.env.APP_PUBLIC_URL ||
-      'http://localhost:5174';
-    const appBase = frontendUrl.replace(/\/?$/, '');
-    const resetLink = `${appBase}/auth/reset?token=${raw}&u=${user.id}`;
+    const locale2 = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
+    const appBase = this.getFrontendBase(req);
+    const resetLink = `${appBase}/#reset-password?token=${raw}&u=${user.id}`;
     try {
-      await this.emailService.sendEmail({
-        to: user.email,
-        subject: 'Şifre Sıfırlama Talebi',
-        html: `
-        <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto;">
+      const subject = locale2 === 'tr' ? 'Şifre Sıfırlama Talebi' : 'Password Reset Request';
+      const html = locale2 === 'tr' ? `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#b91c1c;">Şifre Sıfırlama</h2>
           <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
           <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanın (1 saat geçerlidir):</p>
           <p><a href="${resetLink}">${resetLink}</a></p>
-        </div>
-        `,
+        </div>` : `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+          <h2 style="color:#b91c1c;">Password Reset</h2>
+          <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
+          <p>Use the link below to reset your password (valid for 1 hour):</p>
+          <p><a href="${resetLink}">${resetLink}</a></p>
+        </div>`;
+      await this.emailService.sendEmail({
+        to: user.email,
+        subject,
+        html,
         meta: {
           userId: user.id,
           tenantId: user.tenantId,
@@ -733,6 +753,46 @@ export class AuthService {
       passwordResetExpiresAt: null as unknown as any,
     });
     return { success: true };
+  }
+
+  /**
+   * Frontend base URL seçimi:
+   * 1. FRONTEND_URL / APP_PUBLIC_URL env (deploy ortamı)
+   * 2. Request origin / referer içindeki host (dev codespace port değişkenliği)
+   * 3. Son çare: http://localhost:5174
+   */
+  private getFrontendBase(req?: any): string {
+    const envBase =
+      process.env.FRONTEND_URL ||
+      process.env.APP_PUBLIC_URL ||
+      '';
+    let candidate = (envBase || '').trim();
+    // Eğer env içindeki port aktif değilse ve request'te origin varsa onu al
+    const origin = req?.headers?.origin || req?.headers?.referer || '';
+    if (origin) {
+      try {
+        const o = new URL(origin);
+        // Env boşsa veya farklı port ise dev senaryosunda origin'i tercih et
+        if (!candidate) candidate = `${o.protocol}//${o.host}`;
+        else {
+          const e = new URL(candidate);
+          if (e.host !== o.host && /localhost:\d+/i.test(o.host)) {
+            candidate = `${o.protocol}//${o.host}`;
+          }
+        }
+      } catch {}
+    }
+    if (!candidate) candidate = 'http://localhost:5174';
+    // Codespaces ortamında localhost yerine public forwarding domain'i üret
+    try {
+      if (/localhost:\d+/.test(candidate) && process.env.CODESPACE_NAME) {
+        const u = new URL(candidate);
+        const port = u.port || '5174';
+        const domainSuffix = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN || 'app.github.dev';
+        candidate = `https://${process.env.CODESPACE_NAME}-${port}.${domainSuffix}`;
+      }
+    } catch {}
+    return candidate.replace(/\/?$/, '');
   }
 
   async resetPasswordHashed(

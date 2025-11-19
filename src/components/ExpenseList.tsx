@@ -237,7 +237,8 @@ export default function ExpenseList({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+    const locale = (i18n?.language || 'en').toString();
+    return new Date(dateString).toLocaleDateString(locale);
   };
 
   const formatAmount = (amount: number | string) => {
@@ -367,21 +368,21 @@ export default function ExpenseList({
           {/* Date range */}
           <div className="flex gap-2 items-center">
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-700 whitespace-nowrap">{t('common.startDate')}</label>
+              <label className="text-sm text-gray-700 whitespace-nowrap">{t('startDate')}</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-700 whitespace-nowrap">{t('common.endDate')}</label>
+              <label className="text-sm text-gray-700 whitespace-nowrap">{t('endDate')}</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
               />
             </div>
             {(startDate || endDate) && (
