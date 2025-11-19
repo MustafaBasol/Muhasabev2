@@ -2285,7 +2285,7 @@
     "subprocessors": {
       "title": "Liste der Unterauftragsverarbeiter",
       "lastUpdated": "Zuletzt aktualisiert: {{date}}",
-      "intro": "MoneyFlow kann die folgenden Unterauftragsverarbeiter einsetzen, um bei der Bereitstellung unserer Services zu helfen. Alle Unterauftragsverarbeiter unterliegen strengen Datenschutzverpflichtungen.",
+      "intro": "Comptario kann die folgenden Unterauftragsverarbeiter einsetzen, um bei der Bereitstellung unserer Services zu helfen. Alle Unterauftragsverarbeiter unterliegen strengen Datenschutzverpflichtungen.",
       "section1": {
         "title": "1. Cloud-Infrastruktur-Anbieter",
         "aws": {
@@ -2370,7 +2370,7 @@
       },
       "contact": {
         "title": "Fragen zu Unterauftragsverarbeitern",
-        "content": "Wenn Sie Fragen zu unseren Unterauftragsverarbeitern haben oder zusätzliche Informationen über Datenschutzschutzmaßnahmen benötigen, kontaktieren Sie uns bitte unter privacy@moneyflow.com."
+        "content": "Wenn Sie Fragen zu unseren Unterauftragsverarbeitern haben oder zusätzliche Informationen über Datenschutzschutzmaßnahmen benötigen, kontaktieren Sie uns bitte unter privacy@comptario.com."
       }
     },
     "common": {

@@ -1725,7 +1725,7 @@
     "subprocessors": {
       "title": "List of Sub-processors",
       "lastUpdated": "Last updated: {{date}}",
-      "intro": "MoneyFlow may engage the following sub-processors to assist in providing our services. All sub-processors are subject to strict data protection obligations.",
+      "intro": "Comptario may engage the following sub-processors to assist in providing our services. All sub-processors are subject to strict data protection obligations.",
       "section1": {
         "title": "1. Cloud Infrastructure Providers",
         "aws": {
@@ -1810,7 +1810,7 @@
       },
       "contact": {
         "title": "Questions About Sub-processors",
-        "content": "If you have questions about our sub-processors or need additional information about data protection safeguards, please contact us at privacy@moneyflow.com."
+        "content": "If you have questions about our sub-processors or need additional information about data protection safeguards, please contact us at privacy@comptario.com."
       }
     },
     "common": {

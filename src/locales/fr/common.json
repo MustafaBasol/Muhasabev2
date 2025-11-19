@@ -2322,7 +2322,7 @@
     "subprocessors": {
       "title": "Liste des sous-traitants ultérieurs",
       "lastUpdated": "Dernière mise à jour : {{date}}",
-      "intro": "MoneyFlow peut engager les sous-traitants ultérieurs suivants pour aider à fournir nos services. Tous les sous-traitants ultérieurs sont soumis à des obligations strictes de protection des données.",
+      "intro": "Comptario peut engager les sous-traitants ultérieurs suivants pour aider à fournir nos services. Tous les sous-traitants ultérieurs sont soumis à des obligations strictes de protection des données.",
       "section1": {
         "title": "1. Fournisseurs d'infrastructure cloud",
         "aws": {
@@ -2407,7 +2407,7 @@
       },
       "contact": {
         "title": "Questions sur les sous-traitants ultérieurs",
-        "content": "Si vous avez des questions sur nos sous-traitants ultérieurs ou avez besoin d'informations supplémentaires sur les garanties de protection des données, veuillez nous contacter à privacy@moneyflow.com."
+        "content": "Si vous avez des questions sur nos sous-traitants ultérieurs ou avez besoin d'informations supplémentaires sur les garanties de protection des données, veuillez nous contacter à privacy@comptario.com."
       }
     },
     "common": {
