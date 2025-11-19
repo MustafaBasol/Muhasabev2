@@ -116,17 +116,14 @@ export class TenantsService {
     const uniqueName = await this.generateUniqueName(createTenantDto.name);
     const slug = await this.generateUniqueSlug(uniqueName);
 
-    // Set trial expiration to 14 days from now
-    const trialExpiresAt = new Date();
-    trialExpiresAt.setDate(trialExpiresAt.getDate() + 14);
-
+    // FREE/STARTER plan süresizdir, subscriptionExpiresAt null olmalı
     const tenant = this.tenantsRepository.create({
       ...createTenantDto,
       name: uniqueName,
       slug,
       subscriptionPlan: SubscriptionPlan.FREE,
-      status: TenantStatus.TRIAL,
-      subscriptionExpiresAt: trialExpiresAt,
+      status: TenantStatus.ACTIVE,
+      subscriptionExpiresAt: null as any, // FREE plan süresiz
       // Starter/Free plan başlangıç kullanıcı limiti 1 olmalı
       maxUsers: 1,
       settings: {},
@@ -141,12 +138,21 @@ export class TenantsService {
     });
 
     // Save with small retry on unique conflicts (race condition protection)
-    let savedTenant: Tenant | null = null;
+    let savedTenant: Tenant;
     let attempt = 0;
-    while (!savedTenant && attempt < 3) {
+    let lastError: any = null;
+    
+    while (attempt < 3) {
       try {
         savedTenant = await this.tenantsRepository.save(tenant);
+        // Otomatik olarak korumalı kategorileri oluştur
+        await this.createDefaultCategories(savedTenant);
+        return savedTenant;
+        // Otomatik olarak korumalı kategorileri oluştur
+        await this.createDefaultCategories(savedTenant);
+        return savedTenant;
       } catch (err: any) {
+        lastError = err;
         // Postgres unique violation
         const code = err?.code || err?.driverError?.code;
         if (code === '23505') {
@@ -163,15 +169,9 @@ export class TenantsService {
         throw err;
       }
     }
-    if (!savedTenant) {
-      // last attempt
-      savedTenant = await this.tenantsRepository.save(tenant);
-    }
-
-    // Otomatik olarak korumalı kategorileri oluştur
-    await this.createDefaultCategories(savedTenant);
-
-    return savedTenant;
+    
+    // Son deneme başarısız oldu
+    throw lastError || new Error('Failed to create tenant after retries');
   }
 
   private async createDefaultCategories(tenant: Tenant): Promise<void> {

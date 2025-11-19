@@ -157,7 +157,8 @@ const AdminPage: React.FC = () => {
     const d = display.toUpperCase();
     if (d === 'BUSINESS') return 'enterprise';
     if (d === 'PRO') return 'professional';
-    return 'basic'; // STARTER
+    if (d === 'STARTER') return 'free';
+    return 'free'; // default STARTER/FREE
   };
   const planFilterToApi = (display: string) => {
     // Filtrede STARTER => basic, PRO => professional, BUSINESS => enterprise
@@ -943,18 +944,22 @@ const AdminPage: React.FC = () => {
                             autoFocus
                             defaultValue={normalizePlanLabel(tenant.subscriptionPlan)}
                             onBlur={() => toggleEditSet(setEditingPlanIds, tenant.id, false)}
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const displayPlan = e.target.value;
                               const apiPlan = planDisplayToApi(displayPlan);
                               if (!window.confirm(t('admin.tenants.updatePlanConfirm', { name: tenant.companyName || tenant.name, plan: displayPlan, defaultValue: `${tenant.companyName || tenant.name} için planı '${displayPlan}' olarak güncellemek istediğinize emin misiniz?` }))) return;
-                              adminApi.updateTenantSubscription(tenant.id, { plan: apiPlan })
-                                .then(() => {
-                                  setTenants(prev => prev.map(x => x.id === tenant.id ? { ...x, subscriptionPlan: apiPlan } : x));
-                                  setActionMessage('Plan güncellendi');
-                                  setTimeout(() => setActionMessage(''), 2000);
-                                })
-                                .catch(err => console.error('Plan güncellenemedi', err))
-                                .finally(() => toggleEditSet(setEditingPlanIds, tenant.id, false));
+                              try {
+                                await adminApi.updateTenantSubscription(tenant.id, { plan: apiPlan });
+                                // Güncel tenant bilgisini backend'den çek
+                                const updatedTenants = await adminApi.getTenants();
+                                setTenants(updatedTenants || []);
+                                setActionMessage('Plan ve limitler güncellendi');
+                                setTimeout(() => setActionMessage(''), 2000);
+                              } catch (err) {
+                                console.error('Plan güncellenemedi', err);
+                              } finally {
+                                toggleEditSet(setEditingPlanIds, tenant.id, false);
+                              }
                             }}
                             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                           >

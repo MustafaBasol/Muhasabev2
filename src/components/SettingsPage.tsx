@@ -2372,6 +2372,13 @@ export default function SettingsPage({
     return () => { cancelled = true; };
   }, []);
 
+  // Plan tab'ı açıldığında tenant bilgisini yenile
+  useEffect(() => {
+    if (activeTab === 'plan') {
+      refreshUser().catch(() => {});
+    }
+  }, [activeTab, refreshUser]);
+
   // Security: 2FA handlers
   // İlk yüklemede 2FA durumunu al (buton etiketini dinamik göstermek için)
   useEffect(() => {

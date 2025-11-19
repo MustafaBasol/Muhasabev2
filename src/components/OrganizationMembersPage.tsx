@@ -14,7 +14,7 @@ import {
 
 const OrganizationMembersPage: React.FC = () => {
   const { t } = useTranslation();
-  const { user, tenant } = useAuth();
+  const { user, tenant, refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<Invite[]>([]);
@@ -24,9 +24,17 @@ const OrganizationMembersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
+    const refreshAndLoad = async () => {
+      try {
+        await refreshUser();
+      } catch (e) {
+        console.warn('refreshUser failed, continuing with cached data:', e);
+      }
+      loadData();
+    };
+    refreshAndLoad();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant?.subscriptionPlan, tenant?.maxUsers]);
+  }, []);
 
   // Billing başarılarında davet kapasitesi artmış olabilir; yeniden yükle
   useEffect(() => {

@@ -122,7 +122,7 @@ export class Tenant {
   })
   status: TenantStatus;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'timestamp' })
   subscriptionExpiresAt: Date;
 
   // Dönem sonunda iptal isteği (true ise abonelik mevcut dönem bitimine kadar aktif kalır, yenilenmez)

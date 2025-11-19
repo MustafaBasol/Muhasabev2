@@ -2085,6 +2085,7 @@
           "role": "Role"
         }
       },
+      "limitFull": "Member limit reached",
       "pendingInvites": {
         "title": "Pending Invitations",
         "count": "{{count}} pending invitations",

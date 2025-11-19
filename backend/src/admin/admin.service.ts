@@ -604,8 +604,55 @@ export class AdminService {
       tenant.subscriptionExpiresAt = new Date();
     }
     if (payload.plan) {
+      const oldPlan = tenant.subscriptionPlan;
       tenant.subscriptionPlan = payload.plan;
-      // Opsiyonel: plan değişiminde otomatik tarihler ayarlanabilir
+      
+      // Plan değiştiğinde tüm limitleri yeni planın varsayılan değerlerine sıfırla
+      if (oldPlan !== payload.plan) {
+        console.log(`[Admin] Plan değişikliği: ${oldPlan} -> ${payload.plan}`);
+        
+        // maxUsers değerini planın varsayılanıyla güncelle
+        if (payload.plan === SubscriptionPlan.PROFESSIONAL || payload.plan === SubscriptionPlan.BASIC) {
+          tenant.maxUsers = 3;
+          console.log(`[Admin] maxUsers = 3 (PROFESSIONAL/BASIC)`);
+        } else if (payload.plan === SubscriptionPlan.ENTERPRISE) {
+          tenant.maxUsers = 10;
+          console.log(`[Admin] maxUsers = 10 (ENTERPRISE)`);
+        } else if (payload.plan === SubscriptionPlan.FREE) {
+          tenant.maxUsers = 1;
+          console.log(`[Admin] maxUsers = 1 (FREE)`);
+        }
+        
+        // Manuel plan değişikliği yapıldığında Stripe entegrasyonunu temizle
+        // Böylece Stripe'dan gelen bilgiler database bilgisini ezmez
+        if (tenant.stripeSubscriptionId || tenant.stripeCustomerId) {
+          console.log(`[Admin] Stripe entegrasyonu temizleniyor (stripeCustomerId: ${tenant.stripeCustomerId}, stripeSubscriptionId: ${tenant.stripeSubscriptionId})`);
+          tenant.stripeSubscriptionId = null;
+          tenant.stripeCustomerId = null;
+          tenant.billingInterval = null;
+          // Ödeme planı tarihi - FREE için null, diğerleri için 1 yıl sonra
+          if (payload.plan === SubscriptionPlan.FREE) {
+            tenant.subscriptionExpiresAt = null as any;
+            tenant.status = TenantStatus.ACTIVE;
+          } else {
+            // Ücretli planlarda 1 yıl süre ver
+            const nextYear = new Date();
+            nextYear.setFullYear(nextYear.getFullYear() + 1);
+            tenant.subscriptionExpiresAt = nextYear;
+            tenant.status = TenantStatus.ACTIVE;
+          }
+        }
+        
+        // Tenant'a özel override'ları temizle (artık varsayılan plan limitleri geçerli olacak)
+        if (tenant.settings && typeof tenant.settings === 'object') {
+          const settings = tenant.settings as any;
+          if (settings.planOverrides) {
+            delete settings.planOverrides;
+            tenant.settings = settings;
+            console.log(`[Admin] planOverrides temizlendi`);
+          }
+        }
+      }
     }
     if (payload.status) {
       tenant.status = payload.status;
@@ -618,6 +665,7 @@ export class AdminService {
     }
 
     await this.tenantRepository.save(tenant);
+    console.log(`[Admin] Tenant kaydedildi - ID: ${tenant.id}, Plan: ${tenant.subscriptionPlan}, maxUsers: ${tenant.maxUsers}`);
     return { success: true };
   }
 

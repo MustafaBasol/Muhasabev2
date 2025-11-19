@@ -48,7 +48,13 @@ export default function ExistingSaleSelectionModal({
       .filter(inv => inv.saleId)
       .map(inv => inv.saleId);
     
-    return sales.filter(sale => !invoicedSaleIds.includes(sale.id));
+    return sales.filter(sale => {
+      // 1) Fatura listesinde bu satış ID'si varsa gösterme
+      if (invoicedSaleIds.includes(sale.id)) return false;
+      // 2) Satışın kendisinde invoiceId varsa (frontend state'inde güncel) gösterme
+      if ((sale as any).invoiceId) return false;
+      return true;
+    });
   }, [sales, existingInvoices]);
 
   // Arama filtresi
