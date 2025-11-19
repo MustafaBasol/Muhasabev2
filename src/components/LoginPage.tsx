@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, Building2, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import LegalHeader from './LegalHeader';
@@ -77,8 +77,8 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Building2 className="h-8 w-8 text-white" />
+              <div className="w-20 h-20 bg-white border-2 border-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <img src="/favicon-32x32.png" alt="Comptario" className="h-10 w-10" />
               </div>
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('auth.welcomeTitle', 'Hoş Geldiniz')}</h1>

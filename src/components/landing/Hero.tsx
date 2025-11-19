@@ -56,7 +56,7 @@ const Hero: React.FC<HeroProps> = ({ onTryForFree, onSignIn, onWatchDemo }) => {
               >
                 {t('landing.cta.signin')}
               </button>
-
+              {/* Button gerekirse koyarız
               <button
                 onClick={onWatchDemo}
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors"
@@ -66,6 +66,7 @@ const Hero: React.FC<HeroProps> = ({ onTryForFree, onSignIn, onWatchDemo }) => {
                 </div>
                 {t('landing.cta.watchDemo')}
               </button>
+              */}
             </div>
 
             {/* Feature highlights with colored dots */}
