@@ -241,6 +241,14 @@ export class UsersController {
   }
 
   /**
+   * 2FA yedek kodlarını yeniden oluşturur
+   */
+  @Post('2fa/backup-codes/regenerate')
+  async regenerateBackupCodes(@Request() req): Promise<{ backupCodes: string[]; count: number }> {
+    return this.usersService.regenerateTwoFactorBackupCodes(req.user.id);
+  }
+
+  /**
    * Tüm oturumları sonlandır: tokenVersion artır ve mevcut istemci için yeni token döndür
    */
   @Post('sessions/terminate-all')

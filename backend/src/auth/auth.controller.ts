@@ -13,9 +13,21 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-// import { Throttle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { User } from '../common/decorators/user.decorator';
+
+// Rate limit ayarları ortam değişkenlerinden okunur, varsayılan değerler atanır.
+// REFRESH_RATE_LIMIT_MAX: Dakikada izin verilen maksimum yenileme isteği sayısı.
+const REFRESH_RATE_LIMIT_MAX = parseInt(
+  process.env.REFRESH_RATE_LIMIT_MAX || '5',
+  10,
+);
+// REFRESH_RATE_LIMIT_TTL_SECONDS: Rate limit sayacının sıfırlanma süresi (saniye).
+const REFRESH_RATE_LIMIT_TTL_SECONDS = parseInt(
+  process.env.REFRESH_RATE_LIMIT_TTL_SECONDS || '60',
+  10,
+);
 
 @ApiTags('auth')
 @Controller('auth')
@@ -56,6 +68,12 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Refresh access token (sliding session)' })
+  @Throttle({
+    default: {
+      limit: REFRESH_RATE_LIMIT_MAX,
+      ttl: REFRESH_RATE_LIMIT_TTL_SECONDS * 1000,
+    },
+  })
   @HttpCode(200)
   async refresh(@User() user: any) {
     // Debug log: route hit confirmation (geçici - üretimde kaldırılabilir)
@@ -69,6 +87,12 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Refresh access token (alt path)' })
+  @Throttle({
+    default: {
+      limit: REFRESH_RATE_LIMIT_MAX,
+      ttl: REFRESH_RATE_LIMIT_TTL_SECONDS * 1000,
+    },
+  })
   @HttpCode(200)
   async refreshAlt(@User() user: any) {
     return this.authService.refresh(user);

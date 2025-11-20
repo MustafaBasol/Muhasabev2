@@ -82,6 +82,12 @@ export const usersApi = {
     return response.data;
   },
 
+  // 2FA: yedek kodları yeniden oluştur
+  regenerateTwoFactorBackupCodes: async (): Promise<{ backupCodes: string[]; count: number }> => {
+    const response = await apiClient.post('/users/2fa/backup-codes/regenerate', {});
+    return response.data;
+  },
+
   // Oturumlar: Tümünü sonlandır (tokenVersion artırır ve yeni token döner)
   terminateAllSessions: async (): Promise<{ token: string }> => {
     const response = await apiClient.post('/users/sessions/terminate-all', {});

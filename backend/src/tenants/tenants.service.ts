@@ -7,6 +7,8 @@ import {
   TenantStatus,
 } from './entities/tenant.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/entities/audit-log.entity';
 
 export interface CreateTenantDto {
   name: string;
@@ -85,6 +87,7 @@ export class TenantsService {
     private tenantsRepository: Repository<Tenant>,
     @InjectRepository(ProductCategory)
     private productCategoriesRepository: Repository<ProductCategory>,
+    private auditService: AuditService,
   ) {}
 
   async findAll(): Promise<Tenant[]> {
@@ -145,11 +148,17 @@ export class TenantsService {
     while (attempt < 3) {
       try {
         savedTenant = await this.tenantsRepository.save(tenant);
-        // Otomatik olarak korumalı kategorileri oluştur
         await this.createDefaultCategories(savedTenant);
-        return savedTenant;
-        // Otomatik olarak korumalı kategorileri oluştur
-        await this.createDefaultCategories(savedTenant);
+        // Audit log (tenant created)
+        try {
+          await this.auditService.log({
+            tenantId: savedTenant.id,
+            entity: 'tenant',
+            entityId: savedTenant.id,
+            action: AuditAction.CREATE,
+            diff: { name: savedTenant.name, plan: savedTenant.subscriptionPlan },
+          });
+        } catch {}
         return savedTenant;
       } catch (err: any) {
         lastError = err;
@@ -203,6 +212,15 @@ export class TenantsService {
   async remove(id: string): Promise<void> {
     const tenant = await this.findOne(id);
     await this.tenantsRepository.remove(tenant);
+    try {
+      await this.auditService.log({
+        tenantId: tenant.id,
+        entity: 'tenant',
+        entityId: tenant.id,
+        action: AuditAction.DELETE,
+        diff: { name: tenant.name },
+      });
+    } catch {}
   }
 
   async updateSubscription(
@@ -236,7 +254,23 @@ export class TenantsService {
         break;
     }
 
-    return this.update(id, updateData);
+    const before = await this.findOne(id);
+    const updated = await this.update(id, updateData);
+    try {
+      await this.auditService.log({
+        tenantId: updated.id,
+        entity: 'tenant',
+        entityId: updated.id,
+        action: AuditAction.UPDATE,
+        diff: {
+          event: 'plan-change',
+          fromPlan: before.subscriptionPlan,
+          toPlan: updated.subscriptionPlan,
+          maxUsers: updated.maxUsers,
+        },
+      });
+    } catch {}
+    return updated;
   }
 
   async updateMaxUsers(id: string, maxUsers: number): Promise<Tenant> {

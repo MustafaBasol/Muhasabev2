@@ -20,6 +20,8 @@ import {
   Disable2FADto,
 } from './dto/enable-2fa.dto';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/entities/audit-log.entity';
 
 export interface CreateUserDto {
   email: string;
@@ -39,6 +41,7 @@ export class UsersService {
     private tenantRepository: Repository<Tenant>,
     private securityService: SecurityService,
     private twoFactorService: TwoFactorService,
+    private auditService: AuditService,
   ) {}
 
   async findAll() {
@@ -572,6 +575,16 @@ export class UsersService {
       ),
     });
 
+    try {
+      await this.auditService.log({
+        tenantId: user.tenantId,
+        userId: user.id,
+        entity: 'user',
+        entityId: user.id,
+        action: AuditAction.UPDATE,
+        diff: { event: '2fa-enabled' },
+      });
+    } catch {}
     return {
       message: '2FA enabled successfully',
       backupCodes,
@@ -649,6 +662,16 @@ export class UsersService {
       twoFactorEnabledAt: undefined,
     });
 
+    try {
+      await this.auditService.log({
+        tenantId: user.tenantId,
+        userId: user.id,
+        entity: 'user',
+        entityId: user.id,
+        action: AuditAction.UPDATE,
+        diff: { event: '2fa-disabled' },
+      });
+    } catch {}
     return {
       message: '2FA disabled successfully',
     };
@@ -673,5 +696,40 @@ export class UsersService {
       enabled: user.twoFactorEnabled || false,
       backupCodesCount: user.backupCodes ? user.backupCodes.length : 0,
     };
+  }
+
+  /**
+   * 2FA Backup kodlarını yeniden üretir (eski kodları geçersiz kılar)
+   * Kullanıcı 2FA etkin değilse hata verir
+   */
+  async regenerateTwoFactorBackupCodes(
+    userId: string,
+  ): Promise<{ backupCodes: string[]; count: number }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+      throw new BadRequestException('2FA is not enabled for this user');
+    }
+
+    const backupCodes = this.twoFactorService.generateBackupCodes();
+    await this.userRepository.update(userId, {
+      backupCodes: backupCodes.map((c) => this.securityService.hashPasswordSync(c)),
+      updatedAt: new Date(),
+    });
+
+    try {
+      await this.auditService.log({
+        tenantId: user.tenantId,
+        userId: user.id,
+        entity: 'user',
+        entityId: user.id,
+        action: AuditAction.UPDATE,
+        diff: { event: '2fa-backup-codes-regenerated' },
+      });
+    } catch {}
+
+    return { backupCodes, count: backupCodes.length };
   }
 }

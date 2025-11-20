@@ -1627,6 +1627,34 @@ export class AdminService {
   }
 
   /**
+   * Tüm aktif JWT oturumlarını geçersiz kılmak için kullanıcının tokenVersion değerini artırır.
+   * Mevcut token'lar (payload içindeki eski tokenVersion) artık doğrulamadan geçmez.
+   */
+  async revokeAllUserSessions(userId: string) {
+    try {
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user) throw new NotFoundException('User not found');
+      const next = ((user as any).tokenVersion || 0) + 1;
+      await this.userRepository.update(userId, { tokenVersion: next } as any);
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          tenantId: user.tenantId,
+          entity: 'user',
+          entityId: userId,
+          action: 'UPDATE' as any,
+          diff: { revokeSessions: true, newTokenVersion: next },
+        }),
+      );
+      return { success: true, newTokenVersion: next };
+    } catch (e: any) {
+      this.logger.warn(
+        `revokeAllUserSessions failed userId=${userId} msg=${e?.message || e}`,
+      );
+      return { success: false, error: e?.message || String(e) };
+    }
+  }
+
+  /**
    * DEV AMAÇLI: Bir tenant içindeki demo/veri temizliği.
    * Production ortamında çalışması engellenir.
    * Sıra: satışlar -> faturalar -> giderler -> bank hesapları -> ürünler -> kategoriler -> müşteriler -> tedarikçiler

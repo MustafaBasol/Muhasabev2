@@ -1,7 +1,34 @@
 import { Controller, Get } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+
+interface HealthStatus {
+  appStatus: 'ok';
+  dbStatus: 'ok' | 'error';
+  dbLatencyMs?: number;
+  timestamp: string;
+}
 
 @Controller('health')
 export class HealthController {
+  constructor(private dataSource: DataSource) {}
+
+  @Get()
+  async root(): Promise<HealthStatus> {
+    const start = Date.now();
+    let dbStatus: 'ok' | 'error' = 'ok';
+    try {
+      await this.dataSource.query('SELECT 1');
+    } catch {
+      dbStatus = 'error';
+    }
+    const latency = Date.now() - start;
+    return {
+      appStatus: 'ok',
+      dbStatus,
+      dbLatencyMs: latency,
+      timestamp: new Date().toISOString(),
+    };
+  }
   @Get('email')
   getEmailHealth() {
     const provider = (process.env.MAIL_PROVIDER || 'log').toLowerCase();

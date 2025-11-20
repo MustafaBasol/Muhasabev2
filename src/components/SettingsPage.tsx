@@ -2536,6 +2536,57 @@ export default function SettingsPage({
     }
   };
 
+  // Backup kodları kopyala
+  const copyTwoFABackupCodes = () => {
+    if (!twoFABackups || !twoFABackups.length) return;
+    try {
+      navigator.clipboard.writeText(twoFABackups.join('\n'));
+      openInfo(
+        currentLanguage === 'tr' ? 'Kodlar kopyalandı' : currentLanguage === 'fr' ? 'Codes copiés' : currentLanguage === 'de' ? 'Codes kopiert' : 'Codes copied',
+        currentLanguage === 'tr' ? 'Yedek kodlar panoya kopyalandı.' : currentLanguage === 'fr' ? 'Les codes de secours ont été copiés.' : currentLanguage === 'de' ? 'Die Backup-Codes wurden kopiert.' : 'Backup codes copied.',
+        'success'
+      );
+    } catch {}
+  };
+
+  // Backup kodlarını indir (txt)
+  const downloadTwoFABackupCodes = () => {
+    if (!twoFABackups || !twoFABackups.length) return;
+    const blob = new Blob([twoFABackups.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '2fa-backup-codes.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    openInfo(
+      currentLanguage === 'tr' ? 'Dosya indirildi' : currentLanguage === 'fr' ? 'Fichier téléchargé' : currentLanguage === 'de' ? 'Datei heruntergeladen' : 'File downloaded',
+      currentLanguage === 'tr' ? 'Yedek kodlar dosya olarak indirildi.' : currentLanguage === 'fr' ? 'Les codes de secours ont été téléchargés.' : currentLanguage === 'de' ? 'Backup-Codes wurden heruntergeladen.' : 'Backup codes downloaded.',
+      'success'
+    );
+  };
+
+  // Backup kodlarını yeniden oluştur
+  const regenerateTwoFABackupCodes = async () => {
+    try {
+      setTwoFABusy(true);
+      const res = await usersApi.regenerateTwoFactorBackupCodes();
+      setTwoFABackups(res.backupCodes || []);
+      setTwoFAStatus({ enabled: true, backupCodesCount: res.count || (res.backupCodes?.length || 0) });
+      openInfo(
+        currentLanguage === 'tr' ? 'Kodlar yenilendi' : currentLanguage === 'fr' ? 'Codes régénérés' : currentLanguage === 'de' ? 'Codes regeneriert' : 'Codes regenerated',
+        currentLanguage === 'tr' ? 'Yeni yedek kodlar oluşturuldu. Eskileri artık geçersiz.' : currentLanguage === 'fr' ? 'De nouveaux codes de secours ont été générés. Les anciens sont invalides.' : currentLanguage === 'de' ? 'Neue Backup-Codes wurden erstellt. Alte sind ungültig.' : 'New backup codes generated. Old ones are now invalid.',
+        'success'
+      );
+    } catch (e: any) {
+      openInfo('2FA', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
+    } finally {
+      setTwoFABusy(false);
+    }
+  };
+
   const closeTwoFAModal = () => {
     setTwoFAOpen(false);
     setTwoFAMode(null);
@@ -4327,6 +4378,21 @@ export default function SettingsPage({
                   {twoFABackups.map((c, i) => (
                     <div key={i} className="px-2 py-1 bg-gray-50 border border-gray-200 rounded font-mono">{c}</div>
                   ))}
+                </div>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <button
+                    onClick={copyTwoFABackupCodes}
+                    className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-xs"
+                  >{currentLanguage === 'tr' ? 'Tümünü Kopyala' : currentLanguage === 'fr' ? 'Tout copier' : currentLanguage === 'de' ? 'Alle kopieren' : 'Copy All'}</button>
+                  <button
+                    onClick={downloadTwoFABackupCodes}
+                    className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-xs"
+                  >{currentLanguage === 'tr' ? 'İndir (.txt)' : currentLanguage === 'fr' ? 'Télécharger (.txt)' : currentLanguage === 'de' ? 'Herunterladen (.txt)' : 'Download (.txt)'}</button>
+                  <button
+                    onClick={regenerateTwoFABackupCodes}
+                    disabled={twoFABusy}
+                    className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 text-xs"
+                  >{twoFABusy ? (currentLanguage === 'tr' ? 'İşleniyor…' : '…') : (currentLanguage === 'tr' ? 'Yeniden Oluştur' : currentLanguage === 'fr' ? 'Régénérer' : currentLanguage === 'de' ? 'Neu erzeugen' : 'Regenerate')}</button>
                 </div>
                 <div className="flex justify-end pt-2">
                   <button onClick={closeTwoFAModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
