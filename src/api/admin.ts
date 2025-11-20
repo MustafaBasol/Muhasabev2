@@ -12,8 +12,8 @@ const getAdminHeaders = () => {
 };
 
 export const adminApi = {
-  login: async (username: string, password: string) => {
-    const response = await apiClient.post('/admin/login', { username, password });
+  login: async (username: string, password: string, totp?: string) => {
+    const response = await apiClient.post('/admin/login', { username, password, totp });
     return response.data;
   },
 
@@ -21,6 +21,37 @@ export const adminApi = {
     const qs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
     const response = await apiClient.get(`/admin/users${qs}`, {
       headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+  // Admin Security
+  getSecurityConfig: async () => {
+    const response = await apiClient.get('/admin/security/config', {
+      headers: getAdminHeaders(),
+    });
+    return response.data;
+  },
+  updateAdminCredentials: async (payload: { currentPassword: string; newUsername?: string; newPassword?: string }) => {
+    const response = await apiClient.post('/admin/security/credentials', payload, {
+      headers: getAdminHeaders(),
+    });
+    return response.data;
+  },
+  twoFASetup: async () => {
+    const response = await apiClient.post('/admin/security/2fa/setup', {}, {
+      headers: getAdminHeaders(),
+    });
+    return response.data;
+  },
+  twoFAVerify: async (payload: { token: string }) => {
+    const response = await apiClient.post('/admin/security/2fa/verify', payload, {
+      headers: getAdminHeaders(),
+    });
+    return response.data;
+  },
+  twoFADisable: async () => {
+    const response = await apiClient.post('/admin/security/2fa/disable', {}, {
+      headers: getAdminHeaders(),
     });
     return response.data;
   },

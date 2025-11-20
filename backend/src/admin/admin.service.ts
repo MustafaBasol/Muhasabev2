@@ -26,6 +26,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { SecurityService } from '../common/security.service';
+import { AdminConfig } from './entities/admin-config.entity';
+import { AdminSecurityService } from './admin-security.service';
 import { EmailService } from '../services/email.service';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 import { BillingService } from '../billing/billing.service';
@@ -66,47 +68,48 @@ export class AdminService {
     private securityService: SecurityService,
     private emailService: EmailService,
     private readonly billingService: BillingService,
+    @InjectRepository(AdminConfig)
+    private adminConfigRepo: Repository<AdminConfig>,
+    private readonly adminSecurity: AdminSecurityService,
   ) {}
 
-  async adminLogin(username: string, password: string) {
+  async adminLogin(username: string, password: string, totp?: string) {
     // Güvenli admin kontrolü - environment variables'dan al
-    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH; // bcrypt hash
-    const adminPasswordPlain = process.env.ADMIN_PASSWORD; // opsiyonel düz şifre (sadece dev)
+    // 1) Öncelik: AdminConfig (DB)
+    const cfg = await this.adminConfigRepo.findOne({ where: { id: 1 } });
+    if (cfg) {
+      const ok = await this.adminSecurity.validateLogin(username, password, totp);
+      if (!ok) throw new UnauthorizedException('Invalid admin credentials or 2FA code');
+    } else {
+      // 2) Fallback: Env değişkenleri (eski davranış)
+      const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+      const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH; // bcrypt hash
+      const adminPasswordPlain = process.env.ADMIN_PASSWORD; // opsiyonel düz şifre (sadece dev)
 
-    // Kullanıcı adı kontrolü
-    if (username !== adminUsername) {
-      throw new UnauthorizedException('Invalid admin credentials');
-    }
-
-    let isPasswordValid = false;
-
-    if (adminPasswordHash) {
-      // Hash ile doğrula
-      isPasswordValid = await this.securityService.comparePassword(
-        password,
-        adminPasswordHash,
-      );
-    } else if (adminPasswordPlain) {
-      // Düz şifre ile doğrula (DEV amaçlı)
-      isPasswordValid = password === adminPasswordPlain;
-      if (!isPasswordValid) {
+      if (username !== adminUsername) {
         throw new UnauthorizedException('Invalid admin credentials');
       }
-      // Uyarı: üretimde kullanılmamalı
-      console.warn(
-        '⚠️ ADMIN_PASSWORD_HASH is not set. Using ADMIN_PASSWORD for admin auth (dev only).',
-      );
-    } else {
-      // Son çare olarak geliştirme kolaylığı: admin/admin123
-      const defaultDevPassword = 'admin123';
-      isPasswordValid = password === defaultDevPassword;
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Admin credentials not configured');
+
+      let isPasswordValid = false;
+      if (adminPasswordHash) {
+        isPasswordValid = await this.securityService.comparePassword(
+          password,
+          adminPasswordHash,
+        );
+      } else if (adminPasswordPlain) {
+        isPasswordValid = password === adminPasswordPlain;
+        if (!isPasswordValid) {
+          throw new UnauthorizedException('Invalid admin credentials');
+        }
+        console.warn('⚠️ Using ADMIN_PASSWORD (dev only).');
+      } else {
+        const defaultDevPassword = 'admin123';
+        isPasswordValid = password === defaultDevPassword;
+        if (!isPasswordValid) {
+          throw new UnauthorizedException('Admin credentials not configured');
+        }
+        console.warn('⚠️ Falling back to default dev credentials (admin/admin123).');
       }
-      console.warn(
-        '⚠️ Admin credentials not configured. Falling back to default dev credentials (admin/admin123). DO NOT USE IN PRODUCTION.',
-      );
     }
 
     // Güvenli random token üret

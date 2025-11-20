@@ -144,15 +144,6 @@ export default function AdminLoginPage({ onBack }: AdminLoginPageProps) {
             </div>
           )}
 
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-sm font-medium text-gray-700 mb-2">Demo Admin Bilgileri:</p>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>Kullanıcı Adı:</strong> admin</p>
-              <p><strong>Şifre:</strong> admin123</p>
-            </div>
-          </div>
-
           {/* Warning */}
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-xs text-yellow-800">

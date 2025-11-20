@@ -56,8 +56,8 @@ export class AdminController {
   @Post('login')
   @ApiOperation({ summary: 'Admin login' })
   @ApiResponse({ status: 200, description: 'Admin logged in successfully' })
-  async adminLogin(@Body() loginDto: { username: string; password: string }) {
-    return this.adminService.adminLogin(loginDto.username, loginDto.password);
+  async adminLogin(@Body() loginDto: { username: string; password: string; totp?: string }) {
+    return this.adminService.adminLogin(loginDto.username, loginDto.password, loginDto.totp);
   }
 
   @Get('users')

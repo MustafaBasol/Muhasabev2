@@ -1,4 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { AdminSecurityService } from './admin-security.service';
+import { AdminSecurityController } from './admin-security.controller';
+import { AdminConfig } from './entities/admin-config.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -46,6 +49,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
       Organization,
       OrganizationMember,
       Invite,
+      AdminConfig,
     ]),
     BillingModule,
   ],
@@ -54,6 +58,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
     BackupController,
     AdminOrganizationsController,
     SuppressionAdminController,
+    AdminSecurityController,
   ],
   providers: [
     AdminService,
@@ -61,6 +66,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
     SecurityService,
     PlanLimitsService,
     PlanLimitsLoader,
+    AdminSecurityService,
   ],
   exports: [AdminService, BackupService, PlanLimitsService],
 })

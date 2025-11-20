@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminApi } from '../api/admin';
 import { Edit, Trash2, ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
@@ -10,6 +10,7 @@ import SiteSettingsPage from './admin/SiteSettingsPage';
 import TenantConsolePage from './admin/TenantConsolePage';
 import { useAuth } from '../contexts/AuthContext';
 import StatusPage from './status/StatusPage';
+const AdminSecurityPageLazy = React.lazy(() => import('./admin/AdminSecurityPage'));
 import { BillingInvoiceDTO, listInvoices as userListInvoices } from '../api/billing';
 
 interface User {
@@ -54,7 +55,7 @@ const AdminPage: React.FC = () => {
   const { t } = useTranslation('common');
   const { tenant: authTenant } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: 'owner', password: '' });
+  const [loginForm, setLoginForm] = useState({ username: 'admin', password: '', totp: '' });
   const [users, setUsers] = useState<User[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [tableData, setTableData] = useState<TableData>({
@@ -66,7 +67,7 @@ const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups' | 'retention' | 'status' | 'planLimits' | 'tenantConsole' | 'siteSettings'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups' | 'retention' | 'status' | 'planLimits' | 'tenantConsole' | 'siteSettings' | 'security'>('users');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
   // Users sekmesi için şirket filtresi (sunucu tarafı)
   const [userTenantFilter, setUserTenantFilter] = useState<string>('all');
@@ -246,7 +247,7 @@ const AdminPage: React.FC = () => {
     setError('');
 
     try {
-      const response = await adminApi.login(loginForm.username, loginForm.password);
+      const response = await adminApi.login(loginForm.username, loginForm.password, loginForm.totp || undefined);
       if (response.success) {
   setIsAuthenticated(true);
   localStorage.setItem('admin-token', response.adminToken);
@@ -258,7 +259,7 @@ const AdminPage: React.FC = () => {
   loadAllData(defaultTenant !== 'all' ? defaultTenant : undefined);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Giriş başarısız');
+      setError(err.response?.data?.message || 'Giriş başarısız. 2FA etkinse 6 haneli kod ya da kurtarma kodu giriniz.');
     } finally {
       setLoading(false);
     }
@@ -551,6 +552,22 @@ const AdminPage: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  2FA Kodu (varsa)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9A-Za-z\-\s]{4,}"
+                  placeholder="123456 veya kurtarma kodu"
+                  value={loginForm.totp}
+                  onChange={(e) => setLoginForm(prev => ({ ...prev, totp: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">2FA etkinse 6 haneli kodu ya da kurtarma kodunu girin.</p>
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -687,6 +704,16 @@ const AdminPage: React.FC = () => {
             }`}
           >
             ⚙️ Site Ayarları
+          </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'security'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🔐 Güvenlik
           </button>
         </div>
 
@@ -1339,6 +1366,14 @@ const AdminPage: React.FC = () => {
         {activeTab === 'siteSettings' && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <SiteSettingsPage />
+          </div>
+        )}
+
+        {activeTab === 'security' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <Suspense fallback={<div className="text-sm text-gray-500">Yükleniyor...</div>}>
+              <AdminSecurityPageLazy />
+            </Suspense>
           </div>
         )}
 

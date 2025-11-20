@@ -29,7 +29,8 @@
     "cron:retention": "ts-node -r tsconfig-paths/register scripts/data-retention.ts",
     "cron:retention:dry": "ts-node -r tsconfig-paths/register scripts/data-retention.ts",
     "cron:retention:execute": "ts-node -r tsconfig-paths/register scripts/data-retention.ts --execute --force",
-    "test:retention": "ts-node -r tsconfig-paths/register scripts/test-retention-setup.ts"
+    "test:retention": "ts-node -r tsconfig-paths/register scripts/test-retention-setup.ts",
+    "admin:2fa:reset": "ts-node -r tsconfig-paths/register scripts/admin-2fa-reset.ts"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.926.0",
