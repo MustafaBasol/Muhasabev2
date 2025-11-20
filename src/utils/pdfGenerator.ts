@@ -471,10 +471,31 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
       if (!invCustomerEmail) invCustomerEmail = found.email || '';
       invCustomerPhone = found.phone || '';
       if (!invCustomerAddress) invCustomerAddress = formatMultilineAddress(found.address || '');
+        // Adres çok uzunsa iki satıra böl (yaklaşık ortadan boşlukta kes)
+        if (invCustomerAddress && invCustomerAddress.length > 70) {
+          const raw = invCustomerAddress.replace(/\n+/g, ' ').trim();
+          let breakIdx = raw.lastIndexOf(' ', Math.min(raw.length - 1, Math.floor(raw.length / 2) + 10));
+          if (breakIdx < 40) breakIdx = raw.indexOf(' ', 40); // çok erken kesilmesin
+          if (breakIdx > 0 && breakIdx < raw.length - 10) {
+            invCustomerAddress = raw.slice(0, breakIdx).trim() + "\n" + raw.slice(breakIdx + 1).trim();
+          } else {
+            invCustomerAddress = raw; // güvenli fallback
+          }
+        }
       invCustomerCompany = found.company || '';
       invCustomerTaxNumber = found.taxNumber || '';
     }
   } catch {}
+
+  // Newline'ları PDF'de kesin satır kırılması için <br/>'e çevir (found olsun veya olmasın uygulanır)
+  let invCustomerAddressHtml = invCustomerAddress;
+  if (invCustomerAddressHtml.includes('\n')) {
+    invCustomerAddressHtml = invCustomerAddressHtml
+      .split('\n')
+      .map(p => p.trim())
+      .filter(Boolean)
+      .join('<br/>');
+  }
 
   // Çok dilli alan etiketleri
   const invoiceFieldLabels = {
@@ -488,7 +509,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
     invCustomerCompany ? { key: 'company', value: invCustomerCompany } : null,
     invCustomerEmail ? { key: 'email', value: invCustomerEmail } : null,
     invCustomerPhone ? { key: 'phone', value: invCustomerPhone } : null,
-    invCustomerAddress ? { key: 'address', value: invCustomerAddress, preLine: true } : null,
+    invCustomerAddress ? { key: 'address', value: invCustomerAddressHtml } : null,
     invCustomerTaxNumber ? { key: 'tax', value: invCustomerTaxNumber } : null,
   ].filter(Boolean) as any;
 
@@ -496,7 +517,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
     <div style="text-align:right;">
       <h3 style="color:#1F2937;margin:0 0 6px 0;">${tf('pdf.invoice.customerInfo')}</h3>
       <div style="font-weight:700;margin-bottom:4px;">${invoice.customerName ?? ''}</div>
-      ${invoiceCustomerFields.length ? `<div style=\"font-size:11px;color:#374151;\">${invoiceCustomerFields.map(f => `<div${f.preLine ? ' style=\\"white-space:pre-line;\\"' : ''}><strong>${invoiceFieldLabels[f.key]}:</strong> ${f.value}</div>`).join('')}</div>` : ''}
+      ${invoiceCustomerFields.length ? `<div style=\"font-size:11px;color:#374151;\">${invoiceCustomerFields.map(f => `<div><strong>${invoiceFieldLabels[f.key]}:</strong> ${f.value}</div>`).join('')}</div>` : ''}
     </div>
   `;
 
@@ -528,7 +549,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
         </div>
         <div style="text-align:right; line-height:1;">
           <div style="color:#3B82F6; font-size:28px; font-weight:800;">${tf('pdf.invoice.title')}</div>
-          <div style="color:#6B7280; font-size:12px; margin-top:4px;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'Comptario')}</div>
+          <div style="color:#6B7280; font-size:12px; margin-top:4px;">${(() => { const t = String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow|comptario/gi, 'Comptario').trim(); return t.replace(/^comptario/i,'Comptario'); })()}</div>
         </div>
       </div>
 
@@ -598,7 +619,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
 
       <!-- Footer: sayfanın dibinde -->
       <div style="text-align:center; margin-top:auto; padding-top:16px; border-top:1px solid #E5E7EB; color:#6B7280; font-size:11px;">
-        <p>${String(tf('pdf.invoice.footer')).replace(/MoneyFlow/gi, 'Comptario')}</p>
+        <p>${(() => { const t = String(tf('pdf.invoice.footer')).replace(/MoneyFlow|comptario|comptraio/gi,'Comptario').trim(); return t.replace(/^comptario/i,'Comptario'); })()}</p>
       </div>
     </div>
   `;
@@ -614,11 +635,23 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
   const statusLabel = ({ draft: tf('pdf.expense.statusLabels.draft'), approved: tf('pdf.expense.statusLabels.approved'), paid: tf('pdf.expense.statusLabels.paid') } as Record<Expense['status'], string>)[expense.status];
   const activeCurrency: Currency = currency ?? getSelectedCurrency();
   const fmt = makeCurrencyFormatter(activeCurrency);
+  // Tedarikçi metni: nesne gelirse isim/title/companyName alanlarını dene, yoksa yedek metin
+  const supplierDisplay = (() => {
+    const sup: any = (expense as any).supplier;
+    if (!sup) return i18n.t('common:noSupplier', { lng: activeLang });
+    if (typeof sup === 'string') return sup;
+    return sup.name || sup.title || sup.companyName || i18n.t('common:noSupplier', { lng: activeLang });
+  })();
+  // Tagline normalizasyonu: her durumda ilk harf büyük 'Comptario'
+  const appSubtitle = (() => {
+    const raw = String(tf('pdf.invoice.appSubtitle'));
+    return raw.replace(/MoneyFlow|comptario/gi, 'Comptario').replace(/^comptario/i, 'Comptario');
+  })();
   return `
   <div style="max-width: 170mm; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #DC2626; padding-bottom: 20px;">
       <h1 style="color: #DC2626; font-size: 28px; margin: 0;">Comptario</h1>
-      <p style="color: #6B7280; margin: 5px 0 0 0;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'Comptario')}</p>
+      <p style="color: #6B7280; margin: 4px 0 0 0;">${appSubtitle}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
       <div>
@@ -630,7 +663,7 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
       </div>
       <div style="text-align: right;">
         <h3 style="color: #1F2937; margin: 0 0 10px 0;">${tf('pdf.expense.supplierInfo')}</h3>
-        <p style="margin: 5px 0;"><strong>${expense.supplier || i18n.t('common:noSupplier', { lng: activeLang })}</strong></p>
+        <p style="margin: 5px 0;"><strong>${supplierDisplay}</strong></p>
         <p style="margin: 5px 0; background-color: #FEF3C7; padding: 5px 10px; border-radius: 5px; display: inline-block;">
           <strong>${tf('pdf.expense.category')}:</strong> ${tf('expenseCategories.' + expense.category) || expense.category}
         </p>
@@ -649,7 +682,7 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
       </div>
     </div>
     <div style="text-align: center; margin-top: 48px; padding-top: 20px; padding-bottom: 8px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
-      <p>${String(tf('pdf.expense.footer')).replace(/MoneyFlow/gi, 'Comptario')}</p>
+      <p>${String(tf('pdf.expense.footer')).replace(/MoneyFlow|comptario/gi, 'Comptario')}</p>
     </div>
   </div>
 `;
@@ -674,8 +707,8 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
   return `
   <div style="max-width: 170mm; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #10B981; padding-bottom: 20px;">
-  <h1 style="color: #10B981; font-size: 28px; margin: 0;">Comptario</h1>
-  <p style="color: #6B7280; margin: 5px 0 0 0;">${String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow/gi, 'Comptario')}</p>
+      <h1 style="color: #10B981; font-size: 28px; margin: 0;">Comptario</h1>
+      <p style="color: #6B7280; margin: 4px 0 0 0;">${(() => { const sub = String(tf('pdf.invoice.appSubtitle')).replace(/MoneyFlow|comptario/gi, 'Comptario').trim(); return sub.replace(/^comptario/i,'Comptario'); })()}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
       <div>
@@ -719,8 +752,8 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
           <span style="color: #10B981; font-size: 32px; font-weight: bold;">${fmt(computedNet)}</span>
       </div>
     </div>
-    <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px;">
-      <p>${String(tf('pdf.sale.footer')).replace(/MoneyFlow/gi, 'Comptario')}</p>
+    <div style="text-align: center; margin-top: 40px; padding: 16px 0 12px 0; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 11px; line-height:1.3;">
+      <p style="margin:0;">${String(tf('pdf.sale.footer')).replace(/MoneyFlow|comptario/gi, 'Comptario').trim().replace(/^comptario/i,'Comptario')}</p>
     </div>
   </div>
 `;

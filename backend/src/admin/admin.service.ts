@@ -655,6 +655,26 @@ export class AdminService {
             console.log(`[Admin] planOverrides temizlendi`);
           }
         }
+
+        // Plan düşürme: aktif kullanıcı sayısı yeni limite göre fazla ise uyarı durumu ayarla
+        try {
+          const activeUsers = await this.userRepository.count({ where: { tenantId: tenant.id, isActive: true } as any });
+          const maxAllowed = Math.max(0, Number(tenant.maxUsers || 0));
+          const excess = activeUsers - maxAllowed;
+          if (excess > 0) {
+            // 7 gün süre ver
+            const deadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            (tenant as any).requiredUserReduction = excess;
+            (tenant as any).downgradePendingUntil = deadline;
+            console.log(`[Admin] Plan düşürme beklemede: aktif=${activeUsers} > limit=${maxAllowed}, reduction=${excess}, deadline=${deadline.toISOString()}`);
+          } else {
+            // Fazla yoksa alanları temizle
+            (tenant as any).requiredUserReduction = null;
+            (tenant as any).downgradePendingUntil = null;
+          }
+        } catch (e) {
+          console.warn('Plan düşürme değerlendirmesi yapılamadı:', (e as any)?.message || e);
+        }
       }
     }
     if (payload.status) {
@@ -1258,6 +1278,25 @@ export class AdminService {
       );
     }
 
+    // Plan düşürme alanlarını güncelle/temizle: kullanım limit altına indiyse cleanup
+    try {
+      const effMaxUsers = (effective as any)?.maxUsers as number | undefined;
+      if (
+        typeof (tenant as any).requiredUserReduction === 'number' &&
+        typeof effMaxUsers === 'number'
+      ) {
+        const remaining = Math.max(0, usersCount - effMaxUsers);
+        if (remaining <= 0) {
+          (tenant as any).requiredUserReduction = null;
+          (tenant as any).downgradePendingUntil = null;
+          await this.tenantRepository.save(tenant);
+        } else if ((tenant as any).requiredUserReduction !== remaining) {
+          (tenant as any).requiredUserReduction = remaining;
+          await this.tenantRepository.save(tenant);
+        }
+      }
+    } catch {}
+
     return {
       success: true,
       tenant: {
@@ -1269,6 +1308,8 @@ export class AdminService {
         maxUsers: tenant.maxUsers,
         stripeCustomerId: tenant.stripeCustomerId,
         stripeSubscriptionId: tenant.stripeSubscriptionId,
+        downgradePendingUntil: (tenant as any).downgradePendingUntil ?? null,
+        requiredUserReduction: (tenant as any).requiredUserReduction ?? null,
       },
       limits: {
         default: defaultLimits,
@@ -1286,6 +1327,88 @@ export class AdminService {
         },
       },
     };
+  }
+
+  /**
+   * Plan düşürme son tarihi geçmişse fazla aktif kullanıcıları (tenant_admin ve super_admin hariç)
+   * rastgele seçip pasifleştirir. Sayı, limit aşımına göre belirlenir.
+   */
+  async enforceTenantDowngrade(tenantId: string) {
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const deadline = (tenant as any).downgradePendingUntil as Date | null;
+    const required = Number((tenant as any).requiredUserReduction ?? 0);
+    if (!deadline || required <= 0) {
+      return { success: true, enforced: 0, message: 'No enforcement needed' };
+    }
+    const now = new Date();
+    if (deadline > now) {
+      const remainsMs = deadline.getTime() - now.getTime();
+      return { success: true, enforced: 0, message: `Deadline not reached (${Math.ceil(remainsMs/1000)}s remaining)` };
+    }
+
+    // Mevcut aktif kullanıcılar ve efektif limit
+    const activeUsers = await this.userRepository.find({
+      where: { tenantId, isActive: true } as any,
+      select: {
+        id: true,
+        role: true,
+      } as any,
+      order: { createdAt: 'DESC' as any },
+    });
+    const base = await this.getTenantLimits(tenantId);
+    const effMax = Math.max(0, Number(base?.limits?.effective?.maxUsers ?? 0));
+    const over = Math.max(0, (base?.usage?.users ?? 0) - effMax);
+    if (over <= 0) {
+      // Temizle
+      (tenant as any).requiredUserReduction = null;
+      (tenant as any).downgradePendingUntil = null;
+      await this.tenantRepository.save(tenant);
+      return { success: true, enforced: 0, message: 'Already within limits' };
+    }
+
+    // Hariç tutulacak roller
+    const excluded = new Set<UserRole>([UserRole.TENANT_ADMIN as any, UserRole.SUPER_ADMIN as any]);
+    const candidates = activeUsers.filter((u: any) => !excluded.has(u.role));
+    if (candidates.length === 0) {
+      return { success: false, enforced: 0, message: 'No eligible users to deactivate' };
+    }
+    // Rastgele seçim
+    const need = Math.min(over, candidates.length);
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    const toDeactivate = candidates.slice(0, need);
+    const ids = toDeactivate.map((u) => u.id);
+    await this.userRepository
+      .createQueryBuilder()
+      .update('users')
+      .set({ isActive: false } as any)
+      .where('id IN (:...ids)', { ids })
+      .execute();
+
+    try {
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          tenantId,
+          entity: 'plan_downgrade',
+          entityId: tenantId,
+          action: 'UPDATE' as any,
+          diff: { autoDeactivated: ids, count: ids.length },
+        }),
+      );
+    } catch {}
+
+    // Kalan fazlalığa göre alanları güncelle/temizle
+    const newBase = await this.getTenantLimits(tenantId);
+    const newOver = Math.max(0, (newBase?.usage?.users ?? 0) - Math.max(0, Number(newBase?.limits?.effective?.maxUsers ?? 0)));
+    (tenant as any).requiredUserReduction = newOver > 0 ? newOver : null;
+    (tenant as any).downgradePendingUntil = newOver > 0 ? deadline : null;
+    await this.tenantRepository.save(tenant);
+
+    return { success: true, enforced: ids.length };
   }
 
   async updateTenantLimits(

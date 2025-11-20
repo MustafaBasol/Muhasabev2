@@ -24,6 +24,14 @@ export const adminApi = {
     });
     return response.data;
   },
+  exportUsersCsv: async (tenantId?: string) => {
+    const qs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+    const response = await apiClient.get(`/admin/users/export-csv${qs}`, {
+      headers: getAdminHeaders(),
+      responseType: 'blob' as const,
+    });
+    return response.data as Blob;
+  },
   // Admin Security
   getSecurityConfig: async () => {
     const response = await apiClient.get('/admin/security/config', {
@@ -328,6 +336,13 @@ export const adminApi = {
     payload: { email: string; firstName?: string; lastName?: string; role?: string; password?: string; autoPassword?: boolean; activate?: boolean }
   ) => {
     const response = await apiClient.post(`/admin/tenant/${tenantId}/users`, payload, {
+      headers: getAdminHeaders(),
+    });
+    return response.data;
+  },
+  // Enforce plan downgrade (auto deactivate excess users)
+  enforceTenantDowngrade: async (tenantId: string) => {
+    const response = await apiClient.post(`/admin/tenant/${tenantId}/enforce-downgrade`, { confirm: true }, {
       headers: getAdminHeaders(),
     });
     return response.data;

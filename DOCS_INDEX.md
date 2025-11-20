@@ -20,6 +20,7 @@
 - **[BACKEND_STATUS.md](./BACKEND_STATUS.md)** - Backend geliştirme durumu
 - **[FRONTEND_INTEGRATION.md](./FRONTEND_INTEGRATION.md)** - Frontend entegrasyonu
  - **[BANK_ACCOUNTS_API.md](./BANK_ACCOUNTS_API.md)** - Banka hesapları API ve plan limitleri
+ - **[ADMIN_CSV_AND_PLAN_DOWNGRADE.md](./ADMIN_CSV_AND_PLAN_DOWNGRADE.md)** - Admin: CSV ihracı ve plan düşürme yönetimi
 
 ### 🧾 Teklif Sistemi (Quotes) — YENİ! ✨
 - **[docs/quotes/QUOTATION_SYSTEM_SPEC.md](./docs/quotes/QUOTATION_SYSTEM_SPEC.md)** — Evrensel teklif sistemi ürün özeti

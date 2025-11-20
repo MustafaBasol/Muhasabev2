@@ -255,7 +255,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white px-4 py-3 shadow-sm sm:px-6">
+    <header className="sticky z-30 bg-white px-4 py-3 shadow-sm sm:px-6" style={{ top: 'var(--announcement-bar-height, 0px)' }}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {onToggleSidebar && (

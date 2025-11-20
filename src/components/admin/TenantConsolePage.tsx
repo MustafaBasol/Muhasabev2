@@ -12,6 +12,7 @@ const TenantConsolePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [message, setMessage] = useState<string>('');
+  const [exporting, setExporting] = useState<boolean>(false);
 
   // Limits override state
   type Limits = {
@@ -28,6 +29,7 @@ const TenantConsolePage: React.FC = () => {
   const [showAllInvoices, setShowAllInvoices] = useState(false);
   const [subRaw, setSubRaw] = useState<any>(null);
   const [showInvitesAll, setShowInvitesAll] = useState(false);
+  const [enforcing, setEnforcing] = useState(false);
   // Seçili tenant'ı son durum olarak takip etmek ve yarış durumlarını engellemek için ref
   const selectedIdRef = useRef<string>('');
 
@@ -165,6 +167,14 @@ const TenantConsolePage: React.FC = () => {
   const usage = overview?.usage;
   const users = overview?.users || [];
   const invites = (overview?.invites as any[]) || [];
+  const requiredReduction = Math.max(0, Number(tenant?.requiredUserReduction ?? 0));
+  const effMaxUsers = Number(limits?.effective?.maxUsers ?? 0);
+  const dynamicRemaining = Math.max(0, Number(usage?.users ?? 0) - Math.max(0, effMaxUsers));
+  const remainingToReduce = Math.max(requiredReduction, dynamicRemaining);
+  const deadlineIso = tenant?.downgradePendingUntil ? String(tenant.downgradePendingUntil) : '';
+  const deadlineTs = deadlineIso ? new Date(deadlineIso).getTime() : 0;
+  const nowTs = Date.now();
+  const countdownSec = deadlineTs > nowTs ? Math.ceil((deadlineTs - nowTs)/1000) : 0;
 
   // Add user form state
   const [newUser, setNewUser] = useState<{ email: string; firstName: string; lastName: string; role: string; password: string; autoPassword: boolean; activate: boolean }>({
@@ -242,6 +252,7 @@ const TenantConsolePage: React.FC = () => {
   // Users inline edit state
   type UserEdit = { firstName?: string; lastName?: string; email?: string; role?: string };
   const [userEdits, setUserEdits] = useState<Record<string, UserEdit>>({});
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const startEditUser = (u: any) => {
     setUserEdits(prev => ({ ...prev, [u.id]: { firstName: u.firstName, lastName: u.lastName, email: u.email, role: u.role } }));
   };
@@ -359,6 +370,30 @@ const TenantConsolePage: React.FC = () => {
     }
   };
 
+  const exportUsersCsv = async () => {
+    if (!selectedTenantId) return;
+    try {
+      setExporting(true);
+      const blob = await adminApi.exportUsersCsv(selectedTenantId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeName = (tenant?.companyName || tenant?.name || selectedTenantId || 'users')
+        .toString()
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .slice(0, 50);
+      a.href = url;
+      a.download = `kullanicilar_${safeName}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setError('CSV dışa aktarma başarısız');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex gap-4">
       {/* Sol: şirket listesi + arama */}
@@ -440,6 +475,48 @@ const TenantConsolePage: React.FC = () => {
               <Info title="Gider (Ay)" value={usage?.monthly?.expenses} max={limits?.effective?.monthly?.maxExpenses} />
             </div>
 
+            {/* Plan düşürme uyarısı */}
+            {remainingToReduce > 0 && (
+              <div className="border border-amber-300 bg-amber-50 text-amber-800 rounded-lg p-3">
+                <div className="text-sm">
+                  <span className="font-semibold">Plan düşürme uyarısı:</span>
+                  {' '}Bu şirkette aktif kullanıcı sayısı etkili limitin üzerinde.
+                </div>
+                <div className="text-xs mt-1 text-amber-900">
+                  Pasifleştirmeniz gereken kullanıcı sayısı: <span className="font-semibold">{remainingToReduce}</span>
+                  {deadlineTs ? (
+                    <>
+                      {' '}· Son tarih: <span className="font-mono">{new Date(deadlineTs).toLocaleString()}</span>
+                      {countdownSec > 0 && (<span> · Kalan: {formatDuration(countdownSec)}</span>)}
+                    </>
+                  ) : null}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    className="px-3 py-1.5 text-xs rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                    disabled={enforcing || !selectedTenantId}
+                    onClick={async ()=>{
+                      if (!selectedTenantId) return;
+                      const ok = window.confirm('Fazla kullanıcıları rastgele pasifleştirmek istediğinize emin misiniz? (tenant_admin/super_admin hariç)');
+                      if (!ok) return;
+                      try {
+                        setEnforcing(true);
+                        const res = await adminApi.enforceTenantDowngrade(selectedTenantId);
+                        setMessage(`Uygulandı: ${res?.enforced ?? 0}`);
+                        setTimeout(()=>setMessage(''), 2000);
+                        await loadOverview(selectedTenantId);
+                      } catch (e) {
+                        setError('Uygulama başarısız');
+                      } finally {
+                        setEnforcing(false);
+                      }
+                    }}
+                  >{enforcing ? 'Uygulanıyor…' : 'Fazlayı Otomatik Pasifleştir'}</button>
+                  <span className="text-[11px] text-amber-900">Alternatif: Aşağıdaki listeden kullanıcıları tek tek pasifleştirin.</span>
+                </div>
+              </div>
+            )}
+
             {/* Stripe abonelik özeti (teşhis için) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card title="Stripe Abonelik Özeti">
@@ -491,6 +568,11 @@ const TenantConsolePage: React.FC = () => {
               <div className="px-3 py-2 border-b font-medium flex items-center justify-between">
                 <span>Kullanıcılar</span>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={exportUsersCsv}
+                    disabled={exporting || !selectedTenantId}
+                    className="px-2 py-1 text-xs border rounded hover:bg-gray-50 disabled:opacity-50"
+                  >{exporting ? 'İndiriliyor…' : 'CSV İndir'}</button>
                   {createdTempPassword && (
                     <div className="text-xs text-orange-700 bg-orange-50 border border-orange-200 px-2 py-1 rounded">
                       Geçici şifre: <span className="font-mono font-semibold">{createdTempPassword}</span>
@@ -502,6 +584,19 @@ const TenantConsolePage: React.FC = () => {
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-3 py-2 text-left">
+                        <input
+                          type="checkbox"
+                          checked={users.length>0 && selectedUserIds.size>0 && users.every((u: any)=> selectedUserIds.has(u.id))}
+                          onChange={(e)=>{
+                            const next = new Set<string>();
+                            if (e.target.checked) {
+                              users.forEach((u:any)=> next.add(u.id));
+                            }
+                            setSelectedUserIds(next);
+                          }}
+                        />
+                      </th>
                       <th className="px-3 py-2 text-left">Ad Soyad</th>
                       <th className="px-3 py-2 text-left">E-posta</th>
                       <th className="px-3 py-2 text-left">Rol</th>
@@ -512,6 +607,7 @@ const TenantConsolePage: React.FC = () => {
                   <tbody>
                     {/* Add user row */}
                     <tr className="border-t bg-gray-50/60">
+                      <td className="px-3 py-2"></td>
                       <td className="px-3 py-2">
                         <div className="flex gap-2">
                           <input value={newUser.firstName} onChange={(e)=>setNewUser(prev=>({...prev, firstName:e.target.value}))} className="px-2 py-1 border border-gray-300 rounded w-28" placeholder="Ad" />
@@ -552,6 +648,19 @@ const TenantConsolePage: React.FC = () => {
                       const edit = userEdits[u.id];
                       return (
                         <tr key={u.id} className="border-t">
+                          <td className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedUserIds.has(u.id)}
+                              onChange={(e)=>{
+                                setSelectedUserIds(prev=>{
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(u.id); else next.delete(u.id);
+                                  return next;
+                                });
+                              }}
+                            />
+                          </td>
                           <td className="px-3 py-2">
                             {edit ? (
                               <div className="flex gap-2">
@@ -600,6 +709,40 @@ const TenantConsolePage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              {selectedUserIds.size > 0 && (
+                <div className="px-3 py-2 border-t bg-gray-50 flex items-center justify-between">
+                  <div className="text-xs text-gray-700">Seçili: <span className="font-semibold">{selectedUserIds.size}</span></div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="px-3 py-1.5 text-xs rounded bg-red-600 text-white hover:bg-red-700"
+                      onClick={async ()=>{
+                        const list = users.filter((u:any)=> selectedUserIds.has(u.id) && u.isActive);
+                        if (list.length === 0) { setError('Seçilenlerde aktif kullanıcı yok'); return; }
+                        const sure = window.confirm(`${list.length} kullanıcı pasifleştirilsin mi?`);
+                        if (!sure) return;
+                        try {
+                          setLoading(true);
+                          for (const u of list) {
+                            await adminApi.updateUserStatus(u.id, false);
+                          }
+                          setMessage(`${list.length} kullanıcı pasifleştirildi`);
+                          setTimeout(()=>setMessage(''), 2000);
+                          setSelectedUserIds(new Set());
+                          await loadOverview(selectedTenantId);
+                        } catch (e) {
+                          setError('Toplu pasifleştirme başarısız');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                    >Seçilenleri Pasifleştir</button>
+                    <button
+                      className="px-3 py-1.5 text-xs rounded border"
+                      onClick={()=> setSelectedUserIds(new Set())}
+                    >Seçimi Temizle</button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Davetler */}
@@ -786,3 +929,17 @@ const Field: React.FC<{ label: string; value?: number; onChange: (v:number)=>voi
     </div>
   );
 };
+
+// Yardımcı: saniyeyi okunur süreye çevir
+function formatDuration(totalSec: number) {
+  const d = Math.floor(totalSec / 86400);
+  const h = Math.floor((totalSec % 86400) / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const parts: string[] = [];
+  if (d) parts.push(`${d}g`);
+  if (h) parts.push(`${h}s`);
+  if (m) parts.push(`${m}d`);
+  if (s && parts.length === 0) parts.push(`${s}sn`);
+  return parts.join(' ');
+}

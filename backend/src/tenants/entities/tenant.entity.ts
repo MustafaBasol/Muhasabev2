@@ -147,6 +147,13 @@ export class Tenant {
   @Column({ type: 'int', default: 5 })
   maxUsers: number;
 
+  // Plan düşürme uyarı/uygulama akışı için alanlar
+  @Column({ type: 'timestamp', nullable: true, comment: 'Plan düşürme için son tarih' })
+  downgradePendingUntil: Date | null;
+
+  @Column({ type: 'int', nullable: true, comment: 'Plan düşürmede pasifleştirilmesi gereken kullanıcı sayısı' })
+  requiredUserReduction: number | null;
+
   @Column({ type: 'simple-json', nullable: true })
   settings: Record<string, any>;
 

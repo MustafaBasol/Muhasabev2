@@ -26,6 +26,13 @@ export interface SiteSettings {
   customHeadHtml: string | null;
   customBodyStartHtml: string | null;
   customBodyEndHtml: string | null;
+  // Announcements
+  announcementEnabled: boolean;
+  announcementMessage: string | null;
+  announcementType: 'info' | 'warning' | 'critical';
+  // Maintenance
+  maintenanceModeEnabled: boolean;
+  maintenanceMessage: string | null;
   createdAt: string;
   updatedAt: string;
 }

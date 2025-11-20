@@ -29,6 +29,7 @@ import { SubprocessorsModule } from './subprocessors/subprocessors.module';
 import { EmailModule } from './email/email.module';
 import { SiteSettingsModule } from './site-settings/site-settings.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
+import { MaintenanceInterceptor } from './common/interceptors/maintenance.interceptor';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { SeedService } from './database/seed.service';
 import { RateLimitMiddleware } from './common/rate-limit.middleware';
@@ -151,6 +152,10 @@ import { EnsureAttributionColumnsService } from './audit/ensure-attribution-colu
     AppService,
     SeedService,
     EnsureAttributionColumnsService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MaintenanceInterceptor,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantInterceptor,

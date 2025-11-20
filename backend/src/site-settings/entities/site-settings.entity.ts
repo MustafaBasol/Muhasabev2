@@ -53,6 +53,23 @@ export class SiteSettings {
   @Column({ type: 'text', nullable: true })
   customBodyEndHtml: string;
 
+  // Announcements
+  @Column({ type: 'boolean', default: false })
+  announcementEnabled: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  announcementMessage: string;
+
+  @Column({ type: 'varchar', length: '20', nullable: false, default: 'info' })
+  announcementType: string; // allowed: info | warning | critical
+
+  // Maintenance mode
+  @Column({ type: 'boolean', default: false })
+  maintenanceModeEnabled: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  maintenanceMessage: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

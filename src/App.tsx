@@ -119,6 +119,7 @@ import JoinOrganizationPage from "./components/JoinOrganizationPage";
 import PublicQuotePage from "./components/PublicQuotePage";
 import * as quotesApi from "./api/quotes";
 import { SeoInjector } from "./components/SeoInjector";
+import AnnouncementBar from "./components/AnnouncementBar";
 
 import * as ExcelJS from 'exceljs';
 
@@ -5974,6 +5975,7 @@ const AppContent: React.FC = () => {
         />
 
         <div className="flex flex-1 flex-col">
+          <AnnouncementBar />
           <Header
             user={user}
             onLogout={handleLogout}

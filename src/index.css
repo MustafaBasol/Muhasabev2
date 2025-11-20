@@ -16,6 +16,12 @@
 		@apply antialiased;
 		max-width: 100%;
 	}
+	/* Duyuru çubuğu aktifken üst boşluk ekle */
+	body.has-announcement-bar {
+		padding-top: var(--announcement-bar-height, 44px);
+	}
+	:root { --announcement-bar-height: 0px; }
+
 	img, video, canvas, svg {
 		display: block;
 		max-width: 100%;
@@ -51,3 +57,22 @@
 }
 
 /* Küçük ekranlarda global padding eklemeyelim; bileşenler kendi iç padding'lerini kullanacak */
+
+/* Duyuru çubuğu marquee animasyonu */
+@keyframes announcement-marquee {
+	0% { transform: translateX(100%); }
+	100% { transform: translateX(-100%); }
+}
+
+.announcement-marquee-wrapper {
+	position: relative;
+	overflow: hidden;
+	width: 100%;
+}
+
+.announcement-marquee {
+	display: inline-block;
+	white-space: nowrap;
+	padding-left: 100%; /* Başlangıç boşluğu */
+	animation: announcement-marquee 18s linear infinite;
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import LandingNavbar from './LandingNavbar';
+import AnnouncementBar from '../AnnouncementBar';
 import Hero from './Hero';
 import FeatureCards from './FeatureCards';
 import Value from './Value';
@@ -204,6 +205,9 @@ const LandingPage: React.FC = () => {
       >
         Skip to main content
       </a>
+
+      {/* Global Announcement / Maintenance Bar */}
+      <AnnouncementBar />
 
       {/* Navigation */}
       <LandingNavbar 

@@ -10,7 +10,9 @@ import {
   Patch,
   Delete,
   Logger,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AdminService } from './admin.service';
 import {
   ApiTags,
@@ -69,6 +71,74 @@ export class AdminController {
   ) {
     this.checkAdminAuth(headers);
     return this.adminService.getAllUsers(tenantId);
+  }
+
+  @Get('users/export-csv')
+  @ApiOperation({ summary: 'Export users as CSV (optionally filtered by tenant)' })
+  @ApiResponse({ status: 200, description: 'CSV file stream' })
+  async exportUsersCsv(
+    @Headers() headers: any,
+    @Res() res: Response,
+    @Query('tenantId') tenantId?: string,
+  ) {
+    this.checkAdminAuth(headers);
+    const users = await this.adminService.getAllUsers(tenantId);
+
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v);
+      if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    };
+
+    const headersRow = [
+      'ID',
+      'Ad',
+      'Soyad',
+      'Ad Soyad',
+      'E-posta',
+      'Rol',
+      'Aktif mi',
+      'Kayıt Tarihi',
+      'Son Giriş',
+      'Son Giriş TZ',
+      'Son Giriş UTC Dakika',
+      'Tenant ID',
+      'Tenant Adı',
+      'Tenant Şirket',
+      'Tenant Slug',
+    ];
+    const rows = users.map((u: any) => {
+      const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+      const createdAt = u.createdAt ? new Date(u.createdAt).toISOString() : '';
+      const lastLoginAt = u.lastLoginAt ? new Date(u.lastLoginAt).toISOString() : '';
+      const tz = u.lastLoginTimeZone || '';
+      const off = (u as any).lastLoginUtcOffsetMinutes ?? '';
+      const t = u.tenant || {};
+      return [
+        u.id,
+        u.firstName || '',
+        u.lastName || '',
+        fullName,
+        u.email || '',
+        u.role || '',
+        u.isActive ? 'true' : 'false',
+        createdAt,
+        lastLoginAt,
+        tz,
+        off,
+        u.tenantId || (t.id || ''),
+        t.name || '',
+        t.companyName || '',
+        t.slug || '',
+      ].map(escape).join(',');
+    });
+
+    const csv = '\uFEFF' + [headersRow.join(','), ...rows].join('\n');
+    const filename = tenantId ? `users_${tenantId}.csv` : 'users.csv';
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send(csv);
   }
 
   @Get('tenants')
@@ -370,6 +440,21 @@ export class AdminController {
   ) {
     this.checkAdminAuth(headers);
     return this.adminService.updateTenantBasic(tenantId, body);
+  }
+
+  @Post('tenant/:tenantId/enforce-downgrade')
+  @ApiOperation({ summary: 'Enforce plan downgrade by randomly deactivating excess users after deadline' })
+  @ApiResponse({ status: 200, description: 'Enforcement result' })
+  async enforceTenantDowngrade(
+    @Param('tenantId') tenantId: string,
+    @Body() body: { confirm?: boolean },
+    @Headers() headers: any,
+  ) {
+    this.checkAdminAuth(headers);
+    if (!body?.confirm) {
+      throw new UnauthorizedException('Confirmation required');
+    }
+    return this.adminService.enforceTenantDowngrade(tenantId);
   }
 
   // === Tenant faturaları (Stripe) ===

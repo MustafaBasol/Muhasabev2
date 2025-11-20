@@ -105,6 +105,18 @@ apiClient.interceptors.response.use(
       }
     } catch {}
 
+    // Maintenance mode: show friendly message and block action
+    try {
+      const status = error.response?.status;
+      const data: any = error.response?.data || {};
+      if (status === 503 && (data?.error === 'MAINTENANCE_MODE' || String(data?.message || '').toLowerCase().includes('maintenance'))) {
+        const msg = data?.message || 'Sistem bakım modunda (salt okunur). Lütfen daha sonra tekrar deneyin.';
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('showToast', { detail: { message: msg, tone: 'error' } }));
+        }
+      }
+    } catch {}
+
     // Handle authentication errors (user JWT)
     if (error.response?.status === 401) {
       const url = error.config?.url || '';
@@ -112,24 +124,49 @@ apiClient.interceptors.response.use(
       if (url.startsWith('/admin')) {
         try {
           localStorage.removeItem('admin-token');
-          // Admin sayfası dinleyebilsin diye özel event yayınla
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('adminAuthExpired'));
           }
         } catch {}
       }
 
-      // User endpoints: sadece zaten login olmuş kullanıcılar için
+      // User endpoints: spurious logout'u azalt — ardışık 2×401 eşiği
       if (localStorage.getItem('auth_token')) {
-        // Login/register endpoint'lerinde redirect yapma
+        // Kimlik akışı (/auth/*) için logout yapma
         if (!url.includes('/auth/')) {
-          if (import.meta.env.DEV) {
-            logger.info('🔐 Authentication error, clearing token...');
-          }
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user');
-          localStorage.removeItem('tenant');
-          if (typeof window !== 'undefined') window.location.href = '/';
+          try {
+            const now = Date.now();
+            const keyCount = '__auth_401_count';
+            const keyTs = '__auth_401_ts';
+            const prevCount = parseInt(localStorage.getItem(keyCount) || '0', 10) || 0;
+            const prevTs = parseInt(localStorage.getItem(keyTs) || '0', 10) || 0;
+            const within = now - prevTs < 15_000; // 15s penceresi
+            const nextCount = within ? prevCount + 1 : 1;
+            localStorage.setItem(keyCount, String(nextCount));
+            localStorage.setItem(keyTs, String(now));
+
+            // Bazı düşük öncelikli uç noktalar için sayacı etkileme
+            const lowPriority = (
+              typeof url === 'string' && (
+                url.includes('/site-settings') ||
+                url.includes('/status') ||
+                url.includes('/health')
+              )
+            );
+            if (lowPriority) {
+              return Promise.reject(error);
+            }
+
+            if (nextCount >= 2) {
+              if (import.meta.env.DEV) logger.info('🔐 2×401 tespit edildi, çıkış yapılıyor…');
+              localStorage.removeItem(keyCount);
+              localStorage.removeItem(keyTs);
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('user');
+              localStorage.removeItem('tenant');
+              if (typeof window !== 'undefined') window.location.href = '/';
+            }
+          } catch {}
           return Promise.reject(error);
         }
       }

@@ -2,19 +2,21 @@ import { Controller, Get, Put, Body, Headers, UnauthorizedException } from '@nes
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SiteSettingsService } from './site-settings.service';
 import { SiteSettings } from './entities/site-settings.entity';
+import { AdminService } from '../admin/admin.service';
 
 @ApiTags('site-settings')
 @Controller('site-settings')
 export class SiteSettingsController {
-  constructor(private readonly siteSettingsService: SiteSettingsService) {}
+  constructor(
+    private readonly siteSettingsService: SiteSettingsService,
+    private readonly adminService: AdminService,
+  ) {}
 
   private checkAdminAuth(headers: any) {
     const adminToken = headers['admin-token'];
     const correctToken = process.env.ADMIN_TOKEN || 'admin123';
-    
-    if (!adminToken || adminToken !== correctToken) {
-      throw new UnauthorizedException('Admin authentication required');
-    }
+    const ok = !!adminToken && (this.adminService.isValidAdminToken(adminToken) || adminToken === correctToken);
+    if (!ok) throw new UnauthorizedException('Admin authentication required');
   }
 
   @Get()

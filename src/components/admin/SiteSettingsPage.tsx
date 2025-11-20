@@ -37,6 +37,10 @@ export default function SiteSettingsPage() {
       setMessage({ type: 'success', text: 'Settings saved successfully!' });
       // Reload to get updated timestamps
       await loadSettings();
+      try {
+        // Duyuru çubuğu gibi bileşenler için global güncelleme sinyali
+        window.dispatchEvent(new CustomEvent('siteSettingsUpdated'));
+      } catch {}
     } catch (error: any) {
       console.error('Failed to save settings:', error);
       setMessage({ 
@@ -87,6 +91,86 @@ export default function SiteSettingsPage() {
       )}
 
       <div className="space-y-6">
+        {/* Announcements & Maintenance Section */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">📣 Duyurular & Bakım Modu</h3>
+
+          {/* Announcement Bar */}
+          <div className="space-y-3 mb-6">
+            <h4 className="text-md font-medium text-gray-800">Duyuru Çubuğu</h4>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="announcementEnabled"
+                checked={!!settings.announcementEnabled}
+                onChange={(e) => handleChange('announcementEnabled' as any, e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="announcementEnabled" className="text-sm font-medium text-gray-700">
+                Duyuru çubuğunu etkinleştir
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 ml-7">
+              Bu mesaj, uygulamanın üst kısmında tüm kullanıcılar için gösterilir.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-7">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duyuru Tipi</label>
+                <select
+                  value={settings.announcementType || 'info'}
+                  onChange={(e) => handleChange('announcementType' as any, e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="info">Info</option>
+                  <option value="warning">Warning</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duyuru Mesajı</label>
+                <textarea
+                  value={settings.announcementMessage || ''}
+                  onChange={(e) => handleChange('announcementMessage' as any, e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Örn: Cuma 22:00 - 23:00 arası bakım çalışması yapılacaktır."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Maintenance Mode */}
+          <div className="space-y-3">
+            <h4 className="text-md font-medium text-gray-800">Bakım Modu (Salt Okunur)</h4>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="maintenanceModeEnabled"
+                checked={!!settings.maintenanceModeEnabled}
+                onChange={(e) => handleChange('maintenanceModeEnabled' as any, e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="maintenanceModeEnabled" className="text-sm font-medium text-gray-700">
+                Bakım modunu etkinleştir (yazma işlemleri engellenir)
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 ml-7">
+              Etkinleştirildiğinde, normal kullanıcıların oluşturma/güncelleme/silme işlemleri geçici olarak engellenir. Yönetici paneli açıktır.
+            </p>
+            <div className="ml-7">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bakım Mesajı</label>
+              <textarea
+                value={settings.maintenanceMessage || ''}
+                onChange={(e) => handleChange('maintenanceMessage' as any, e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Örn: Sistem bakımda, lütfen bir süre sonra tekrar deneyin."
+              />
+            </div>
+          </div>
+        </div>
+
         {/* SEO Section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">🔍 SEO Settings</h3>

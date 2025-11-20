@@ -71,6 +71,7 @@ const AdminPage: React.FC = () => {
   const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
   // Users sekmesi için şirket filtresi (sunucu tarafı)
   const [userTenantFilter, setUserTenantFilter] = useState<string>('all');
+  const [exportingUsers, setExportingUsers] = useState<boolean>(false);
   // Data sekmesi için şirket filtresi (tab içi kullanım)
   const [dataTenantFilter, setDataTenantFilter] = useState<string>('all');
   // Tenants sekmesi için filtreler
@@ -763,6 +764,32 @@ const AdminPage: React.FC = () => {
                       <option key={t.id} value={t.id}>{t.companyName || t.name}</option>
                     ))}
                   </select>
+                  <button
+                    onClick={async () => {
+                      try {
+                        setExportingUsers(true);
+                        const tenantId = userTenantFilter !== 'all' ? userTenantFilter : undefined;
+                        const blob = await adminApi.exportUsersCsv(tenantId);
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        const tObj = tenants.find(t => t.id === tenantId);
+                        const label = tenantId ? (tObj?.companyName || tObj?.name || tenantId) : 'tum';
+                        const safe = String(label).replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 50);
+                        a.href = url;
+                        a.download = `kullanicilar_${safe}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                      } catch (e) {
+                        setError('CSV dışa aktarma başarısız');
+                      } finally {
+                        setExportingUsers(false);
+                      }
+                    }}
+                    disabled={exportingUsers}
+                    className="px-3 py-2 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >{exportingUsers ? 'İndiriliyor…' : 'CSV İndir'}</button>
                 </div>
               </div>
               <div className="overflow-x-auto">
