@@ -80,10 +80,10 @@ describe('Auth Flow Extended (e2e)', () => {
     expect(res.body).toEqual({ success: true });
   });
 
-  it('login behavior before verification respects NODE_ENV', async () => {
+  it('prevents login before verification when enforcement enabled', async () => {
     const shouldEnforce =
       (process.env.EMAIL_VERIFICATION_REQUIRED || 'false').toLowerCase() ===
-        'true' && process.env.NODE_ENV !== 'test';
+      'true';
     const expected = shouldEnforce ? 401 : 200;
     await request(server)
       .post('/auth/login')

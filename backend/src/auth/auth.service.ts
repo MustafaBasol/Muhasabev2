@@ -14,6 +14,7 @@ import { LoginDto } from './dto/login.dto';
 import { UserRole } from '../users/entities/user.entity';
 import { EmailService } from '../services/email.service';
 import { SecurityService } from '../common/security.service';
+import { TurnstileService } from '../common/turnstile.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
@@ -34,6 +35,7 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private securityService: SecurityService,
+    private turnstileService: TurnstileService,
     @InjectRepository(EmailVerificationToken)
     private evtRepo: Repository<EmailVerificationToken>,
     @InjectRepository(PasswordResetToken)
@@ -52,50 +54,11 @@ export class AuthService {
   private resendCooldown = new Map<string, number>();
   // Replaced by LoginAttemptsService (memory or Redis)
 
-  private async verifyTurnstile(token?: string, ip?: string): Promise<boolean> {
-    const secret = (process.env.TURNSTILE_SECRET_KEY || '').trim();
-    if (!secret) {
-      if (!process.env.__TURNSTILE_WARNED) {
-        console.warn('⚠️ TURNSTILE_SECRET_KEY missing – Turnstile verification skipped (fail-open).');
-        (process.env as any).__TURNSTILE_WARNED = '1';
-      }
-      return true; // fail-open
-    }
-    if (!token) return false;
-    if (token === 'TURNSTILE_SKIPPED') {
-      // Frontend sentinel when site key absent but secret present – treat as failure.
-      return false;
-    }
-    try {
-      const params = new URLSearchParams();
-      params.append('secret', secret);
-      params.append('response', token);
-      if (ip) params.append('remoteip', ip);
-      const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString(),
-      });
-      if (!res.ok) return false;
-      const data: any = await res.json().catch(() => ({}));
-      const success = data?.success === true;
-      if (!success && (process.env.TURNSTILE_LOG_VERBOSE || '').toLowerCase() === 'true') {
-        console.warn('Turnstile failure details:', data);
-      }
-      return success;
-    } catch (e) {
-      if ((process.env.TURNSTILE_LOG_VERBOSE || '').toLowerCase() === 'true') {
-        console.warn('⚠️ Turnstile verification error (treat as failure):', (e as any)?.message);
-      }
-      return false;
-    }
-  }
 
   async register(registerDto: RegisterDto) {
     // Turnstile mandatory for public signup when secret configured
-    const turnstileSecretConfigured = (process.env.TURNSTILE_SECRET_KEY || '').trim().length > 0;
-    if (turnstileSecretConfigured) {
-      const ok = await this.verifyTurnstile(registerDto.turnstileToken);
+    if (this.turnstileService.isEnabled()) {
+      const ok = await this.turnstileService.verify(registerDto.turnstileToken);
       if (!ok) {
         if (!registerDto.turnstileToken) {
           throw new BadRequestException('Human verification required');
@@ -103,30 +66,7 @@ export class AuthService {
         throw new BadRequestException('Human verification failed, please try again.');
       }
     }
-    // If secret not configured, fail-open (log once handled in verifyTurnstile)
-    // Parola basit politika kontrolü
-    const minLen = this.getNumberEnv('PASSWORD_MIN_LENGTH', 8);
-    if (!registerDto.password || registerDto.password.length < minLen) {
-      throw new BadRequestException(
-        `Password must be at least ${minLen} characters`,
-      );
-    }
-    // Parola güç skoru kontrolü (opsiyonel)
-    const minScore = this.getNumberEnv('PASSWORD_MIN_SCORE', 0);
-    if (minScore > 0) {
-      try {
-        const strength = this.securityService.evaluatePasswordStrength(
-          registerDto.password,
-        );
-        if (strength.score < minScore) {
-          throw new BadRequestException(
-            `Password too weak (score ${strength.score}/${minScore}). Suggestions: ${strength.suggestions.join('; ')}`,
-          );
-        }
-      } catch (e) {
-        // evaluate hata verirse default olarak izin ver (fail-open) veya fail-closed tercih edilebilir.
-      }
-    }
+    this.enforcePasswordPolicy(registerDto.password);
     // Check if user already exists
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
@@ -261,7 +201,7 @@ export class AuthService {
     const ip = req?.ip || (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
     const alreadyCaptcha = await this.attemptsService.requireCaptcha(loginDto.email, ip);
     if (alreadyCaptcha) {
-      const ok = await this.verifyTurnstile(loginDto.turnstileToken, ip);
+      const ok = await this.turnstileService.verify(loginDto.turnstileToken, ip);
       if (!ok) {
         if (!loginDto.turnstileToken) throw new ForbiddenException('CAPTCHA_REQUIRED');
         throw new UnauthorizedException('Human verification failed');
@@ -294,12 +234,14 @@ export class AuthService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    // Optionally require verified email for login
+    // Require verified email for login unless explicitly disabled via env
+    const envFlag = (process.env.EMAIL_VERIFICATION_REQUIRED ?? '')
+      .trim()
+      .toLowerCase();
     const verificationRequired =
-      (process.env.EMAIL_VERIFICATION_REQUIRED || 'false').toLowerCase() ===
-        'true' && process.env.NODE_ENV !== 'test';
+      envFlag === '' || ['true', '1', 'yes', 'on'].includes(envFlag);
     if (verificationRequired && !user.isEmailVerified) {
-      throw new UnauthorizedException('Email not verified');
+      throw new UnauthorizedException('EMAIL_NOT_VERIFIED');
     }
 
     // Update last login
@@ -484,6 +426,8 @@ export class AuthService {
       throw new BadRequestException('token and password are required');
     }
 
+    this.enforcePasswordPolicy(password);
+
     // 1) Validate invite and ensure not expired/accepted
     const invite = await this.organizationsService.validateInvite(token);
     if (!invite) throw new NotFoundException('Invalid invite token');
@@ -548,6 +492,30 @@ export class AuthService {
     } catch {}
 
     return { success: true, email: invite.email };
+  }
+
+  private enforcePasswordPolicy(password: string) {
+    const minLen = this.getNumberEnv('PASSWORD_MIN_LENGTH', 8);
+    if (!password || password.length < minLen) {
+      throw new BadRequestException(
+        `Password must be at least ${minLen} characters`,
+      );
+    }
+    const minScore = this.getNumberEnv('PASSWORD_MIN_SCORE', 0);
+    if (minScore > 0) {
+      try {
+        const strength = this.securityService.evaluatePasswordStrength(
+          password,
+        );
+        if (strength.score < minScore) {
+          throw new BadRequestException(
+            `Password too weak (score ${strength.score}/${minScore}). Suggestions: ${strength.suggestions.join('; ')}`,
+          );
+        }
+      } catch {
+        // evaluate hata verirse default olarak izin ver (fail-open) veya fail-closed tercih edilebilir.
+      }
+    }
   }
 
   async resendVerification(email: string) {

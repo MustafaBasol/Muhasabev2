@@ -29,6 +29,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     const clientIP = this.getClientIP(req);
     const isAuthEndpoint = this.isAuthEndpoint(req.path);
     const perRouteLimit = this.getPerRouteLimit(req.path);
+    const isPublicInviteEndpoint = perRouteLimit.key.startsWith('public-invite');
     const isAdminEndpoint = this.isAdminEndpoint(req.path);
     const isWebhookEndpoint = this.isWebhookEndpoint(req.path);
 
@@ -45,8 +46,12 @@ export class RateLimitMiddleware implements NestMiddleware {
     }
 
     // Auth ve Webhook endpoint'ler için rate limiting
-    if (isAuthEndpoint || isWebhookEndpoint) {
-      const scope = isWebhookEndpoint ? 'webhook' : 'auth';
+    if (isAuthEndpoint || isWebhookEndpoint || isPublicInviteEndpoint) {
+      const scope = isWebhookEndpoint
+        ? 'webhook'
+        : isPublicInviteEndpoint
+          ? 'invite'
+          : 'auth';
       const rateLimitKey = `${scope}:${perRouteLimit.key}:${clientIP}`;
       const currentTime = Date.now();
 
@@ -180,6 +185,18 @@ export class RateLimitMiddleware implements NestMiddleware {
     }
     if (norm.includes('/auth/resend-verification')) {
       return { key: 'resend', limit: n('RESEND_RATE_LIMIT', 3) };
+    }
+    if (norm.includes('/public/invites') && norm.includes('/register')) {
+      return {
+        key: 'public-invite-complete',
+        limit: n('PUBLIC_INVITE_COMPLETE_RATE_LIMIT', 5),
+      };
+    }
+    if (norm.includes('/public/invites')) {
+      return {
+        key: 'public-invite-lookup',
+        limit: n('PUBLIC_INVITE_LOOKUP_RATE_LIMIT', 8),
+      };
     }
     if (norm.includes('/webhooks/ses/sns')) {
       return { key: 'sns-webhook', limit: n('WEBHOOK_SNS_RATE_LIMIT', 120) };

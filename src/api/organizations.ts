@@ -159,14 +159,16 @@ export const organizationsApi = {
   },
 
   // Validation
-  async validateInviteToken(token: string): Promise<{
+  async validateInviteToken(token: string, turnstileToken?: string): Promise<{
     valid: boolean;
     invite?: Invite;
     error?: string;
   }> {
     // Public endpoint'i doğrudan kullan: 401 gürültüsünü engelle
     try {
-      const pub = await apiClient.get(`/public/invites/${token}`);
+      const pub = await apiClient.get(`/public/invites/${token}`, {
+        params: turnstileToken ? { turnstileToken } : undefined,
+      });
       if ((pub.data as any)?.status && (pub.data as any).status !== 'valid' && (pub.data as any).status !== 'accepted') {
         return { valid: false, error: 'Invalid or expired invite token' };
       }
@@ -176,8 +178,11 @@ export const organizationsApi = {
     }
   },
 
-  async completeInviteWithPassword(token: string, password: string): Promise<{ success: boolean; email: string }> {
-    const response = await apiClient.post(`/public/invites/${token}/register`, { password });
+  async completeInviteWithPassword(token: string, password: string, turnstileToken?: string): Promise<{ success: boolean; email: string }> {
+    const response = await apiClient.post(`/public/invites/${token}/register`, {
+      password,
+      turnstileToken,
+    });
     return response.data;
   }
 };

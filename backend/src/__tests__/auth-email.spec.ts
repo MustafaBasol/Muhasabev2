@@ -1,6 +1,7 @@
 import { AuthService } from '../auth/auth.service';
 import { SecurityService } from '../common/security.service';
 import { AuditService } from '../audit/audit.service';
+import { TurnstileService } from '../common/turnstile.service';
 
 // Minimal stubs
 const usersService = {
@@ -12,6 +13,7 @@ const tenantsService = {} as any;
 const jwtService = {} as any;
 const emailService = { sendEmail: jest.fn().mockResolvedValue(true) } as any;
 const securityService = new SecurityService();
+const turnstileService = new TurnstileService();
 
 // In-memory repos
 function makeEvtRepo(tokens: any[]) {
@@ -85,6 +87,7 @@ describe('AuthService - Email Verification (hashed)', () => {
       jwtService,
       emailService,
       securityService,
+      turnstileService,
       makeEvtRepo(evtTokens),
       makePrtRepo([]),
       auditService as any,
@@ -116,6 +119,7 @@ describe('AuthService - Email Verification (hashed)', () => {
       jwtService,
       emailService,
       securityService,
+      turnstileService,
       makeEvtRepo(evtTokens),
       makePrtRepo([]),
       auditService as any,
@@ -135,6 +139,7 @@ describe('AuthService - Resend verification cooldown', () => {
       jwtService,
       emailService,
       securityService,
+      turnstileService,
       makeEvtRepo(evtTokens),
       makePrtRepo([]),
       auditService as any,

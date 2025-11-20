@@ -57,14 +57,23 @@ export class InvoicesService {
           const v = Number(product.categoryTaxRateOverride);
           if (Number.isFinite(v) && v >= 0) return v;
         }
-        // 2b) Kategori adı belirtilmişse kategorinin KDV'sini kullan
+        // 2b) Kategori adı belirtilmişse önce alt kategori sonra ana kategori KDV'si
         if (product.category) {
           const category = await this.categoriesRepository.findOne({
             where: { name: product.category, tenantId },
           });
           if (category) {
-            const v = Number(category.taxRate);
-            if (Number.isFinite(v) && v >= 0) return v;
+            const catRate = Number(category.taxRate);
+            if (Number.isFinite(catRate) && catRate >= 0) return catRate;
+            if (category.parentId) {
+              const parent = await this.categoriesRepository.findOne({
+                where: { id: category.parentId, tenantId },
+              });
+              if (parent) {
+                const parentRate = Number(parent.taxRate);
+                if (Number.isFinite(parentRate) && parentRate >= 0) return parentRate;
+              }
+            }
           }
         }
         // 2c) Eski alan: ürün.taxRate (mevcutsa, son çare)

@@ -559,13 +559,17 @@ export default function ProductList({
     }
     
     const usage = categoryUsage.get(category) ?? 0;
-    const message = usage > 0
-      ? t('products.deleteCategoryWithProducts', { count: usage, defaultCategory: defaultCategoryName })
-      : t('products.deleteCategoryConfirm');
-
+    if (usage > 0) {
+      // Ürün varsa silme girişimini engelle ve bilgi mesajı göster (standart uyarı metni)
+      setInfoModal({
+        title: t('common.warning'),
+        message: t('products.deleteCategoryWithProducts', { count: usage })
+      });
+      return;
+    }
     setConfirmModal({
       title: t('products.deleteCategory'),
-      message,
+      message: t('products.deleteCategoryConfirm'),
       confirmText: t('common.yes'),
       cancelText: t('common.no'),
       onConfirm: async () => {
@@ -580,8 +584,11 @@ export default function ProductList({
           onDeleteCategory(category);
         } catch (error: any) {
           console.error('Kategori silinirken hata:', error);
-          if (error.response?.data?.message) {
-            setInfoModal({ title: t('common.error'), message: error.response.data.message });
+          const data = error.response?.data;
+          if (data?.code === 'CATEGORY_HAS_PRODUCTS') {
+            setInfoModal({ title: t('common.warning'), message: t('products.deleteCategoryWithProducts', { count: data.count }) });
+          } else if (data?.message) {
+            setInfoModal({ title: t('common.error'), message: data.message });
           }
         } finally {
           setConfirmModal(null);

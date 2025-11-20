@@ -6,6 +6,7 @@ import { CreateSaleDto } from './dto/create-sale.dto';
 import { UpdateSaleDto } from './dto/update-sale.dto';
 import { Customer } from '../customers/entities/customer.entity';
 import { Product } from '../products/entities/product.entity';
+import { ProductCategory } from '../products/entities/product-category.entity';
 
 @Injectable()
 export class SalesService {
@@ -16,7 +17,67 @@ export class SalesService {
     private readonly customerRepository: Repository<Customer>,
     @InjectRepository(Product)
     private readonly productsRepository: Repository<Product>,
+    @InjectRepository(ProductCategory)
+    private readonly categoriesRepository: Repository<ProductCategory>,
   ) {}
+
+  private async resolveTaxRate(tenantId: string, item: any): Promise<number> {
+    // 1) Satırda açıkça taxRate varsa onu kullan
+    if (
+      item != null &&
+      Object.prototype.hasOwnProperty.call(item, 'taxRate') &&
+      item.taxRate !== undefined &&
+      item.taxRate !== null &&
+      item.taxRate !== ''
+    ) {
+      const v = Number(item.taxRate);
+      if (Number.isFinite(v) && v >= 0) return v;
+    }
+
+    // 2) Ürün üzerinden belirle
+    if (item?.productId) {
+      const product = await this.productsRepository.findOne({
+        where: { id: item.productId, tenantId },
+      });
+      if (product) {
+        // 2a) Ürüne özel override
+        if (
+          product.categoryTaxRateOverride !== null &&
+          product.categoryTaxRateOverride !== undefined
+        ) {
+          const v = Number(product.categoryTaxRateOverride);
+            if (Number.isFinite(v) && v >= 0) return v;
+        }
+        // 2b) Kategori (alt kategori) KDV'si
+        if (product.category) {
+          const category = await this.categoriesRepository.findOne({
+            where: { name: product.category, tenantId },
+          });
+          if (category) {
+            const catRate = Number(category.taxRate);
+            if (Number.isFinite(catRate) && catRate >= 0) return catRate;
+            // 2c) Alt kategoride yoksa ana kategoriye bak
+            if (category.parentId) {
+              const parent = await this.categoriesRepository.findOne({
+                where: { id: category.parentId, tenantId },
+              });
+              if (parent) {
+                const parentRate = Number(parent.taxRate);
+                if (Number.isFinite(parentRate) && parentRate >= 0) return parentRate;
+              }
+            }
+          }
+        }
+        // 2d) Eski alan: ürün.taxRate
+        if (product.taxRate !== undefined && product.taxRate !== null) {
+          const v = Number(product.taxRate);
+          if (Number.isFinite(v) && v >= 0) return v;
+        }
+      }
+    }
+    // 3) Varsayılan %18
+    return 18;
+  }
 
   private async generateSaleNumber(tenantId: string, dateStr: string) {
     const date = new Date(dateStr);
@@ -59,15 +120,18 @@ export class SalesService {
 
     let subtotal = 0;
     let taxAmount = 0;
-
-    items.forEach((item: any) => {
-      const itemTotal =
-        (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
-      const itemTaxRate = Number(item.taxRate ?? 18) / 100;
+    for (const item of items) {
+      const itemTotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+      const effectiveRate = await this.resolveTaxRate(tenantId, item);
+      // Hesaplanan oranı item.taxRate alanına yaz (frontend eksik gönderdiğinde tutarlılık için)
+      if (item.taxRate === undefined || item.taxRate === null) {
+        item.taxRate = effectiveRate;
+      }
+      const itemTaxRate = Number(effectiveRate) / 100;
       const itemTax = itemTotal * itemTaxRate;
       subtotal += itemTotal;
       taxAmount += itemTax;
-    });
+    }
 
     const discountAmount = Number(dto.discountAmount) || 0;
     const total = subtotal + taxAmount - discountAmount;
@@ -195,14 +259,17 @@ export class SalesService {
       const items = dto.items || [];
       let subtotal = 0;
       let taxAmount = 0;
-      items.forEach((item: any) => {
-        const itemTotal =
-          (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
-        const itemTaxRate = Number(item.taxRate ?? 18) / 100;
+      for (const item of items) {
+        const itemTotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+        const effectiveRate = await this.resolveTaxRate(tenantId, item);
+        if (item.taxRate === undefined || item.taxRate === null) {
+          item.taxRate = effectiveRate;
+        }
+        const itemTaxRate = Number(effectiveRate) / 100;
         const itemTax = itemTotal * itemTaxRate;
         subtotal += itemTotal;
         taxAmount += itemTax;
-      });
+      }
       const discountAmount =
         Number(dto.discountAmount ?? sale.discountAmount) || 0;
       const total = subtotal + taxAmount - discountAmount;

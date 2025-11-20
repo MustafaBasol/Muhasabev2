@@ -1,6 +1,7 @@
 import { AuthService } from './auth.service';
 import { LoginAttemptsService } from './login-attempts.service';
 import { UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { TurnstileService } from '../common/turnstile.service';
 
 // Minimal mock helpers
 const mockUsersService = {
@@ -48,12 +49,14 @@ describe('AuthService Turnstile & Captcha Flow', () => {
     mockTenantsService.create.mockReset();
 
     const attempts = new LoginAttemptsService();
+    const turnstile = new TurnstileService();
     service = new AuthService(
       mockUsersService as any,
       mockTenantsService as any,
       mockJwtService as any,
       mockEmailService,
       mockSecurityService as any,
+      turnstile,
       mockEvtRepo,
       mockPrtRepo,
       mockAuditService,

@@ -40,6 +40,11 @@ export class HealthController {
       provider === 'ses'
         ? 'If SES is in sandbox, only verified recipients will receive emails'
         : '';
+    const envFlag = (process.env.EMAIL_VERIFICATION_REQUIRED ?? '')
+      .trim()
+      .toLowerCase();
+    const verificationRequired =
+      envFlag === '' || ['true', '1', 'yes', 'on'].includes(envFlag);
     return {
       provider,
       fromConfigured: !!from,
@@ -48,9 +53,7 @@ export class HealthController {
       frontendUrl,
       mode: provider,
       note: sandboxNote,
-      verificationRequired:
-        String(process.env.EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() ===
-        'true',
+      verificationRequired,
     };
   }
 }

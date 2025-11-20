@@ -3,6 +3,7 @@ import { authService, AuthResponse } from '../api/auth';
 // import { secureStorage } from '../utils/storage';
 import { logger } from '../utils/logger';
 import { createSessionManager, SessionManager } from '../utils/sessionManager';
+import { isEmailVerificationRequired } from '../utils/emailVerification';
 
 interface User {
   id: string;
@@ -34,7 +35,12 @@ interface AuthContextType {
   tenant: Tenant | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string, twoFactorToken?: string, turnstileToken?: string) => Promise<{ mfaRequired?: true; captchaRequired?: true } | void>;
+  login: (
+    email: string,
+    password: string,
+    twoFactorToken?: string,
+    turnstileToken?: string,
+  ) => Promise<{ mfaRequired?: true; captchaRequired?: true } | void>;
   register: (data: {
     name: string;
     email: string;
@@ -199,10 +205,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string, twoFactorToken?: string) => {
+  const login = async (
+    email: string,
+    password: string,
+    twoFactorToken?: string,
+    turnstileToken?: string,
+  ) => {
     try {
       logger.info('🔑 Login başlatılıyor:', { email });
-      const data = await authService.login({ email, password, twoFactorToken });
+      const data = await authService.login({
+        email,
+        password,
+        twoFactorToken,
+        turnstileToken,
+      });
       logger.debug('🔍 Login response:', data);
       if ((data as any)?.mfaRequired) {
         // İkinci adım gerekli, çağırana haber ver
@@ -250,7 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         turnstileToken: registerData.turnstileToken,
       };
       
-      const verificationRequired = String(import.meta.env.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
+      const verificationRequired = isEmailVerificationRequired();
 
       // Eğer e-posta doğrulaması zorunlu ise spec uyumlu /auth/signup kullan
       if (verificationRequired) {

@@ -12,11 +12,14 @@ interface TurnstileCaptchaProps {
 // Ortam değişkeni yoksa (site key), komponent uyarı loglar ve hemen "başarılı" kabul eder (fail-open).
 export function TurnstileCaptcha({ onToken, className, disabled, invisible }: TurnstileCaptchaProps) {
   const siteKey = (import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '';
+  const isDev = Boolean((import.meta as any).env?.DEV);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
   const [loadedScript, setLoadedScript] = useState(false);
   const [scriptError, setScriptError] = useState<string | null>(null);
+  const [hardFailed, setHardFailed] = useState(false);
+  const errorCountRef = useRef(0);
 
   // Fail-open davranışı: site key yoksa token'ı null yerine özel bir sentinel ile iletelim.
   useEffect(() => {
@@ -45,7 +48,7 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
   }, [siteKey, loadedScript]);
 
   useEffect(() => {
-    if (!siteKey) return;
+    if (!siteKey || hardFailed) return;
     if (!loadedScript) return;
     if (!containerRef.current) return;
     if (!(window as any).turnstile) {
@@ -58,10 +61,10 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
       return () => clearInterval(interval);
     }
     setReady(true);
-  }, [siteKey, loadedScript]);
+  }, [siteKey, loadedScript, hardFailed]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || hardFailed) return;
     if (!containerRef.current) return;
     if (!siteKey) return;
     const turnstile = (window as any).turnstile;
@@ -79,16 +82,39 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
       theme: 'auto',
       callback: (token: string) => {
         onToken(token || null);
+        errorCountRef.current = 0;
       },
       'error-callback': () => {
-        console.warn('[TurnstileCaptcha] error-callback tetiklendi');
-        onToken(null);
+        if (errorCountRef.current === 0) {
+          console.warn('[TurnstileCaptcha] error-callback tetiklendi');
+        }
+        errorCountRef.current += 1;
+        const shouldFailOpen = isDev && errorCountRef.current >= 3;
+        if (errorCountRef.current >= 3) {
+          setHardFailed(true);
+          if (shouldFailOpen) {
+            onToken('TURNSTILE_SKIPPED');
+          } else {
+            onToken(null);
+          }
+        } else {
+          onToken(null);
+        }
       },
       'expired-callback': () => {
         onToken(null);
       }
     });
-  }, [ready, siteKey, invisible, onToken]);
+  }, [ready, siteKey, invisible, onToken, hardFailed, isDev]);
+
+  useEffect(() => {
+    if (!hardFailed) return;
+    const turnstile = (window as any).turnstile;
+    if (turnstile && widgetIdRef.current) {
+      try { turnstile.remove(widgetIdRef.current); } catch {}
+      widgetIdRef.current = null;
+    }
+  }, [hardFailed]);
 
   // Disabled ise token'ı sıfırla (backend bu durumda doğrulama yapmayacak)
   useEffect(() => {
@@ -99,7 +125,7 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
 
   return (
     <div className={className}>
-      {siteKey ? (
+      {siteKey && !hardFailed ? (
         <>
           {!loadedScript && !scriptError && (
             <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -112,7 +138,11 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
         </>
       ) : (
         <div className="text-xs text-gray-500 italic">
-          Captcha dev ortamda atlandı (site key yok)
+          {hardFailed
+            ? (isDev
+                ? 'Captcha geliştirici modunda başarısız oldu, doğrulama atlandı.'
+                : 'Captcha şu anda yüklenemiyor. Lütfen sayfayı yenileyin veya destekle iletişime geçin.')
+            : 'Captcha dev ortamda atlandı (site key yok)'}
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +8,7 @@ import { authService } from '../api/auth';
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState(() => {
     let prefill = '';
     try {
@@ -19,19 +19,55 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaToken, setMfaToken] = useState('');
   const [resending, setResending] = useState(false);
   const [captchaRequired, setCaptchaRequired] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const securityFallbacks: Record<string, string> = {
+    en: 'Security verification required. Please complete the verification.',
+    de: 'Sicherheitsüberprüfung erforderlich. Bitte schließen Sie die Verifizierung ab.',
+    fr: 'Vérification de sécurité requise. Merci de finaliser la vérification.',
+    tr: 'Güvenlik doğrulaması gerekli. Lütfen doğrulamayı tamamlayın.'
+  };
+  const currentLang = (i18n.language || 'en').split('-')[0];
+  const securityVerificationMessage = t(
+    'auth.securityVerificationRequired',
+    securityFallbacks[currentLang] || securityFallbacks.en
+  );
+  const verificationMessage = t(
+    'auth.emailNotVerified',
+    'E-posta doğrulanmadı. Lütfen giriş yapmadan önce e-postanızı doğrulayın.'
+  );
+  const setErrorWithCode = (message: string, code?: string | null) => {
+    setError(message);
+    setErrorCode(code ?? null);
+  };
+  const localizedError = useMemo(() => {
+    if (!error) return '';
+    if (typeof error === 'string') {
+      const normalized = error.toLowerCase();
+      if (normalized.includes('security verification required')) {
+        return securityVerificationMessage;
+      }
+      if (normalized.includes('email not verified') || normalized.includes('email_not_verified')) {
+        return verificationMessage;
+      }
+      if (normalized.includes('mfa required') || normalized.includes('mfa_required')) {
+        return 'İki faktörlü doğrulama gerekli. Lütfen doğrulama kodunu girin.';
+      }
+    }
+    return error;
+  }, [error, securityVerificationMessage, verificationMessage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setErrorWithCode('', null);
     
     try {
       if (captchaRequired && !captchaToken) {
-        setError('Lütfen güvenlik doğrulamasını tamamlayın');
+        setErrorWithCode(securityVerificationMessage, 'CAPTCHA_REQUIRED');
         return;
       }
       const res = await login(
@@ -42,12 +78,12 @@ export default function LoginPage() {
       );
       if ((res as any)?.mfaRequired) {
         setMfaRequired(true);
-        setError('İki faktörlü doğrulama gerekli. Lütfen doğrulama kodunu girin.');
+        setErrorWithCode('MFA_REQUIRED', 'MFA_REQUIRED');
         return;
       }
       if ((res as any)?.captchaRequired) {
         setCaptchaRequired(true);
-        setError('Güvenlik doğrulaması gerekli. Lütfen doğrulamayı tamamlayın.');
+        setErrorWithCode(securityVerificationMessage, 'CAPTCHA_REQUIRED');
         return;
       }
       // başarıyla giriş yaptıysak MFA durumunu sıfırla
@@ -55,30 +91,37 @@ export default function LoginPage() {
       setMfaToken('');
       setCaptchaRequired(false);
       setCaptchaToken(null);
+      setErrorWithCode('', null);
     } catch (error: any) {
       // MFA adımında yanlış kod girdiyse daha net mesaj ver
       const msg = error?.message || 'Giriş sırasında bir hata oluştu';
-      if (msg === 'MFA_REQUIRED') {
+      const normalized = msg?.toLowerCase?.() || '';
+      if (msg === 'MFA_REQUIRED' || normalized.includes('mfa required')) {
         setMfaRequired(true);
-        setError('İki faktörlü doğrulama gerekli. Lütfen doğrulama kodunu girin.');
-      } else if (msg === 'CAPTCHA_REQUIRED') {
+        setErrorWithCode('MFA_REQUIRED', 'MFA_REQUIRED');
+      } else if (msg === 'CAPTCHA_REQUIRED' || normalized.includes('security verification required')) {
         setCaptchaRequired(true);
-        setError('Güvenlik doğrulaması gerekli. Lütfen doğrulamayı tamamlayın.');
+        setErrorWithCode(securityVerificationMessage, 'CAPTCHA_REQUIRED');
+      } else if (msg === 'EMAIL_NOT_VERIFIED' || normalized.includes('email not verified') || normalized.includes('email_not_verified')) {
+        setErrorWithCode('EMAIL_NOT_VERIFIED', 'EMAIL_NOT_VERIFIED');
       } else {
-        setError(msg);
+        setErrorWithCode(msg);
       }
     }
   };
 
-  const isUnverifiedError = typeof error === 'string' && error.toLowerCase().includes('verify');
+  const isUnverifiedError = errorCode === 'EMAIL_NOT_VERIFIED';
   const handleResendVerification = async () => {
     if (!formData.email) return;
     setResending(true);
     try {
       await authService.resendVerification(formData.email);
-      setError(t('auth.verificationEmailSent', 'Doğrulama e-postası gönderildi. Lütfen e-postanızı kontrol edin.'));
+      setErrorWithCode(
+        t('auth.verificationEmailSent', 'Doğrulama e-postası gönderildi. Lütfen e-postanızı kontrol edin.'),
+        'VERIFICATION_EMAIL_SENT'
+      );
     } catch (e: any) {
-      setError(e?.message || t('common.error', 'Hata'));
+      setErrorWithCode(e?.message || t('common.error', 'Hata'));
     } finally {
       setResending(false);
     }
@@ -196,7 +239,7 @@ export default function LoginPage() {
             {captchaRequired && (
               <div>
                 <TurnstileCaptcha onToken={(t) => setCaptchaToken(t)} />
-                <p className="text-xs text-gray-500 mt-1">Birden fazla başarısız giriş denemesi algılandı – lütfen insan doğrulamasını tamamlayın.</p>
+                <p className="text-xs text-gray-500 mt-1">{t('auth.captchaHint', 'Birden fazla başarısız giriş denemesi algılandı - lütfen insan doğrulamasını tamamlayın.')}</p>
               </div>
             )}
 
@@ -219,7 +262,7 @@ export default function LoginPage() {
 
           {error && (
             <div className="mt-4 flex items-center space-x-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-              <span>{error}</span>
+              <span>{localizedError || error}</span>
               {isUnverifiedError && (
                 <button
                   type="button"

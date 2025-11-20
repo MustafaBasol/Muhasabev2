@@ -2,7 +2,8 @@
 import { X, Plus, Trash2, Calculator, Search, Check, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { resolveStatusLabel } from '../utils/status';
-import type { Product } from '../types';
+import type { Product, ProductCategory } from '../types';
+import { productCategoriesApi } from '../api/product-categories';
 import StockWarningModal from './StockWarningModal';
 
 interface Customer {
@@ -41,6 +42,8 @@ const defaultItems: InvoiceItem[] = [
 
 export default function InvoiceModal({ onClose, onSave, invoice, customers = [], products = [], invoices = [] }: InvoiceModalProps) {
   const { t, i18n } = useTranslation();
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   
   const [invoiceData, setInvoiceData] = useState({
     invoiceNumber: '',
@@ -66,6 +69,18 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   const [stockWarning, setStockWarning] = useState<{ itemId: string; product: Product; requested: number; available: number } | null>(null);
 
   React.useEffect(() => {
+    // Kategori listesini bir kez yükle (KDV çözmek için)
+    (async () => {
+      try {
+        const cats = await productCategoriesApi.getAll();
+        setCategories(Array.isArray(cats) ? cats : []);
+      } catch {
+        setCategories([]);
+      } finally {
+        setCategoriesLoaded(true);
+      }
+    })();
+
     if (!invoice) {
       // Geçici fatura numarası - Backend gerçek numarayı oluşturacak
       const now = new Date();
@@ -305,8 +320,39 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       name: product.name,
       taxRate: product.taxRate,
       categoryTaxRateOverride: product.categoryTaxRateOverride,
-      finalTaxRate: product.categoryTaxRateOverride ?? product.taxRate ?? 18
+      category: product.category
     });
+    // KDV öncelik sırası: ürün override -> alt kategori -> ana kategori -> ürün.taxRate -> 18
+    const resolveEffectiveTax = (): number => {
+      // 1) Ürün override
+      if (product.categoryTaxRateOverride !== undefined && product.categoryTaxRateOverride !== null) {
+        const v = Number(product.categoryTaxRateOverride);
+        if (Number.isFinite(v) && v >= 0) return v;
+      }
+      // 2) Alt kategori adı ile bul
+      if (product.category && categoriesLoaded) {
+        const cat = categories.find(c => String(c.name).toLowerCase() === String(product.category).toLowerCase());
+        if (cat) {
+          const catRate = Number(cat.taxRate);
+          if (Number.isFinite(catRate) && catRate >= 0) return catRate;
+          if (cat.parentId) {
+            const parent = categories.find(c => String(c.id) === String(cat.parentId));
+            if (parent) {
+              const pRate = Number(parent.taxRate);
+              if (Number.isFinite(pRate) && pRate >= 0) return pRate;
+            }
+          }
+        }
+      }
+      // 3) Ürün üzerindeki eski alan
+      if (product.taxRate !== undefined && product.taxRate !== null) {
+        const v = Number(product.taxRate);
+        if (Number.isFinite(v) && v >= 0) return v;
+      }
+      // 4) Varsayılan
+      return 18;
+    };
+    const effectiveRate = resolveEffectiveTax();
     const available = Number((product as any).stock ?? (product as any).stockQuantity ?? NaN);
     setItems(prev =>
       prev.map(item => {
@@ -315,8 +361,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         }
         const quantity = item.quantity > 0 ? item.quantity : 1;
         const unitPrice = Number(product.unitPrice ?? item.unitPrice ?? 0);
-        // Öncelik: Ürüne özel KDV > Kategori KDV > Varsayılan %18
-        const taxRate = Number(product.categoryTaxRateOverride ?? product.taxRate ?? 18);
+        const taxRate = Number(effectiveRate);
         return {
           ...item,
           productId: product.id,

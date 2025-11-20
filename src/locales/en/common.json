@@ -218,6 +218,7 @@
     "footer.terms": "Terms of Service",
     "footer.gdpr": "GDPR",
     "footer.cookies": "Cookie Policy",
+    
   "footer.imprint": "Imprint",
     "footer.description": "Simple, secure pre-accounting software for modern businesses. Manage invoices, expenses, and VAT with confidence.",
     "footer.stayUpdated": "Stay updated",
@@ -229,6 +230,11 @@
     "footer.subscribe": "Subscribe",
     "footer.copyright": "© {{year}} Comptario. All rights reserved.",
     "footer.madeWith": "Made with ❤️ in Europe"
+  },
+  "footer": {
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "cookies": "Cookie Policy"
   },
   "auth": {
     "welcomeTitle": "Welcome",
@@ -276,9 +282,19 @@
     },
     "and": " and ",
     "dataProcessing": "Data Processing Agreement",
+    "captchaHint": "Multiple failed login attempts detected - please complete the human verification.",
+    "captchaRequired": "Please complete the human verification.",
+    "captchaPrompt": "Please complete the human verification before continuing.",
+    "captchaVerificationFailed": "We couldn't confirm the human verification. Please try again.",
+    "securityVerificationRequired": "Security verification required. Please complete the verification.",
+    "emailNotVerified": "Email not verified yet. Please verify your email to continue.",
+    "verificationEmailSent": "Verification email sent. Please check your inbox.",
+    "resendVerification": "Resend verification email",
     "registerCta": "Create Account",
     "alreadyHaveAccount": "Already have an account?",
-    "goToLogin": "Sign in"
+    "goToLogin": "Sign in",
+    "sendResetLink": "Send reset link",
+    "resendIn": "You can resend in {{seconds}}s"
   },
   "common": {
     "back": "Back",
@@ -769,7 +785,7 @@
     "generalCategoryCannotDelete": "General category cannot be deleted",
     "mainCategoryCannotDelete": "Main category cannot be deleted",
     "deleteCategoryConfirm": "Are you sure you want to delete this category?",
-    "deleteCategoryWithProducts": "This category has {count} products. If you delete it, products will be moved to \"{defaultCategory}\" category. Do you want to continue?",
+    "deleteCategoryWithProducts": "There are {{count}} active products in this category. Move them to another category first.",
     "cannotArchiveCategoryWithProducts": "This category has {{count}} products. Move or delete them before archiving.",
     "categoryCannotDeleteProtected": "\"{category}\" cannot be deleted because it's a main category.",
     "generalCategoryCannotDeleteAlert": "General category cannot be deleted.",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   CheckCircle, 
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { organizationsApi, Invite } from '../api/organizations';
+import TurnstileCaptcha from './TurnstileCaptcha';
 
 // Ayrı alt bileşen: Şifre belirleme formu (hooks burada güvenli)
 const InvitePasswordForm: React.FC<{
@@ -20,19 +21,27 @@ const InvitePasswordForm: React.FC<{
   token: string;
   onJoinSuccess?: () => void;
 }> = ({ invite, token, onJoinSuccess }) => {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const captchaRequiredMessage = t('auth.captchaRequired', 'Lütfen insan doğrulamasını tamamlayın');
 
   const handleSetPassword = async () => {
     if (!password || password.length < 6) {
-      setError('Şifre en az 6 karakter olmalıdır');
+      setError(t('auth.passwordTooShort', 'Şifre en az 8 karakter olmalıdır'));
+      return;
+    }
+    if (!captchaToken) {
+      setError(captchaRequiredMessage);
       return;
     }
     try {
       setSubmitting(true);
-      await organizationsApi.completeInviteWithPassword(token, password);
+      await organizationsApi.completeInviteWithPassword(token, password, captchaToken);
       try { sessionStorage.removeItem('pending_invite_token'); } catch {}
       try { localStorage.removeItem('pending_invite_token'); } catch {}
       // Otomatik giriş yap
@@ -48,8 +57,13 @@ const InvitePasswordForm: React.FC<{
         window.location.hash = 'login';
       }
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'İşlem başarısız';
+      const msg = e?.response?.data?.message || e?.message || t('common.error', 'İşlem başarısız');
       setError(msg);
+      const lowered = String(msg || '').toLowerCase();
+      if (lowered.includes('human verification') || lowered.includes('captcha')) {
+        setCaptchaToken(null);
+        setCaptchaResetKey((prev) => prev + 1);
+      }
       try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: msg, tone: 'error' } })); } catch {}
     } finally {
       setSubmitting(false);
@@ -83,6 +97,17 @@ const InvitePasswordForm: React.FC<{
           </div>
         </div>
 
+        <div className="mb-6">
+          <p className="text-sm text-gray-600 mb-2">{t('auth.captchaPrompt', 'Devam etmeden önce insan doğrulamasını tamamlayın.')}</p>
+          <TurnstileCaptcha
+            key={`invite-complete-${captchaResetKey}`}
+            onToken={(t) => {
+              setError(null);
+              setCaptchaToken(t);
+            }}
+          />
+        </div>
+
         <button
           onClick={handleSetPassword}
           disabled={submitting}
@@ -111,29 +136,39 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuth();
+  const captchaRequiredMessage = t('auth.captchaRequired', 'Lütfen insan doğrulamasını tamamlayın.');
+  const siteKey = (import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '';
   const [loading, setLoading] = useState(true);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [status, setStatus] = useState<'validating' | 'valid' | 'invalid' | 'expired' | 'accepting' | 'success' | 'error' | 'already_member'>('validating');
   const [error, setError] = useState<string | null>(null);
+  const [humanToken, setHumanToken] = useState<string | null>(siteKey ? null : 'TURNSTILE_SKIPPED');
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const [captchaError, setCaptchaError] = useState<string | null>(null);
 
-  useEffect(() => {
-    validateToken();
-  }, [token]);
+  const resetHumanCaptcha = useCallback(() => {
+    setHumanToken(siteKey ? null : 'TURNSTILE_SKIPPED');
+    setCaptchaResetKey((prev) => prev + 1);
+  }, [siteKey]);
 
-  const validateToken = async () => {
+  const validateToken = useCallback(async (turnstileToken?: string) => {
+    if (!turnstileToken) {
+      setCaptchaError(captchaRequiredMessage);
+      return;
+    }
     try {
       setLoading(true);
       setStatus('validating');
-      
-      const result = await organizationsApi.validateInviteToken(token);
-      
+      setError(null);
+      setCaptchaError(null);
+      const result = await organizationsApi.validateInviteToken(token, turnstileToken);
       if (result.valid && result.invite) {
+        setCaptchaError(null);
         setInvite(result.invite);
-        
-        // Check if invite is expired
+
         const now = new Date();
         const expiresAt = new Date(result.invite.expiresAt);
-        
+
         if (now > expiresAt) {
           setStatus('expired');
         } else if (result.invite.acceptedAt) {
@@ -145,14 +180,25 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
         setStatus('invalid');
         setError(result.error || 'Invalid invite token');
       }
-    } catch (error: any) {
-      console.error('Token validation failed:', error);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to validate invite token';
+      const lowered = String(message || '').toLowerCase();
+      if (lowered.includes('human verification') || lowered.includes('captcha')) {
+        setCaptchaError(t('auth.captchaVerificationFailed', 'İnsan doğrulaması doğrulanamadı. Lütfen tekrar deneyin.'));
+        resetHumanCaptcha();
+        return;
+      }
       setStatus('invalid');
-      setError(error.response?.data?.message || 'Failed to validate invite token');
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, resetHumanCaptcha, captchaRequiredMessage]);
+
+  useEffect(() => {
+    if (!token || !humanToken) return;
+    validateToken(humanToken);
+  }, [token, humanToken, validateToken]);
 
   const handleAcceptInvite = async () => {
     if (!invite || !isAuthenticated) return;
@@ -201,6 +247,28 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
       minute: '2-digit'
     });
   };
+
+  if (!humanToken) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <Shield className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('auth.captchaRequired', 'Lütfen insan doğrulamasını tamamlayın')}</h2>
+          <p className="text-gray-600 mb-6">
+            {t('auth.captchaPrompt', 'Daveti görmek için lütfen kısa doğrulamayı tamamlayın.')}
+          </p>
+          <TurnstileCaptcha
+            key={`invite-validate-${captchaResetKey}`}
+            onToken={(value) => {
+              setCaptchaError(null);
+              setHumanToken(value);
+            }}
+          />
+          {captchaError && <p className="mt-4 text-sm text-red-600">{captchaError}</p>}
+        </div>
+      </div>
+    );
+  }
 
   if (loading || status === 'validating') {
     return (

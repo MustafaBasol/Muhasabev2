@@ -53,15 +53,26 @@ import { EnsureAttributionColumnsService } from './audit/ensure-attribution-colu
         const isTest =
           process.env.NODE_ENV === 'test' ||
           typeof process.env.JEST_WORKER_ID !== 'undefined';
+        const preferPostgresInTests = (() => {
+          const flag =
+            process.env.TEST_DB ||
+            process.env.TEST_DATABASE ||
+            process.env.TEST_DATABASE_TYPE;
+          if (flag && ['postgres', 'pg'].includes(flag.toLowerCase())) {
+            return true;
+          }
+          return process.env.FORCE_POSTGRES_FOR_TESTS === 'true';
+        })();
         const useSqlite =
           process.env.DB_SQLITE === 'true' ||
           process.env.DATABASE_TYPE === 'sqlite' ||
           // Yerel geliştirmede Postgres ayarı yoksa otomatik SQLite'a düş
           (!process.env.DATABASE_HOST && !process.env.DATABASE_URL);
+        const useSqliteForTests = isTest && !preferPostgresInTests;
 
         // Use in-memory SQLite for tests to avoid external DB dependency
         // Test ortamı: her zaman memory SQLite kullan (hızlı ve bağımsız)
-        if (isTest) {
+        if (useSqliteForTests) {
           // Test ortamında sqlite kullan (sqlite3 sürücüsü) - timestamp uyumsuzluklarını azaltır
           return {
             type: 'sqlite',
@@ -76,7 +87,7 @@ import { EnsureAttributionColumnsService } from './audit/ensure-attribution-colu
 
         // Geliştirme ortamı: varsayılan olarak yerel SQLite dosyası kullan.
         // Postgres'e bağlanmak isterseniz .env'de DATABASE_HOST vb. değerleri verin veya DB_SQLITE=false yapın.
-        if (!isProd && useSqlite) {
+        if (!isProd && useSqlite && !preferPostgresInTests) {
           // Geliştirmede Postgres env'i eksikse SQLite'a düşüldüğünü belirgin şekilde logla
           // Bu, farklı ortamlarda "kullanıcılar kayboldu" algısının tipik sebebidir.
           console.warn('⚠️ Using SQLite dev.db because DATABASE_HOST/URL is not set. For consistent data, set Postgres env (DATABASE_HOST, PORT, USER, PASSWORD, NAME).');
@@ -109,6 +120,8 @@ import { EnsureAttributionColumnsService } from './audit/ensure-attribution-colu
         }
 
         // Prod veya bilinçli Postgres konfigürasyonu: Postgres'e bağlan
+        const isTestPostgres = preferPostgresInTests && isTest;
+
         return {
           type: 'postgres',
           host,
@@ -118,8 +131,10 @@ import { EnsureAttributionColumnsService } from './audit/ensure-attribution-colu
           database,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           migrations: [__dirname + '/migrations/*{.ts,.js}'],
-          synchronize: false,
-          logging: process.env.NODE_ENV === 'development',
+          synchronize: isTestPostgres ? true : false,
+          dropSchema: isTestPostgres ? true : false,
+          logging:
+            process.env.NODE_ENV === 'development' || isTestPostgres || false,
           ssl: isProd ? { rejectUnauthorized: false } : false,
           autoLoadEntities: true,
         } as const;

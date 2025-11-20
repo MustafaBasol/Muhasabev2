@@ -86,7 +86,7 @@ Not: E2E kapsam genişletmesi için ileride login + 2FA + recovery code kombine 
 | `JWT_SECRET` | JWT imzalama gizli anahtarı | Gerekli |
 | `REFRESH_RATE_LIMIT_MAX` | Refresh endpoint dakikadaki izinli istek sayısı | `5` |
 | `REFRESH_RATE_LIMIT_TTL_SECONDS` | Rate limit süresi (saniye) | `60` |
-| `EMAIL_VERIFICATION_REQUIRED` | E-posta doğrulama zorunlu mu | `false` |
+| `EMAIL_VERIFICATION_REQUIRED` | E-posta doğrulama zorunlu mu | `true` |
 | `MAIL_PROVIDER` | E-posta sağlayıcısı (`ses`, `log`, vb.) | `log` |
 | `MAIL_FROM` | Gönderici adresi | Boş |
 | `PG*` | PostgreSQL bağlantı bilgileri | Çeşitli |

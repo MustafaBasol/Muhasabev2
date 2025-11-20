@@ -231,6 +231,11 @@
     "footer.copyright": "© {{year}} Comptario. Tüm hakları saklıdır.",
     "footer.madeWith": "Avrupa'da ❤️ ile yapıldı"
   },
+  "footer": {
+    "terms": "Hizmet Şartları",
+    "privacy": "Gizlilik Politikası",
+    "cookies": "Çerez Politikası"
+  },
   "auth": {
     "welcomeTitle": "Hoş Geldiniz",
     "welcomeSubtitle": "Devam etmek için hesabınıza giriş yapın",
@@ -280,6 +285,14 @@
     },
     "and": " ve ",
     "dataProcessing": "Veri İşleme Sözleşmesi",
+    "captchaHint": "Birden fazla başarısız giriş denemesi algılandı - lütfen insan doğrulamasını tamamlayın.",
+    "captchaRequired": "Lütfen insan doğrulamasını tamamlayın.",
+    "captchaPrompt": "Devam etmeden önce insan doğrulamasını tamamlayın.",
+    "captchaVerificationFailed": "İnsan doğrulaması doğrulanamadı. Lütfen tekrar deneyin.",
+    "securityVerificationRequired": "Güvenlik doğrulaması gerekli. Lütfen doğrulamayı tamamlayın.",
+    "emailNotVerified": "E-posta henüz doğrulanmadı. Lütfen devam etmeden önce e-postanızı doğrulayın.",
+    "verificationEmailSent": "Doğrulama e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.",
+    "resendVerification": "Doğrulama e-postasını tekrar gönder",
     "registerCta": "Hesap Oluştur",
     "alreadyHaveAccount": "Zaten hesabınız var mı?",
     "goToLogin": "Giriş yapın"
@@ -872,7 +885,7 @@
     "generalCategoryCannotDelete": "Genel kategorisi silinemez",
     "mainCategoryCannotDelete": "Ana kategori silinemez",
     "deleteCategoryConfirm": "Bu kategoriyi silmek istediğinizden emin misiniz?",
-    "deleteCategoryWithProducts": "Bu kategoride {count} ürün var. Silerseniz ürünler \"{defaultCategory}\" kategorisine taşınacak. Devam etmek istiyor musunuz?",
+    "deleteCategoryWithProducts": "Bu kategoride {{count}} aktif ürün var. Önce ürünleri başka kategoriye taşıyın.",
     "cannotArchiveCategoryWithProducts": "Bu kategoride {{count}} ürün var. Arşivlemeden önce ürünleri başka bir kategoriye taşıyın veya silin.",
     "categoryCannotDeleteProtected": "\"{category}\" ana kategori olduğu için silinemez.",
     "generalCategoryCannotDeleteAlert": "Genel kategorisi silinemez.",

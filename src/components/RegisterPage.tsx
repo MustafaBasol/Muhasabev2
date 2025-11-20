@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import LegalHeader from './LegalHeader';
 import TurnstileCaptcha from './TurnstileCaptcha';
+import { isEmailVerificationRequired } from '../utils/emailVerification';
 
 export default function RegisterPage() {
   const { register, isLoading } = useAuth();
@@ -24,7 +25,7 @@ export default function RegisterPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<{ message?: string; key?: string } | null>(null);
   const [success, setSuccess] = useState('');
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export default function RegisterPage() {
     try { localStorage.removeItem('prefill_email'); } catch {}
     try {
       const pending = sessionStorage.getItem('pending_verification_email');
-      const verificationRequired = String(import.meta.env.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
+      const verificationRequired = isEmailVerificationRequired();
       if (verificationRequired && pending) {
         setPendingVerificationEmail(pending);
         setSuccess('Hesabınız oluşturuldu. Lütfen e-postanızı kontrol edin ve doğrulama bağlantısına tıklayın.');
@@ -55,28 +56,28 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(null);
     setSuccess('');
     setEmailConflict(null);
     
     // Form doğrulama
     if (!formData.name || !formData.email || !formData.password) {
-      setError('Lütfen tüm zorunlu alanları doldurun');
+      setError({ message: 'Lütfen tüm zorunlu alanları doldurun' });
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Şifreler eşleşmiyor');
+      setError({ message: 'Şifreler eşleşmiyor' });
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Şifre en az 6 karakter olmalıdır');
+      setError({ message: 'Şifre en az 6 karakter olmalıdır' });
       return;
     }
 
     if (!agreedToTerms) {
-      setError('Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz');
+      setError({ message: 'Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz' });
       return;
     }
 
@@ -95,12 +96,12 @@ export default function RegisterPage() {
       // Captcha zorunlu (site key yoksa bile sentinel token gelebilir). Site key yoksa bile backend secret yoksa fail-open.
       const siteKey = (import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '';
       if (siteKey && !captchaToken) {
-        setError('Lütfen insan doğrulamasını tamamlayın');
+        setError({ key: 'auth.captchaRequired' });
         return;
       }
       
       await register(userData);
-      const verificationRequired = String(import.meta.env.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
+      const verificationRequired = isEmailVerificationRequired();
       if (verificationRequired) {
         setSuccess('Hesabınız oluşturuldu. Lütfen e-postanızı kontrol edin ve doğrulama bağlantısına tıklayın.');
         setPendingVerificationEmail(formData.email);
@@ -126,7 +127,7 @@ export default function RegisterPage() {
         setEmailConflict({ email: formData.email });
         // Kullanıcıya hata blokunu değil yönlendirici rehberi göstereceğiz
       } else {
-        setError(messageRaw || 'Kayıt sırasında bir hata oluştu');
+        setError({ message: messageRaw || 'Kayıt sırasında bir hata oluştu' });
       }
     }
   };
@@ -157,7 +158,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && !emailConflict && (
               <div className="flex items-center space-x-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                <span>{error}</span>
+                <span>{error.key ? t(error.key, 'Lütfen insan doğrulamasını tamamlayın') : error.message}</span>
               </div>
             )}
             {emailConflict && (

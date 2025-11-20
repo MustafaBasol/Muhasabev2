@@ -94,6 +94,27 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
     return sorted;
   }, [categories, categoryObjects, product]);
 
+  // Kategori görüntü ismini (etiketi) aktif dile göre çevir.
+  // Değerleri (value) orijinal halde tutarak backend'e tutarlı isim gönderiyoruz.
+  const translateCategoryLabel = React.useCallback((raw: string): string => {
+    const name = raw.trim();
+    if (!name) return name;
+    // Ana kategoriler Türkçe orijinal isimle geliyor; sadece etiket olarak çevir.
+    if (name === 'Hizmetler') return t('products.mainCategories.services');
+    if (name === 'Ürünler') return t('products.mainCategories.products');
+    // "Genel" için dosyalarda ayrı bir anahtar yok; diğer sayfalarda İngilizce arayüzde "General" olarak gösterim bekleniyorsa manuel haritalama yap.
+    if (name === 'Genel') {
+      const lang = (typeof window !== 'undefined' ? (window as any).i18next?.language : 'tr') || 'tr';
+      switch (lang.split('-')[0]) {
+        case 'en': return 'General';
+        case 'de': return 'Allgemein';
+        case 'fr': return 'Général';
+        default: return name; // tr
+      }
+    }
+    return name;
+  }, [t]);
+
   React.useEffect(() => {
     if (!isOpen) {
       setFormState(defaultState);
@@ -296,7 +317,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
                   ) : (
                     categoryOptions.map(option => (
                       <option key={option} value={option}>
-                        {option}
+                        {translateCategoryLabel(option)}
                       </option>
                     ))
                   )}

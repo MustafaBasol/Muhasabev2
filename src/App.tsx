@@ -17,6 +17,7 @@ import type {
 } from "./types";
 import { secureStorage } from "./utils/storage";
 import { getErrorMessage } from "./utils/errorHandler";
+import { isEmailVerificationRequired } from "./utils/emailVerification";
 
 // API imports
 import * as customersApi from "./api/customers";
@@ -220,7 +221,7 @@ const AppContent: React.FC = () => {
 
   // E-posta doğrulaması zorunluysa: doğrulanmamış kullanıcıyı sadece doğrulama sayfalarına ve kamu (landing/about/api/legal) sayfalarına izin ver
   useEffect(() => {
-    const verificationRequired = String((import.meta as any)?.env?.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
+    const verificationRequired = isEmailVerificationRequired();
     const verified = (authUser as any)?.isEmailVerified === true;
     if (verificationRequired && isAuthenticated && !verified) {
       const allowed = new Set([
