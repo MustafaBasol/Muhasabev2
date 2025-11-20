@@ -5,6 +5,7 @@ import { Edit, Trash2, ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
 import BackupManagementPage from './admin/BackupManagementPage';
 import DataRetentionPage from './admin/DataRetentionPage';
 import PlanLimitsPage from './admin/PlanLimitsPage';
+import SiteSettingsPage from './admin/SiteSettingsPage';
 // OrganizationManagementPage ve TenantLimitsPage kaldırıldı
 import TenantConsolePage from './admin/TenantConsolePage';
 import { useAuth } from '../contexts/AuthContext';
@@ -65,7 +66,7 @@ const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups' | 'retention' | 'status' | 'planLimits' | 'tenantConsole'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups' | 'retention' | 'status' | 'planLimits' | 'tenantConsole' | 'siteSettings'>('users');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
   // Users sekmesi için şirket filtresi (sunucu tarafı)
   const [userTenantFilter, setUserTenantFilter] = useState<string>('all');
@@ -528,7 +529,6 @@ const AdminPage: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Kullanıcı Adı
                 </label>
-                <p className="text-xs text-gray-500 mb-2">Genellikle: owner (dev ortamı)</p>
                 <input
                   type="text"
                   value={loginForm.username}
@@ -542,7 +542,6 @@ const AdminPage: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Şifre
                 </label>
-                <p className="text-xs text-gray-500 mb-2">Backend .env içindeki ADMIN_PASSWORD (veya ADMIN_PASSWORD_HASH)</p>
                 <input
                   type="password"
                   value={loginForm.password}
@@ -678,6 +677,16 @@ const AdminPage: React.FC = () => {
             }`}
           >
             📈 Durum
+          </button>
+          <button
+            onClick={() => setActiveTab('siteSettings')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'siteSettings'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            ⚙️ Site Ayarları
           </button>
         </div>
 
@@ -1324,6 +1333,12 @@ const AdminPage: React.FC = () => {
             <div className="p-6">
               <StatusPage />
             </div>
+          </div>
+        )}
+
+        {activeTab === 'siteSettings' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <SiteSettingsPage />
           </div>
         )}
 

@@ -49,6 +49,61 @@ export class BillingService {
     });
   }
 
+  // Son sync isteklerini hafifletmek için basit in-memory throttle
+  private lastSyncCheck: Map<string, number> = new Map();
+
+  /** Upgrade sonrası hızlı durum: plan güncellendi mi, son ücretli fatura nedir, sıfır tutarlı açıklama */
+  async getUpgradeStatus(tenantId: string) {
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    const plan = tenant.subscriptionPlan || null;
+    const interval = tenant.billingInterval || null;
+    const maxUsers = tenant.maxUsers || null;
+    let latestPaid: any = null;
+    let zeroInvoice: any = null;
+    if (tenant.stripeCustomerId) {
+      try {
+        const invoices = await this.stripe.invoices.list({
+          customer: tenant.stripeCustomerId,
+          limit: 10,
+          expand: ['data.lines'],
+        });
+        for (const inv of invoices.data) {
+          const total = inv.total || 0;
+            if (total > 0 && !latestPaid) {
+              latestPaid = {
+                id: inv.id,
+                number: inv.number,
+                total,
+                currency: inv.currency,
+                created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
+              };
+            }
+            if (total === 0 && !zeroInvoice) {
+              const lines = (inv as any)?.lines?.data || [];
+              const onlyProration = lines.length > 0 && lines.every((l: any) => !!l.proration);
+              zeroInvoice = {
+                id: inv.id,
+                number: inv.number,
+                reason: onlyProration ? 'PLAN_CHANGE_NO_CHARGE' : 'ZERO_TOTAL',
+                created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
+              };
+            }
+            if (latestPaid && zeroInvoice) break; // erken çık
+        }
+      } catch (_) {}
+    }
+    return {
+      success: true,
+      subscriptionPlan: plan,
+      billingInterval: interval,
+      maxUsers,
+      latestPaidInvoice: latestPaid,
+      zeroInvoice,
+      cancelAtPeriodEnd: tenant.cancelAtPeriodEnd || false,
+    };
+  }
+
   // Her plan için dahil edilen baz kullanıcı sayısı
   private baseIncludedUsers(plan: SubscriptionPlan): number {
     switch (plan) {
@@ -171,6 +226,19 @@ export class BillingService {
     const planKey = this.fromPlanEnum(this.toPlanEnum(String(params.plan)));
     if (!planKey)
       throw new BadRequestException('Plan not supported for checkout');
+
+    // Eğer aktif bir Stripe aboneliği varsa ve hedef plan mevcut ücretli plandan farklıysa
+    // yeni bir checkout yerine plan-update endpointi kullanılmalı. Aksi halde çift abonelik oluşur.
+    if (
+      tenant.stripeSubscriptionId &&
+      tenant.subscriptionPlan &&
+      ['PROFESSIONAL', 'ENTERPRISE'].includes(String(tenant.subscriptionPlan)) &&
+      this.toPlanEnum(String(params.plan)) !== tenant.subscriptionPlan
+    ) {
+      throw new BadRequestException(
+        'Mevcut bir aboneliğiniz var; plan değişimi için /billing/{tenantId}/plan-update kullanılmalıdır.'
+      );
+    }
     const basePriceId = this.ensurePriceId(
       this.priceMap[planKey][params.interval],
       `${planKey}.${params.interval}`,
@@ -495,27 +563,41 @@ export class BillingService {
     const invoices = await this.stripe.invoices.list({
       customer: tenant.stripeCustomerId,
       limit: 25,
-      expand: ['data.payment_intent'],
+      expand: ['data.payment_intent', 'data.lines'],
     });
     // UI için sadeleştirilmiş veri
-    const mapped = invoices.data.map((inv) => ({
-      id: inv.id,
-      number: inv.number,
-      status: inv.status,
-      currency: inv.currency,
-      total: inv.total, // en küçük para birimi (kuruş)
-      hostedInvoiceUrl: inv.hosted_invoice_url,
-      pdf: inv.invoice_pdf,
-      created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
-      periodStart: inv.period_start
-        ? new Date(inv.period_start * 1000).toISOString()
-        : null,
-      periodEnd: inv.period_end
-        ? new Date(inv.period_end * 1000).toISOString()
-        : null,
-      attemptCount: inv.attempt_count,
-      paid: inv.paid,
-    }));
+    const mapped = invoices.data.map((inv) => {
+      const total = inv.total || 0;
+      const zero = total === 0;
+      // Basit açıklama: sıfır tutarlı ise plan değişimi veya ücretsiz proration olabilir
+      let hint: string | null = null;
+      if (zero) {
+        // İçerikte sadece proration kalemi ve amount=0 ise ekstra vurgula
+        const lines = (inv as any)?.lines?.data || [];
+        const onlyProration = lines.length > 0 && lines.every((l: any) => !!l.proration);
+        if (onlyProration) {
+          hint = 'PLAN_CHANGE_NO_CHARGE';
+        } else {
+          hint = 'ZERO_TOTAL';
+        }
+      }
+      return {
+        id: inv.id,
+        number: inv.number,
+        status: inv.status,
+        currency: inv.currency,
+        total, // minor units
+        hostedInvoiceUrl: inv.hosted_invoice_url,
+        pdf: inv.invoice_pdf,
+        created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
+        periodStart: inv.period_start ? new Date(inv.period_start * 1000).toISOString() : null,
+        periodEnd: inv.period_end ? new Date(inv.period_end * 1000).toISOString() : null,
+        attemptCount: inv.attempt_count,
+        paid: inv.paid,
+        zeroTotal: zero,
+        reasonHint: hint,
+      };
+    });
     return { invoices: mapped };
   }
 
@@ -835,6 +917,8 @@ export class BillingService {
           at,
           amount: inv.total || undefined,
           currency: inv.currency || undefined,
+          plan: tenant.subscriptionPlan || undefined,
+          users: tenant.maxUsers || undefined,
         });
       }
     }
@@ -859,6 +943,14 @@ export class BillingService {
     if (!tenant.stripeCustomerId) {
       return { success: false, message: 'Stripe müşteri bulunamadı' };
     }
+
+    // Throttle: son 5 sn içinde sync yapıldıysa hızlı exit
+    const now = Date.now();
+    const prev = this.lastSyncCheck.get(tenantId) || 0;
+    if (now - prev < 5000) {
+      return { success: true, updated: false, throttled: true } as any;
+    }
+    this.lastSyncCheck.set(tenantId, now);
 
     const subs = await this.stripe.subscriptions.list({
       customer: tenant.stripeCustomerId,

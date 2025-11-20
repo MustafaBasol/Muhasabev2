@@ -27,6 +27,7 @@ import { QuotesModule } from './quotes/quotes.module';
 import { BillingModule } from './billing/billing.module';
 import { SubprocessorsModule } from './subprocessors/subprocessors.module';
 import { EmailModule } from './email/email.module';
+import { SiteSettingsModule } from './site-settings/site-settings.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { SeedService } from './database/seed.service';
@@ -141,6 +142,7 @@ import { EnsureAttributionColumnsService } from './audit/ensure-attribution-colu
     CommonModule,
     SubprocessorsModule,
     EmailModule,
+    SiteSettingsModule,
     WebhooksModule,
     BillingModule,
   ],

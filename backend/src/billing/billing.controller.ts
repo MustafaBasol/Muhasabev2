@@ -100,6 +100,15 @@ export class BillingController {
     return this.billing.listHistory(tenantId);
   }
 
+  // Upgrade durumunu hızlı sorgulama (plan güncellendi mi? son ücretli fatura?)
+  @Get(':tenantId/upgrade-status')
+  async upgradeStatus(@Param('tenantId') tenantId: string, @User() user: any) {
+    if (String(user?.tenantId) !== String(tenantId)) {
+      throw new ForbiddenException();
+    }
+    return this.billing.getUpgradeStatus(tenantId);
+  }
+
   @Post(':tenantId/sync')
   async manualSync(@Param('tenantId') tenantId: string, @User() user: any) {
     if (String(user?.tenantId) !== String(tenantId)) {

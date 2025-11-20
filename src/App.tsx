@@ -45,6 +45,7 @@ import ExpenseModal from "./components/ExpenseModal";
 import SaleModal from "./components/SaleModal";
 import BankModal from "./components/BankModal";
 import SettingsPage from "./components/SettingsPage";
+import ErrorBoundary from "./components/ErrorBoundary";
 import AdminPage from "./components/AdminPage";
 
 // New Invoice Flow Modals
@@ -117,6 +118,7 @@ import LegalHeader from "./components/LegalHeader";
 import JoinOrganizationPage from "./components/JoinOrganizationPage";
 import PublicQuotePage from "./components/PublicQuotePage";
 import * as quotesApi from "./api/quotes";
+import { SeoInjector } from "./components/SeoInjector";
 
 import * as ExcelJS from 'exceljs';
 
@@ -5079,29 +5081,33 @@ const AppContent: React.FC = () => {
         );
       case "settings":
         return (
-          <SettingsPage
-            user={user}
-            company={company}
-            bankAccounts={bankAccounts}
-            onUserUpdate={setUser}
-            onCompanyUpdate={handleCompanyUpdate}
-            onExportData={handleExportData}
-            onImportData={handleImportData}
-            initialTab={settingsInitialTab}
-          />
+          <ErrorBoundary name="settings">
+            <SettingsPage
+              user={user}
+              company={company}
+              bankAccounts={bankAccounts}
+              onUserUpdate={setUser}
+              onCompanyUpdate={handleCompanyUpdate}
+              onExportData={handleExportData}
+              onImportData={handleImportData}
+              initialTab={settingsInitialTab}
+            />
+          </ErrorBoundary>
         );
       case "fiscal-periods":
         return (
-          <SettingsPage
-            user={user}
-            company={company}
-            bankAccounts={bankAccounts}
-            onUserUpdate={setUser}
-            onCompanyUpdate={handleCompanyUpdate}
-            onExportData={handleExportData}
-            onImportData={handleImportData}
-            initialTab={'fiscal-periods'}
-          />
+          <ErrorBoundary name="fiscal-periods">
+            <SettingsPage
+              user={user}
+              company={company}
+              bankAccounts={bankAccounts}
+              onUserUpdate={setUser}
+              onCompanyUpdate={handleCompanyUpdate}
+              onExportData={handleExportData}
+              onImportData={handleImportData}
+              initialTab={'fiscal-periods'}
+            />
+          </ErrorBoundary>
         );
       case "admin":
         return <AdminPage />;
@@ -5121,16 +5127,18 @@ const AppContent: React.FC = () => {
         return <EmailPolicy />;
       case "organization-members":
         return (
-          <SettingsPage
-            user={user}
-            company={company}
-            bankAccounts={bankAccounts}
-            onUserUpdate={setUser}
-            onCompanyUpdate={handleCompanyUpdate}
-            onExportData={handleExportData}
-            onImportData={handleImportData}
-            initialTab={'organization'}
-          />
+          <ErrorBoundary name="organization-members">
+            <SettingsPage
+              user={user}
+              company={company}
+              bankAccounts={bankAccounts}
+              onUserUpdate={setUser}
+              onCompanyUpdate={handleCompanyUpdate}
+              onExportData={handleExportData}
+              onImportData={handleImportData}
+              initialTab={'organization'}
+            />
+          </ErrorBoundary>
         );
       default:
         // Handle join organization with token
@@ -6005,6 +6013,7 @@ const App: React.FC = () => {
       <CurrencyProvider>
         <CookieConsentProvider>
           <NotificationPreferencesProvider>
+            <SeoInjector />
             <AppContent />
           </NotificationPreferencesProvider>
         </CookieConsentProvider>

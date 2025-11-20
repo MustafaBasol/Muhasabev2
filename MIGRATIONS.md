@@ -11,6 +11,12 @@ This repo includes TypeORM migrations for new email-based features:
 - Organization invite emails now link to a hash-based route so they work on static hosting: `/#join?token=...`
 - Resending an invite extends expiry and sends the email again.
 
+### Site Settings / SEO & Analytics (Nov 2025)
+
+- A new migration was added: `1762826000000-CreateSiteSettingsTable.ts`
+- This creates the `site_settings` table (singleton row with id=1) for global SEO and analytics settings.
+- If you see 500s on `/api/site-settings` with `relation "site_settings" does not exist`, make sure this migration has been applied.
+
 ### Quotes module (Nov 2025)
 
 - A new migration was added: `1762200000000-CreateQuotesTable.ts`
@@ -44,6 +50,20 @@ export FRONTEND_URL="https://app.example.com"
 
 cd backend
 npm run build
+npm run migration:run
+```
+
+For local development using a standalone Postgres (not Docker), example:
+
+```bash
+cd backend
+npm ci
+npm run build
+DATABASE_HOST=localhost \
+DATABASE_PORT=5433 \
+DATABASE_USER=moneyflow \
+DATABASE_PASSWORD=moneyflow123 \
+DATABASE_NAME=moneyflow_dev \
 npm run migration:run
 ```
 

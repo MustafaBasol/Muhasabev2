@@ -142,11 +142,19 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const [seatsInUse, setSeatsInUse] = useState<number | null>(null);
 
   const getFilteredInvoices = () => {
-    return invoices.filter((inv: any) => {
+    // Her durumda dizi döndür: API yanıtı bozuk veya henüz gelmemişse []
+    const base: any[] = Array.isArray(invoices)
+      ? invoices
+      : (invoices && Array.isArray((invoices as any).invoices)
+          ? (invoices as any).invoices
+          : []);
+    try {
+    return base.filter((inv: any) => {
       const status = String(inv.status || '').toLowerCase();
       if (invoiceStatusFilter === 'paid' && status !== 'paid') return false;
       if (invoiceStatusFilter === 'open' && !['open', 'draft'].includes(status)) return false;
       if (invoiceStatusFilter === 'unpaid' && !['unpaid', 'void', 'uncollectible'].includes(status)) return false;
+      if (invoiceStatusFilter === 'nonzero' && (typeof inv.total === 'number' && inv.total === 0)) return false;
       if (invoiceStatusFilter === 'all') {
         // pass
       }
@@ -167,6 +175,9 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       }
       return true;
     });
+    } catch {
+      return [];
+    }
   };
   // Ücretli planlarda tüm iptaller dönem sonunda gerçekleşir; kullanıcıya seçenek sunmuyoruz
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState<boolean>(!!tenant?.cancelAtPeriodEnd);
@@ -213,11 +224,40 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
         if (!tenantId) return;
         const { syncSubscription } = await import('../api/billing');
-        await syncSubscription(tenantId);
-        await refreshUser();
+        const desiredMetaRaw = localStorage.getItem('pending_billing_payment');
+        let desiredPlanForPolling: string | null = null;
+        if (desiredMetaRaw) {
+          try { desiredPlanForPolling = (JSON.parse(desiredMetaRaw) as any)?.plan || null; } catch {}
+        }
+        // Yeni yöntem: upgrade-status endpoint; daha az yük ve net state
+        let attempts = 0;
+        const maxAttempts = 6; // toplam ~1+2+4+8+16+32 sn (progressive) ancak erken kırılır
+        const fetchStatus = async () => {
+          const resp = await fetch(`/api/billing/${tenantId}/upgrade-status`, { credentials: 'include' });
+          if (!resp.ok) return null;
+          try { return await resp.json(); } catch { return null; }
+        };
+        let statusData: any = null;
+        while (attempts < maxAttempts) {
+          statusData = await fetchStatus();
+          const planLower = String(statusData?.subscriptionPlan || '').toLowerCase();
+          if (desiredPlanForPolling) {
+            if (planLower === desiredPlanForPolling || planLower.includes(desiredPlanForPolling)) break;
+          } else if (['professional','enterprise','pro','business'].includes(planLower)) {
+            break;
+          }
+          attempts++;
+          const delayMs = Math.min(Math.pow(2, attempts - 1) * 1000, 12000); // üst sınır 12sn
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+        // Son durumda yine profil sync (tek sefer) yap
+        try { await syncSubscription(tenantId); } catch {}
+        try { await refreshUser(); } catch {}
         const okMsg = t('billing.subscriptionUpdated');
         setPlanMessage(okMsg);
         setPaymentResult({ open: true, title: t('billing.payment.successTitle'), message: okMsg, tone: 'success' });
+        // Başarılı upgrade sonrası kullanıcı gerçek ücretli faturayı hemen görsün diye varsayılan filtreyi ücretli faturalarla sınırla
+        try { setInvoiceStatusFilter('nonzero'); } catch {}
         // URL'yi temizle
         url.searchParams.delete('plan');
         url.searchParams.delete('upgrade');
@@ -504,18 +544,59 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       }
 
       // 4) Plan değişimi: Checkout oluştur ve yönlendir
-      const session = await createCheckoutSession({
-        tenantId,
-        plan: (desired as any),
-        interval,
-        seats: seatAddon,
-        successUrl: window.location.origin + '/settings?plan=success',
-        cancelUrl: window.location.origin + '/settings?plan=cancel',
-      });
-      if (session?.url) {
-        window.location.href = session.url;
+      // Eğer zaten ücretli bir planda isek ve yine ücretli başka bir plana geçiyorsak
+      // yeni Checkout yerine yerinde güncelle (proration). Free -> Paid ilk kez ise Checkout.
+      if (currentlyPaid && desiredPaid) {
+        const idem = 'planchg:' + tenantId + ':' + desired + ':' + interval + ':' + new Date().toISOString().slice(0,10);
+        const resp = await updatePlan(tenantId, { plan: desired as any, interval, seats: seatAddon, chargeNow: true, interactive: true, idempotencyKey: idem });
+        if (resp?.success) {
+          if (resp.invoiceError) {
+            setPlanMessage((currentLanguage === 'tr' ? 'Plan güncellendi ancak fatura başarısız: ' : 'Plan updated but invoice failed: ') + resp.invoiceError);
+            await refreshUser();
+            return;
+          }
+          if (resp.invoiceSkipped) {
+            setPlanMessage(currentLanguage === 'tr' ? 'Plan güncellendi (ek ücret yok).' : 'Plan updated (no additional charge).');
+            await refreshUser();
+            return;
+          }
+          if (resp.hostedInvoiceUrl) {
+            try {
+              localStorage.setItem('pending_billing_payment', JSON.stringify({ type: 'plan-change', plan: desired, interval, ts: Date.now() }));
+            } catch {}
+            setPlanMessage(t('billing.redirecting'));
+            window.location.href = resp.hostedInvoiceUrl;
+            return;
+          }
+          setPlanMessage(t('billing.subscriptionUpdated'));
+          await refreshUser();
+          return;
+        } else {
+          setPlanMessage(t('billing.checkout.failed'));
+          return;
+        }
       } else {
-        setPlanMessage(t('billing.checkout.failed'));
+        // Free -> Paid ilk satın alma
+        const session = await createCheckoutSession({
+          tenantId,
+          plan: (desired as any),
+          interval,
+          seats: seatAddon,
+          successUrl: window.location.origin + '/settings?plan=success',
+          cancelUrl: window.location.origin + '/settings?plan=cancel',
+        });
+        if (session?.url) {
+          // Hedef plan ve interval bilgisini localStorage'a koy (success dönüşünde polling için)
+          try {
+            localStorage.setItem(
+              'pending_billing_payment',
+              JSON.stringify({ type: 'initial-checkout', plan: desired, interval, ts: Date.now() })
+            );
+          } catch {}
+          window.location.href = session.url;
+        } else {
+          setPlanMessage(t('billing.checkout.failed'));
+        }
       }
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || 'Hata';
@@ -1068,6 +1149,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                   <option value="paid">Paid</option>
                   <option value="open">Open/Draft</option>
                   <option value="unpaid">Unpaid/Void/Uncollectible</option>
+                  <option value="nonzero">{currentLanguage==='tr' ? 'Ücretli (≠0)' : 'Non-zero'}</option>
                 </select>
               </div>
               <div className="flex flex-col">
@@ -1103,7 +1185,9 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                 <button
                   onClick={() => {
                     // CSV export
-                    const rows = getFilteredInvoices().map((inv: any) => ({
+                    const filteredForCsv = getFilteredInvoices();
+                    const safeCsvList = Array.isArray(filteredForCsv) ? filteredForCsv : [];
+                    const rows = safeCsvList.map((inv: any) => ({
                       id: inv.id,
                       number: inv.number,
                       status: inv.status,
@@ -1143,14 +1227,25 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                 </tr>
               </thead>
               <tbody>
-                {getFilteredInvoices().map((inv: any) => {
+                {(() => {
+                  const safeList = getFilteredInvoices();
+                  const list = Array.isArray(safeList) ? safeList : [];
+                  return list.map((inv: any) => {
                   const dateStr = inv.created ? new Date(inv.created).toLocaleDateString() : '—';
-                  const amount = typeof inv.total === 'number' ? (inv.total / 100).toFixed(2) + ' ' + String(inv.currency || '').toUpperCase() : '—';
+                  const amount = typeof inv.total === 'number'
+                    ? (inv.total / 100).toFixed(2) + ' ' + String(inv.currency || '').toUpperCase()
+                    : '—';
                   return (
                     <tr key={inv.id} className="border-t border-gray-100">
                       <td className="py-1 pr-4">{inv.number || inv.id}</td>
                       <td className="py-1 pr-4">{dateStr}</td>
-                      <td className="py-1 pr-4">{amount}</td>
+                      <td className="py-1 pr-4">
+                        {inv.zeroTotal ? (
+                          <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                            {amount} {inv.reasonHint==='PLAN_CHANGE_NO_CHARGE' ? (currentLanguage==='tr' ? 'Plan değişimi - ek ücret yok' : 'Plan change - no extra charge') : (currentLanguage==='tr' ? 'Ücretsiz işlem' : 'No charge')}
+                          </span>
+                        ) : amount }
+                      </td>
                       <td className="py-1 pr-4">
                         <span className={(() => {
                           const s = String(inv.status || '').toLowerCase();
@@ -1172,7 +1267,8 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                       </td>
                     </tr>
                   );
-                })}
+                  });
+                })()}
               </tbody>
             </table>
           </div>
