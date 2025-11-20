@@ -3,6 +3,7 @@ import { Eye, EyeOff, Mail, Lock, ArrowRight, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import LegalHeader from './LegalHeader';
+import TurnstileCaptcha from './TurnstileCaptcha';
 import { authService } from '../api/auth';
 
 export default function LoginPage() {
@@ -21,27 +22,48 @@ export default function LoginPage() {
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaToken, setMfaToken] = useState('');
   const [resending, setResending] = useState(false);
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
     try {
-      const res = await login(formData.email, formData.password, mfaRequired ? (mfaToken || undefined) : undefined);
+      if (captchaRequired && !captchaToken) {
+        setError('Lütfen güvenlik doğrulamasını tamamlayın');
+        return;
+      }
+      const res = await login(
+        formData.email,
+        formData.password,
+        mfaRequired ? (mfaToken || undefined) : undefined,
+        captchaRequired ? (captchaToken || undefined) : undefined,
+      );
       if ((res as any)?.mfaRequired) {
         setMfaRequired(true);
         setError('İki faktörlü doğrulama gerekli. Lütfen doğrulama kodunu girin.');
         return;
       }
+      if ((res as any)?.captchaRequired) {
+        setCaptchaRequired(true);
+        setError('Güvenlik doğrulaması gerekli. Lütfen doğrulamayı tamamlayın.');
+        return;
+      }
       // başarıyla giriş yaptıysak MFA durumunu sıfırla
       setMfaRequired(false);
       setMfaToken('');
+      setCaptchaRequired(false);
+      setCaptchaToken(null);
     } catch (error: any) {
       // MFA adımında yanlış kod girdiyse daha net mesaj ver
       const msg = error?.message || 'Giriş sırasında bir hata oluştu';
       if (msg === 'MFA_REQUIRED') {
         setMfaRequired(true);
         setError('İki faktörlü doğrulama gerekli. Lütfen doğrulama kodunu girin.');
+      } else if (msg === 'CAPTCHA_REQUIRED') {
+        setCaptchaRequired(true);
+        setError('Güvenlik doğrulaması gerekli. Lütfen doğrulamayı tamamlayın.');
       } else {
         setError(msg);
       }
@@ -170,6 +192,13 @@ export default function LoginPage() {
                 {t('auth.forgotPassword', 'Şifremi unuttum')}
               </button>
             </div>
+
+            {captchaRequired && (
+              <div>
+                <TurnstileCaptcha onToken={(t) => setCaptchaToken(t)} />
+                <p className="text-xs text-gray-500 mt-1">Birden fazla başarısız giriş denemesi algılandı – lütfen insan doğrulamasını tamamlayın.</p>
+              </div>
+            )}
 
             <button
               type="submit"

@@ -1,3 +1,12 @@
+
+## 🛡️ İnsan Doğrulaması (Turnstile)
+
+- Kayıt (signup) formunda Cloudflare Turnstile her zaman zorunlu.
+- Giriş (login) için art arda 5 başarısız denemeden (aynı e-posta + IP) sonra captcha istenir.
+- Ortam değişkenleri:
+	- Frontend: `VITE_TURNSTILE_SITE_KEY`
+	- Backend: `TURNSTILE_SECRET_KEY`, `LOGIN_FAILED_CAPTCHA_THRESHOLD`
+- Eksik anahtar durumunda doğrulama "fail-open" (skip + uyarı log) çalışır; üretimde mutlaka değer girin.
 # Comptario Muhasebe v2
 
 Modern, güvenli ve ölçeklenebilir (multi-tenant) muhasebe ve finans yönetim sistemi.

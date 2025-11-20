@@ -57,4 +57,12 @@ export class LoginDto {
   @IsOptional()
   @IsString()
   clientLocale?: string;
+
+  @ApiProperty({
+    description: 'Cloudflare Turnstile token. Required after captcha threshold reached for this email+IP.',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  turnstileToken?: string;
 }

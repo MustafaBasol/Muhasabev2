@@ -14,6 +14,7 @@ import { EmailVerificationToken } from './entities/email-verification-token.enti
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { AuditModule } from '../audit/audit.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { LoginAttemptsService } from './login-attempts.service';
 
 @Module({
   imports: [
@@ -44,7 +45,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
     forwardRef(() => OrganizationsModule),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, SecurityService],
+  providers: [AuthService, JwtStrategy, SecurityService, LoginAttemptsService],
   exports: [AuthService],
 })
 export class AuthModule {}

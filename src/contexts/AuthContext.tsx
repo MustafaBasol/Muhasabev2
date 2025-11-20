@@ -34,7 +34,7 @@ interface AuthContextType {
   tenant: Tenant | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string, twoFactorToken?: string) => Promise<{ mfaRequired?: true } | void>;
+  login: (email: string, password: string, twoFactorToken?: string, turnstileToken?: string) => Promise<{ mfaRequired?: true; captchaRequired?: true } | void>;
   register: (data: {
     name: string;
     email: string;
@@ -42,6 +42,7 @@ interface AuthContextType {
     company?: string;
     phone?: string;
     address?: string;
+    turnstileToken?: string;
   }) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>; // Yeni: User bilgisini backend'den yeniden yükle
@@ -232,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     company?: string;
     phone?: string;
     address?: string;
+    turnstileToken?: string;
   }) => {
     try {
       // Name'i firstName ve lastName olarak ayır
@@ -244,7 +246,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password: registerData.password,
         firstName,
         lastName,
-        companyName: registerData.company
+        companyName: registerData.company,
+        turnstileToken: registerData.turnstileToken,
       };
       
       const verificationRequired = String(import.meta.env.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';

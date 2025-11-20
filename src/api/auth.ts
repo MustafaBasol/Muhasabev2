@@ -7,12 +7,14 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   companyName?: string;
+  turnstileToken?: string; // Human verification token
 }
 
 export interface LoginData {
   email: string;
   password: string;
   twoFactorToken?: string;
+  turnstileToken?: string; // Human verification token (after threshold)
   // Client environment hints (optional)
   clientTimeZone?: string; // IANA TZ, e.g. "Europe/Istanbul"
   clientUtcOffsetMinutes?: number; // minutes relative to UTC (e.g. +180 -> 180)

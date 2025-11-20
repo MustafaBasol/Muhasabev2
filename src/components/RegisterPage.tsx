@@ -3,6 +3,7 @@ import { Eye, EyeOff, Mail, Lock, User, Building2, UserPlus, Phone, RefreshCw } 
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import LegalHeader from './LegalHeader';
+import TurnstileCaptcha from './TurnstileCaptcha';
 
 export default function RegisterPage() {
   const { register, isLoading } = useAuth();
@@ -26,6 +27,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendLoading, setResendLoading] = useState(false);
   const [emailConflict, setEmailConflict] = useState<{ email: string } | null>(null);
@@ -86,8 +88,16 @@ export default function RegisterPage() {
         password: formData.password,
         company: formData.company,
         phone: formData.phone,
-        address: formData.address
+        address: formData.address,
+        turnstileToken: captchaToken || undefined,
       };
+
+      // Captcha zorunlu (site key yoksa bile sentinel token gelebilir). Site key yoksa bile backend secret yoksa fail-open.
+      const siteKey = (import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '';
+      if (siteKey && !captchaToken) {
+        setError('Lütfen insan doğrulamasını tamamlayın');
+        return;
+      }
       
       await register(userData);
       const verificationRequired = String(import.meta.env.VITE_EMAIL_VERIFICATION_REQUIRED || '').toLowerCase() === 'true';
@@ -336,6 +346,11 @@ export default function RegisterPage() {
                   {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+            </div>
+
+            {/* Turnstile Captcha */}
+            <div>
+              <TurnstileCaptcha onToken={(t) => setCaptchaToken(t)} />
             </div>
 
             {/* Terms and Privacy Checkbox */}

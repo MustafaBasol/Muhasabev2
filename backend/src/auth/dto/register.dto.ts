@@ -73,4 +73,12 @@ export class RegisterDto {
     message: 'Company name must be between 1 and 100 characters',
   })
   companyName?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Cloudflare Turnstile token for human verification (mandatory for public signup when Turnstile enabled).',
+  })
+  @IsOptional()
+  @IsString()
+  turnstileToken?: string;
 }

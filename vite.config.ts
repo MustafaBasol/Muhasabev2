@@ -16,8 +16,5 @@ export default defineConfig({
       },
     },
   },
-  optimizeDeps: {
-    // Avoid prebundle glitch with lucide-react in some envs
-    exclude: ['lucide-react'],
-  },
+  // Removed lucide-react exclusion to allow normal prebundling
 });

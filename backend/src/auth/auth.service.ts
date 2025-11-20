@@ -22,6 +22,7 @@ import * as crypto from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { Inject, forwardRef } from '@nestjs/common';
+import { LoginAttemptsService } from './login-attempts.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { Role } from '../common/enums/organization.enum';
 
@@ -40,6 +41,7 @@ export class AuthService {
     private auditService: AuditService,
     @Inject(forwardRef(() => OrganizationsService))
     private organizationsService: OrganizationsService,
+    private attemptsService: LoginAttemptsService,
   ) {}
   private getNumberEnv(name: string, def: number): number {
     const raw = (process.env[name] || '').trim();
@@ -48,8 +50,60 @@ export class AuthService {
   }
   // Basit, process içi resend cooldown (email başına). Dağıtık için merkezi store gerekir.
   private resendCooldown = new Map<string, number>();
+  // Replaced by LoginAttemptsService (memory or Redis)
+
+  private async verifyTurnstile(token?: string, ip?: string): Promise<boolean> {
+    const secret = (process.env.TURNSTILE_SECRET_KEY || '').trim();
+    if (!secret) {
+      if (!process.env.__TURNSTILE_WARNED) {
+        console.warn('⚠️ TURNSTILE_SECRET_KEY missing – Turnstile verification skipped (fail-open).');
+        (process.env as any).__TURNSTILE_WARNED = '1';
+      }
+      return true; // fail-open
+    }
+    if (!token) return false;
+    if (token === 'TURNSTILE_SKIPPED') {
+      // Frontend sentinel when site key absent but secret present – treat as failure.
+      return false;
+    }
+    try {
+      const params = new URLSearchParams();
+      params.append('secret', secret);
+      params.append('response', token);
+      if (ip) params.append('remoteip', ip);
+      const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+      });
+      if (!res.ok) return false;
+      const data: any = await res.json().catch(() => ({}));
+      const success = data?.success === true;
+      if (!success && (process.env.TURNSTILE_LOG_VERBOSE || '').toLowerCase() === 'true') {
+        console.warn('Turnstile failure details:', data);
+      }
+      return success;
+    } catch (e) {
+      if ((process.env.TURNSTILE_LOG_VERBOSE || '').toLowerCase() === 'true') {
+        console.warn('⚠️ Turnstile verification error (treat as failure):', (e as any)?.message);
+      }
+      return false;
+    }
+  }
 
   async register(registerDto: RegisterDto) {
+    // Turnstile mandatory for public signup when secret configured
+    const turnstileSecretConfigured = (process.env.TURNSTILE_SECRET_KEY || '').trim().length > 0;
+    if (turnstileSecretConfigured) {
+      const ok = await this.verifyTurnstile(registerDto.turnstileToken);
+      if (!ok) {
+        if (!registerDto.turnstileToken) {
+          throw new BadRequestException('Human verification required');
+        }
+        throw new BadRequestException('Human verification failed, please try again.');
+      }
+    }
+    // If secret not configured, fail-open (log once handled in verifyTurnstile)
     // Parola basit politika kontrolü
     const minLen = this.getNumberEnv('PASSWORD_MIN_LENGTH', 8);
     if (!registerDto.password || registerDto.password.length < minLen) {
@@ -204,20 +258,36 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto, req?: any) {
+    const ip = req?.ip || (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+    const alreadyCaptcha = await this.attemptsService.requireCaptcha(loginDto.email, ip);
+    if (alreadyCaptcha) {
+      const ok = await this.verifyTurnstile(loginDto.turnstileToken, ip);
+      if (!ok) {
+        if (!loginDto.turnstileToken) throw new ForbiddenException('CAPTCHA_REQUIRED');
+        throw new UnauthorizedException('Human verification failed');
+      }
+    }
+
     // Find user by email
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
+      await this.attemptsService.increment(loginDto.email, ip);
+      const need = await this.attemptsService.requireCaptcha(loginDto.email, ip);
+      if (need) throw new ForbiddenException('CAPTCHA_REQUIRED');
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Validate password
-    const isPasswordValid = await this.usersService.validatePassword(
-      user,
-      loginDto.password,
-    );
+    const isPasswordValid = await this.usersService.validatePassword(user, loginDto.password);
     if (!isPasswordValid) {
+      await this.attemptsService.increment(loginDto.email, ip);
+      const need = await this.attemptsService.requireCaptcha(loginDto.email, ip);
+      if (need) throw new ForbiddenException('CAPTCHA_REQUIRED');
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // Successful login: reset attempts
+    await this.attemptsService.reset(loginDto.email, ip);
 
     // Check if user is active
     if (!user.isActive) {
