@@ -1,22 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { adminApi } from '../../api/admin';
-
-// Types
-type Limits = {
-  maxUsers: number;
-  maxCustomers: number;
-  maxSuppliers: number;
-  maxBankAccounts: number;
-  monthly: { maxInvoices: number; maxExpenses: number };
-};
-
-type TenantSummary = {
-  id: string;
-  name: string;
-  companyName: string;
-  subscriptionPlan: string;
-  status: string;
-};
+import type {
+  AdminTenantSummary,
+  TenantPlanLimits,
+  TenantPlanLimitOverrides,
+  TenantUsage,
+} from '../../types/admin';
 
 const NumberField: React.FC<{
   value: number | undefined;
@@ -59,17 +48,17 @@ const StatBox: React.FC<{ title: string; value: number; max?: number }> = ({ tit
 };
 
 const TenantLimitsPage: React.FC = () => {
-  const [tenants, setTenants] = useState<TenantSummary[]>([]);
+  const [tenants, setTenants] = useState<AdminTenantSummary[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
 
-  const [defaultLimits, setDefaultLimits] = useState<Limits | null>(null);
-  type Overrides = Partial<Omit<Limits, 'monthly'>> & { monthly?: Partial<Limits['monthly']> };
+  const [defaultLimits, setDefaultLimits] = useState<TenantPlanLimits | null>(null);
+  type Overrides = TenantPlanLimitOverrides;
   const [overrideLimits, setOverrideLimits] = useState<Overrides>({});
-  const [effectiveLimits, setEffectiveLimits] = useState<Limits | null>(null);
-  const [usage, setUsage] = useState<any>(null);
+  const [effectiveLimits, setEffectiveLimits] = useState<TenantPlanLimits | null>(null);
+  const [usage, setUsage] = useState<TenantUsage | null>(null);
   const [clearKeys, setClearKeys] = useState<string[]>([]);
   const [tenantSearch, setTenantSearch] = useState<string>('');
 
@@ -86,14 +75,8 @@ const TenantLimitsPage: React.FC = () => {
   const loadTenants = async () => {
     try {
       setLoading(true);
-      const t = await adminApi.getTenants();
-      setTenants((t || []).map((x: any) => ({
-        id: x.id,
-        name: x.name,
-        companyName: x.companyName,
-        subscriptionPlan: x.subscriptionPlan,
-        status: x.status,
-      })));
+      const data = await adminApi.getTenants();
+      setTenants(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
       setError('Şirket listesi alınamadı');
@@ -107,11 +90,11 @@ const TenantLimitsPage: React.FC = () => {
     try {
       setLoading(true);
       const resp = await adminApi.getTenantLimits(tenantId);
-      const { limits, usage } = resp || {};
-      setDefaultLimits(limits?.default || null);
-      setOverrideLimits(limits?.overrides || {});
-      setEffectiveLimits(limits?.effective || null);
-      setUsage(usage || null);
+      const limits = resp?.limits;
+      setDefaultLimits(limits?.default ?? null);
+      setOverrideLimits(limits?.overrides ?? {});
+      setEffectiveLimits(limits?.effective ?? null);
+      setUsage(resp?.usage ?? null);
     } catch (e) {
       console.error(e);
       setError('Limit bilgileri alınamadı');
@@ -128,42 +111,49 @@ const TenantLimitsPage: React.FC = () => {
     if (selectedTenantId) loadTenantLimits(selectedTenantId);
   }, [selectedTenantId]);
 
-  const updateOverride = (patch: Overrides) => {
-    setOverrideLimits(prev => ({
-      ...prev,
-      ...patch,
-      monthly: { ...(prev.monthly || {}), ...(patch.monthly || {}) },
-    }));
+  const updateOverride = (patch: Partial<Overrides>) => {
+    setOverrideLimits(prev => {
+      const next: Overrides = { ...prev, ...patch };
+      if (patch.monthly) {
+        next.monthly = { ...(prev.monthly || {}), ...patch.monthly };
+      }
+      return next;
+    });
   };
 
   const markClear = (key: string) => {
     setClearKeys(prev => (prev.includes(key) ? prev : [...prev, key]));
-    // also remove from local overrides UI
-    if (key.includes('.')) {
-      const [parent, child] = key.split('.');
-      if (parent === 'monthly') {
-        setOverrideLimits(prev => {
-          const m = { ...(prev.monthly || {}) } as any;
-          delete (m as any)[child];
-          const next = { ...prev, monthly: m } as any;
-          if (Object.keys(m).length === 0) delete next.monthly;
-          return next;
-        });
-      }
-    } else {
+    if (key.startsWith('monthly.')) {
+      const [, child] = key.split('.');
       setOverrideLimits(prev => {
-        const next: any = { ...prev };
-        delete next[key as keyof Overrides];
+        const nextMonthly = { ...(prev.monthly || {}) };
+        if (child && child in nextMonthly) {
+          delete nextMonthly[child as keyof typeof nextMonthly];
+        }
+        const next = { ...prev };
+        if (Object.keys(nextMonthly).length > 0) {
+          next.monthly = nextMonthly;
+        } else {
+          delete next.monthly;
+        }
         return next;
       });
+      return;
     }
+    setOverrideLimits(prev => {
+      const next = { ...prev };
+      if (key in next) {
+        delete next[key as keyof Overrides];
+      }
+      return next;
+    });
   };
 
   const saveOverrides = async () => {
     if (!selectedTenantId) return;
     try {
       setLoading(true);
-      const payload: any = { ...overrideLimits };
+      const payload: Overrides & { __clear?: string[] } = { ...overrideLimits };
       if (clearKeys.length) payload.__clear = clearKeys;
       await adminApi.updateTenantLimits(selectedTenantId, payload);
       setMessage('Kaydedildi');
@@ -182,7 +172,7 @@ const TenantLimitsPage: React.FC = () => {
     if (!selectedTenantId) return;
     try {
       setLoading(true);
-      await adminApi.updateTenantLimits(selectedTenantId, { __clearAll: true } as any);
+      await adminApi.updateTenantLimits(selectedTenantId, { __clearAll: true });
       setOverrideLimits({});
       setClearKeys([]);
       setMessage('Override’lar temizlendi');
@@ -339,7 +329,7 @@ const TenantLimitsPage: React.FC = () => {
                 <NumberField
                   label="Aylık Maks. Fatura"
                   value={overrideLimits.monthly?.maxInvoices}
-                  onChange={(v) => updateOverride({ monthly: { maxInvoices: v } as any })}
+                  onChange={(v) => updateOverride({ monthly: { maxInvoices: v } })}
                   hint="-1 = Sınırsız, boş = plan varsayılanı"
                 />
                 <div className="mt-1">
@@ -350,7 +340,7 @@ const TenantLimitsPage: React.FC = () => {
                 <NumberField
                   label="Aylık Maks. Gider"
                   value={overrideLimits.monthly?.maxExpenses}
-                  onChange={(v) => updateOverride({ monthly: { maxExpenses: v } as any })}
+                  onChange={(v) => updateOverride({ monthly: { maxExpenses: v } })}
                   hint="-1 = Sınırsız, boş = plan varsayılanı"
                 />
                 <div className="mt-1">

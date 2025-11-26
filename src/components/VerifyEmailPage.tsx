@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { authService } from '../api/auth';
 import LegalHeader from './LegalHeader';
+import { safeSessionStorage } from '../utils/localStorageSafe';
 
 function useQueryParam(paramName: string) {
   return useMemo(() => {
@@ -42,7 +43,7 @@ export default function VerifyEmailPage() {
         }
         setStatus('success');
         // Doğrulama başarıyla tamamlandığında pending email bilgisini temizle
-        try { sessionStorage.removeItem('pending_verification_email'); } catch {}
+        safeSessionStorage.removeItem('pending_verification_email');
       } catch (err: any) {
         setStatus('error');
         setMessage(err?.message || 'Doğrulama başarısız');

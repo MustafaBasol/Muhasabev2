@@ -4,29 +4,44 @@ import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import { logger } from '../utils/logger';
+import type { Supplier as SupplierModel } from '../api/suppliers';
 // preset etiketleri i18n'den alınır
 
-interface Supplier {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  taxNumber: string;
-  company: string;
-  category: string;
-  createdAt: string;
-}
+type SupplierRecord = SupplierModel & {
+  category?: string;
+};
 
 interface SupplierListProps {
-  suppliers: Supplier[];
+  suppliers?: SupplierRecord[];
   onAddSupplier: () => void;
-  onEditSupplier: (supplier: Supplier) => void;
+  onEditSupplier: (supplier: SupplierRecord) => void;
   onDeleteSupplier: (supplierId: string) => void;
-  onViewSupplier: (supplier: Supplier) => void;
-  onSelectSupplier?: (supplier: Supplier) => void;
+  onViewSupplier: (supplier: SupplierRecord) => void;
+  onSelectSupplier?: (supplier: SupplierRecord) => void;
   selectionMode?: boolean;
 }
+
+type SupplierListViewState = {
+  searchTerm: string;
+  categoryFilter: string;
+  startDate?: string;
+  endDate?: string;
+  pageSize?: number;
+};
+
+const SUPPLIER_PAGE_SIZES = [20, 50, 100] as const;
+const isValidSupplierPageSize = (value: number): value is (typeof SUPPLIER_PAGE_SIZES)[number] =>
+  SUPPLIER_PAGE_SIZES.includes(value as (typeof SUPPLIER_PAGE_SIZES)[number]);
+
+const toSafeLower = (value?: string | null) => (value ?? '').toLowerCase();
+
+const getSavedSupplierPageSize = (): number => {
+  const saved = safeLocalStorage.getItem('suppliers_pageSize');
+  const parsed = saved ? Number(saved) : SUPPLIER_PAGE_SIZES[0];
+  return isValidSupplierPageSize(parsed) ? parsed : SUPPLIER_PAGE_SIZES[0];
+};
 
 export default function SupplierList({ 
   suppliers, 
@@ -38,6 +53,7 @@ export default function SupplierList({
   selectionMode = false
 }: SupplierListProps) {
   const { t, i18n } = useTranslation();
+  const lang = (i18n.resolvedLanguage || i18n.language || 'en').split('-')[0];
   // Kategori çok-dilli etiketleri
   const categoryLabels: Record<string, Record<string, string>> = {
     'Ofis Malzemeleri': { tr: 'Ofis Malzemeleri', en: 'Office Supplies', fr: 'Fournitures de bureau', de: 'Büromaterial' },
@@ -47,20 +63,18 @@ export default function SupplierList({
     'Lojistik': { tr: 'Lojistik', en: 'Logistics', fr: 'Logistique', de: 'Logistik' },
     'Diğer': { tr: 'Diğer', en: 'Other', fr: 'Autre', de: 'Sonstiges' },
   };
-  const getCategoryLabel = (value: string) => categoryLabels[value]?.[i18n.language] || value;
+  const getCategoryLabel = (value: string) => categoryLabels[value]?.[lang] || value;
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('suppliers_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [pageSize, setPageSize] = useState<number>(() => getSavedSupplierPageSize());
+  const safeSuppliers = useMemo(() => (Array.isArray(suppliers) ? suppliers.filter(Boolean) : []), [suppliers]);
+  const totalSuppliers = safeSuppliers.length;
 
   // Default kaydedilmiş görünüm uygula
-  const { getDefault } = useSavedListViews<{ searchTerm: string; categoryFilter: string; startDate?: string; endDate?: string; pageSize?: number }>({ listType: 'suppliers' });
+  const { getDefault } = useSavedListViews<SupplierListViewState>({ listType: 'suppliers' });
   useEffect(() => {
     const def = getDefault();
     if (def && def.state) {
@@ -69,29 +83,32 @@ export default function SupplierList({
         setCategoryFilter(def.state.categoryFilter ?? 'all');
         if (def.state.startDate) setStartDate(def.state.startDate);
         if (def.state.endDate) setEndDate(def.state.endDate);
-        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
-      } catch {}
+        if (def.state.pageSize && isValidSupplierPageSize(def.state.pageSize)) {
+          handlePageSizeChange(def.state.pageSize);
+        }
+      } catch (error) {
+        logger.warn('Failed to hydrate supplier saved view', error);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const categories = ['Ofis Malzemeleri', 'Teknoloji', 'Hizmet', 'Üretim', 'Lojistik', 'Diğer'];
 
-  const filteredSuppliers = useMemo(() => suppliers.filter(supplier => {
-    const matchesSearch = 
-      supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (supplier.company || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || supplier.category === categoryFilter;
-    // Tarih aralığı (createdAt) filtresi
-    let matchesDate = true;
-    if ((startDate || endDate) && supplier.createdAt) {
-      const created = new Date(supplier.createdAt);
-      if (startDate) matchesDate = matchesDate && created >= new Date(startDate);
-      if (endDate) matchesDate = matchesDate && created <= new Date(endDate);
-    }
-    return matchesSearch && matchesCategory && matchesDate;
-  }), [suppliers, searchTerm, categoryFilter, startDate, endDate]);
+  const filteredSuppliers = useMemo(() => {
+    const lookup = searchTerm.trim().toLowerCase();
+    return safeSuppliers.filter((supplier) => {
+      const name = toSafeLower(supplier?.name);
+      const email = toSafeLower(supplier?.email);
+      const company = toSafeLower(supplier?.company);
+      const matchesSearch = !lookup || name.includes(lookup) || email.includes(lookup) || company.includes(lookup);
+      const matchesCategory = categoryFilter === 'all' || supplier?.category === categoryFilter;
+      let matchesDate = true;
+      const createdAt = supplier?.createdAt ? new Date(supplier.createdAt) : null;
+      if (createdAt && startDate) matchesDate = matchesDate && createdAt >= new Date(startDate);
+      if (createdAt && endDate) matchesDate = matchesDate && createdAt <= new Date(endDate);
+      return matchesSearch && matchesCategory && matchesDate;
+    });
+  }, [safeSuppliers, searchTerm, categoryFilter, startDate, endDate]);
 
   const paginatedSuppliers = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -104,10 +121,9 @@ export default function SupplierList({
   }, [searchTerm, categoryFilter, startDate, endDate]);
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('suppliers_pageSize', String(size));
-    }
+    const nextSize = isValidSupplierPageSize(size) ? size : SUPPLIER_PAGE_SIZES[0];
+    setPageSize(nextSize);
+    safeLocalStorage.setItem('suppliers_pageSize', String(nextSize));
     setPage(1);
   };
 
@@ -122,7 +138,7 @@ export default function SupplierList({
               {selectionMode ? 'Tedarikçi Seç' : t('suppliers.title')}
             </h2>
             <p className="text-sm text-gray-500">
-              {suppliers.length} {t('suppliers.suppliersRegistered')}
+              {totalSuppliers} {t('suppliers.suppliersRegistered')}
             </p>
           </div>
           {!selectionMode && (
@@ -178,12 +194,14 @@ export default function SupplierList({
               listType="suppliers"
               getState={() => ({ searchTerm, categoryFilter, startDate, endDate, pageSize })}
               applyState={(s) => {
-                const st = s || {} as any;
+                const st: Partial<SupplierListViewState> = s ?? {};
                 setSearchTerm(st.searchTerm ?? '');
                 setCategoryFilter(st.categoryFilter ?? 'all');
                 setStartDate(st.startDate ?? '');
                 setEndDate(st.endDate ?? '');
-                if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+                if (st.pageSize && isValidSupplierPageSize(st.pageSize)) {
+                  handlePageSizeChange(st.pageSize);
+                }
               }}
               presets={[
                 { id:'cat-office', label: getCategoryLabel('Ofis Malzemeleri'), apply:()=> setCategoryFilter('Ofis Malzemeleri') },
@@ -226,9 +244,18 @@ export default function SupplierList({
             )}
           </div>
         ) : (
-          paginatedSuppliers.map((supplier) => (
+          paginatedSuppliers.map((supplier, index) => {
+            const displayName = supplier.name?.trim() || t('suppliers.unnamed', { defaultValue: 'İsimsiz Tedarikçi' });
+            const initials = displayName.charAt(0).toUpperCase();
+            const companyName = supplier.company?.trim();
+            const emailLabel = supplier.email || t('suppliers.noEmail', { defaultValue: 'E-posta yok' });
+            const phoneLabel = supplier.phone || '';
+            const supplierKey = supplier.id || `supplier-${index}`;
+            const categoryToken = supplier.category || 'Diğer';
+            const categoryLabel = getCategoryLabel(categoryToken);
+            return (
             <div 
-              key={supplier.id} 
+              key={supplierKey} 
               className={`p-4 hover:bg-gray-50 transition-colors ${
                 selectionMode ? 'cursor-pointer' : ''
               }`}
@@ -238,12 +265,12 @@ export default function SupplierList({
                 <div className="flex items-center space-x-4 min-w-0">
                   <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                     <span className="text-orange-600 font-semibold text-lg">
-                      {supplier.name.charAt(0).toUpperCase()}
+                      {initials}
                     </span>
                   </div>
                   <div className="min-w-0">
                     {selectionMode ? (
-                      <h3 className="font-semibold text-gray-900">{supplier.name}</h3>
+                      <h3 className="font-semibold text-gray-900">{displayName}</h3>
                     ) : (
                       <button
                         onClick={(e) => {
@@ -254,28 +281,28 @@ export default function SupplierList({
                         className="font-semibold text-orange-600 hover:text-orange-800 transition-colors cursor-pointer text-left"
                         title="Tedarikçi detaylarını görüntüle"
                       >
-                        {supplier.name}
+                        {displayName}
                       </button>
                     )}
-                    {supplier.company && (
+                    {companyName && (
                       <p className="text-sm text-gray-600 flex items-center truncate">
                         <Building2 className="w-3 h-3 mr-1" />
-                        <span className="truncate">{supplier.company}</span>
+                        <span className="truncate">{companyName}</span>
                       </p>
                     )}
                     <div className="flex items-center space-x-4 mt-1 min-w-0">
                       <span className="text-sm text-gray-500 flex items-center truncate">
                         <Mail className="w-3 h-3 mr-1" />
-                        <span className="truncate">{supplier.email}</span>
+                        <span className="truncate">{emailLabel}</span>
                       </span>
-                      {supplier.phone && (
+                      {phoneLabel && (
                         <span className="text-sm text-gray-500 flex items-center truncate">
                           <Phone className="w-3 h-3 mr-1" />
-                          <span className="truncate">{supplier.phone}</span>
+                          <span className="truncate">{phoneLabel}</span>
                         </span>
                       )}
                       <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
-                        {getCategoryLabel(supplier.category)}
+                        {categoryLabel}
                       </span>
                     </div>
 
@@ -319,7 +346,8 @@ export default function SupplierList({
                 )}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
       {/* Pagination */}

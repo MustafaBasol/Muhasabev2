@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Mail, UserPlus } from 'lucide-react';
 import { organizationsApi, InviteMemberData, MembershipStats } from '../api/organizations';
 import { useAuth } from '../contexts/AuthContext';
+import { readLegacyTenantId } from '../utils/localStorageSafe';
 
 interface InviteFormProps {
   organizationId: string;
@@ -66,7 +67,7 @@ const InviteForm: React.FC<InviteFormProps> = ({
         const looksLimit = status === 400 && /limit|plan|member|STARTER/i.test(msg);
         if (looksLimit) {
           try {
-            const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+            const tenantId = String((tenant as any)?.id || readLegacyTenantId() || '');
             if (tenantId) {
               const { syncSubscription } = await import('../api/billing');
               await syncSubscription(tenantId);

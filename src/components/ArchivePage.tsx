@@ -19,6 +19,8 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import { logger } from '../utils/logger';
 
 interface ArchivePageProps {
   invoices?: any[];
@@ -35,6 +37,45 @@ interface ArchivePageProps {
   onDownloadExpense?: (expense: any) => void;
   onDownloadSale?: (sale: any) => void;
 }
+
+const ARCHIVE_PAGE_SIZES = [20, 50, 100] as const;
+type ArchivePageSize = (typeof ARCHIVE_PAGE_SIZES)[number];
+const isValidArchivePageSize = (value: number): value is ArchivePageSize =>
+  ARCHIVE_PAGE_SIZES.includes(value as ArchivePageSize);
+
+const ARCHIVE_PAGE_KEYS = {
+  invoices: 'archive_invoices_pageSize',
+  expenses: 'archive_expenses_pageSize',
+  sales: 'archive_sales_pageSize',
+  customers: 'archive_customers_pageSize',
+  suppliers: 'archive_suppliers_pageSize'
+} as const;
+type ArchivePageSizeKey = typeof ARCHIVE_PAGE_KEYS[keyof typeof ARCHIVE_PAGE_KEYS];
+
+const getSavedArchivePageSize = (storageKey: ArchivePageSizeKey): ArchivePageSize => {
+  const stored = safeLocalStorage.getItem(storageKey);
+  const parsed = stored ? Number(stored) : ARCHIVE_PAGE_SIZES[0];
+  return isValidArchivePageSize(parsed) ? parsed : ARCHIVE_PAGE_SIZES[0];
+};
+
+const persistArchivePageSize = (storageKey: ArchivePageSizeKey, size: ArchivePageSize) => {
+  safeLocalStorage.setItem(storageKey, String(size));
+};
+
+const updateArchivePageSize = (
+  size: number,
+  setSize: (value: number) => void,
+  setPage: (value: number) => void,
+  storageKey: ArchivePageSizeKey,
+) => {
+  if (!isValidArchivePageSize(size)) {
+    logger.warn('Attempted to set invalid archive page size', { storageKey, size });
+    return;
+  }
+  setSize(size);
+  persistArchivePageSize(storageKey, size);
+  setPage(1);
+};
 
 export default function ArchivePage({
   invoices = [],
@@ -60,35 +101,26 @@ export default function ArchivePage({
   const [activeTab, setActiveTab] = useState('all');
   // Per-section pagination state
   const [invPage, setInvPage] = useState<number>(1);
-  const [invPageSize, setInvPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_invoices_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [invPageSize, setInvPageSize] = useState<number>(() => getSavedArchivePageSize(ARCHIVE_PAGE_KEYS.invoices));
   const [expPage, setExpPage] = useState<number>(1);
-  const [expPageSize, setExpPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_expenses_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [expPageSize, setExpPageSize] = useState<number>(() => getSavedArchivePageSize(ARCHIVE_PAGE_KEYS.expenses));
   const [salePage, setSalePage] = useState<number>(1);
-  const [salePageSize, setSalePageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_sales_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [salePageSize, setSalePageSize] = useState<number>(() => getSavedArchivePageSize(ARCHIVE_PAGE_KEYS.sales));
   const [custPage, setCustPage] = useState<number>(1);
-  const [custPageSize, setCustPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_customers_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [custPageSize, setCustPageSize] = useState<number>(() => getSavedArchivePageSize(ARCHIVE_PAGE_KEYS.customers));
   const [supPage, setSupPage] = useState<number>(1);
-  const [supPageSize, setSupPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('archive_suppliers_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [supPageSize, setSupPageSize] = useState<number>(() => getSavedArchivePageSize(ARCHIVE_PAGE_KEYS.suppliers));
+
+  const handleInvPageSizeChange = (size: number) =>
+    updateArchivePageSize(size, setInvPageSize, setInvPage, ARCHIVE_PAGE_KEYS.invoices);
+  const handleExpPageSizeChange = (size: number) =>
+    updateArchivePageSize(size, setExpPageSize, setExpPage, ARCHIVE_PAGE_KEYS.expenses);
+  const handleSalePageSizeChange = (size: number) =>
+    updateArchivePageSize(size, setSalePageSize, setSalePage, ARCHIVE_PAGE_KEYS.sales);
+  const handleCustPageSizeChange = (size: number) =>
+    updateArchivePageSize(size, setCustPageSize, setCustPage, ARCHIVE_PAGE_KEYS.customers);
+  const handleSupPageSizeChange = (size: number) =>
+    updateArchivePageSize(size, setSupPageSize, setSupPage, ARCHIVE_PAGE_KEYS.suppliers);
 
   // Filter archived items (completed/paid items)
   const archivedInvoices = invoices.filter(invoice => 
@@ -429,7 +461,7 @@ export default function ArchivePage({
                         pageSize={invPageSize}
                         total={filteredInvoices.length}
                         onPageChange={setInvPage}
-                        onPageSizeChange={(s) => { setInvPageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_invoices_pageSize', String(s)); setInvPage(1); }}
+                        onPageSizeChange={handleInvPageSizeChange}
                       />
                     </div>
                     </>
@@ -532,7 +564,7 @@ export default function ArchivePage({
                         pageSize={expPageSize}
                         total={filteredExpenses.length}
                         onPageChange={setExpPage}
-                        onPageSizeChange={(s) => { setExpPageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_expenses_pageSize', String(s)); setExpPage(1); }}
+                        onPageSizeChange={handleExpPageSizeChange}
                       />
                     </div>
                     </>
@@ -634,7 +666,7 @@ export default function ArchivePage({
                         pageSize={salePageSize}
                         total={filteredSales.length}
                         onPageChange={setSalePage}
-                        onPageSizeChange={(s) => { setSalePageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_sales_pageSize', String(s)); setSalePage(1); }}
+                        onPageSizeChange={handleSalePageSizeChange}
                       />
                     </div>
                     </>
@@ -716,7 +748,7 @@ export default function ArchivePage({
                         pageSize={custPageSize}
                         total={filteredCustomers.length}
                         onPageChange={setCustPage}
-                        onPageSizeChange={(s) => { setCustPageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_customers_pageSize', String(s)); setCustPage(1); }}
+                        onPageSizeChange={handleCustPageSizeChange}
                       />
                     </div>
                     </>
@@ -803,7 +835,7 @@ export default function ArchivePage({
                         pageSize={supPageSize}
                         total={filteredSuppliers.length}
                         onPageChange={setSupPage}
-                        onPageSizeChange={(s) => { setSupPageSize(s); if (typeof window !== 'undefined') localStorage.setItem('archive_suppliers_pageSize', String(s)); setSupPage(1); }}
+                        onPageSizeChange={handleSupPageSizeChange}
                       />
                     </div>
                     </>

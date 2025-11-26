@@ -30,6 +30,7 @@ describe('Auth Flow Extended (e2e)', () => {
         factory: (suppressionRepo: Repository<EmailSuppression>) => ({
           async sendEmail(opts: EmailOptions) {
             const to = (opts.to || '').trim().toLowerCase();
+            console.log('[auth-flow] mock email send', opts.subject, to);
             const suppressed = await suppressionRepo.findOne({
               where: { email: to },
             });
@@ -37,8 +38,12 @@ describe('Auth Flow Extended (e2e)', () => {
               // Bastırılmışsa capture ETME
               return false;
             }
-            if (/Doğrulama|Verify/i.test(opts.subject || '')) {
+            if (/Doğrulama|Verification|Verify/i.test(opts.subject || '')) {
               lastVerify = { html: opts.html, text: opts.text };
+              console.log(
+                '[auth-flow] captured verify email snippet',
+                (opts.html || opts.text || '').slice(0, 200),
+              );
             } else if (/Şifre Sıfırlama|Reset/i.test(opts.subject || '')) {
               lastReset = { html: opts.html, text: opts.text };
             }
@@ -185,6 +190,10 @@ function extractQueryParam(
   if (!payload) return '';
   const content = payload.html || payload.text || '';
   // Regex: capture param value until & or quote or whitespace
-  const match = content.match(new RegExp(`${key}=([^&"\s]+)`));
-  return match ? decodeURIComponent(match[1]) : '';
+  const match = content.match(new RegExp(`${key}=([^&"\\s]+)`));
+  if (!match) {
+    console.error(`[auth-flow] Missing query param ${key} in email payload`, content);
+    return '';
+  }
+  return decodeURIComponent(match[1]);
 }

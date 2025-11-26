@@ -1,5 +1,8 @@
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosHeaders } from 'axios';
+import type { RawAxiosRequestHeaders, RawAxiosResponseHeaders } from 'axios';
 import { logger } from '../utils/logger';
+import { adminAuthStorage } from '../utils/adminAuthStorage';
+import { safeLocalStorage, readLegacyAuthToken, clearLegacySessionCaches } from '../utils/localStorageSafe';
 
 // Use proxy in Codespaces (more reliable)
 const API_BASE_URL = '/api';
@@ -12,6 +15,74 @@ if (import.meta.env.DEV) {
 
 // Create axios instance with retry configuration
 let lastCsrfToken: string | null = null;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const setHeaderValue = (
+  headers: InternalAxiosRequestConfig['headers'] | undefined,
+  key: string,
+  value: string
+): InternalAxiosRequestConfig['headers'] => {
+  if (headers instanceof AxiosHeaders) {
+    headers.set(key, value);
+    return headers;
+  }
+
+  const normalizedHeaders: RawAxiosRequestHeaders = {
+    ...((headers as RawAxiosRequestHeaders | undefined) ?? {}),
+    [key]: value,
+  };
+
+  return normalizedHeaders;
+};
+
+const getHeaderValue = (
+  headers: RawAxiosResponseHeaders | AxiosHeaders | undefined,
+  key: string
+): string | undefined => {
+  if (!headers) return undefined;
+  const normalizedKey = key.toLowerCase();
+
+  if (headers instanceof AxiosHeaders) {
+    return (
+      headers.get(normalizedKey) ??
+      headers.get(key) ??
+      headers.get(key.toUpperCase()) ??
+      undefined
+    );
+  }
+
+  for (const [currentKey, headerValue] of Object.entries(headers)) {
+    if (currentKey.toLowerCase() === normalizedKey) {
+      return typeof headerValue === 'string' ? headerValue : String(headerValue);
+    }
+  }
+  return undefined;
+};
+
+const ensureString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined;
+
+const extractMessage = (payload: unknown): string | undefined => {
+  if (!payload) return undefined;
+  if (typeof payload === 'string') return payload;
+  if (Array.isArray(payload)) {
+    const combined = payload.filter((entry): entry is string => typeof entry === 'string').join(', ');
+    return combined || undefined;
+  }
+  if (isRecord(payload) && 'message' in payload) {
+    const rawMessage = (payload as { message?: unknown }).message;
+    if (typeof rawMessage === 'string') return rawMessage;
+    if (Array.isArray(rawMessage)) {
+      const combined = rawMessage
+        .filter((entry): entry is string => typeof entry === 'string')
+        .join(', ');
+      return combined || undefined;
+    }
+  }
+  return undefined;
+};
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -29,7 +100,7 @@ apiClient.interceptors.request.use(
       logger.debug('📤 API Request:', config.method?.toUpperCase(), config.url);
     }
     
-    const token = localStorage.getItem('auth_token');
+    const token = readLegacyAuthToken();
     const url = config.url || '';
     const isPublic = typeof url === 'string' && (url.startsWith('/public/') || url.startsWith('/auth/public') || url.includes('/public/'));
     if (token && config.headers && !isPublic) {
@@ -39,8 +110,8 @@ apiClient.interceptors.request.use(
     // CSRF: Yazma isteklerinde token'ı ekle (varsa)
     const method = (config.method || 'get').toLowerCase();
     const isMutating = ['post', 'put', 'patch', 'delete'].includes(method);
-    if (isMutating && lastCsrfToken && config.headers) {
-      (config.headers as any)['X-CSRF-Token'] = lastCsrfToken;
+    if (isMutating && lastCsrfToken) {
+      config.headers = setHeaderValue(config.headers, 'X-CSRF-Token', lastCsrfToken);
     }
     
     return config;
@@ -58,9 +129,9 @@ apiClient.interceptors.response.use(
       logger.debug('✅ API Response:', response.status, response.config.url);
     }
     // CSRF: Sunucudan gelen token'ı yakala
-    const headerToken = (response.headers as any)?.['x-csrf-token'];
+    const headerToken = getHeaderValue(response.headers, 'x-csrf-token');
     if (headerToken) {
-      lastCsrfToken = headerToken as string;
+      lastCsrfToken = headerToken;
     }
     return response;
   },
@@ -93,29 +164,44 @@ apiClient.interceptors.response.use(
     }
 
     // Plan limiti hatalarını kullanıcıya hızlıca göster (400 + belirli mesaj)
-    try {
-  const status = error.response?.status;
-      const serverMsg = (error.response?.data as any)?.message;
-      if (typeof window !== 'undefined' && status === 400 && typeof serverMsg === 'string') {
-        if (serverMsg.includes('Plan limitine ulaşıldı')) {
-          window.dispatchEvent(
-            new CustomEvent('showToast', { detail: { message: serverMsg, tone: 'error' } })
-          );
-        }
+    const planLimitStatus = error.response?.status;
+    const planLimitMessage = extractMessage(error.response?.data);
+    if (
+      typeof window !== 'undefined' &&
+      planLimitStatus === 400 &&
+      typeof planLimitMessage === 'string' &&
+      planLimitMessage.includes('Plan limitine ulaşıldı')
+    ) {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('showToast', { detail: { message: planLimitMessage, tone: 'error' } })
+        );
+      } catch (dispatchError) {
+        logger.debug('Plan limit toast dispatch failed', dispatchError);
       }
-    } catch {}
+    }
 
     // Maintenance mode: show friendly message and block action
-    try {
-      const status = error.response?.status;
-      const data: any = error.response?.data || {};
-      if (status === 503 && (data?.error === 'MAINTENANCE_MODE' || String(data?.message || '').toLowerCase().includes('maintenance'))) {
-        const msg = data?.message || 'Sistem bakım modunda (salt okunur). Lütfen daha sonra tekrar deneyin.';
+    const maintenanceStatus = error.response?.status;
+    const maintenancePayload = isRecord(error.response?.data) ? (error.response?.data as Record<string, unknown>) : undefined;
+    const maintenanceError = ensureString(maintenancePayload?.['error']);
+    const maintenanceMessage = ensureString(maintenancePayload?.['message']);
+    const containsMaintenanceText = maintenanceMessage?.toLowerCase().includes('maintenance') ?? false;
+    if (
+      maintenanceStatus === 503 &&
+      (maintenanceError === 'MAINTENANCE_MODE' || containsMaintenanceText)
+    ) {
+      const fallbackMessage = maintenanceMessage || 'Sistem bakım modunda (salt okunur). Lütfen daha sonra tekrar deneyin.';
+      try {
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('showToast', { detail: { message: msg, tone: 'error' } }));
+          window.dispatchEvent(
+            new CustomEvent('showToast', { detail: { message: fallbackMessage, tone: 'error' } })
+          );
         }
+      } catch (dispatchError) {
+        logger.debug('Maintenance toast dispatch failed', dispatchError);
       }
-    } catch {}
+    }
 
     // Handle authentication errors (user JWT)
     if (error.response?.status === 401) {
@@ -123,27 +209,29 @@ apiClient.interceptors.response.use(
       // Admin endpoints: admin-token iptal
       if (url.startsWith('/admin')) {
         try {
-          localStorage.removeItem('admin-token');
+          adminAuthStorage.clearToken();
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('adminAuthExpired'));
           }
-        } catch {}
+        } catch (storageError) {
+          logger.debug('Admin token cleanup failed', storageError);
+        }
       }
 
       // User endpoints: spurious logout'u azalt — ardışık 2×401 eşiği
-      if (localStorage.getItem('auth_token')) {
+      if (readLegacyAuthToken()) {
         // Kimlik akışı (/auth/*) için logout yapma
         if (!url.includes('/auth/')) {
           try {
             const now = Date.now();
             const keyCount = '__auth_401_count';
             const keyTs = '__auth_401_ts';
-            const prevCount = parseInt(localStorage.getItem(keyCount) || '0', 10) || 0;
-            const prevTs = parseInt(localStorage.getItem(keyTs) || '0', 10) || 0;
+            const prevCount = parseInt(safeLocalStorage.getItem(keyCount) || '0', 10) || 0;
+            const prevTs = parseInt(safeLocalStorage.getItem(keyTs) || '0', 10) || 0;
             const within = now - prevTs < 15_000; // 15s penceresi
             const nextCount = within ? prevCount + 1 : 1;
-            localStorage.setItem(keyCount, String(nextCount));
-            localStorage.setItem(keyTs, String(now));
+            safeLocalStorage.setItem(keyCount, String(nextCount));
+            safeLocalStorage.setItem(keyTs, String(now));
 
             // Bazı düşük öncelikli uç noktalar için sayacı etkileme
             const lowPriority = (
@@ -159,14 +247,14 @@ apiClient.interceptors.response.use(
 
             if (nextCount >= 2) {
               if (import.meta.env.DEV) logger.info('🔐 2×401 tespit edildi, çıkış yapılıyor…');
-              localStorage.removeItem(keyCount);
-              localStorage.removeItem(keyTs);
-              localStorage.removeItem('auth_token');
-              localStorage.removeItem('user');
-              localStorage.removeItem('tenant');
+              safeLocalStorage.removeItem(keyCount);
+              safeLocalStorage.removeItem(keyTs);
+              clearLegacySessionCaches();
               if (typeof window !== 'undefined') window.location.href = '/';
             }
-          } catch {}
+          } catch (logoutError) {
+            logger.debug('Auth 401 logout flow failed', logoutError);
+          }
           return Promise.reject(error);
         }
       }

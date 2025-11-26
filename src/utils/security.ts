@@ -2,6 +2,7 @@
 // Frontend güvenlik utilities
 
 import DOMPurify from 'dompurify';
+import { safeLocalStorage } from './localStorageSafe';
 
 /**
  * XSS saldırılarına karşı HTML içeriğini temizle
@@ -165,8 +166,13 @@ export const isLocalStorageSecure = (): boolean => {
     
     // Third-party cookies disabled check
     const testKey = '__storage_test__';
-    localStorage.setItem(testKey, 'test');
-    localStorage.removeItem(testKey);
+    safeLocalStorage.setItem(testKey, 'test');
+    const stored = safeLocalStorage.getItem(testKey);
+    safeLocalStorage.removeItem(testKey);
+    if (stored !== 'test') {
+      console.warn('⚠️ localStorage değer doğrulaması başarısız');
+      return false;
+    }
     
     return true;
   } catch (error) {

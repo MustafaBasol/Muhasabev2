@@ -10,6 +10,8 @@ import { useAuth } from '../contexts/AuthContext';
 import InvoiceViewModal from './InvoiceViewModal';
 import QuoteViewModal, { type Quote as QuoteModel } from './QuoteViewModal';
 import SaleViewModal from './SaleViewModal';
+import { readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
+import { logger } from '../utils/logger';
 
 // Basit satır tipi birleşik görünüm için
 type RowType = 'invoice' | 'sale' | 'quote';
@@ -25,13 +27,149 @@ interface HistoryRow {
   relatedInvoiceId?: string; // satış için ilişkili fatura
 }
 
+type InvoiceModalProps = React.ComponentProps<typeof InvoiceViewModal>;
+type InvoiceViewModel = NonNullable<InvoiceModalProps['invoice']>;
+type SaleModalProps = React.ComponentProps<typeof SaleViewModal>;
+type SaleViewModel = NonNullable<SaleModalProps['sale']>;
+
+type CustomerSummary = Partial<Pick<customersApi.Customer, 'id' | 'name' | 'email'>> & {
+  firstName?: string;
+  lastName?: string;
+};
+
+type InvoiceLineSummary = Partial<invoicesApi.InvoiceLineItem> & {
+  description?: string;
+};
+
+type InvoiceSource = Partial<Pick<
+  invoicesApi.Invoice,
+  'id' | 'customerId' | 'invoiceNumber' | 'issueDate' | 'createdAt' | 'status' | 'total' | 'subtotal' | 'taxAmount' | 'notes' | 'saleId'
+>> & {
+  customerName?: string;
+  lineItems?: InvoiceLineSummary[];
+  items?: InvoiceLineSummary[];
+  customer?: CustomerSummary;
+  createdBy?: unknown;
+  createdByName?: string;
+  user?: unknown;
+  userName?: string;
+  author?: unknown;
+};
+
+type SaleItemSummary = Partial<salesApi.SaleItemDto> & {
+  total?: number | string;
+};
+
+type SaleSource = Partial<Pick<
+  salesApi.SaleRecord,
+  'id' | 'saleNumber' | 'customerId' | 'customerName' | 'saleDate' | 'date' | 'status' | 'amount' | 'total' | 'paymentMethod' | 'notes' | 'productName' | 'productId' | 'productUnit' | 'quantity' | 'unitPrice' | 'invoiceId' | 'customerEmail'
+>> & {
+  customer?: CustomerSummary;
+  createdBy?: unknown;
+  createdByName?: string;
+  user?: unknown;
+  userName?: string;
+  author?: unknown;
+  items?: SaleItemSummary[];
+};
+
+type QuoteSource = Partial<Pick<
+  quotesApi.Quote,
+  'id' | 'customerId' | 'customerName' | 'issueDate' | 'status' | 'total' | 'quoteNumber'
+>> & {
+  customer?: CustomerSummary;
+  items?: quotesApi.QuoteItemDto[];
+  createdBy?: unknown;
+  createdByName?: string;
+  user?: unknown;
+  userName?: string;
+  author?: unknown;
+};
+
+type InvoiceWithOptionalItems = invoicesApi.Invoice & { items?: invoicesApi.InvoiceLineItem[] };
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const toTrimmedString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
+const getNameFromObject = (value: unknown): string | undefined => {
+  if (!isObject(value)) return undefined;
+  const byName = toTrimmedString(value.name);
+  const first = toTrimmedString(value.firstName);
+  const last = toTrimmedString(value.lastName);
+  const combined = [first, last].filter(Boolean).join(' ').trim();
+  return byName || (combined ? combined : undefined) || toTrimmedString(value.email);
+};
+
+const getCreatedBy = (source: unknown): string | undefined => {
+  if (!isObject(source)) return undefined;
+  return (
+    toTrimmedString(source.createdBy) ||
+    getNameFromObject(source.createdBy) ||
+    toTrimmedString(source.createdByName) ||
+    getNameFromObject(source.user) ||
+    toTrimmedString(source.userName) ||
+    getNameFromObject(source.author) ||
+    getNameFromObject(source)
+  );
+};
+
+const normalizeCustomer = (value: customersApi.Customer | CustomerSummary | null): CustomerSummary | null => {
+  if (!value) return null;
+  return {
+    id: value.id,
+    name: value.name,
+    email: value.email,
+    firstName: 'firstName' in value ? (value as CustomerSummary).firstName : undefined,
+    lastName: 'lastName' in value ? (value as CustomerSummary).lastName : undefined,
+  };
+};
+
+const getInvoiceItems = (invoice: InvoiceSource): InvoiceLineSummary[] => {
+  if (Array.isArray(invoice.items) && invoice.items.length > 0) return invoice.items;
+  if (Array.isArray(invoice.lineItems)) return invoice.lineItems;
+  return [];
+};
+
+const getSaleItems = (sale: SaleSource): SaleItemSummary[] =>
+  Array.isArray(sale.items) ? sale.items : [];
+
+const mapSaleStatus = (status?: salesApi.SaleStatus): SaleViewModel['status'] => {
+  switch (status) {
+    case 'completed':
+    case 'invoiced':
+    case 'refunded':
+      return 'completed';
+    case 'cancelled':
+      return 'cancelled';
+    default:
+      return 'pending';
+  }
+};
+
+const toNumberSafe = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
 const parseHashCustomerId = (): string | null => {
+  if (typeof window === 'undefined') return null;
   try {
     const hash = window.location.hash.replace('#', '');
     if (hash.startsWith('customer-history:')) {
       return hash.split(':')[1] || null;
     }
-  } catch {}
+  } catch (error) {
+    logger.debug('CustomerHistoryPage: hash parse failed', error);
+  }
   return null;
 };
 
@@ -65,7 +203,7 @@ export default function CustomerHistoryPage() {
   // import'u minimum tutmak için dinamik erişim: window.__authUser gibi bir global yok.
   // Bu yüzden createdBy bulunamazsa '—' yerine boş bırakıyoruz; ileride useAuth ekleyebiliriz.
   const [customerId, setCustomerId] = React.useState<string | null>(null);
-  const [customer, setCustomer] = React.useState<any>(null);
+  const [customer, setCustomer] = React.useState<CustomerSummary | null>(null);
   const [rows, setRows] = React.useState<HistoryRow[]>([]);
   const [fromDate, setFromDate] = React.useState<string>('');
   const [toDate, setToDate] = React.useState<string>('');
@@ -75,9 +213,9 @@ export default function CustomerHistoryPage() {
   const [statusFilter, setStatusFilter] = React.useState<'all' | string>('all');
 
   // View modal state
-  const [viewInvoice, setViewInvoice] = React.useState<any | null>(null);
+  const [viewInvoice, setViewInvoice] = React.useState<InvoiceViewModel | null>(null);
   const [viewQuote, setViewQuote] = React.useState<QuoteModel | null>(null);
-  const [viewSale, setViewSale] = React.useState<any | null>(null);
+  const [viewSale, setViewSale] = React.useState<SaleViewModel | null>(null);
 
   const [loadingRowId, setLoadingRowId] = React.useState<string | null>(null);
 
@@ -144,188 +282,190 @@ export default function CustomerHistoryPage() {
     let cancelled = false;
     (async () => {
       try {
-        // Müşteri bilgisi
-        let cust: any = null;
+        let resolvedCustomer: CustomerSummary | null = null;
         try {
-          const tid = (localStorage.getItem('tenantId') || '') as string;
+          const tid = readLegacyTenantId() || '';
           const cKey = tid ? `customers_cache_${tid}` : 'customers_cache';
-          const listRaw = localStorage.getItem(cKey);
+          const listRaw = safeLocalStorage.getItem(cKey);
           if (listRaw) {
-            const list = JSON.parse(listRaw);
+            const list = JSON.parse(listRaw) as customersApi.Customer[];
             if (Array.isArray(list)) {
-              cust = list.find((c: any) => String(c.id) === String(customerId)) || null;
+              const cached = list.find((c) => String(c.id) === String(customerId));
+              if (cached) {
+                resolvedCustomer = normalizeCustomer(cached);
+              }
             }
           }
-        } catch {}
-        if (!cust) {
-          try { cust = await customersApi.getCustomer(String(customerId)); } catch {}
+        } catch (error) {
+          logger.debug('CustomerHistoryPage: customer cache parse failed', error);
         }
-        if (!cancelled) setCustomer(cust);
+        if (!resolvedCustomer) {
+          try {
+            const fetched = await customersApi.getCustomer(String(customerId));
+            resolvedCustomer = normalizeCustomer(fetched);
+          } catch (error) {
+            logger.warn('CustomerHistoryPage: customer fetch failed', error);
+          }
+        }
+        if (!cancelled) {
+          setCustomer(resolvedCustomer);
+        }
 
-        // Faturalar
-        let invoices: any[] = [];
-        try { invoices = await invoicesApi.getInvoices(); } catch {}
-        // Satışlar: ÖNCE API'den dene; yalnızca başarısız olursa ve tenantId biliniyorsa tenant'a özel cache'ten oku
-        let sales: any[] = [];
+        let invoices: InvoiceSource[] = [];
+        try {
+          invoices = await invoicesApi.getInvoices();
+        } catch (error) {
+          logger.warn('CustomerHistoryPage: invoices fetch failed', error);
+        }
+
+        let sales: SaleSource[] = [];
         try {
           sales = await salesApi.getSales();
-        } catch {
+        } catch (error) {
+          logger.warn('CustomerHistoryPage: sales fetch failed, attempting cache', error);
           try {
-            const tid = localStorage.getItem('tenantId') || '';
+            const tid = readLegacyTenantId() || '';
             if (tid) {
               const sKey = `sales_${tid}`;
               const sCacheKey = `sales_cache_${tid}`;
-              const rawA = localStorage.getItem(sKey);
-              const rawB = localStorage.getItem(sCacheKey);
-              const arrA = rawA ? JSON.parse(rawA) : [];
-              const arrB = rawB ? JSON.parse(rawB) : [];
+              const rawA = safeLocalStorage.getItem(sKey);
+              const rawB = safeLocalStorage.getItem(sCacheKey);
+              const arrA = rawA ? (JSON.parse(rawA) as SaleSource[]) : [];
+              const arrB = rawB ? (JSON.parse(rawB) as SaleSource[]) : [];
               sales = [...(Array.isArray(arrA) ? arrA : []), ...(Array.isArray(arrB) ? arrB : [])];
-            } else {
-              // tenantId bilinmiyorsa, veri sızıntısını önlemek için satışları yükleme
-              sales = [];
             }
-          } catch {
+          } catch (cacheError) {
+            logger.debug('CustomerHistoryPage: sales cache fallback failed', cacheError);
             sales = [];
           }
         }
-        // Teklifler
-        let quotes: any[] = [];
+
+        let quotes: QuoteSource[] = [];
         try {
           quotes = await quotesApi.getQuotes();
-        } catch {
+        } catch (error) {
+          logger.warn('CustomerHistoryPage: quotes fetch failed, attempting cache', error);
           try {
-            const tid = localStorage.getItem('tenantId') || '';
+            const tid = readLegacyTenantId() || '';
             const qKey = tid ? `quotes_cache_${tid}` : 'quotes_cache';
-            const qRaw = localStorage.getItem(qKey);
-            const list = qRaw ? JSON.parse(qRaw) : [];
+            const qRaw = safeLocalStorage.getItem(qKey);
+            const list = qRaw ? (JSON.parse(qRaw) as QuoteSource[]) : [];
             if (Array.isArray(list)) quotes = list;
-          } catch {}
+          } catch (cacheError) {
+            logger.debug('CustomerHistoryPage: quotes cache fallback failed', cacheError);
+          }
         }
 
-        // Müşteriye göre filtrele
         const rowsCombined: HistoryRow[] = [];
         const cidStr = String(customerId);
+        const customerName = resolvedCustomer?.name;
 
-        const getCreatedBy = (obj: any): string | undefined => {
-          const tryName = (o: any) => (o?.name || [o?.firstName, o?.lastName].filter(Boolean).join(' ')).trim();
-          if (!obj || typeof obj !== 'object') return undefined;
-          if (typeof obj.createdBy === 'string' && obj.createdBy.trim()) return obj.createdBy.trim();
-          if (obj.createdBy && typeof obj.createdBy === 'object') {
-            const n = tryName(obj.createdBy);
-            if (n) return n;
-          }
-          if (typeof obj.createdByName === 'string' && obj.createdByName.trim()) return obj.createdByName.trim();
-          if (obj.user && typeof obj.user === 'object') {
-            const n = tryName(obj.user);
-            if (n) return n;
-          }
-          if (typeof obj.userName === 'string' && obj.userName.trim()) return obj.userName.trim();
-          if (typeof obj.author === 'object') {
-            const n = tryName(obj.author);
-            if (n) return n;
-          }
-          return undefined;
-        };
-
-        (invoices || []).forEach((inv: any) => {
-          const invCid = String(inv?.customerId || inv?.customer?.id || '');
-          const invName = String(inv?.invoiceNumber || inv?.id);
-          // Debug log
-          // Debug (vite import.meta.env)
-          if (import.meta && import.meta.env && import.meta.env.DEV) {
-            try { console.debug('[CustomerHistory] invoice mapping', { id: inv?.id, createdBy: inv?.createdBy, currentUserName }); } catch {}
-          }
-          if (invCid === cidStr || (!invCid && cust && (inv?.customer?.name || inv?.customerName) === cust.name)) {
+        invoices.forEach((inv) => {
+          if (!inv) return;
+          const invCid = String(inv.customerId ?? inv.customer?.id ?? '');
+          const invName = String(inv.invoiceNumber ?? inv.id ?? '');
+          logger.debug('[CustomerHistory] invoice mapping', { id: inv.id, currentUserName });
+          if (invCid === cidStr || (!invCid && customerName && (inv.customer?.name === customerName || inv.customerName === customerName))) {
+            const items = getInvoiceItems(inv);
             const lineSummary = (() => {
-              const items = Array.isArray(inv?.lineItems || inv?.items) ? (inv.lineItems || inv.items) : [];
+              if (inv.notes && String(inv.notes).trim()) return String(inv.notes).trim();
               const first = items[0];
-              if (inv?.notes && String(inv.notes).trim()) return String(inv.notes).trim();
-              if (first) return String(first.productName || first.description || '').trim();
-              return undefined;
+              return toTrimmedString(first?.productName) || toTrimmedString(first?.description);
             })();
             rowsCombined.push({
-              id: String(inv.id),
+              id: String(inv.id ?? invName),
               type: 'invoice',
               name: invName,
-              date: String(inv.issueDate || inv.createdAt || new Date()).slice(0,10),
+              date: String(inv.issueDate ?? inv.createdAt ?? new Date()).slice(0, 10),
               status: inv.status,
-              amount: Number(inv.total || 0),
+              amount: Number(inv.total ?? 0),
               createdBy: getCreatedBy(inv) || currentUserName || '—',
               description: lineSummary,
             });
           }
         });
 
-        (sales || []).forEach((s: any) => {
-          const sName = s?.saleNumber || `SAL-${s?.id}`;
-          const sCid = String(s?.customerId || '');
-          if (import.meta && import.meta.env && import.meta.env.DEV) {
-            try { console.debug('[CustomerHistory] sale mapping', { id: s?.id, createdBy: s?.createdBy, currentUserName }); } catch {}
-          }
-          if (sCid === cidStr || (!sCid && cust && (s?.customerName === cust.name || s?.customer?.name === cust.name))) {
+        sales.forEach((sale) => {
+          if (!sale) return;
+          const sName = sale.saleNumber || (sale.id ? `SAL-${sale.id}` : 'Sale');
+          const sCid = String(sale.customerId ?? '');
+          logger.debug('[CustomerHistory] sale mapping', { id: sale.id, currentUserName });
+          const saleMatchesCustomer =
+            sCid === cidStr ||
+            (!sCid && customerName && (sale.customerName === customerName || sale.customer?.name === customerName));
+          if (saleMatchesCustomer) {
             rowsCombined.push({
-              id: String(s.id || sName),
+              id: String(sale.id ?? sName),
               type: 'sale',
               name: sName,
-              date: String(s?.saleDate || s?.date || new Date()).slice(0,10),
-              status: s?.status,
-              amount: Number(s?.amount || s?.total || 0),
-              createdBy: getCreatedBy(s) || currentUserName || '—',
-              description: s?.productName || (Array.isArray(s?.items) && s.items[0]?.productName) || undefined,
-              relatedInvoiceId: s?.invoiceId ? String(s.invoiceId) : undefined,
+              date: String(sale.saleDate ?? sale.date ?? new Date()).slice(0, 10),
+              status: sale.status,
+              amount: Number(sale.amount ?? sale.total ?? 0),
+              createdBy: getCreatedBy(sale) || currentUserName || '—',
+              description: sale.productName || (getSaleItems(sale)[0]?.productName ?? undefined),
+              relatedInvoiceId: sale.invoiceId ? String(sale.invoiceId) : undefined,
             });
           }
         });
 
-        (quotes || []).forEach((q: any) => {
-          const qCid = String(q?.customerId || '');
-          if (import.meta && import.meta.env && import.meta.env.DEV) {
-            try { console.debug('[CustomerHistory] quote mapping', { id: q?.id, createdBy: q?.createdBy, currentUserName }); } catch {}
-          }
-          if (qCid === cidStr || (!qCid && cust && (q?.customerName === cust.name || q?.customer?.name === cust.name))) {
+        quotes.forEach((quote) => {
+          if (!quote) return;
+          const qCid = String(quote.customerId ?? '');
+          logger.debug('[CustomerHistory] quote mapping', { id: quote.id, currentUserName });
+          const quoteMatchesCustomer =
+            qCid === cidStr ||
+            (!qCid && customerName && (quote.customerName === customerName || quote.customer?.name === customerName));
+          if (quoteMatchesCustomer) {
             rowsCombined.push({
-              id: String(q.id),
+              id: String(quote.id ?? `quote-${Date.now()}`),
               type: 'quote',
-              name: q?.quoteNumber || `Q-${q?.id}`,
-              date: String(q?.issueDate || new Date()).slice(0,10),
-              status: q?.status,
-              amount: Number(q?.total || 0),
-              createdBy: getCreatedBy(q) || currentUserName || '—',
+              name: quote.quoteNumber || `Q-${quote.id ?? rowsCombined.length + 1}`,
+              date: String(quote.issueDate ?? new Date()).slice(0, 10),
+              status: quote.status,
+              amount: Number(quote.total ?? 0),
+              createdBy: getCreatedBy(quote) || currentUserName || '—',
               description: undefined,
             });
           }
         });
 
-        // Aynı öğelerin yinelenmesini engelle (özellikle satışlar localStorage birden çok yerde olabilir)
         const unique = new Map<string, HistoryRow>();
-        for (const r of rowsCombined) {
-          const key = `${r.type}:${r.id}`;
-          if (!unique.has(key)) unique.set(key, r);
-        }
-        const deduped = Array.from(unique.values());
+        rowsCombined.forEach((row) => {
+          const key = `${row.type}:${row.id}`;
+          if (!unique.has(key)) {
+            unique.set(key, row);
+          }
+        });
 
-        // Sırala (varsayılan: tarihe göre desc)
-        deduped.sort((a, b) => (new Date(a.date).getTime() - new Date(b.date).getTime()));
+        const deduped = Array.from(unique.values());
+        deduped.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         deduped.reverse();
-        if (!cancelled) setRows(deduped);
-      } catch (e) {
-        // no-op
+        if (!cancelled) {
+          setRows(deduped);
+        }
+      } catch (error) {
+        logger.error('CustomerHistoryPage: failed to load customer history', error);
       }
     })();
     return () => { cancelled = true; };
   }, [customerId, currentUserName]);
+
+  const normalizeStatusKey = (value?: string) => {
+    if (!value) return '';
+    return String(value).trim().toLowerCase().replace(/^status\./, '');
+  };
 
   const filtered = React.useMemo(() => {
     let list = [...rows];
     if (fromDate) list = list.filter(r => r.date >= fromDate);
     if (toDate) list = list.filter(r => r.date <= toDate);
     if (typeFilter !== 'all') list = list.filter(r => r.type === typeFilter);
-    if (statusFilter !== 'all') list = list.filter(r => String(r.status || '').toLowerCase() === String(statusFilter).toLowerCase());
+    if (statusFilter !== 'all') list = list.filter(r => normalizeStatusKey(r.status) === normalizeStatusKey(statusFilter));
     const dir = sortDir === 'asc' ? 1 : -1;
     return list.sort((a, b) => {
       switch (sortBy) {
         case 'name': return a.name.localeCompare(b.name) * dir;
-        case 'status': return (a.status || '').localeCompare(b.status || '') * dir;
+        case 'status': return normalizeStatusKey(a.status).localeCompare(normalizeStatusKey(b.status)) * dir;
         case 'type': return a.type.localeCompare(b.type) * dir;
         case 'createdBy': return (a.createdBy || '').localeCompare(b.createdBy || '') * dir;
         case 'date':
@@ -351,7 +491,7 @@ export default function CustomerHistoryPage() {
   // SortHeader kaldırıldı; başlık hücreleri satır içinde ele alınıyor.
 
   const getStatusBadge = (statusRaw?: string, type?: RowType) => {
-    const status = String(statusRaw || '').toLowerCase();
+    const status = normalizeStatusKey(statusRaw);
     const colors: Record<string, string> = {
       paid: 'bg-green-100 text-green-800',
       completed: 'bg-green-100 text-green-800',
@@ -369,18 +509,22 @@ export default function CustomerHistoryPage() {
       expired: 'bg-orange-100 text-orange-800',
     };
     const cls = colors[status] || 'bg-gray-100 text-gray-800';
-    // Çeviri anahtarının bulunup bulunmadığını t(key) === key ile tespit et
-    const tr = (key: string) => {
-      const out = t(key) as string;
-      return out === key ? '' : out;
+    const translateStatus = () => {
+      if (!status) return t('status.unknown', { defaultValue: 'Bilinmiyor' }) as string;
+      if (type === 'quote') {
+        const quoteKey = `quotes.statusLabels.${status}`;
+        const quoteLabel = t(quoteKey) as string;
+        if (quoteLabel && quoteLabel !== quoteKey) return quoteLabel;
+      }
+      const commonKey = `common:status.${status}`;
+      const commonLabel = t(commonKey) as string;
+      if (commonLabel && commonLabel !== commonKey) return commonLabel;
+      const genericKey = `status.${status}`;
+      const genericLabel = t(genericKey) as string;
+      if (genericLabel && genericLabel !== genericKey) return genericLabel;
+      return status;
     };
-    let label = '';
-    if (type === 'quote') {
-      label = tr(`quotes.statusLabels.${status}`) || tr(`common:status.${status}`);
-    } else {
-      label = tr(`common:status.${status}`);
-    }
-    if (!label) label = status;
+    const label = translateStatus();
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${cls}`}>{label}</span>
     );
@@ -394,54 +538,58 @@ export default function CustomerHistoryPage() {
       setLoadingRowId(`${row.type}-${row.id}`);
       if (row.type === 'invoice') {
         const inv = await invoicesApi.getInvoice(String(row.id));
-        // Kalemleri belirle: öncelik inv.items > inv.lineItems > sale.items
-        let items: any[] = Array.isArray((inv as any).items) && (inv as any).items.length > 0
-          ? (inv as any).items
-          : (Array.isArray((inv as any).lineItems) ? (inv as any).lineItems : []);
-        if (!items || items.length === 0) {
-          const saleId = (inv as any).saleId;
-          if (saleId) {
-            try {
-              const s = await salesApi.getSale(String(saleId));
-              if (Array.isArray(s.items)) {
-                items = s.items.map((it: any) => ({
-                  description: it.productName || it.description || 'Ürün/Hizmet',
-                  quantity: Number(it.quantity) || 1,
-                  unitPrice: Number(it.unitPrice) || 0,
-                  total: Number(it.total ?? (Number(it.quantity)||1)*(Number(it.unitPrice)||0)) || 0,
-                  productId: it.productId,
-                }));
-              }
-            } catch (e) {
-              console.warn('Satıştan kalem türetilemedi:', e);
+        const invoiceWithItems = inv as InvoiceWithOptionalItems;
+        let items: invoicesApi.InvoiceLineItem[] = Array.isArray(invoiceWithItems.items) && invoiceWithItems.items.length > 0
+          ? invoiceWithItems.items
+          : Array.isArray(inv.lineItems)
+            ? inv.lineItems
+            : [];
+        if (items.length === 0 && inv.saleId) {
+          try {
+            const sale = await salesApi.getSale(String(inv.saleId));
+            if (Array.isArray(sale.items)) {
+              items = sale.items.map((it) => ({
+                description: it.productName || it.description || 'Ürün/Hizmet',
+                quantity: toNumberSafe(it.quantity ?? 1),
+                unitPrice: toNumberSafe(it.unitPrice ?? 0),
+                total: toNumberSafe(it.total ?? toNumberSafe(it.unitPrice ?? 0) * toNumberSafe(it.quantity ?? 1)),
+                productId: it.productId,
+              }));
             }
+          } catch (error) {
+            logger.warn('CustomerHistoryPage: unable to derive invoice items from sale', error);
           }
         }
 
-        // Map API invoice to InvoiceViewModal expected shape
-        const mapped = {
+        const mappedCustomer = inv.customer
+          ? {
+              id: inv.customer.id,
+              name: inv.customer.name,
+              email: inv.customer.email,
+            }
+          : undefined;
+
+        const mapped: InvoiceViewModel = {
           id: String(inv.id),
           invoiceNumber: inv.invoiceNumber,
-          customer: inv.customer || undefined,
+          customer: mappedCustomer,
           customerName: inv.customer?.name,
           customerEmail: inv.customer?.email,
-          total: Number(inv.total) || 0,
-          subtotal: Number(inv.subtotal) || 0,
-          taxAmount: Number(inv.taxAmount) || 0,
+          total: toNumberSafe(inv.total),
+          subtotal: toNumberSafe(inv.subtotal),
+          taxAmount: toNumberSafe(inv.taxAmount),
           status: inv.status,
-          issueDate: String(inv.issueDate || '').slice(0,10),
-          dueDate: String(inv.dueDate || '').slice(0,10),
-          items: Array.isArray(items)
-            ? items.map((li: any) => ({
-                description: (li.description ?? li.productName ?? ''),
-                quantity: Number(li.quantity) || 1,
-                unitPrice: Number(li.unitPrice) || 0,
-                total: Number(li.total ?? (Number(li.quantity)||1)*(Number(li.unitPrice)||0)) || 0,
-              }))
-            : [],
+          issueDate: String(inv.issueDate || '').slice(0, 10),
+          dueDate: String(inv.dueDate || '').slice(0, 10),
+          items: items.map((li) => ({
+            description: li.description ?? (li as InvoiceLineSummary).productName ?? '',
+            quantity: toNumberSafe(li.quantity ?? 1),
+            unitPrice: toNumberSafe(li.unitPrice ?? 0),
+            total: toNumberSafe(li.total ?? toNumberSafe(li.unitPrice ?? 0) * toNumberSafe(li.quantity ?? 1)),
+          })),
           notes: inv.notes,
           type: inv.type,
-        } as any;
+        };
         setViewInvoice(mapped);
       } else if (row.type === 'quote') {
         const q = await quotesApi.getQuote(String(row.id));
@@ -459,41 +607,60 @@ export default function CustomerHistoryPage() {
           status: q.status,
           version: q.version || 1,
           scopeOfWorkHtml: q.scopeOfWorkHtml || '',
-          items: Array.isArray(q.items) ? q.items.map((it: any) => ({ id: it.id || `${Math.random()}`, description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })) : [],
+          items: Array.isArray(q.items)
+            ? q.items.map((it, index) => ({
+                id: String(it.id ?? `quote-item-${index}`),
+                description: it.description,
+                quantity: it.quantity,
+                unitPrice: it.unitPrice,
+                total: it.total,
+                productId: it.productId,
+                unit: it.unit,
+              }))
+            : [],
           revisions: Array.isArray(q.revisions) ? q.revisions : [],
-        } as any;
+        };
         setViewQuote(mapped);
       } else if (row.type === 'sale') {
         const s = await salesApi.getSale(String(row.id));
         const firstItem = Array.isArray(s.items) && s.items.length > 0 ? s.items[0] : undefined;
-        const quantity = Number(s.quantity ?? firstItem?.quantity ?? 1);
-        let unitPrice = Number(s.unitPrice ?? firstItem?.unitPrice ?? 0);
-        if ((!Number.isFinite(unitPrice) || unitPrice === 0) && Number.isFinite(Number(s.total)) && quantity > 0) {
-          unitPrice = Number(s.total) / quantity;
+        const quantity = toNumberSafe(s.quantity ?? firstItem?.quantity ?? 1);
+        let unitPrice = toNumberSafe(s.unitPrice ?? firstItem?.unitPrice ?? 0);
+        const totalFromSale = toNumberSafe(s.total ?? s.amount ?? quantity * unitPrice);
+        if ((unitPrice === 0 || !Number.isFinite(unitPrice)) && totalFromSale > 0 && quantity > 0) {
+          unitPrice = totalFromSale / quantity;
         }
-        const mapped = {
+        const mapped: SaleViewModel = {
           id: String(s.id),
           saleNumber: s.saleNumber || `SAL-${s.id}`,
           customerName: s.customer?.name || s.customerName || (customer?.name || ''),
           customerEmail: s.customer?.email || s.customerEmail || customer?.email,
           productName: s.productName || firstItem?.productName || '',
           quantity,
-          unitPrice,
-          amount: Number(s.amount || s.total || (quantity * unitPrice) || 0),
-          total: Number(s.total || s.amount || (quantity * unitPrice) || 0),
-          status: (s.status || 'pending') as any,
+          unitPrice: unitPrice || 0,
+          amount: totalFromSale || quantity * unitPrice,
+          total: totalFromSale || quantity * unitPrice,
+          status: mapSaleStatus(s.status),
           date: String(s.saleDate || s.date || new Date()).slice(0,10),
           paymentMethod: s.paymentMethod,
           notes: s.notes,
           productId: s.productId || firstItem?.productId,
           productUnit: s.productUnit || firstItem?.unit,
           invoiceId: s.invoiceId,
-          items: Array.isArray(s.items) ? s.items.map((it: any) => ({ productId: it.productId, productName: it.productName, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })) : [],
-        } as any;
+          items: Array.isArray(s.items)
+            ? s.items.map((it) => ({
+                productId: it.productId,
+                productName: it.productName || '',
+                quantity: toNumberSafe(it.quantity),
+                unitPrice: toNumberSafe(it.unitPrice),
+                total: toNumberSafe(it.total ?? toNumberSafe(it.unitPrice) * toNumberSafe(it.quantity)),
+              }))
+            : [],
+        };
         setViewSale(mapped);
       }
-    } catch (e) {
-      console.error('Open row failed:', e);
+    } catch (error) {
+      logger.error('CustomerHistoryPage: openRow failed', error);
     } finally {
       setLoadingRowId(null);
     }
@@ -565,8 +732,8 @@ export default function CustomerHistoryPage() {
                       a.download = fileName;
                       a.click();
                       URL.revokeObjectURL(url);
-                    } catch (e) {
-                      console.error('CSV export failed', e);
+                    } catch (error) {
+                      logger.error('CustomerHistoryPage: CSV export failed', error);
                     }
                   }}
                   className="ml-2 px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700"
@@ -651,9 +818,13 @@ export default function CustomerHistoryPage() {
                             try {
                               setLoadingRowId(`invoice-${row.id}-pdf`);
                               const inv = await invoicesApi.getInvoice(String(row.id));
-                              window.dispatchEvent(new CustomEvent('download-invoice', { detail: { invoice: inv } }));
-                            } catch (err) {
-                              console.error('Invoice PDF download failed:', err);
+                              try {
+                                window.dispatchEvent(new CustomEvent('download-invoice', { detail: { invoice: inv } }));
+                              } catch (error) {
+                                logger.debug('CustomerHistoryPage: inline invoice download dispatch failed', error);
+                              }
+                            } catch (error) {
+                              logger.error('CustomerHistoryPage: invoice PDF download failed', error);
                             } finally {
                               setLoadingRowId(null);
                             }
@@ -666,13 +837,7 @@ export default function CustomerHistoryPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-700">{new Date(row.date).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-sm text-slate-700">
-                    <button
-                      className="hover:opacity-80"
-                      onClick={(e) => { e.stopPropagation(); const s = String(row.status || '').toLowerCase(); if (s) setStatusFilter(s as any); }}
-                      title={tt(['filters.filterByStatus','common.filters.filterByStatus'], 'filters.filterByStatus')}
-                    >
-                      {getStatusBadge(row.status, row.type)}
-                    </button>
+                    {getStatusBadge(row.status, row.type)}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-700">{row.createdBy || currentUserName || '—'}</td>
                   <td className="px-4 py-3 text-sm text-slate-700 capitalize">{row.type === 'invoice' ? (t('transactions.invoice') as string) : row.type === 'sale' ? (t('transactions.sale') as string) : (t('quotes.table.quote') as string)}</td>
@@ -700,17 +865,21 @@ export default function CustomerHistoryPage() {
         isOpen={!!viewInvoice}
         onClose={() => setViewInvoice(null)}
         invoice={viewInvoice}
-        onEdit={(inv: any) => {
+        onEdit={(inv: InvoiceViewModel) => {
           // App tarafından yakalanacak global event ile düzenleme modalını aç
           try {
             window.dispatchEvent(new CustomEvent('open-invoice-edit', { detail: { invoice: inv } }));
-          } catch {}
+          } catch (error) {
+            logger.debug('CustomerHistoryPage: invoice edit event dispatch failed', error);
+          }
           setViewInvoice(null);
         }}
-        onDownload={(inv: any) => {
+        onDownload={(inv: InvoiceViewModel) => {
           try {
             window.dispatchEvent(new CustomEvent('download-invoice', { detail: { invoice: inv } }));
-          } catch {}
+          } catch (error) {
+            logger.debug('CustomerHistoryPage: invoice download event dispatch failed', error);
+          }
         }}
       />
       <QuoteViewModal
@@ -719,17 +888,21 @@ export default function CustomerHistoryPage() {
         quote={viewQuote}
         onEdit={(q) => {
           // Global event ile ana uygulamada düzenleme modalını aç
-          try { window.dispatchEvent(new CustomEvent('open-quote-edit', { detail: { quote: q } })); } catch {}
+          try {
+            window.dispatchEvent(new CustomEvent('open-quote-edit', { detail: { quote: q } }));
+          } catch (error) {
+            logger.debug('CustomerHistoryPage: quote edit event dispatch failed', error);
+          }
           setViewQuote(null);
         }}
         onChangeStatus={async (q, status) => {
           try {
             const updated = await quotesApi.updateQuote(String(q.id), { status });
-            setViewQuote(prev => prev && prev.id === q.id ? { ...(prev as any), status: updated.status } : prev);
+            setViewQuote(prev => (prev && prev.id === q.id) ? { ...prev, status: updated.status } : prev);
             // Listeyi de güncelle (UI eşliği)
             setRows(prev => prev.map(r => (r.type==='quote' && r.id===q.id) ? { ...r, status: updated.status } : r));
-          } catch (e) {
-            console.error('Quote status update failed:', e);
+          } catch (error) {
+            logger.error('CustomerHistoryPage: quote status update failed', error);
           }
         }}
       />
@@ -738,7 +911,11 @@ export default function CustomerHistoryPage() {
         onClose={() => setViewSale(null)}
         sale={viewSale}
         onEdit={(s) => {
-          try { window.dispatchEvent(new CustomEvent('open-sale-edit', { detail: { sale: s } })); } catch {}
+          try {
+            window.dispatchEvent(new CustomEvent('open-sale-edit', { detail: { sale: s } }));
+          } catch (error) {
+            logger.debug('CustomerHistoryPage: sale edit event dispatch failed', error);
+          }
           setViewSale(null);
         }}
       />

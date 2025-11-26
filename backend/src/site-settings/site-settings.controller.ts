@@ -1,8 +1,18 @@
-import { Controller, Get, Put, Body, Headers, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Body,
+  Headers,
+  UnauthorizedException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SiteSettingsService } from './site-settings.service';
 import { SiteSettings } from './entities/site-settings.entity';
 import { AdminService } from '../admin/admin.service';
+import type { AdminHeaderMap } from '../admin/utils/admin-token.util';
+import { resolveAdminHeaders } from '../admin/utils/admin-token.util';
 
 @ApiTags('site-settings')
 @Controller('site-settings')
@@ -12,16 +22,25 @@ export class SiteSettingsController {
     private readonly adminService: AdminService,
   ) {}
 
-  private checkAdminAuth(headers: any) {
-    const adminToken = headers['admin-token'];
+  private checkAdminAuth(headers?: AdminHeaderMap) {
+    const { adminToken } = resolveAdminHeaders(headers);
     const correctToken = process.env.ADMIN_TOKEN || 'admin123';
-    const ok = !!adminToken && (this.adminService.isValidAdminToken(adminToken) || adminToken === correctToken);
+    const ok =
+      !!adminToken &&
+      (this.adminService.isValidAdminToken(adminToken) ||
+        adminToken === correctToken);
     if (!ok) throw new UnauthorizedException('Admin authentication required');
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get site settings (public - for injecting meta tags)' })
-  @ApiResponse({ status: 200, description: 'Site settings retrieved', type: SiteSettings })
+  @ApiOperation({
+    summary: 'Get site settings (public - for injecting meta tags)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Site settings retrieved',
+    type: SiteSettings,
+  })
   async getSettings(): Promise<SiteSettings> {
     try {
       return await this.siteSettingsService.getSettings();
@@ -33,17 +52,34 @@ export class SiteSettingsController {
 
   @Put()
   @ApiOperation({ summary: 'Update site settings (admin only)' })
-  @ApiResponse({ status: 200, description: 'Settings updated', type: SiteSettings })
+  @ApiResponse({
+    status: 200,
+    description: 'Settings updated',
+    type: SiteSettings,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async updateSettings(
     @Body() updates: Partial<SiteSettings>,
-    @Headers() headers: any,
+    @Headers() headers: AdminHeaderMap,
   ): Promise<SiteSettings> {
     this.checkAdminAuth(headers);
-    
+
     // Remove id, createdAt, updatedAt from updates to prevent user manipulation
-    const { id, createdAt, updatedAt, ...safeUpdates } = updates as any;
-    
+    const safeUpdates = this.stripImmutableFields(updates);
+
     return this.siteSettingsService.updateSettings(safeUpdates);
+  }
+
+  private stripImmutableFields(
+    updates: Partial<SiteSettings>,
+  ): Partial<SiteSettings> {
+    if (!updates || typeof updates !== 'object') {
+      throw new InternalServerErrorException('Invalid settings payload');
+    }
+    const { id, createdAt, updatedAt, ...rest } = updates;
+    void id;
+    void createdAt;
+    void updatedAt;
+    return rest;
   }
 }

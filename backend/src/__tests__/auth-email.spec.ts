@@ -1,7 +1,17 @@
+import { createHash } from 'crypto';
 import { AuthService } from '../auth/auth.service';
 import { SecurityService } from '../common/security.service';
 import { AuditService } from '../audit/audit.service';
 import { TurnstileService } from '../common/turnstile.service';
+import { UsersService } from '../users/users.service';
+import { TenantsService } from '../tenants/tenants.service';
+import { JwtService } from '@nestjs/jwt';
+import { EmailService } from '../services/email.service';
+import { OrganizationsService } from '../organizations/organizations.service';
+import { LoginAttemptsService } from '../auth/login-attempts.service';
+import { Repository } from 'typeorm';
+import { EmailVerificationToken } from '../auth/entities/email-verification-token.entity';
+import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 
 // Minimal stubs
 const usersService = {
@@ -9,28 +19,72 @@ const usersService = {
   update: jest.fn(),
   findOne: jest.fn(),
 };
-const tenantsService = {} as any;
-const jwtService = {} as any;
-const emailService = { sendEmail: jest.fn().mockResolvedValue(true) } as any;
+const tenantsService = {} as Record<string, never>;
+const jwtService = {} as Record<string, never>;
+const emailService = { sendEmail: jest.fn().mockResolvedValue(true) };
 const securityService = new SecurityService();
 const turnstileService = new TurnstileService();
+const organizationsService = {
+  getUserOrganizations: jest.fn().mockResolvedValue([]),
+  acceptInvite: jest.fn(),
+  validateInvite: jest.fn(),
+  getOwnerTenantId: jest.fn(),
+};
+const attemptsService = {
+  requireCaptcha: jest.fn().mockResolvedValue(false),
+  increment: jest.fn(),
+  reset: jest.fn(),
+};
 
-// In-memory repos
-function makeEvtRepo(tokens: any[]) {
-  return {
-    create: jest.fn().mockImplementation((data: any) => ({
-      id: 'gen_' + Math.random().toString(36).slice(2, 8),
+interface MockTokenEntity {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+}
+
+type TokenQuery = {
+  where: { userId: string };
+  take?: number;
+} & Record<string, unknown>;
+
+type MockTokenRepo = {
+  create: jest.Mock<MockTokenEntity, [Partial<MockTokenEntity>]>;
+  find: jest.Mock<Promise<MockTokenEntity[]>, [TokenQuery]>;
+  save: jest.Mock<
+    Promise<MockTokenEntity | MockTokenEntity[]>,
+    [MockTokenEntity | MockTokenEntity[]]
+  >;
+};
+
+const makeEvtRepo = (tokens: MockTokenEntity[]): MockTokenRepo => {
+  const create = jest
+    .fn<MockTokenEntity, [Partial<MockTokenEntity>]>()
+    .mockImplementation((data) => ({
+      id: data.id ?? 'gen_' + Math.random().toString(36).slice(2, 8),
+      userId: data.userId ?? 'unknown',
+      tokenHash: data.tokenHash ?? '',
+      expiresAt: data.expiresAt ?? new Date(),
+      usedAt: data.usedAt ?? null,
       ...data,
-    })),
-    find: jest.fn().mockImplementation((query: any) => {
+    }));
+
+  const find = jest
+    .fn<Promise<MockTokenEntity[]>, [TokenQuery]>()
+    .mockImplementation(async (query) => {
       const take = query?.take ?? 10;
-      return Promise.resolve(
-        tokens
-          .filter((t) => t.userId === query.where.userId && !t.usedAt)
-          .slice(0, take),
-      );
-    }),
-    save: jest.fn().mockImplementation(async (entity: any) => {
+      return tokens
+        .filter((t) => t.userId === query.where.userId && !t.usedAt)
+        .slice(0, take);
+    });
+
+  const save = jest
+    .fn<
+      Promise<MockTokenEntity | MockTokenEntity[]>,
+      [MockTokenEntity | MockTokenEntity[]]
+    >()
+    .mockImplementation(async (entity) => {
       if (Array.isArray(entity)) {
         entity.forEach((e) => {
           const idx = tokens.findIndex((t) => t.id === e.id);
@@ -42,21 +96,20 @@ function makeEvtRepo(tokens: any[]) {
       if (idx >= 0) tokens[idx] = { ...tokens[idx], ...entity };
       else tokens.push(entity);
       return entity;
-    }),
-  } as any;
-}
+    });
 
-function makePrtRepo(tokens: any[]) {
-  return makeEvtRepo(tokens);
-}
+  return { create, find, save };
+};
+
+const makePrtRepo = (tokens: MockTokenEntity[]): MockTokenRepo =>
+  makeEvtRepo(tokens);
 
 const auditService: Partial<AuditService> = {
-  log: jest.fn().mockResolvedValue(undefined) as any,
+  log: jest.fn().mockResolvedValue(undefined),
 };
 
 function sha256hex(input: string) {
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(input).digest('hex');
+  return createHash('sha256').update(input).digest('hex');
 }
 
 describe('AuthService - Email Verification (hashed)', () => {
@@ -65,7 +118,7 @@ describe('AuthService - Email Verification (hashed)', () => {
     const raw = 'abc123xyz';
     const other = 'othertoken';
     const now = Date.now();
-    const evtTokens = [
+    const evtTokens: MockTokenEntity[] = [
       {
         id: 't1',
         userId,
@@ -82,15 +135,19 @@ describe('AuthService - Email Verification (hashed)', () => {
       },
     ];
     const service = new AuthService(
-      usersService as any,
-      tenantsService,
-      jwtService,
-      emailService,
+      usersService as unknown as UsersService,
+      tenantsService as unknown as TenantsService,
+      jwtService as unknown as JwtService,
+      emailService as unknown as EmailService,
       securityService,
       turnstileService,
-      makeEvtRepo(evtTokens),
-      makePrtRepo([]),
-      auditService as any,
+      makeEvtRepo(evtTokens) as unknown as Repository<EmailVerificationToken>,
+      makePrtRepo(
+        [] as MockTokenEntity[],
+      ) as unknown as Repository<PasswordResetToken>,
+      auditService as unknown as AuditService,
+      organizationsService as unknown as OrganizationsService,
+      attemptsService as unknown as LoginAttemptsService,
     );
     usersService.update.mockResolvedValue(true);
     usersService.findOne.mockResolvedValue({
@@ -112,17 +169,21 @@ describe('AuthService - Email Verification (hashed)', () => {
 
   it('throws for invalid or expired token', async () => {
     const userId = 'u2';
-    const evtTokens: any[] = [];
+    const evtTokens: MockTokenEntity[] = [];
     const service = new AuthService(
-      usersService as any,
-      tenantsService,
-      jwtService,
-      emailService,
+      usersService as unknown as UsersService,
+      tenantsService as unknown as TenantsService,
+      jwtService as unknown as JwtService,
+      emailService as unknown as EmailService,
       securityService,
       turnstileService,
-      makeEvtRepo(evtTokens),
-      makePrtRepo([]),
-      auditService as any,
+      makeEvtRepo(evtTokens) as unknown as Repository<EmailVerificationToken>,
+      makePrtRepo(
+        [] as MockTokenEntity[],
+      ) as unknown as Repository<PasswordResetToken>,
+      auditService as unknown as AuditService,
+      organizationsService as unknown as OrganizationsService,
+      attemptsService as unknown as LoginAttemptsService,
     );
     await expect(
       service.verifyEmailHashed('nope', userId),
@@ -132,17 +193,21 @@ describe('AuthService - Email Verification (hashed)', () => {
 
 describe('AuthService - Resend verification cooldown', () => {
   it('applies 60s cooldown per email silently', async () => {
-    const evtTokens: any[] = [];
+    const evtTokens: MockTokenEntity[] = [];
     const service = new AuthService(
-      usersService as any,
-      tenantsService,
-      jwtService,
-      emailService,
+      usersService as unknown as UsersService,
+      tenantsService as unknown as TenantsService,
+      jwtService as unknown as JwtService,
+      emailService as unknown as EmailService,
       securityService,
       turnstileService,
-      makeEvtRepo(evtTokens),
-      makePrtRepo([]),
-      auditService as any,
+      makeEvtRepo(evtTokens) as unknown as Repository<EmailVerificationToken>,
+      makePrtRepo(
+        [] as MockTokenEntity[],
+      ) as unknown as Repository<PasswordResetToken>,
+      auditService as unknown as AuditService,
+      organizationsService as unknown as OrganizationsService,
+      attemptsService as unknown as LoginAttemptsService,
     );
     usersService.findByEmail.mockResolvedValue({
       id: 'u3',
@@ -154,7 +219,7 @@ describe('AuthService - Resend verification cooldown', () => {
 
     await service.resendVerification('a@b.c');
     // immediate second call should not send another email
-    (emailService.sendEmail as jest.Mock).mockClear();
+    emailService.sendEmail.mockClear();
     await service.resendVerification('a@b.c');
     expect(emailService.sendEmail).not.toHaveBeenCalled();
   });

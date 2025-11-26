@@ -52,7 +52,7 @@ export class Expense {
   tenant: Tenant;
 
   @Column({ type: 'uuid', nullable: true })
-  supplierId: string;
+  supplierId: string | null;
 
   @ManyToOne(() => Supplier, { nullable: true })
   @JoinColumn({ name: 'supplierId' })
@@ -82,10 +82,10 @@ export class Expense {
   status: ExpenseStatus;
 
   @Column({ type: 'text', nullable: true })
-  notes: string;
+  notes: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  receiptUrl: string;
+  receiptUrl: string | null;
 
   // Soft delete columns
   @Column({ name: 'is_voided', type: 'boolean', default: false })

@@ -1,6 +1,8 @@
 // src/utils/storage.ts
 // Güvenli localStorage wrapper
 
+import { safeLocalStorage } from './localStorageSafe';
+
 /**
  * AES-GCM tabanlı güvenli encryption
  * Web Crypto API kullanarak güçlü şifreleme
@@ -174,7 +176,7 @@ export const secureStorage = {
   setItem: async (key: string, value: string): Promise<void> => {
     try {
       if (!ENABLE_ENCRYPTION) {
-        localStorage.setItem(key, value);
+        safeLocalStorage.setItem(key, value);
         return;
       }
 
@@ -187,7 +189,7 @@ export const secureStorage = {
         dataToStore = simpleEncrypt(value, ENCRYPTION_KEY);
       }
       
-      localStorage.setItem(key, dataToStore);
+      safeLocalStorage.setItem(key, dataToStore);
     } catch (error) {
       console.error('Storage setItem failed:', error);
     }
@@ -198,7 +200,7 @@ export const secureStorage = {
    */
   getItem: async (key: string): Promise<string | null> => {
     try {
-      const stored = localStorage.getItem(key);
+      const stored = safeLocalStorage.getItem(key);
       if (!stored) return null;
       
       if (!ENABLE_ENCRYPTION) {
@@ -230,7 +232,7 @@ export const secureStorage = {
    */
   removeItem: (key: string): void => {
     try {
-      localStorage.removeItem(key);
+      safeLocalStorage.removeItem(key);
     } catch (error) {
       console.error('Storage removeItem failed:', error);
     }

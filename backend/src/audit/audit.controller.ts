@@ -9,6 +9,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuditService, AuditLogFilter } from './audit.service';
 import { AuditAction } from './entities/audit-log.entity';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 
 @Controller('audit')
 export class AuditController {
@@ -22,7 +23,7 @@ export class AuditController {
   @Get('logs')
   @UseGuards(JwtAuthGuard)
   async getAuditLogs(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('userId') userId?: string,
@@ -90,7 +91,7 @@ export class AuditController {
 
   @Get('entities')
   @UseGuards(JwtAuthGuard)
-  async getAuditableEntities(@Request() req: any) {
+  async getAuditableEntities(@Request() req: AuthenticatedRequest) {
     const user = req.user;
     const tenantId = user.tenantId;
 
@@ -114,7 +115,7 @@ export class AuditController {
   @Get('entity/:entity/:entityId')
   @UseGuards(JwtAuthGuard)
   async getEntityAuditHistory(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query('entity') entity: string,
     @Query('entityId') entityId: string,
   ) {

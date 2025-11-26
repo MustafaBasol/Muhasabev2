@@ -13,8 +13,9 @@ export class PlanLimitsLoader implements OnModuleInit {
       console.log(
         '✅ Plan limit overrides applied from config/plan-limits.json',
       );
-    } catch (e) {
-      console.warn('⚠️ Failed to apply plan limit overrides:', e?.message || e);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.warn('⚠️ Failed to apply plan limit overrides:', reason);
     }
   }
 }

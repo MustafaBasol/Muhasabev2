@@ -1,10 +1,11 @@
 import apiClient from './client';
+import { adminAuthStorage } from '../utils/adminAuthStorage';
 
 const API_URL = '/admin/backups';
 
 // Admin token için header (localStorage'tan dinamik al)
 const getAdminHeaders = () => {
-  const token = localStorage.getItem('admin-token');
+  const token = adminAuthStorage.getToken();
   return {
     headers: token ? { 'admin-token': token } : {},
   };

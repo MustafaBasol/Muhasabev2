@@ -2,32 +2,34 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { adminApi } from '../../api/admin';
 import type { BillingInvoiceDTO } from '../../api/billing';
 import { listInvoices as userListInvoices } from '../../api/billing';
+import { readLegacyAuthToken, readLegacyTenantProfile } from '../../utils/localStorageSafe';
+import type {
+  AdminTenantSummary,
+  TenantOverview,
+  TenantPlanLimitOverrides,
+  TenantSubscriptionRaw,
+  TenantUser,
+  TenantInvite,
+} from '../../types/admin';
 
 // A unified admin console per-tenant
 const TenantConsolePage: React.FC = () => {
-  const [tenants, setTenants] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<AdminTenantSummary[]>([]);
   const [search, setSearch] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('');
-  const [overview, setOverview] = useState<any>(null);
+  const [overview, setOverview] = useState<TenantOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [message, setMessage] = useState<string>('');
   const [exporting, setExporting] = useState<boolean>(false);
 
   // Limits override state
-  type Limits = {
-    maxUsers: number;
-    maxCustomers: number;
-    maxSuppliers: number;
-    maxBankAccounts: number;
-    monthly: { maxInvoices: number; maxExpenses: number };
-  };
-  type Overrides = Partial<Omit<Limits, 'monthly'>> & { monthly?: Partial<Limits['monthly']> };
+  type Overrides = TenantPlanLimitOverrides;
   const [overrideLimits, setOverrideLimits] = useState<Overrides>({});
   const [clearKeys, setClearKeys] = useState<string[]>([]);
   const [invoices, setInvoices] = useState<BillingInvoiceDTO[]>([]);
   const [showAllInvoices, setShowAllInvoices] = useState(false);
-  const [subRaw, setSubRaw] = useState<any>(null);
+  const [subRaw, setSubRaw] = useState<TenantSubscriptionRaw | null>(null);
   const [showInvitesAll, setShowInvitesAll] = useState(false);
   const [enforcing, setEnforcing] = useState(false);
   // Seçili tenant'ı son durum olarak takip etmek ve yarış durumlarını engellemek için ref
@@ -53,7 +55,7 @@ const TenantConsolePage: React.FC = () => {
       try {
         setLoading(true);
         const data = await adminApi.getTenants();
-        setTenants(data || []);
+        setTenants(Array.isArray(data) ? data : []);
       } catch (e: any) {
         const status = e?.response?.status;
         if (status === 401) {
@@ -85,7 +87,7 @@ const TenantConsolePage: React.FC = () => {
       if (selectedIdRef.current !== tenantId) return; // tenant değişti, bu sonucu yok say
       setOverview(o);
       // initialize override edit state from payload
-      setOverrideLimits(o?.limits?.overrides || {});
+      setOverrideLimits(o?.limits?.overrides ?? {});
       setClearKeys([]);
       // Stripe abonelik ham verisi (plan + koltuk)
       try {
@@ -104,8 +106,8 @@ const TenantConsolePage: React.FC = () => {
         } else {
           // Fallback: yalnızca seçilen tenant aktif kullanıcı tenant'ı ise dene
           try {
-            const hasUserToken = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
-            const meTenant = (() => { try { const t = localStorage.getItem('tenant'); return t ? JSON.parse(t) : null; } catch { return null; } })();
+            const hasUserToken = Boolean(readLegacyAuthToken());
+            const meTenant = readLegacyTenantProfile<{ id?: string }>();
             if (hasUserToken && meTenant?.id === tenantId) {
               const alt = await userListInvoices(tenantId);
               if (selectedIdRef.current !== tenantId) return; // tenant değişti
@@ -120,8 +122,8 @@ const TenantConsolePage: React.FC = () => {
       } catch (_) {
         // Son çare: kullanıcı endpointini yalnızca aynı tenant ise dene
         try {
-          const hasUserToken = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
-          const meTenant = (() => { try { const t = localStorage.getItem('tenant'); return t ? JSON.parse(t) : null; } catch { return null; } })();
+          const hasUserToken = Boolean(readLegacyAuthToken());
+          const meTenant = readLegacyTenantProfile<{ id?: string }>();
           if (hasUserToken && meTenant?.id === tenantId) {
             const alt = await userListInvoices(tenantId);
             if (selectedIdRef.current !== tenantId) return; // tenant değişti
@@ -165,8 +167,8 @@ const TenantConsolePage: React.FC = () => {
   const tenant = overview?.tenant;
   const limits = overview?.limits;
   const usage = overview?.usage;
-  const users = overview?.users || [];
-  const invites = (overview?.invites as any[]) || [];
+  const users: TenantUser[] = overview?.users || [];
+  const invites: TenantInvite[] = overview?.invites || [];
   const requiredReduction = Math.max(0, Number(tenant?.requiredUserReduction ?? 0));
   const effMaxUsers = Number(limits?.effective?.maxUsers ?? 0);
   const dynamicRemaining = Math.max(0, Number(usage?.users ?? 0) - Math.max(0, effMaxUsers));
@@ -195,12 +197,13 @@ const TenantConsolePage: React.FC = () => {
       setError('');
       setMessage('');
       setCreatedTempPassword('');
-      const payload: any = {
+      const payload: Parameters<typeof adminApi.addUserToTenant>[1] = {
         email: newUser.email,
         firstName: newUser.firstName || undefined,
         lastName: newUser.lastName || undefined,
         role: newUser.role || undefined,
         activate: newUser.activate,
+        autoPassword: newUser.autoPassword,
       };
       if (!newUser.autoPassword && newUser.password) payload.password = newUser.password;
       const res = await adminApi.addUserToTenant(selectedTenantId, payload);
@@ -253,7 +256,7 @@ const TenantConsolePage: React.FC = () => {
   type UserEdit = { firstName?: string; lastName?: string; email?: string; role?: string };
   const [userEdits, setUserEdits] = useState<Record<string, UserEdit>>({});
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
-  const startEditUser = (u: any) => {
+  const startEditUser = (u: TenantUser) => {
     setUserEdits(prev => ({ ...prev, [u.id]: { firstName: u.firstName, lastName: u.lastName, email: u.email, role: u.role } }));
   };
   const cancelEditUser = (userId: string) => {
@@ -279,41 +282,49 @@ const TenantConsolePage: React.FC = () => {
     }
   };
 
-  const updateOverride = (patch: Overrides) => {
-    setOverrideLimits(prev => ({
-      ...prev,
-      ...patch,
-      monthly: { ...(prev.monthly || {}), ...(patch.monthly || {}) },
-    }));
+  const updateOverride = (patch: Partial<Overrides>) => {
+    setOverrideLimits(prev => {
+      const next: Overrides = { ...prev, ...patch };
+      if (patch.monthly) {
+        next.monthly = { ...(prev.monthly || {}), ...patch.monthly };
+      }
+      return next;
+    });
   };
 
   const markClear = (key: string) => {
     setClearKeys(prev => (prev.includes(key) ? prev : [...prev, key]));
-    if (key.includes('.')) {
-      const [parent, child] = key.split('.');
-      if (parent === 'monthly') {
-        setOverrideLimits(prev => {
-          const m = { ...(prev.monthly || {}) } as any;
-          delete (m as any)[child];
-          const next = { ...prev, monthly: m } as any;
-          if (Object.keys(m).length === 0) delete next.monthly;
-          return next;
-        });
-      }
-    } else {
+    if (key.startsWith('monthly.')) {
+      const [, child] = key.split('.');
       setOverrideLimits(prev => {
-        const next: any = { ...prev };
-        delete next[key as keyof Overrides];
+        const nextMonthly = { ...(prev.monthly || {}) };
+        if (child && child in nextMonthly) {
+          delete nextMonthly[child as keyof typeof nextMonthly];
+        }
+        const next = { ...prev };
+        if (Object.keys(nextMonthly).length > 0) {
+          next.monthly = nextMonthly;
+        } else {
+          delete next.monthly;
+        }
         return next;
       });
+      return;
     }
+    setOverrideLimits(prev => {
+      const next = { ...prev };
+      if (key in next) {
+        delete next[key as keyof Overrides];
+      }
+      return next;
+    });
   };
 
   const saveOverrides = async () => {
     if (!selectedTenantId) return;
     try {
       setLoading(true);
-      const payload: any = { ...overrideLimits };
+      const payload: (Overrides & { __clear?: string[] }) = { ...overrideLimits };
       if (clearKeys.length) payload.__clear = clearKeys;
       await adminApi.updateTenantLimits(selectedTenantId, payload);
       setMessage('Limitler kaydedildi');
@@ -330,7 +341,7 @@ const TenantConsolePage: React.FC = () => {
     if (!selectedTenantId) return;
     try {
       setLoading(true);
-      await adminApi.updateTenantLimits(selectedTenantId, { __clearAll: true } as any);
+      await adminApi.updateTenantLimits(selectedTenantId, { __clearAll: true });
       setOverrideLimits({});
       setClearKeys([]);
       setMessage('Override’lar temizlendi');
@@ -556,8 +567,8 @@ const TenantConsolePage: React.FC = () => {
                   <Field label="Maks. Müşteri" value={overrideLimits.maxCustomers} onChange={(v)=>updateOverride({maxCustomers:v})} onClear={()=>markClear('maxCustomers')} />
                   <Field label="Maks. Tedarikçi" value={overrideLimits.maxSuppliers} onChange={(v)=>updateOverride({maxSuppliers:v})} onClear={()=>markClear('maxSuppliers')} />
                   <Field label="Maks. Banka Hesabı" value={overrideLimits.maxBankAccounts} onChange={(v)=>updateOverride({maxBankAccounts:v})} onClear={()=>markClear('maxBankAccounts')} />
-                  <Field label="Aylık Maks. Fatura" value={overrideLimits.monthly?.maxInvoices} onChange={(v)=>updateOverride({monthly:{maxInvoices:v} as any})} onClear={()=>markClear('monthly.maxInvoices')} />
-                  <Field label="Aylık Maks. Gider" value={overrideLimits.monthly?.maxExpenses} onChange={(v)=>updateOverride({monthly:{maxExpenses:v} as any})} onClear={()=>markClear('monthly.maxExpenses')} />
+                  <Field label="Aylık Maks. Fatura" value={overrideLimits.monthly?.maxInvoices} onChange={(v)=>updateOverride({monthly:{maxInvoices:v}})} onClear={()=>markClear('monthly.maxInvoices')} />
+                  <Field label="Aylık Maks. Gider" value={overrideLimits.monthly?.maxExpenses} onChange={(v)=>updateOverride({monthly:{maxExpenses:v}})} onClear={()=>markClear('monthly.maxExpenses')} />
                 </div>
               </div>
               <Card title="Efektif"><pre className="text-xs overflow-auto">{JSON.stringify(limits?.effective,null,2)}</pre></Card>
@@ -587,11 +598,11 @@ const TenantConsolePage: React.FC = () => {
                       <th className="px-3 py-2 text-left">
                         <input
                           type="checkbox"
-                          checked={users.length>0 && selectedUserIds.size>0 && users.every((u: any)=> selectedUserIds.has(u.id))}
+                          checked={users.length>0 && selectedUserIds.size>0 && users.every((u)=> selectedUserIds.has(u.id))}
                           onChange={(e)=>{
                             const next = new Set<string>();
                             if (e.target.checked) {
-                              users.forEach((u:any)=> next.add(u.id));
+                              users.forEach((u)=> next.add(u.id));
                             }
                             setSelectedUserIds(next);
                           }}
@@ -644,7 +655,7 @@ const TenantConsolePage: React.FC = () => {
                         <button onClick={submitNewUser} className="px-2 py-1 text-xs bg-green-600 text-white rounded">Ekle</button>
                       </td>
                     </tr>
-                    {users.map((u: any) => {
+                    {users.map((u) => {
                       const edit = userEdits[u.id];
                       return (
                         <tr key={u.id} className="border-t">
@@ -716,7 +727,7 @@ const TenantConsolePage: React.FC = () => {
                     <button
                       className="px-3 py-1.5 text-xs rounded bg-red-600 text-white hover:bg-red-700"
                       onClick={async ()=>{
-                        const list = users.filter((u:any)=> selectedUserIds.has(u.id) && u.isActive);
+                        const list = users.filter((u)=> selectedUserIds.has(u.id) && u.isActive);
                         if (list.length === 0) { setError('Seçilenlerde aktif kullanıcı yok'); return; }
                         const sure = window.confirm(`${list.length} kullanıcı pasifleştirilsin mi?`);
                         if (!sure) return;
@@ -778,7 +789,7 @@ const TenantConsolePage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {(showInvitesAll ? invites : invites.slice(0,8)).map((iv: any) => {
+                      {(showInvitesAll ? invites : invites.slice(0,8)).map((iv) => {
                         const createdAt = iv.createdAt ? new Date(iv.createdAt) : null;
                         const expiresAt = iv.expiresAt ? new Date(iv.expiresAt) : null;
                         const acceptedAt = iv.acceptedAt ? new Date(iv.acceptedAt) : null;

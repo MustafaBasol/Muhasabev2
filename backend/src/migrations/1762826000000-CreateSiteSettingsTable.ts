@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner, Table } from 'typeorm';
 
-export class CreateSiteSettingsTable1762826000000 implements MigrationInterface {
+export class CreateSiteSettingsTable1762826000000
+  implements MigrationInterface
+{
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
@@ -13,21 +15,75 @@ export class CreateSiteSettingsTable1762826000000 implements MigrationInterface 
             isGenerated: true,
             generationStrategy: 'increment',
           },
-          { name: 'defaultMetaTitle', type: 'varchar', length: '255', isNullable: true },
+          {
+            name: 'defaultMetaTitle',
+            type: 'varchar',
+            length: '255',
+            isNullable: true,
+          },
           { name: 'defaultMetaDescription', type: 'text', isNullable: true },
-          { name: 'defaultOgImageUrl', type: 'varchar', length: '500', isNullable: true },
-          { name: 'canonicalBaseUrl', type: 'varchar', length: '255', isNullable: true },
-          { name: 'enableIndexing', type: 'boolean', isNullable: false, default: true },
-          { name: 'googleAnalyticsId', type: 'varchar', length: '100', isNullable: true },
-          { name: 'googleTagManagerId', type: 'varchar', length: '100', isNullable: true },
-          { name: 'pinterestTagId', type: 'varchar', length: '100', isNullable: true },
-          { name: 'metaPixelId', type: 'varchar', length: '100', isNullable: true },
-          { name: 'linkedinInsightTagId', type: 'varchar', length: '100', isNullable: true },
+          {
+            name: 'defaultOgImageUrl',
+            type: 'varchar',
+            length: '500',
+            isNullable: true,
+          },
+          {
+            name: 'canonicalBaseUrl',
+            type: 'varchar',
+            length: '255',
+            isNullable: true,
+          },
+          {
+            name: 'enableIndexing',
+            type: 'boolean',
+            isNullable: false,
+            default: true,
+          },
+          {
+            name: 'googleAnalyticsId',
+            type: 'varchar',
+            length: '100',
+            isNullable: true,
+          },
+          {
+            name: 'googleTagManagerId',
+            type: 'varchar',
+            length: '100',
+            isNullable: true,
+          },
+          {
+            name: 'pinterestTagId',
+            type: 'varchar',
+            length: '100',
+            isNullable: true,
+          },
+          {
+            name: 'metaPixelId',
+            type: 'varchar',
+            length: '100',
+            isNullable: true,
+          },
+          {
+            name: 'linkedinInsightTagId',
+            type: 'varchar',
+            length: '100',
+            isNullable: true,
+          },
           { name: 'customHeadHtml', type: 'text', isNullable: true },
           { name: 'customBodyStartHtml', type: 'text', isNullable: true },
           { name: 'customBodyEndHtml', type: 'text', isNullable: true },
-          { name: 'createdAt', type: 'timestamp', default: 'CURRENT_TIMESTAMP' },
-          { name: 'updatedAt', type: 'timestamp', default: 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' },
+          {
+            name: 'createdAt',
+            type: 'timestamp',
+            default: 'CURRENT_TIMESTAMP',
+          },
+          {
+            name: 'updatedAt',
+            type: 'timestamp',
+            default: 'CURRENT_TIMESTAMP',
+            onUpdate: 'CURRENT_TIMESTAMP',
+          },
         ],
       }),
     );

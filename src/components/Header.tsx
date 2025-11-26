@@ -236,7 +236,7 @@ const Header: React.FC<HeaderProps> = ({
   // Sadece noktalama/boşluk mu? (ör. "-:")
   const isPunctOnly = (text: string): boolean => {
     if (!text) return true;
-    return /^[\s:;.,\-]*$/.test(text);
+    return /^[\s:;.,-]*$/.test(text);
   };
 
   // sales.created için akıllı fallback
@@ -255,7 +255,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky z-30 bg-white px-4 py-3 shadow-sm sm:px-6" style={{ top: 'var(--announcement-bar-height, 0px)' }}>
+    <header className="sticky z-40 bg-white px-4 py-3 shadow-sm sm:px-6" style={{ top: 'var(--announcement-bar-height, 0px)' }}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {onToggleSidebar && (
@@ -329,7 +329,7 @@ const Header: React.FC<HeaderProps> = ({
               </button>
 
               {isLanguageMenuOpen && (
-                <div className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+                <div className="absolute right-0 z-[60] mt-2 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                   <ul className="divide-y divide-gray-100" role="listbox" aria-label="Dil seçenekleri">
                     {languages.map(option => {
                       const isActive = option.code === currentLanguage;

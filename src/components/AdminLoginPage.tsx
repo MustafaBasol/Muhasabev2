@@ -3,6 +3,8 @@ import { Eye, EyeOff, Lock, Shield, Users, ArrowLeft } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { adminApi } from '../api/admin';
 import { logger } from '../utils/logger';
+import { adminAuthStorage } from '../utils/adminAuthStorage';
+import { safeLocalStorage } from '../utils/localStorageSafe';
 
 interface AdminLoginPageProps {
   onBack: () => void;
@@ -28,9 +30,9 @@ export default function AdminLoginPage({ onBack }: AdminLoginPageProps) {
       
       if (response.success) {
         // Store admin token
-        localStorage.setItem('admin-token', response.adminToken);
-        localStorage.setItem('isAdminLoggedIn', 'true');
-        localStorage.removeItem('showAdminLogin');
+        adminAuthStorage.setToken(response.adminToken);
+        safeLocalStorage.setItem('isAdminLoggedIn', 'true');
+        safeLocalStorage.removeItem('showAdminLogin');
 
         // Do not log tokens
         logger.info('Admin login successful, reloading...');

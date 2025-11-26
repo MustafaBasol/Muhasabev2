@@ -3,13 +3,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditLog, AuditAction } from './entities/audit-log.entity';
 
+type DiffRecord = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 export interface AuditLogEntry {
   userId?: string;
   tenantId: string;
   entity: string;
   entityId?: string;
   action: AuditAction;
-  diff?: Record<string, any>;
+  diff?: DiffRecord;
   ip?: string;
   userAgent?: string;
 }
@@ -126,9 +131,7 @@ export class AuditService {
   /**
    * Mask PII data in diff object
    */
-  private maskPiiData(
-    diff: Record<string, any>,
-  ): Record<string, any> | undefined {
+  private maskPiiData(diff: DiffRecord): DiffRecord | undefined {
     if (!diff) return diff;
 
     const piiFields = [
@@ -143,67 +146,60 @@ export class AuditService {
 
     const maskedDiff = { ...diff };
 
-    // Recursively mask PII fields
-    const maskObject = (obj: any): any => {
-      if (!obj || typeof obj !== 'object') return obj;
-
-      if (Array.isArray(obj)) {
-        return obj.map(maskObject);
+    const maskObject = (value: unknown): unknown => {
+      if (Array.isArray(value)) {
+        return value.map((item) => maskObject(item));
       }
 
-      const result = { ...obj };
-      for (const [key, value] of Object.entries(result)) {
-        const lowerKey = key.toLowerCase();
+      if (!isRecord(value)) {
+        return value;
+      }
 
+      const result: DiffRecord = { ...value };
+      for (const [key, entry] of Object.entries(result)) {
+        const lowerKey = key.toLowerCase();
         if (piiFields.some((field) => lowerKey.includes(field))) {
-          if (typeof value === 'string' && value.length > 0) {
-            // Mask email format
-            if (lowerKey.includes('email') && value.includes('@')) {
-              const [local, domain] = value.split('@');
+          if (typeof entry === 'string' && entry.length > 0) {
+            if (lowerKey.includes('email') && entry.includes('@')) {
+              const [local, domain] = entry.split('@');
               result[key] = `${local.substring(0, 2)}***@${domain}`;
             } else {
-              // Mask other PII fields
-              result[key] = `${value.substring(0, 2)}***`;
+              result[key] = `${entry.substring(0, 2)}***`;
             }
           }
-        } else if (typeof value === 'object') {
-          result[key] = maskObject(value);
+        } else {
+          result[key] = maskObject(entry);
         }
       }
-
       return result;
     };
 
-    return maskObject(maskedDiff);
+    const masked = maskObject(maskedDiff);
+    return isRecord(masked) ? masked : maskedDiff;
   }
 
   /**
    * Create diff between old and new values
    */
-  createDiff(oldValue: any, newValue: any): Record<string, any> {
-    const diff: Record<string, any> = {};
-
-    // Handle creation (no old value)
-    if (!oldValue) {
-      return { created: newValue };
+  createDiff(oldValue: unknown, newValue: unknown): DiffRecord {
+    if (!isRecord(oldValue)) {
+      return { created: newValue ?? null };
     }
 
-    // Handle deletion (no new value)
-    if (!newValue) {
-      return { deleted: oldValue };
+    if (!isRecord(newValue)) {
+      return { deleted: oldValue ?? null };
     }
 
-    // Compare objects and create diff
+    const diff: DiffRecord = {};
     const allKeys = new Set([
-      ...Object.keys(oldValue || {}),
-      ...Object.keys(newValue || {}),
+      ...Object.keys(oldValue),
+      ...Object.keys(newValue),
     ]);
 
     for (const key of allKeys) {
       const oldVal = oldValue[key];
       const newVal = newValue[key];
-
-      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      if (!this.valuesEqual(oldVal, newVal)) {
         diff[key] = {
           from: oldVal,
           to: newVal,
@@ -212,5 +208,13 @@ export class AuditService {
     }
 
     return Object.keys(diff).length > 0 ? diff : {};
+  }
+
+  private valuesEqual(a: unknown, b: unknown): boolean {
+    try {
+      return JSON.stringify(a) === JSON.stringify(b);
+    } catch {
+      return a === b;
+    }
   }
 }

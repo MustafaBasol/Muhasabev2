@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Legacy Sales Cache Migrator</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      line-height: 1.5;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    header {
+      max-width: 720px;
+      margin: 0 auto 24px;
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5f5;
+      font-size: 15px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 16px 0 8px;
+    }
+    button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 15px;
+      cursor: pointer;
+      background: #2563eb;
+      color: #fff;
+      transition: background 0.2s ease;
+    }
+    button.secondary {
+      background: #475569;
+    }
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .checkbox-group label {
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 16px;
+      max-height: 320px;
+      overflow: auto;
+      font-size: 13px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .tips {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #475569;
+    }
+    a {
+      color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Legacy Sales Cache Migrator</h1>
+    <p>Uygulamadan runtime migrasyon kodu kaldırıldı. Eski <code>sales</code>/<code>sales_cache</code> anahtarlarını tek seferlik tenant scoped anahtarlara taşımak için bu sayfayı ürün ortamıyla aynı origin altında açın.</p>
+    <p class="tips">⚠️ <strong>Devam etmeden önce:</strong> Bu sayfayı <code>https://app.domain.com/legacy-sales-migrator.html</code> gibi aynı domain altından çalıştırın ve tarayıcı devtools &gt; Application sekmesinden localStorage'ın okunabildiğini doğrulayın.</p>
+  </header>
+  <main>
+    <label for="tenantId">Hedef Tenant ID</label>
+    <input id="tenantId" type="text" placeholder="Örn: 12345 veya default" />
+
+    <div class="checkbox-group">
+      <label><input id="forceOverwrite" type="checkbox" /> Mevcut tenant scoped anahtarları üzerine yaz</label>
+      <label><input id="deleteLegacy" type="checkbox" checked /> Göçten sonra global <code>sales</code>/<code>sales_cache</code> anahtarlarını sil</label>
+    </div>
+
+    <div class="actions">
+      <button id="inspectBtn" class="secondary" type="button">Durumu İncele</button>
+      <button id="migrateBtn" type="button">Migrasyonu Çalıştır</button>
+    </div>
+
+    <pre id="log">Hazırlanıyor...</pre>
+    <p class="tips">Script sadece tarayıcı tarafında çalışır; Node.js veya CLI ortamlarında localStorage erişimi yoktur.</p>
+  </main>
+
+  <script>
+    (function () {
+      const logEl = document.getElementById('log');
+      const tenantInput = document.getElementById('tenantId');
+      const inspectBtn = document.getElementById('inspectBtn');
+      const migrateBtn = document.getElementById('migrateBtn');
+      const forceCheckbox = document.getElementById('forceOverwrite');
+      const deleteLegacyCheckbox = document.getElementById('deleteLegacy');
+
+      const print = (message) => {
+        const ts = new Date().toISOString();
+        logEl.textContent = `[${ts}] ${message}\n` + logEl.textContent;
+      };
+
+      const readArray = (key) => {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          print(`⚠️  ${key} JSON parse hatası: ${error.message || error}`);
+          return [];
+        }
+      };
+
+      const scopeKey = (baseKey, tenantId) => {
+        const normalized = (tenantId || '').trim();
+        if (normalized && normalized !== 'default') {
+          return `${baseKey}_${normalized}`;
+        }
+        return baseKey;
+      };
+
+      const guessTenantId = () => {
+        const input = tenantInput.value.trim();
+        if (input) return input;
+        const cachedTenant = localStorage.getItem('tenantId');
+        if (cachedTenant && cachedTenant.trim()) return cachedTenant.trim();
+        try {
+          const userRaw = JSON.parse(localStorage.getItem('user') || 'null');
+          const candidate = userRaw?.tenantId || userRaw?.tenant?.id;
+          if (candidate) return String(candidate).trim();
+        } catch {}
+        return 'default';
+      };
+
+      const dedupeSales = (items) => {
+        const map = new Map();
+        items.forEach((item, index) => {
+          const saleNumber = item && (item.saleNumber || item.number) ? String(item.saleNumber || item.number) : '';
+          const id = item && (item.id || item._id) ? String(item.id || item._id) : '';
+          const key = saleNumber || id ? `${saleNumber}#${id}` : `row-${index}`;
+          if (!map.has(key)) {
+            map.set(key, item);
+          }
+        });
+        return Array.from(map.values());
+      };
+
+      const inspect = () => {
+        try {
+          const tenantId = guessTenantId();
+          const legacySales = readArray('sales');
+          const legacySalesCache = readArray('sales_cache');
+          const scopedSales = readArray(scopeKey('sales', tenantId));
+          const scopedSalesCache = readArray(scopeKey('sales_cache', tenantId));
+
+          const report = [
+            `Tenant ID: ${tenantId || 'default'}`,
+            `Legacy sales: ${legacySales.length}`,
+            `Legacy sales_cache: ${legacySalesCache.length}`,
+            `Scoped sales: ${scopedSales.length}`,
+            `Scoped sales_cache: ${scopedSalesCache.length}`
+          ].join('\n');
+          print(report);
+        } catch (error) {
+          print(`Hata: ${error.message || error}`);
+        }
+      };
+
+      const migrate = () => {
+        try {
+          const tenantId = guessTenantId();
+          if (!tenantId) {
+            print('⚠️ Tenant ID boş olamaz.');
+            return;
+          }
+
+          const legacySales = readArray('sales');
+          const legacySalesCache = readArray('sales_cache');
+          const merged = dedupeSales([...legacySales, ...legacySalesCache]);
+          if (!merged.length) {
+            print('Taşınacak kayıt bulunamadı.');
+            return;
+          }
+
+          const scopedSalesKey = scopeKey('sales', tenantId);
+          const scopedSalesCacheKey = scopeKey('sales_cache', tenantId);
+
+          if (!forceCheckbox.checked) {
+            const scopedSales = readArray(scopedSalesKey);
+            const scopedSalesCache = readArray(scopedSalesCacheKey);
+            if (scopedSales.length || scopedSalesCache.length) {
+              print(`Scoped anahtarlar zaten dolu ( ${scopedSalesKey} / ${scopedSalesCacheKey} ). Overwrite için kutuyu işaretleyin.`);
+              return;
+            }
+          }
+
+          localStorage.setItem(scopedSalesKey, JSON.stringify(merged));
+          localStorage.setItem(scopedSalesCacheKey, JSON.stringify(merged));
+
+          if (deleteLegacyCheckbox.checked) {
+            localStorage.removeItem('sales');
+            localStorage.removeItem('sales_cache');
+          }
+
+          const markerKey = scopeKey('sales_migration_manual', tenantId);
+          localStorage.setItem(markerKey, new Date().toISOString());
+
+          print(`✅ ${merged.length} kayıt ${tenantId} tenant'ına taşındı.`);
+          inspect();
+        } catch (error) {
+          print(`Migrasyon hatası: ${error.message || error}`);
+        }
+      };
+
+      const bootstrapTenantInput = () => {
+        const guess = guessTenantId();
+        if (guess && !tenantInput.value) {
+          tenantInput.value = guess;
+        }
+      };
+
+      inspectBtn.addEventListener('click', inspect);
+      migrateBtn.addEventListener('click', migrate);
+
+      bootstrapTenantInput();
+      inspect();
+    })();
+  </script>
+</body>
+</html>

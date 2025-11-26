@@ -9,21 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Invoice } from '../../invoices/entities/invoice.entity';
 import { Expense } from '../../expenses/entities/expense.entity';
-
-interface AuthenticatedRequest {
-  user: {
-    userId: string;
-    tenantId: string;
-  };
-  body: {
-    date?: string | Date;
-    invoiceDate?: string | Date;
-    expenseDate?: string | Date;
-  };
-  params: {
-    id?: string;
-  };
-}
+import type { AuthenticatedRequest } from '../types/authenticated-request';
 
 @Injectable()
 export class PeriodLockGuard implements CanActivate {
@@ -37,30 +23,33 @@ export class PeriodLockGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const { user, body, params } = request;
-    const httpContext = context.switchToHttp();
-    const httpRequest = httpContext.getRequest();
+    const user = request.user;
+    const rawBody: unknown = request.body;
+    const rawParams: unknown = request.params;
+    const bodyPayload = this.isRecord(rawBody) ? rawBody : undefined;
+    const paramsPayload = this.isRecord(rawParams) ? rawParams : undefined;
+    const targetId = this.extractId(paramsPayload);
 
     if (!user?.tenantId) {
       return true; // Let other guards handle authentication
     }
 
     let dateToCheck: Date | null = null;
+    const routePath = this.getRoutePath(request);
+    const path = routePath ?? request.url;
 
     // For DELETE requests, fetch the record to get its date
-    if (httpRequest.method === 'DELETE' && params?.id) {
-      const path = httpRequest.route?.path || httpRequest.url;
-
+    if (request.method === 'DELETE' && targetId) {
       if (path.includes('/invoices/')) {
         const invoice = await this.invoiceRepository.findOne({
-          where: { id: params.id, tenantId: user.tenantId },
+          where: { id: targetId, tenantId: user.tenantId },
         });
         if (invoice) {
           dateToCheck = new Date(invoice.issueDate);
         }
       } else if (path.includes('/expenses/')) {
         const expense = await this.expenseRepository.findOne({
-          where: { id: params.id, tenantId: user.tenantId },
+          where: { id: targetId, tenantId: user.tenantId },
         });
         if (expense) {
           dateToCheck = new Date(expense.expenseDate);
@@ -68,7 +57,7 @@ export class PeriodLockGuard implements CanActivate {
       }
     } else {
       // For other requests, extract date from body
-      dateToCheck = this.extractDate(body);
+      dateToCheck = this.extractDate(bodyPayload);
     }
 
     if (!dateToCheck) {
@@ -89,7 +78,7 @@ export class PeriodLockGuard implements CanActivate {
     return true;
   }
 
-  private extractDate(body: any): Date | null {
+  private extractDate(body?: Record<string, unknown>): Date | null {
     // Check common date fields
     const dateFields = [
       'date',
@@ -99,8 +88,9 @@ export class PeriodLockGuard implements CanActivate {
     ];
 
     for (const field of dateFields) {
-      if (body[field]) {
-        const date = new Date(body[field]);
+      const value = body?.[field];
+      if (typeof value === 'string' || value instanceof Date) {
+        const date = new Date(value);
         if (!isNaN(date.getTime())) {
           return date;
         }
@@ -108,5 +98,31 @@ export class PeriodLockGuard implements CanActivate {
     }
 
     return null;
+  }
+
+  private extractId(params?: Record<string, unknown>): string | undefined {
+    const id = params?.id;
+    return typeof id === 'string' ? id : undefined;
+  }
+
+  private getRoutePath(request: AuthenticatedRequest): string | undefined {
+    const routeHolder: unknown = (
+      request as {
+        route?: unknown;
+      }
+    ).route;
+
+    if (this.isRecord(routeHolder)) {
+      const pathCandidate = routeHolder.path;
+      if (typeof pathCandidate === 'string') {
+        return pathCandidate;
+      }
+    }
+
+    return undefined;
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
   }
 }

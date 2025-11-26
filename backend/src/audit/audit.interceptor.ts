@@ -3,19 +3,21 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
+  Logger,
 } from '@nestjs/common';
+import type { Type } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { Request } from 'express';
 import { AuditService, AuditLogEntry } from './audit.service';
 import { AuditAction } from './entities/audit-log.entity';
 import { AttributionService } from './attribution.service';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
+import type { KnownEntity } from './attribution.service';
 
-export interface AuditableEntity {
-  id: string;
-  tenantId: string;
-  [key: string]: any;
-}
+type AuditMetadata = { entity: string; action: AuditAction };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -24,52 +26,53 @@ export class AuditInterceptor implements NestInterceptor {
     private readonly attribution: AttributionService,
   ) {}
 
+  private readonly logger = new Logger(AuditInterceptor.name);
+
   private isTestEnv(): boolean {
     return process.env.NODE_ENV === 'test';
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest<Request>();
-    const handler = context.getHandler();
-    const controller = context.getClass();
+    const request = context.switchToHttp().getRequest<
+      AuthenticatedRequest & {
+        originalValue?: Record<string, unknown> | null;
+      }
+    >();
+    const handler = context.getHandler() as (...args: unknown[]) => unknown;
+    const controller = context.getClass() as Type<unknown>;
 
     // Get metadata about the audit configuration
     const auditConfig = this.getAuditConfig(controller, handler);
 
     if (!this.isTestEnv()) {
-      console.log(
-        `🎯 AuditInterceptor: ${request.method} ${request.url} - auditConfig:`,
-        auditConfig,
+      this.logger.debug(
+        `AuditInterceptor: ${request.method} ${request.url} - auditConfig: ${JSON.stringify(
+          auditConfig,
+        )}`,
       );
     }
 
     if (!auditConfig) {
       if (!this.isTestEnv()) {
-        console.log('❌ AuditInterceptor: No audit config found, skipping');
+        this.logger.debug('AuditInterceptor: No audit config found, skipping');
       }
       return next.handle();
     }
 
     const { entity: entityName, action } = auditConfig;
 
-    // Store original data for UPDATE operations
-    const originalData: any = null;
-
     return next.handle().pipe(
-      tap((result) => {
+      tap((result: unknown) => {
         try {
-          const user = (request as any).user;
+          const user = request.user;
           const tenantId = user?.tenantId;
           const userId = user?.id;
           // Görünen ad: Ad Soyad birleşimi, yoksa e‑posta
-          const displayName = [user?.firstName, user?.lastName]
-            .filter((p: any) => Boolean((p || '').toString().trim()))
-            .join(' ')
-            .trim() || user?.email || undefined;
+          const displayName = this.buildDisplayName(user);
 
           if (!tenantId) {
             if (!this.isTestEnv()) {
-              console.warn(
+              this.logger.warn(
                 'AuditInterceptor: No tenant ID found, skipping audit log',
               );
             }
@@ -78,40 +81,33 @@ export class AuditInterceptor implements NestInterceptor {
 
           // Extract IP address
           const ip = this.extractIpAddress(request);
-          const userAgent = request.headers['user-agent'];
+          const userAgent = this.extractUserAgent(request);
 
           let entityId: string | undefined;
-          let diff: Record<string, any> | undefined;
+          let diff: AuditLogEntry['diff'];
 
           // Handle different actions
           switch (action) {
             case AuditAction.CREATE:
-              if (result && result.id) {
-                entityId = result.id;
-                diff = this.auditService.createDiff(null, result);
-              }
+              entityId = this.extractEntityId(result);
+              diff = this.auditService.createDiff(null, result);
               break;
 
             case AuditAction.UPDATE:
-              if (result && result.id) {
-                entityId = result.id;
-                // For updates, we need the original data
-                // This should be set by the controller before the update
-                const originalValue = (request as any).originalValue;
-                diff = this.auditService.createDiff(originalValue, result);
-              }
+              entityId = this.extractEntityId(result);
+              diff = this.auditService.createDiff(
+                request.originalValue ?? null,
+                result,
+              );
               break;
 
             case AuditAction.DELETE:
               // For delete operations, the result might contain the deleted entity
-              if (result && result.id) {
-                entityId = result.id;
-                diff = this.auditService.createDiff(result, null);
-              } else {
-                // If no result, try to get entity ID from request params
-                entityId = request.params?.id;
-                diff = { deleted: true };
+              entityId = this.extractEntityId(result);
+              if (!entityId) {
+                entityId = this.extractRouteEntityId(request);
               }
+              diff = this.auditService.createDiff(result, null);
               break;
           }
 
@@ -127,39 +123,54 @@ export class AuditInterceptor implements NestInterceptor {
           };
 
           // Response enrich: dönen nesne üzerinde de alanları doldur
-          try {
-            if (result && typeof result === 'object') {
+          const mutableResult = isRecord(result) ? result : null;
+          if (mutableResult) {
+            try {
               if (action === AuditAction.CREATE) {
-                (result as any).createdById = userId;
-                (result as any).createdByName = displayName ?? null;
-                (result as any).updatedById = userId;
-                (result as any).updatedByName = displayName ?? null;
+                mutableResult['createdById'] = userId;
+                mutableResult['createdByName'] = displayName ?? null;
+                mutableResult['updatedById'] = userId;
+                mutableResult['updatedByName'] = displayName ?? null;
               } else if (action === AuditAction.UPDATE) {
-                (result as any).updatedById = userId;
-                (result as any).updatedByName = displayName ?? null;
+                mutableResult['updatedById'] = userId;
+                mutableResult['updatedByName'] = displayName ?? null;
               }
+            } catch (error) {
+              this.logger.warn(
+                `AuditInterceptor response enrichment failed: ${error instanceof Error ? error.message : String(error)}`,
+              );
             }
-          } catch {}
+          }
 
           // Fire and forget; don't return a Promise from tap callback
           void this.auditService
             .log(auditEntry)
             .catch((error) =>
-              console.error('AuditInterceptor log error:', error),
+              this.logger.error(
+                'AuditInterceptor log error',
+                error instanceof Error ? error.stack : String(error),
+              ),
             );
 
           // Ayrıca entity üzerinde createdBy/updatedBy alanlarını güncelle
           const actionStr = action as 'CREATE' | 'UPDATE' | 'DELETE';
-          void this.attribution
-            .setAttribution(entityName as any, entityId, actionStr, {
-              id: userId,
-              name: displayName,
-            })
-            .catch((e) =>
-              console.warn('AttributionService error:', (e as any)?.message),
-            );
+          if (this.isKnownEntity(entityName)) {
+            void this.attribution
+              .setAttribution(entityName, entityId, actionStr, {
+                id: userId,
+                name: displayName,
+              })
+              .catch((error) =>
+                this.logger.warn(
+                  `AttributionService error: ${error instanceof Error ? error.message : String(error)}`,
+                ),
+              );
+          }
         } catch (error) {
-          console.error('AuditInterceptor error:', error);
+          this.logger.error(
+            'AuditInterceptor error',
+            error instanceof Error ? error.stack : String(error),
+          );
           // Don't throw error to prevent breaking the main operation
         }
       }),
@@ -167,43 +178,129 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   private getAuditConfig(
-    controller: any,
-    handler: any,
-  ): { entity: string; action: AuditAction } | null {
-    // Check for audit metadata on the handler or controller
+    controller: Type<unknown>,
+    handler: (...args: unknown[]) => unknown,
+  ): AuditMetadata | null {
     const handlerAudit = Reflect.getMetadata('audit', handler);
-    const controllerAudit = Reflect.getMetadata('audit', controller);
-
-    const config = handlerAudit || controllerAudit;
-
-    if (!config) {
-      return null;
+    if (this.isAuditMetadata(handlerAudit)) {
+      return handlerAudit;
     }
 
-    return config;
+    const controllerAudit = Reflect.getMetadata('audit', controller);
+    if (this.isAuditMetadata(controllerAudit)) {
+      return controllerAudit;
+    }
+
+    return null;
   }
 
-  private extractIpAddress(request: Request): string {
-    return ((request.headers['x-forwarded-for'] as string)?.split(',')[0] ||
-      request.headers['x-real-ip'] ||
+  private isAuditMetadata(value: unknown): value is AuditMetadata {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      typeof (value as AuditMetadata).entity === 'string' &&
+      Object.values(AuditAction).includes((value as AuditMetadata).action)
+    );
+  }
+
+  private isKnownEntity(value: unknown): value is KnownEntity {
+    return (
+      typeof value === 'string' &&
+      ['Quote', 'Sale', 'Invoice', 'Expense', 'Product', 'Customer', 'Supplier'].includes(
+        value,
+      )
+    );
+  }
+
+  private extractIpAddress(request: AuthenticatedRequest): string {
+    const forwarded = this.normalizeHeaderValue(
+      request.headers['x-forwarded-for'],
+    );
+    if (forwarded) {
+      return forwarded.split(',')[0]?.trim() || forwarded;
+    }
+
+    const realIp = this.normalizeHeaderValue(request.headers['x-real-ip']);
+    if (realIp) {
+      return realIp;
+    }
+
+    return (
       request.connection?.remoteAddress ||
       request.socket?.remoteAddress ||
-      'unknown') as string;
+      'unknown'
+    );
+  }
+
+  private extractUserAgent(request: AuthenticatedRequest): string | undefined {
+    return this.normalizeHeaderValue(request.headers['user-agent']);
+  }
+
+  private normalizeHeaderValue(
+    value: string | string[] | undefined,
+  ): string | undefined {
+    if (Array.isArray(value)) {
+      return value[0];
+    }
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  }
+
+  private extractEntityId(source: unknown): string | undefined {
+    if (!isRecord(source)) {
+      return undefined;
+    }
+    return this.coerceEntityId(source.id);
+  }
+
+  private extractRouteEntityId(
+    request: AuthenticatedRequest,
+  ): string | undefined {
+    const routeId = request.params?.id;
+    return typeof routeId === 'string' && routeId.length > 0
+      ? routeId
+      : undefined;
+  }
+
+  private coerceEntityId(value: unknown): string | undefined {
+    if (typeof value === 'string' && value.length > 0) {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return value.toString();
+    }
+    return undefined;
+  }
+
+  private buildDisplayName(
+    user?: AuthenticatedRequest['user'],
+  ): string | undefined {
+    if (!user) {
+      return undefined;
+    }
+    const parts = [user.firstName, user.lastName]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .filter((part) => part.length > 0);
+    if (parts.length > 0) {
+      return parts.join(' ');
+    }
+    return typeof user.email === 'string' ? user.email : undefined;
   }
 }
 
 // Decorator to mark methods/controllers for auditing
 export function Audit(entity: string, action: AuditAction) {
   return function (
-    target: any,
-    propertyKey?: string,
-    descriptor?: PropertyDescriptor,
+    target: object,
+    propertyKey?: string | symbol,
+    descriptor?: TypedPropertyDescriptor<unknown>,
   ) {
     const auditConfig = { entity, action };
 
     if (propertyKey) {
       // Method decorator
-      Reflect.defineMetadata('audit', auditConfig, descriptor?.value);
+      if (descriptor?.value) {
+        Reflect.defineMetadata('audit', auditConfig, descriptor.value);
+      }
     } else {
       // Class decorator
       Reflect.defineMetadata('audit', auditConfig, target);

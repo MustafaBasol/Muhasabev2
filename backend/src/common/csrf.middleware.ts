@@ -40,7 +40,7 @@ export class CSRFMiddleware implements NestMiddleware {
     // Protected method'larda token doğrula
     if (isProtectedMethod && isCSRFProtectedRoute && this.shouldEnforceCSRF()) {
       const sessionId = this.getSessionId(req);
-      const providedToken = req.headers['x-csrf-token'] as string;
+      const providedToken = this.getHeaderValue(req, 'x-csrf-token');
 
       if (!sessionId || !providedToken) {
         return res.status(403).json({
@@ -112,7 +112,7 @@ export class CSRFMiddleware implements NestMiddleware {
    * Session ID al veya oluştur
    */
   private getOrCreateSessionId(req: Request, res: Response): string {
-    let sessionId = req.cookies?.['csrf-session'];
+    let sessionId = this.getCookie(req, 'csrf-session');
 
     if (!sessionId) {
       sessionId = crypto.randomBytes(32).toString('hex');
@@ -130,8 +130,8 @@ export class CSRFMiddleware implements NestMiddleware {
   /**
    * Mevcut session ID'yi al
    */
-  private getSessionId(req: Request): string {
-    return req.cookies?.['csrf-session'];
+  private getSessionId(req: Request): string | undefined {
+    return this.getCookie(req, 'csrf-session');
   }
 
   /**
@@ -161,7 +161,7 @@ export class CSRFMiddleware implements NestMiddleware {
         Buffer.from(providedToken),
         Buffer.from(expectedToken),
       );
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -176,5 +176,26 @@ export class CSRFMiddleware implements NestMiddleware {
         delete this.tokenStore[sessionId];
       }
     }
+  }
+
+  private getCookie(req: Request, key: string): string | undefined {
+    const cookies: unknown = req.cookies;
+    if (cookies && typeof cookies === 'object') {
+      const record = cookies as Record<string, unknown>;
+      const value = record[key];
+      return typeof value === 'string' ? value : undefined;
+    }
+    return undefined;
+  }
+
+  private getHeaderValue(req: Request, header: string): string | undefined {
+    const candidate = req.headers?.[header.toLowerCase()];
+    if (typeof candidate === 'string') {
+      return candidate;
+    }
+    if (Array.isArray(candidate)) {
+      return candidate[0];
+    }
+    return undefined;
   }
 }

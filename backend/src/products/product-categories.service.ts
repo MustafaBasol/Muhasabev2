@@ -20,7 +20,10 @@ export class ProductCategoriesService {
     private productsRepository: Repository<Product>,
   ) {}
 
-  async findAll(tenantId: string, includeInactive = false): Promise<ProductCategory[]> {
+  async findAll(
+    tenantId: string,
+    includeInactive = false,
+  ): Promise<ProductCategory[]> {
     if (includeInactive) {
       return this.categoriesRepository.find({
         where: { tenantId },
@@ -72,13 +75,13 @@ export class ProductCategoriesService {
       // İnaktif ise re-activate et ve güncelle
       existing.isActive = true;
       if (typeof createCategoryDto.taxRate === 'number') {
-        (existing as any).taxRate = createCategoryDto.taxRate;
+        existing.taxRate = createCategoryDto.taxRate;
       }
       if (typeof createCategoryDto.parentId === 'string') {
-        (existing as any).parentId = createCategoryDto.parentId;
+        existing.parentId = createCategoryDto.parentId;
       }
       if (typeof createCategoryDto.isProtected === 'boolean') {
-        (existing as any).isProtected = createCategoryDto.isProtected;
+        existing.isProtected = createCategoryDto.isProtected;
       }
       return this.categoriesRepository.save(existing);
     }
@@ -89,16 +92,13 @@ export class ProductCategoriesService {
     });
     try {
       return await this.categoriesRepository.save(category);
-    } catch (err: any) {
-      const isUniqueViolation =
-        err?.code === '23505' ||
-        (typeof err?.message === 'string' && err.message.includes('UNIQUE constraint failed'));
-      if (isUniqueViolation) {
+    } catch (error) {
+      if (this.isUniqueConstraint(error)) {
         throw new ConflictException(
           `Category "${createCategoryDto.name}" already exists (including inactive). Please use a different name or reactivate the existing one.`,
         );
       }
-      throw err;
+      throw error;
     }
   }
 
@@ -124,7 +124,11 @@ export class ProductCategoriesService {
     // If name is being updated, check for duplicates among active categories
     if (updateCategoryDto.name && updateCategoryDto.name !== category.name) {
       const dup = await this.categoriesRepository.findOne({
-        where: { name: updateCategoryDto.name.trim(), tenantId, isActive: true },
+        where: {
+          name: updateCategoryDto.name.trim(),
+          tenantId,
+          isActive: true,
+        },
       });
       if (dup) {
         throw new ConflictException(
@@ -134,17 +138,17 @@ export class ProductCategoriesService {
     }
 
     try {
-      await this.categoriesRepository.update({ id, tenantId }, updateCategoryDto);
-    } catch (err: any) {
-      const isUniqueViolation =
-        err?.code === '23505' ||
-        (typeof err?.message === 'string' && err.message.includes('UNIQUE constraint failed'));
-      if (isUniqueViolation) {
+      await this.categoriesRepository.update(
+        { id, tenantId },
+        updateCategoryDto,
+      );
+    } catch (error) {
+      if (this.isUniqueConstraint(error)) {
         throw new ConflictException(
           `Category "${updateCategoryDto.name}" already exists (including inactive).`,
         );
       }
-      throw err;
+      throw error;
     }
     return this.findOne(id, tenantId);
   }
@@ -183,5 +187,40 @@ export class ProductCategoriesService {
       { id, tenantId },
       { isActive: false },
     );
+  }
+
+  private isUniqueConstraint(error: unknown): boolean {
+    const { code, message } = this.parseDbError(error);
+    if (code === '23505') {
+      return true;
+    }
+    if (!message) {
+      return false;
+    }
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('unique constraint') ||
+      normalized.includes('duplicate key') ||
+      normalized.includes('unique constraint failed')
+    );
+  }
+
+  private parseDbError(error: unknown) {
+    const result: { code?: string; message?: string } = {};
+    if (typeof error === 'object' && error !== null) {
+      const record = error as Record<string, unknown>;
+      if (typeof record.code === 'string') {
+        result.code = record.code;
+      } else if (typeof record.code === 'number') {
+        result.code = String(record.code);
+      }
+      if (typeof record.message === 'string') {
+        result.message = record.message;
+      }
+    }
+    if (!result.message && error instanceof Error) {
+      result.message = error.message;
+    }
+    return result;
   }
 }

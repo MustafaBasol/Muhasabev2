@@ -125,9 +125,7 @@ export class TenantPlanLimitService {
     tenant: Pick<Tenant, 'subscriptionPlan' | 'settings'>,
   ): TenantPlanLimits {
     const base = this.getLimits(tenant.subscriptionPlan);
-    const overrides = (tenant.settings as any)?.planOverrides as
-      | TenantPlanOverrides
-      | undefined;
+    const overrides = this.extractTenantPlanOverrides(tenant.settings);
     return this.mergeWithOverrides(base, overrides);
   }
 
@@ -297,5 +295,52 @@ export class TenantPlanLimitService {
           ? 'Aylık gider kaydı limiti yok.'
           : `Plan limitine ulaşıldı: Bu ay en fazla ${limits.monthly.maxExpenses} gider kaydı oluşturabilirsiniz.`;
     }
+  }
+
+  private static extractTenantPlanOverrides(
+    settings: Tenant['settings'] | null | undefined,
+  ): TenantPlanOverrides | undefined {
+    if (!this.isRecord(settings)) {
+      return undefined;
+    }
+
+    const candidate = settings.planOverrides;
+    if (!this.isRecord(candidate)) {
+      return undefined;
+    }
+
+    const overrides: TenantPlanOverrides = {};
+
+    if (typeof candidate.maxUsers === 'number') {
+      overrides.maxUsers = candidate.maxUsers;
+    }
+    if (typeof candidate.maxCustomers === 'number') {
+      overrides.maxCustomers = candidate.maxCustomers;
+    }
+    if (typeof candidate.maxSuppliers === 'number') {
+      overrides.maxSuppliers = candidate.maxSuppliers;
+    }
+    if (typeof candidate.maxBankAccounts === 'number') {
+      overrides.maxBankAccounts = candidate.maxBankAccounts;
+    }
+
+    if (this.isRecord(candidate.monthly)) {
+      overrides.monthly = {};
+      if (typeof candidate.monthly.maxInvoices === 'number') {
+        overrides.monthly.maxInvoices = candidate.monthly.maxInvoices;
+      }
+      if (typeof candidate.monthly.maxExpenses === 'number') {
+        overrides.monthly.maxExpenses = candidate.monthly.maxExpenses;
+      }
+      if (overrides.monthly && Object.keys(overrides.monthly).length === 0) {
+        delete overrides.monthly;
+      }
+    }
+
+    return Object.keys(overrides).length > 0 ? overrides : undefined;
+  }
+
+  private static isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
   }
 }

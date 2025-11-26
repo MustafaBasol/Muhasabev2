@@ -10,7 +10,6 @@ describe('Plan Limits (e2e)', () => {
   let app: INestApplication;
   let token: string;
   let customerId: string;
-  let supplierId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -81,7 +80,6 @@ describe('Plan Limits (e2e)', () => {
         .send({ name: 'First Supplier' })
         .expect(201);
 
-      supplierId = res.body.id;
       expect(res.body.name).toBe('First Supplier');
     });
 

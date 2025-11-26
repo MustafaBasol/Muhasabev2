@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { analyticsManager } from '../utils/analyticsManager';
 import { logger } from '../utils/logger';
+import { parseLocalObject, safeLocalStorage } from '../utils/localStorageSafe';
 
 export interface CookieConsent {
   necessary: boolean;
@@ -48,56 +49,55 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
 
   // Load consent from localStorage on mount
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return () => {};
+    }
     // Hash tab ile doğrudan modal açma (#cookie-preferences)
-    try {
-      if (window.location.hash === '#cookie-preferences') {
-        setShowModal(true);
-      }
-    } catch {}
+    if (window.location.hash === '#cookie-preferences') {
+      setShowModal(true);
+    }
     const hashListener = () => {
       try {
-        const h = window.location.hash;
-        console.debug('[cookie] hashchange ->', h);
-        if (h === '#cookie-preferences') {
-          console.debug('[cookie] setting showModal true via hash');
+        const hashValue = window.location.hash;
+        logger.debug('[cookie] hashchange ->', hashValue);
+        if (hashValue === '#cookie-preferences') {
+          logger.debug('[cookie] setting showModal true via hash');
           setShowModal(true);
-        } else if (h !== '#cookie-preferences') {
-          console.debug('[cookie] non-preferences hash, ensure modal closed');
+        } else {
+          logger.debug('[cookie] hash cleared, closing modal');
           setShowModal(false);
         }
       } catch (e) {
-        console.warn('[cookie] hash listener error', e);
+        logger.warn('[cookie] hash listener error', e);
       }
     };
     window.addEventListener('hashchange', hashListener);
-  // Global event-based open/close (yedek mekanizma)
-  const openEvt = () => { console.debug('[cookie] open-cookie-preferences event'); setShowModal(true); };
-  const closeEvt = () => { console.debug('[cookie] close-cookie-preferences event'); setShowModal(false); };
-  window.addEventListener('open-cookie-preferences', openEvt as EventListener);
-  window.addEventListener('close-cookie-preferences', closeEvt as EventListener);
-    const savedConsent = localStorage.getItem(CONSENT_KEY);
-    
-    if (savedConsent) {
-      try {
-        const parsed: CookieConsent = JSON.parse(savedConsent);
-        
-        // Check if version matches
-        if (parsed.version === CONSENT_VERSION) {
-          setConsent(parsed);
-          setHasConsent(true);
-          setShowBanner(false);
-          
-          // Update analytics manager with loaded consent
-          analyticsManager.updateConsent(parsed);
-          
-          logger.info('✅ Cookie consent loaded from storage:', parsed);
-        } else {
-          // Version mismatch, show banner again
-          logger.warn('⚠️ Cookie consent version mismatch, showing banner');
-          setShowBanner(true);
-        }
-      } catch (error) {
-        console.error('Error parsing cookie consent:', error);
+    // Global event-based open/close (yedek mekanizma)
+    const openEvt: EventListener = () => {
+      logger.debug('[cookie] open-cookie-preferences event');
+      setShowModal(true);
+    };
+    const closeEvt: EventListener = () => {
+      logger.debug('[cookie] close-cookie-preferences event');
+      setShowModal(false);
+    };
+    window.addEventListener('open-cookie-preferences', openEvt);
+    window.addEventListener('close-cookie-preferences', closeEvt);
+    const parsed = parseLocalObject<CookieConsent>(safeLocalStorage.getItem(CONSENT_KEY), 'cookie consent cache');
+
+    if (parsed) {
+      if (parsed.version === CONSENT_VERSION) {
+        setConsent(parsed);
+        setHasConsent(true);
+        setShowBanner(false);
+
+        // Update analytics manager with loaded consent
+        analyticsManager.updateConsent(parsed);
+
+        logger.info('✅ Cookie consent loaded from storage:', parsed);
+      } else {
+        // Version mismatch, show banner again
+        logger.warn('⚠️ Cookie consent version mismatch, showing banner');
         setShowBanner(true);
       }
     } else {
@@ -107,8 +107,8 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
     }
     return () => {
       window.removeEventListener('hashchange', hashListener);
-      window.removeEventListener('open-cookie-preferences', openEvt as EventListener);
-      window.removeEventListener('close-cookie-preferences', closeEvt as EventListener);
+      window.removeEventListener('open-cookie-preferences', openEvt);
+      window.removeEventListener('close-cookie-preferences', closeEvt);
     };
   }, []);
 
@@ -119,21 +119,19 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
       version: CONSENT_VERSION
     };
     
-    localStorage.setItem(CONSENT_KEY, JSON.stringify(consentWithTimestamp));
+    safeLocalStorage.setItem(CONSENT_KEY, JSON.stringify(consentWithTimestamp));
     setConsent(consentWithTimestamp);
     setHasConsent(true);
     setShowBanner(false);
     setShowModal(false);
     // Clear hash if it was used to open modal
-    try {
-      if (typeof window !== 'undefined' && window.location.hash === '#cookie-preferences') {
-        const url = window.location.pathname + window.location.search;
-        window.history.replaceState(null, '', url);
-        console.debug('[cookie] cleared hash after save');
-      }
-    } catch {}
+    if (typeof window !== 'undefined' && window.location.hash === '#cookie-preferences') {
+      const url = window.location.pathname + window.location.search;
+      window.history.replaceState(null, '', url);
+      logger.debug('[cookie] cleared hash after save');
+    }
     
-  logger.info('💾 Cookie consent saved:', consentWithTimestamp);
+    logger.info('💾 Cookie consent saved:', consentWithTimestamp);
     
     // Update analytics manager
     analyticsManager.updateConsent(consentWithTimestamp);
@@ -181,23 +179,23 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
   };
 
   const openModal = () => {
-    try { console.debug('[cookie] openModal called'); } catch {}
+    logger.debug('[cookie] openModal called');
     setShowModal(true);
   };
 
   const closeModal = () => {
-    try { console.debug('[cookie] closeModal called'); } catch {}
+    logger.debug('[cookie] closeModal called');
     setShowModal(false);
     // Clear hash to avoid re-open
-    try {
-      if (typeof window !== 'undefined' && window.location.hash === '#cookie-preferences') {
-        const url = window.location.pathname + window.location.search;
-        window.history.replaceState(null, '', url);
-        console.debug('[cookie] cleared hash on close');
-      }
-    } catch {}
+    if (typeof window !== 'undefined' && window.location.hash === '#cookie-preferences') {
+      const url = window.location.pathname + window.location.search;
+      window.history.replaceState(null, '', url);
+      logger.debug('[cookie] cleared hash on close');
+    }
     // Dispatch a close event for listeners
-    try { window.dispatchEvent(new Event('close-cookie-preferences')); } catch {}
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('close-cookie-preferences'));
+    }
   };
 
   const closeBanner = () => {
@@ -205,12 +203,12 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
   };
 
   const resetConsent = () => {
-    localStorage.removeItem(CONSENT_KEY);
+    safeLocalStorage.removeItem(CONSENT_KEY);
     setConsent(null);
     setHasConsent(false);
     setShowBanner(true);
     setShowModal(false);
-  logger.warn('🗑️ Cookie consent reset');
+    logger.warn('🗑️ Cookie consent reset');
   };
 
   const value: CookieConsentContextType = {
@@ -234,7 +232,6 @@ export const CookieConsentProvider: React.FC<CookieConsentProviderProps> = ({ ch
   );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useCookieConsent = (): CookieConsentContextType => {
   const context = useContext(CookieConsentContext);
   if (!context) {
@@ -244,21 +241,13 @@ export const useCookieConsent = (): CookieConsentContextType => {
 };
 
 // Utility function to check if a specific category is consented
-// eslint-disable-next-line react-refresh/only-export-components
 export const hasConsentFor = (category: keyof Omit<CookieConsent, 'version' | 'timestamp'>): boolean => {
-  const savedConsent = localStorage.getItem(CONSENT_KEY);
-  if (!savedConsent) return false;
-  
-  try {
-    const consent: CookieConsent = JSON.parse(savedConsent);
-    return consent[category] === true;
-  } catch {
-    return false;
-  }
+  const consent = parseLocalObject<CookieConsent>(safeLocalStorage.getItem(CONSENT_KEY), 'cookie consent cache');
+  if (!consent || consent.version !== CONSENT_VERSION) return false;
+  return consent[category] === true;
 };
 
 // Utility function for analytics initialization
-// eslint-disable-next-line react-refresh/only-export-components
 export const initializeAnalytics = () => {
   if (!hasConsentFor('analytics')) {
     logger.info('🚫 Analytics blocked: no consent');

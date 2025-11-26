@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
@@ -23,6 +24,8 @@ import { randomBytes } from 'crypto';
 
 @Injectable()
 export class OrganizationsService {
+  private readonly logger = new Logger(OrganizationsService.name);
+
   constructor(
     @InjectRepository(Organization)
     private organizationRepository: Repository<Organization>,
@@ -34,6 +37,165 @@ export class OrganizationsService {
     private userRepository: Repository<User>,
     private emailService: EmailService,
   ) {}
+
+  private normalizeBaseUrl(value?: string | null): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    const tryParse = (candidate: string) => {
+      try {
+        const url = new URL(candidate);
+        return url.origin;
+      } catch {
+        return undefined;
+      }
+    };
+    return (
+      tryParse(trimmed) ||
+      (trimmed.startsWith('http') ? undefined : tryParse(`https://${trimmed}`))
+    );
+  }
+
+  private detectCodespaceFrontendOrigin(): string | undefined {
+    const name = process.env.CODESPACE_NAME;
+    const domain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
+    if (name && domain) {
+      const port =
+        process.env.CODESPACE_FRONTEND_PORT ||
+        process.env.FRONTEND_PORT ||
+        process.env.VITE_PORT ||
+        '5174';
+      return `https://${name}-${port}.${domain}`;
+    }
+    return undefined;
+  }
+
+  private resolveFrontendBaseUrl(preferredOrigin?: string): string {
+    return (
+      this.normalizeBaseUrl(preferredOrigin) ||
+      this.normalizeBaseUrl(process.env.FRONTEND_PUBLIC_URL) ||
+      this.normalizeBaseUrl(process.env.APP_URL) ||
+      this.normalizeBaseUrl(process.env.FRONTEND_URL) ||
+      this.detectCodespaceFrontendOrigin() ||
+      'http://localhost:5174'
+    );
+  }
+
+  private buildInviteUrl(token: string, preferredOrigin?: string): string {
+    const base = this.resolveFrontendBaseUrl(preferredOrigin);
+    return `${base}/#join?token=${token}`;
+  }
+
+  private buildInviteEmailContent(options: {
+    organizationName: string;
+    role: Role;
+    inviteUrl: string;
+    expiryDate: Date;
+    isReminder?: boolean;
+  }): { subject: string; html: string; text: string } {
+    const { organizationName, role, inviteUrl, expiryDate, isReminder } = options;
+    const expiryLabel = expiryDate.toLocaleString();
+    const subject = isReminder
+      ? `Reminder: Invitation to join ${organizationName}`
+      : `Invitation to join ${organizationName}`;
+    const enIntro = isReminder
+      ? `You still have a pending invitation to join <strong>${organizationName}</strong> as a <strong>${role}</strong>.`
+      : `You have been invited to join <strong>${organizationName}</strong> as a <strong>${role}</strong>.`;
+    const enNote = `<p><strong>Note:</strong> This invitation will expire on ${expiryLabel}.</p>`;
+    const trIntro = isReminder
+      ? `<p><strong>${organizationName}</strong> organizasyonuna <strong>${role}</strong> olarak katılmanız için bekleyen bir davetiniz var.</p>`
+      : `<p><strong>${organizationName}</strong> organizasyonuna <strong>${role}</strong> rolüyle katılmanız için davet edildiniz.</p>`;
+    const trNote = `<p><em>Not:</em> Davetin son geçerlilik tarihi: ${expiryLabel}.</p>`;
+
+    return {
+      subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #059669;">${isReminder ? 'Invitation Reminder' : 'Organization Invitation'}</h2>
+          <p>${enIntro}</p>
+          <div style="background-color: #ecfdf5; border: 1px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0;">Click the link below to accept the invitation:</p>
+            <a href="${inviteUrl}" style="color: #059669; text-decoration: none; font-weight: bold;">${inviteUrl}</a>
+          </div>
+          ${enNote}
+          <hr style="margin: 24px 0; border:none; border-top: 1px solid #e5e7eb;" />
+          <h3 style="color:#374151; margin-top:0;">TR</h3>
+          ${trIntro}
+          <p>Daveti kabul etmek için bağlantıya tıklayın: <a href="${inviteUrl}">${inviteUrl}</a></p>
+          ${trNote}
+        </div>
+      `,
+      text: `
+${isReminder ? 'You still have a pending invitation' : 'You have been invited'} to join ${organizationName} as a ${role}.
+
+Accept invitation: ${inviteUrl}
+
+This invitation will expire on ${expiryLabel}.
+      `,
+    };
+  }
+
+  private queueInviteEmail(options: {
+    invite: Invite;
+    organizationName: string;
+    role: Role;
+    requestOrigin?: string;
+    isReminder?: boolean;
+    expiresAt?: Date;
+  }): void {
+    const { invite, organizationName, role, requestOrigin, isReminder, expiresAt } = options;
+    const expiryDate =
+      expiresAt ??
+      (invite.expiresAt instanceof Date
+        ? invite.expiresAt
+        : new Date(invite.expiresAt));
+    const inviteUrl = this.buildInviteUrl(invite.token, requestOrigin);
+    const { subject, html, text } = this.buildInviteEmailContent({
+      organizationName,
+      role,
+      inviteUrl,
+      expiryDate,
+      isReminder,
+    });
+
+    this.emailService
+      .sendEmail({
+        to: invite.email,
+        subject,
+        html,
+        text,
+        meta: {
+          tenantId: invite.organizationId,
+          type: isReminder ? 'verify-resend' : 'verify',
+        },
+      })
+      .then(() => {
+        this.logger.log(
+          `📧 ${isReminder ? 'Resent' : 'Sent'} invitation email to ${invite.email}`,
+        );
+      })
+      .catch((error: unknown) => {
+        let message: string;
+        if (error instanceof Error) {
+          message = error.message;
+        } else if (typeof error === 'string') {
+          message = error;
+        } else {
+          try {
+            message = JSON.stringify(error);
+          } catch {
+            message = String(error);
+          }
+        }
+        this.logger.error(
+          `❌ Failed to ${isReminder ? 'resend' : 'send'} invitation email to ${invite.email}: ${message}`,
+        );
+      });
+  }
 
   async create(
     createOrganizationDto: CreateOrganizationDto,
@@ -131,6 +293,7 @@ export class OrganizationsService {
     organizationId: string,
     inviteUserDto: InviteUserDto,
     inviterId: string,
+    requestOrigin?: string,
   ): Promise<Invite> {
     // Check if inviter has permission (owner or admin)
     const inviterMember = await this.memberRepository.findOne({
@@ -155,20 +318,30 @@ export class OrganizationsService {
 
     // === Plan limit hesaplaması (tenant aboneliği ile genişlet) ===
     // Mevcut üyeler + bekleyen davetler
-    const currentMemberCount = await this.memberRepository.count({ where: { organizationId } });
-    const pendingInviteCount = await this.inviteRepository.count({ where: { organizationId, acceptedAt: IsNull() } });
+    const currentMemberCount = await this.memberRepository.count({
+      where: { organizationId },
+    });
+    const pendingInviteCount = await this.inviteRepository.count({
+      where: { organizationId, acceptedAt: IsNull() },
+    });
     const totalCount = currentMemberCount + pendingInviteCount;
 
     // Organizasyon düzeyi planı normalize et
-    let normalizedPlan: Plan = (organization.plan === 'PRO' || organization.plan === 'BUSINESS' || organization.plan === 'STARTER')
-      ? organization.plan
-      : Plan.STARTER;
+    let normalizedPlan: Plan =
+      organization.plan === Plan.PRO ||
+      organization.plan === Plan.BUSINESS ||
+      organization.plan === Plan.STARTER
+        ? organization.plan
+        : Plan.STARTER;
 
     // Organizasyon planından gelen temel limit
     let effectiveMax = PlanLimitService.getMaxMembers(normalizedPlan);
 
     // Davet eden kullanıcının tenant abonelik planını al (daha yüksek ise override)
-    const inviterUser = await this.userRepository.findOne({ where: { id: inviterId }, relations: ['tenant'] });
+    const inviterUser = await this.userRepository.findOne({
+      where: { id: inviterId },
+      relations: ['tenant'],
+    });
     if (inviterUser?.tenant) {
       const subPlan = inviterUser.tenant.subscriptionPlan;
       const tenantMaxUsers = inviterUser.tenant.maxUsers; // -1 sınırsız
@@ -182,7 +355,8 @@ export class OrganizationsService {
 
       const mappedOrgPlan = mapTenantPlanToOrgPlan(subPlan);
       // Eğer mapped plan organizasyon planından daha üst ise güncelle
-      const planRank = (p: Plan) => (p === Plan.STARTER ? 1 : p === Plan.PRO ? 2 : 3);
+      const planRank = (p: Plan) =>
+        p === Plan.STARTER ? 1 : p === Plan.PRO ? 2 : 3;
       if (planRank(mappedOrgPlan) > planRank(normalizedPlan)) {
         normalizedPlan = mappedOrgPlan;
         // Organizasyon kaydını geriye dönük güncellemiyoruz (görsel override) fakat limit hesaplamasında kullanıyoruz
@@ -203,7 +377,9 @@ export class OrganizationsService {
         // Teorik olarak buraya düşmez ama korunma amaçlı
         throw new BadRequestException('No member limit for Business plan');
       }
-      throw new BadRequestException(`${normalizedPlan} plan is limited to ${effectiveMax} member${effectiveMax !== 1 ? 's' : ''}. Please upgrade your plan to add more members.`);
+      throw new BadRequestException(
+        `${normalizedPlan} plan is limited to ${effectiveMax} member${effectiveMax !== 1 ? 's' : ''}. Please upgrade your plan to add more members.`,
+      );
     }
 
     // Check if user is already a member
@@ -242,59 +418,13 @@ export class OrganizationsService {
 
     const savedInvite = await this.inviteRepository.save(invite);
 
-    // Send invitation email
-    try {
-      // Use hash-based route so static hosting works without server-side rewrites
-      const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5174';
-      const inviteUrl = `${frontendBase}/#join?token=${savedInvite.token}`;
-
-      await this.emailService.sendEmail({
-        to: inviteUserDto.email,
-        subject: `Invitation to join ${organization.name}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #059669;">Organization Invitation</h2>
-            
-            <p>You have been invited to join <strong>${organization.name}</strong> as a <strong>${inviteUserDto.role}</strong>.</p>
-            
-            <div style="background-color: #ecfdf5; border: 1px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0;">Click the link below to accept the invitation:</p>
-              <a href="${inviteUrl}" style="color: #059669; text-decoration: none; font-weight: bold;">${inviteUrl}</a>
-            </div>
-            
-            <p><strong>Note:</strong> This invitation will expire in 7 days.</p>
-            
-            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-            
-            <p style="font-size: 12px; color: #6b7280;">
-              Comptario Accounting System | Istanbul, Turkey
-            </p>
-            <hr style="margin: 24px 0; border:none; border-top: 1px solid #e5e7eb;" />
-            <h3 style="color:#374151; margin-top:0;">TR</h3>
-            <p><strong>${organization.name}</strong> organizasyonuna <strong>${inviteUserDto.role}</strong> rolüyle katılmanız için davet edildiniz.</p>
-            <p>Daveti kabul etmek için bağlantıya tıklayın: <a href="${inviteUrl}">${inviteUrl}</a></p>
-            <p><em>Not:</em> Davet 7 gün içinde geçerlidir.</p>
-          </div>
-        `,
-        text: `
-You have been invited to join ${organization.name} as a ${inviteUserDto.role}.
-
-Accept invitation: ${inviteUrl}
-
-This invitation will expire in 7 days.
-
-Comptario Accounting System
-        `,
-      });
-
-      console.log(`✅ Invitation email sent to ${inviteUserDto.email}`);
-    } catch (error) {
-      console.error(
-        `❌ Failed to send invitation email to ${inviteUserDto.email}:`,
-        error,
-      );
-      // Don't throw error - invitation is still created even if email fails
-    }
+    // Fire-and-forget email so HTTP response is not blocked by SMTP/SES latency
+    this.queueInviteEmail({
+      invite: savedInvite,
+      organizationName: organization.name,
+      role: inviteUserDto.role,
+      requestOrigin,
+    });
 
     return savedInvite;
   }
@@ -344,15 +474,23 @@ Comptario Accounting System
     });
 
     // Base plan from organization
-    let normalizedPlan: Plan = (invite.organization.plan === 'PRO' || invite.organization.plan === 'BUSINESS' || invite.organization.plan === 'STARTER')
-      ? invite.organization.plan
-      : Plan.STARTER;
+    let normalizedPlan: Plan =
+      invite.organization.plan === Plan.PRO ||
+      invite.organization.plan === Plan.BUSINESS ||
+      invite.organization.plan === Plan.STARTER
+        ? invite.organization.plan
+        : Plan.STARTER;
     let effectiveMax = PlanLimitService.getMaxMembers(normalizedPlan);
 
     // Try to override using the tenant of an organization owner (represents subscription)
-    const ownerMember = await this.memberRepository.findOne({ where: { organizationId: invite.organizationId, role: Role.OWNER } });
+    const ownerMember = await this.memberRepository.findOne({
+      where: { organizationId: invite.organizationId, role: Role.OWNER },
+    });
     if (ownerMember) {
-      const ownerUser = await this.userRepository.findOne({ where: { id: ownerMember.userId }, relations: ['tenant'] });
+      const ownerUser = await this.userRepository.findOne({
+        where: { id: ownerMember.userId },
+        relations: ['tenant'],
+      });
       if (ownerUser?.tenant) {
         const subPlan = ownerUser.tenant.subscriptionPlan;
         const tenantMaxUsers = ownerUser.tenant.maxUsers;
@@ -364,7 +502,8 @@ Comptario Accounting System
         };
 
         const mapped = mapTenantPlanToOrgPlan(subPlan);
-        const rank = (p: Plan) => (p === Plan.STARTER ? 1 : p === Plan.PRO ? 2 : 3);
+        const rank = (p: Plan) =>
+          p === Plan.STARTER ? 1 : p === Plan.PRO ? 2 : 3;
         if (rank(mapped) > rank(normalizedPlan)) {
           normalizedPlan = mapped;
         }
@@ -376,12 +515,15 @@ Comptario Accounting System
       }
     }
 
-    const canAdd = effectiveMax === -1 ? true : currentMemberCount < effectiveMax;
+    const canAdd =
+      effectiveMax === -1 ? true : currentMemberCount < effectiveMax;
     if (!canAdd) {
       if (effectiveMax === -1) {
         throw new BadRequestException('No member limit for Business plan');
       }
-      throw new BadRequestException(`${normalizedPlan} plan is limited to ${effectiveMax} member${effectiveMax !== 1 ? 's' : ''}. Please upgrade your plan to add more members.`);
+      throw new BadRequestException(
+        `${normalizedPlan} plan is limited to ${effectiveMax} member${effectiveMax !== 1 ? 's' : ''}. Please upgrade your plan to add more members.`,
+      );
     }
 
     // === Tenant eşitleme (organizasyon sahibi tenant'ı) ===
@@ -389,17 +531,27 @@ Comptario Accounting System
     // İş gereksinimine göre: organizasyona katıldığında aynı muhasebe verilerini görmesi için
     // sahibin (OWNER) tenant'ına taşınır.
     try {
-      const ownerMember = await this.memberRepository.findOne({ where: { organizationId: invite.organizationId, role: Role.OWNER } });
+      const ownerMember = await this.memberRepository.findOne({
+        where: { organizationId: invite.organizationId, role: Role.OWNER },
+      });
       if (ownerMember) {
-        const ownerUser = await this.userRepository.findOne({ where: { id: ownerMember.userId } });
-        if (ownerUser && ownerUser.tenantId && user.tenantId !== ownerUser.tenantId) {
+        const ownerUser = await this.userRepository.findOne({
+          where: { id: ownerMember.userId },
+        });
+        if (
+          ownerUser &&
+          ownerUser.tenantId &&
+          user.tenantId !== ownerUser.tenantId
+        ) {
           // Kullanıcının tenantId'sini OWNER'ın tenantId'sine güncelle
-          await this.userRepository.update(user.id, { tenantId: ownerUser.tenantId });
+          await this.userRepository.update(user.id, {
+            tenantId: ownerUser.tenantId,
+          });
           // Güncel user nesnesini yeniden çek (ilişki verisi gerekirse)
           user = await this.userRepository.findOne({ where: { id: user.id } });
         }
       }
-    } catch (e) {
+    } catch {
       // Sessiz: tenant eşitleme başarısız olsa bile davet kabul akışı devam etsin
     }
 
@@ -691,13 +843,19 @@ Comptario Accounting System
     });
 
     // Organizasyon planını normalize et
-    let normalizedPlan: Plan = (organization.plan === 'PRO' || organization.plan === 'BUSINESS' || organization.plan === 'STARTER')
-      ? organization.plan
-      : Plan.STARTER;
+    let normalizedPlan: Plan =
+      organization.plan === Plan.PRO ||
+      organization.plan === Plan.BUSINESS ||
+      organization.plan === Plan.STARTER
+        ? organization.plan
+        : Plan.STARTER;
     let effectiveMax = PlanLimitService.getMaxMembers(normalizedPlan);
 
     // Kullanıcının tenant aboneliğine göre override
-    const userWithTenant = await this.userRepository.findOne({ where: { id: userId }, relations: ['tenant'] });
+    const userWithTenant = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['tenant'],
+    });
     if (userWithTenant?.tenant) {
       const subPlan = userWithTenant.tenant.subscriptionPlan;
       const tenantMaxUsers = userWithTenant.tenant.maxUsers;
@@ -707,7 +865,8 @@ Comptario Accounting System
         return Plan.STARTER;
       };
       const mappedOrgPlan = mapTenantPlanToOrgPlan(subPlan);
-      const rank = (p: Plan) => (p === Plan.STARTER ? 1 : p === Plan.PRO ? 2 : 3);
+      const rank = (p: Plan) =>
+        p === Plan.STARTER ? 1 : p === Plan.PRO ? 2 : 3;
       if (rank(mappedOrgPlan) > rank(normalizedPlan)) {
         normalizedPlan = mappedOrgPlan;
       }
@@ -718,9 +877,15 @@ Comptario Accounting System
       }
     }
 
-    const canAddMore = effectiveMax === -1 ? true : currentMembers < effectiveMax;
+    const canAddMore =
+      effectiveMax === -1 ? true : currentMembers < effectiveMax;
 
-    return { currentMembers, maxMembers: effectiveMax, canAddMore, plan: normalizedPlan };
+    return {
+      currentMembers,
+      maxMembers: effectiveMax,
+      canAddMore,
+      plan: normalizedPlan,
+    };
   }
 
   async cancelInvite(
@@ -757,6 +922,7 @@ Comptario Accounting System
     organizationId: string,
     inviteId: string,
     userId: string,
+    requestOrigin?: string,
   ): Promise<Invite> {
     // Check if user has permission (OWNER or ADMIN)
     const userMember = await this.memberRepository.findOne({
@@ -789,47 +955,15 @@ Comptario Accounting System
     // Save updated invite
     const updated = await this.inviteRepository.save(invite);
 
-    // Try sending the invitation email again
-    try {
-      const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5174';
-      const inviteUrl = `${frontendBase}/#join?token=${invite.token}`;
-
-      await this.emailService.sendEmail({
-        to: invite.email,
-        subject: `Reminder: Invitation to join ${invite.organization.name}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #059669;">Invitation Reminder</h2>
-            <p>You still have a pending invitation to join <strong>${invite.organization.name}</strong> as a <strong>${invite.role}</strong>.</p>
-            <div style="background-color: #ecfdf5; border: 1px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0;">Use this link to accept the invitation:</p>
-              <a href="${inviteUrl}" style="color: #059669; text-decoration: none; font-weight: bold;">${inviteUrl}</a>
-            </div>
-            <p><strong>Note:</strong> This invitation has been extended and will expire on ${newExpiryDate.toLocaleString()}.</p>
-            <hr style="margin: 24px 0; border:none; border-top: 1px solid #e5e7eb;" />
-            <h3 style="color:#374151; margin-top:0;">TR</h3>
-            <p><strong>${invite.organization.name}</strong> organizasyonuna <strong>${invite.role}</strong> olarak katılmanız için bekleyen bir davetiniz var.</p>
-            <p>Daveti kabul etmek için bu bağlantıyı kullanın: <a href="${inviteUrl}">${inviteUrl}</a></p>
-            <p><em>Not:</em> Davetin süresi uzatıldı. Yeni bitiş: ${newExpiryDate.toLocaleString()}.</p>
-          </div>
-        `,
-        text: `
-You still have a pending invitation to join ${invite.organization.name} as a ${invite.role}.
-
-Accept invitation: ${inviteUrl}
-
-This invitation has been extended and will expire on ${newExpiryDate.toLocaleString()}.
-        `,
-      });
-
-      console.log(`📧 Resent invitation email to ${invite.email}`);
-    } catch (error) {
-      console.error(
-        `❌ Failed to resend invitation email to ${invite.email}:`,
-        error,
-      );
-      // Do not fail the request if email fails
-    }
+    // Send reminder asynchronously so slow email providers do not block the API
+    this.queueInviteEmail({
+      invite: updated,
+      organizationName: invite.organization.name,
+      role: invite.role,
+      requestOrigin,
+      isReminder: true,
+      expiresAt: newExpiryDate,
+    });
 
     return updated;
   }

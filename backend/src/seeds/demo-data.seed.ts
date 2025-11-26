@@ -3,6 +3,99 @@ import { AppModule } from '../app.module';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
+type IdRow = { id: string };
+type ProductRow = { id: string; name: string; price: number };
+type InvoiceItemSeed = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
+const isRowRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const mapRows = <T>(
+  rows: unknown,
+  mapper: (row: Record<string, unknown>) => T | null,
+): T[] => {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  const result: T[] = [];
+  for (const row of rows) {
+    if (!isRowRecord(row)) {
+      continue;
+    }
+    const mapped = mapper(row);
+    if (mapped !== null) {
+      result.push(mapped);
+    }
+  }
+  return result;
+};
+
+const firstRowValue = <T>(
+  rows: unknown,
+  mapper: (row: Record<string, unknown>) => T | null,
+): T | null => {
+  if (!Array.isArray(rows)) {
+    return null;
+  }
+  for (const row of rows) {
+    if (!isRowRecord(row)) {
+      continue;
+    }
+    const mapped = mapper(row);
+    if (mapped !== null) {
+      return mapped;
+    }
+  }
+  return null;
+};
+
+const requireId = (rows: unknown, context: string): string => {
+  const id = firstRowValue<string>(rows, (row) => {
+    const value = row.id;
+    return typeof value === 'string' ? value : null;
+  });
+  if (!id) {
+    throw new Error(`Seed failed: missing ${context} id in query result`);
+  }
+  return id;
+};
+
+const toIdRows = (rows: unknown): IdRow[] =>
+  mapRows(rows, (row) => {
+    const value = row.id;
+    return typeof value === 'string' ? { id: value } : null;
+  });
+
+const toProductRows = (rows: unknown): ProductRow[] =>
+  mapRows(rows, (row) => {
+    const { id, name, price } = row;
+    if (typeof id !== 'string' || typeof name !== 'string') {
+      return null;
+    }
+    const numericPrice = Number(price);
+    if (!Number.isFinite(numericPrice)) {
+      return null;
+    }
+    return { id, name, price: numericPrice };
+  });
+
+const logUnknownError = (prefix: string, error: unknown): void => {
+  if (error instanceof Error) {
+    console.error(prefix, error.message);
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    return;
+  }
+  console.error(prefix, String(error));
+};
+
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const dataSource = app.get(DataSource);
@@ -13,7 +106,7 @@ async function bootstrap() {
     // 1. Demo Tenant'lar oluştur
     console.log("📦 Tenant'lar oluşturuluyor...");
 
-    const tenant1 = await dataSource.query(
+    const tenant1Rows: unknown = await dataSource.query(
       `
       INSERT INTO tenants (name, slug, "companyName", "taxNumber", email, phone, address, "subscriptionPlan", status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -33,7 +126,7 @@ async function bootstrap() {
       ],
     );
 
-    const tenant2 = await dataSource.query(
+    const tenant2Rows: unknown = await dataSource.query(
       `
       INSERT INTO tenants (name, slug, "companyName", "taxNumber", email, phone, address, "subscriptionPlan", status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -53,7 +146,7 @@ async function bootstrap() {
       ],
     );
 
-    const tenant3 = await dataSource.query(
+    const tenant3Rows: unknown = await dataSource.query(
       `
       INSERT INTO tenants (name, slug, "companyName", "taxNumber", email, phone, address, "subscriptionPlan", status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -73,9 +166,9 @@ async function bootstrap() {
       ],
     );
 
-    const tenant1Id = tenant1[0].id;
-    const tenant2Id = tenant2[0].id;
-    const tenant3Id = tenant3[0].id;
+    const tenant1Id = requireId(tenant1Rows, 'tenant 1');
+    const tenant2Id = requireId(tenant2Rows, 'tenant 2');
+    const tenant3Id = requireId(tenant3Rows, 'tenant 3');
 
     console.log("✅ Tenant'lar oluşturuldu");
 
@@ -337,33 +430,40 @@ async function bootstrap() {
     // 7. Demo Faturalar
     console.log('📄 Faturalar oluşturuluyor...');
 
-    const customers = await dataSource.query(
+    const customersRaw: unknown = await dataSource.query(
       `SELECT id FROM customers WHERE "tenantId" = $1 LIMIT 1`,
       [tenant1Id],
     );
-    const products = await dataSource.query(
+    const productsRaw: unknown = await dataSource.query(
       `SELECT id, name, price FROM products WHERE "tenantId" = $1 LIMIT 2`,
       [tenant1Id],
     );
 
-    if (customers.length > 0 && products.length > 0) {
-      const invoiceItems1 = [
+    const customerRows = toIdRows(customersRaw);
+    const productRows = toProductRows(productsRaw);
+
+    if (customerRows.length > 0 && productRows.length > 0) {
+      const targetCustomerId = customerRows[0].id;
+      const primaryProduct = productRows[0];
+      const secondaryProduct = productRows[1] ?? primaryProduct;
+
+      const invoiceItems1: InvoiceItemSeed[] = [
         {
-          productId: products[0].id,
-          productName: products[0].name,
+          productId: primaryProduct.id,
+          productName: primaryProduct.name,
           quantity: 2,
-          unitPrice: products[0].price,
-          total: products[0].price * 2,
+          unitPrice: primaryProduct.price,
+          total: primaryProduct.price * 2,
         },
       ];
 
-      const invoiceItems2 = [
+      const invoiceItems2: InvoiceItemSeed[] = [
         {
-          productId: products[1]?.id || products[0].id,
-          productName: products[1]?.name || products[0].name,
+          productId: secondaryProduct.id,
+          productName: secondaryProduct.name,
           quantity: 5,
-          unitPrice: products[1]?.price || products[0].price,
-          total: (products[1]?.price || products[0].price) * 5,
+          unitPrice: secondaryProduct.price,
+          total: secondaryProduct.price * 5,
         },
       ];
 
@@ -378,7 +478,7 @@ async function bootstrap() {
         [
           'INV-2025-001',
           tenant1Id,
-          customers[0].id,
+          targetCustomerId,
           '2025-10-01',
           '2025-10-31',
           10000,
@@ -390,7 +490,7 @@ async function bootstrap() {
           JSON.stringify(invoiceItems1),
           'INV-2025-002',
           tenant1Id,
-          customers[0].id,
+          targetCustomerId,
           '2025-10-15',
           '2025-11-15',
           5000,
@@ -409,11 +509,13 @@ async function bootstrap() {
     // 8. Demo Giderler
     console.log('💰 Giderler oluşturuluyor...');
 
-    const suppliers = await dataSource.query(
+    const suppliersRaw: unknown = await dataSource.query(
       `SELECT id FROM suppliers WHERE "tenantId" = $1 LIMIT 1`,
       [tenant1Id],
     );
-    if (suppliers.length > 0) {
+    const supplierRows = toIdRows(suppliersRaw);
+    if (supplierRows.length > 0) {
+      const supplierId = supplierRows[0].id;
       await dataSource.query(
         `
         INSERT INTO expenses ("expenseNumber", "tenantId", "supplierId", description, "expenseDate", amount, category, status, notes)
@@ -425,7 +527,7 @@ async function bootstrap() {
         [
           'EXP-2025-001',
           tenant1Id,
-          suppliers[0].id,
+          supplierId,
           'Ofis Malzemeleri',
           '2025-10-05',
           1500,
@@ -434,7 +536,7 @@ async function bootstrap() {
           'Kırtasiye alımı',
           'EXP-2025-002',
           tenant1Id,
-          suppliers[0].id,
+          supplierId,
           'Elektrik Faturası',
           '2025-10-10',
           800,
@@ -454,11 +556,14 @@ async function bootstrap() {
     console.log('   Kullanıcı 2: user2@test.com / Test123456');
     console.log('   Kullanıcı 3: user3@test.com / Test123456');
     console.log('   Super Admin: superadmin@test.com / Test123456');
-  } catch (error) {
-    console.error('❌ Hata:', error);
+  } catch (error: unknown) {
+    logUnknownError('❌ Hata:', error);
   } finally {
     await app.close();
   }
 }
 
-bootstrap();
+bootstrap().catch((error: unknown) => {
+  logUnknownError('❌ Demo seed bootstrap error:', error);
+  process.exitCode = 1;
+});

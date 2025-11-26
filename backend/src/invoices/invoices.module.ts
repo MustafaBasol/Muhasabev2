@@ -9,7 +9,9 @@ import { Product } from '../products/entities/product.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Invoice, Tenant, Sale, Product, ProductCategory])],
+  imports: [
+    TypeOrmModule.forFeature([Invoice, Tenant, Sale, Product, ProductCategory]),
+  ],
   controllers: [InvoicesController],
   providers: [InvoicesService],
   exports: [InvoicesService],

@@ -1,4 +1,12 @@
-import { IsEmail, IsOptional, IsString, Length, IsInt, Min, Max } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Length,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { NoSqlInjection } from '../../common/validators/security.validator';
 
@@ -21,7 +29,8 @@ export class LoginDto {
   password: string;
 
   @ApiProperty({
-    description: 'Two-factor token (6-digit TOTP or 8-char backup code). Optional; required if 2FA is enabled.',
+    description:
+      'Two-factor token (6-digit TOTP or 8-char backup code). Optional; required if 2FA is enabled.',
     required: false,
     example: '123456',
   })
@@ -30,7 +39,8 @@ export class LoginDto {
   twoFactorToken?: string;
 
   @ApiProperty({
-    description: 'IANA time zone identifier reported by client (e.g., Europe/Istanbul). Optional.',
+    description:
+      'IANA time zone identifier reported by client (e.g., Europe/Istanbul). Optional.',
     required: false,
     example: 'Europe/Istanbul',
   })
@@ -39,7 +49,8 @@ export class LoginDto {
   clientTimeZone?: string;
 
   @ApiProperty({
-    description: 'Client UTC offset minutes relative to UTC (e.g., +180 for GMT+3). Optional.',
+    description:
+      'Client UTC offset minutes relative to UTC (e.g., +180 for GMT+3). Optional.',
     required: false,
     example: 180,
   })
@@ -59,7 +70,8 @@ export class LoginDto {
   clientLocale?: string;
 
   @ApiProperty({
-    description: 'Cloudflare Turnstile token. Required after captcha threshold reached for this email+IP.',
+    description:
+      'Cloudflare Turnstile token. Required after captcha threshold reached for this email+IP.',
     required: false,
   })
   @IsOptional()

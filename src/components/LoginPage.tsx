@@ -5,16 +5,19 @@ import { useTranslation } from 'react-i18next';
 import LegalHeader from './LegalHeader';
 import TurnstileCaptcha from './TurnstileCaptcha';
 import { authService } from '../api/auth';
+import { safeLocalStorage, safeSessionStorage } from '../utils/localStorageSafe';
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
   const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState(() => {
-    let prefill = '';
-    try {
-      prefill = sessionStorage.getItem('prefill_email') || localStorage.getItem('prefill_email') || '';
-      if (prefill) { try { sessionStorage.removeItem('prefill_email'); } catch {} try { localStorage.removeItem('prefill_email'); } catch {} }
-    } catch {}
+    const prefill = safeSessionStorage.getItem('prefill_email')
+      || safeLocalStorage.getItem('prefill_email')
+      || '';
+    if (prefill) {
+      safeSessionStorage.removeItem('prefill_email');
+      safeLocalStorage.removeItem('prefill_email');
+    }
     return { email: prefill, password: '' };
   });
   const [showPassword, setShowPassword] = useState(false);

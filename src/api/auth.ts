@@ -1,5 +1,25 @@
 import apiClient from './client';
 import { logger } from '../utils/logger';
+import { safeLocalStorage, clearLegacySessionCaches } from '../utils/localStorageSafe';
+
+type ApiErrorLike = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+    status?: number;
+  };
+  message?: string;
+};
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const apiError = error as ApiErrorLike;
+    return apiError.response?.data?.message || apiError.message || fallback;
+  }
+  return fallback;
+};
 
 export interface RegisterData {
   email: string;
@@ -55,9 +75,8 @@ export const authService = {
     try {
       const response = await apiClient.post<AuthResponse>('/auth/register', data);
       return response.data;
-    } catch (error: any) {
-      const message = error?.response?.data?.message || 'Kayıt sırasında hata oluştu';
-      throw new Error(message);
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Kayıt sırasında hata oluştu'));
     }
   },
 
@@ -73,10 +92,12 @@ export const authService = {
         const loc = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : undefined;
         clientHints = {
           clientTimeZone: tz || undefined,
-          clientUtcOffsetMinutes: isNaN(off) ? undefined : off,
+          clientUtcOffsetMinutes: Number.isNaN(off) ? undefined : off,
           clientLocale: loc,
         };
-      } catch {}
+      } catch (hintError) {
+        logger.debug('Client hint detection failed', hintError);
+      }
       const body = { ...data, ...clientHints };
       
       const response = await fetch('/api/auth/login', {
@@ -104,7 +125,7 @@ export const authService = {
       logger.debug('🔍 Auth service response received');
       return responseData as AuthResponse;
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('🔍 Auth service error:', error);
       throw error;
     }
@@ -121,8 +142,8 @@ export const authService = {
     try {
       const response = await apiClient.post<RefreshResponse>('/auth/refresh-token', {});
       return response.data;
-    } catch (err) {
-      // Fallback to original path
+    } catch (error) {
+      logger.debug('refresh-token endpoint unavailable, falling back', error);
       const response = await apiClient.post<RefreshResponse>('/auth/refresh', {});
       return response.data;
     }
@@ -149,13 +170,13 @@ export const authService = {
     try {
       const response = await apiClient.post('/auth/forgot', { email });
       return response.data;
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (error: unknown) {
+      const status = (error as ApiErrorLike).response?.status;
       if (status === 404) {
         const legacy = await apiClient.post('/auth/forgot-password', { email });
         return legacy.data;
       }
-      throw err;
+      throw error;
     }
   },
 
@@ -176,21 +197,20 @@ export const authService = {
   },
 
   logout() {
-    // Auth verileri
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('tenant');
-    localStorage.removeItem('tenantId');
-    
-    // Cache'leri temizle (güvenlik için)
-  localStorage.removeItem('bankAccounts');
-    localStorage.removeItem('customers_cache');
-    localStorage.removeItem('suppliers_cache');
-    localStorage.removeItem('products_cache');
-    localStorage.removeItem('invoices_cache');
-    localStorage.removeItem('expenses_cache');
-    localStorage.removeItem('notifications'); // Bildirimler de kullanıcıya özel
-    
+    clearLegacySessionCaches();
+    const keysToClear = [
+      'bankAccounts',
+      'customers_cache',
+      'suppliers_cache',
+      'products_cache',
+      'invoices_cache',
+      'expenses_cache',
+      'notifications',
+    ];
+
+    keysToClear.forEach(key => safeLocalStorage.removeItem(key));
+
+    logger.info('🔐 Auth/logout: Cleared cached session keys');
     // NOT: localStorage.clear() KULLANMA - diğer browser ayarlarını siler!
   },
 };

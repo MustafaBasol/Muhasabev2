@@ -1,12 +1,10 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any, no-console */
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, Plus, Calendar, DollarSign, User, Package, Search, Eye, Edit, Trash2, Download, Check, X, FileText, CheckCircle } from 'lucide-react';
+import { TrendingUp, Plus, Calendar, DollarSign, User, Package, Search, Eye, Edit, Trash2, Download, Check, X, FileText, CheckCircle, Loader2 } from 'lucide-react';
 import SaleModal from './SaleModal';
-import type { Product } from '../types';
 import SaleViewModal from './SaleViewModal';
 import InvoiceViewModal from './InvoiceViewModal';
-import type { Sale } from '../types';
+import type { Customer, Invoice, Product, Sale } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderSales, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
@@ -15,10 +13,12 @@ import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 // preset etiketleri i18n'den alınır
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import { logger } from '../utils/logger';
 
 
 
-const toNumber = (v: any): number => {
+const toNumber = (v: unknown): number => {
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
   const s = String(v).trim();
@@ -38,29 +38,112 @@ const toNumber = (v: any): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  taxNumber: string;
-  company: string;
+const escapeCsvValue = (value: unknown): string => {
+  if (value == null) return '';
+  const normalized = String(value);
+  if (/[",\n]/.test(normalized)) {
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+  return normalized;
+};
+
+const resolveSaleTotal = (sale: Sale): number => {
+  if (Array.isArray(sale.items) && sale.items.length > 0) {
+    return sale.items.reduce((sum, item) => sum + toNumber(item.unitPrice) * toNumber(item.quantity), 0);
+  }
+  const quantity = toNumber(sale.quantity ?? 0);
+  const unitPrice = toNumber(sale.unitPrice ?? 0);
+  if (quantity > 0 && unitPrice > 0) {
+    return quantity * unitPrice;
+  }
+  return toNumber(sale.amount ?? sale.total ?? 0);
+};
+
+type SaleMetadata = Partial<{
+  createdByName: string;
   createdAt: string;
+  updatedByName: string;
+  updatedAt: string;
+}>;
+
+type SaleWithMetadata = Sale & SaleMetadata;
+
+type SaleInput = Partial<Sale> & {
+  createInvoice?: boolean;
+  saleDate?: string;
+  taxRate?: number;
+};
+
+type InvoiceLineItemInput = {
+  id?: string | number;
+  productId?: string | number;
+  productName?: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  taxRate?: number;
+};
+
+interface InvoiceCreationPayload {
+  saleId?: string | number;
+  customerId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  type?: 'product' | 'service';
+  issueDate?: string;
+  dueDate?: string;
+  status?: string;
+  items?: InvoiceLineItemInput[];
+  lineItems?: InvoiceLineItemInput[];
+  subtotal?: number;
+  taxAmount?: number;
+  total?: number;
+  notes?: string;
+  invoiceNumber?: string;
+  id?: string | number;
 }
+
+type InvoiceWithRelations = Invoice & {
+  customer?: Customer;
+  saleId?: string | number;
+};
 
 interface SimpleSalesPageProps {
   customers?: Customer[];
-  sales?: Sale[];
-  invoices?: any[];
-  onSalesUpdate?: (sales: any[]) => void;
-  onUpsertSale?: (sale: any) => void; // Tek satış için
-  onCreateInvoice?: (invoiceData: any) => Promise<any>; // Promise döndürüyor
-  onEditInvoice?: (invoice: any) => void;
-  onDownloadSale?: (sale: Sale) => void;
+  sales?: SaleWithMetadata[];
+  invoices?: InvoiceWithRelations[];
+  onSalesUpdate?: (sales: SaleWithMetadata[]) => void;
+  onUpsertSale?: (sale: SaleInput) => void; // Tek satış için
+  onCreateInvoice?: (invoiceData: InvoiceCreationPayload) => Promise<InvoiceWithRelations | void>;
+  onEditInvoice?: (invoice: InvoiceWithRelations) => void;
+  onDownloadSale?: (sale: SaleWithMetadata) => void;
   products?: Product[];
   onDeleteSale?: (id: string | number) => Promise<void> | void; // Opsiyonel: üst komponent kalıcı silsin
 }
+
+type SalesSortField = 'saleNumber' | 'customer' | 'product' | 'amount' | 'status' | 'date';
+
+type SimpleSalesViewState = {
+  searchTerm: string;
+  statusFilter: string;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: SalesSortField;
+  sortDir?: SortDir;
+  pageSize?: number;
+};
+
+const SALES_PAGE_SIZES = [20, 50, 100] as const;
+const isValidSalesPageSize = (value: number): value is (typeof SALES_PAGE_SIZES)[number] =>
+  SALES_PAGE_SIZES.includes(value as (typeof SALES_PAGE_SIZES)[number]);
+
+const getSavedSalesPageSize = (): number => {
+  const saved = safeLocalStorage.getItem('sales_pageSize');
+  const parsed = saved ? Number(saved) : SALES_PAGE_SIZES[0];
+  return isValidSalesPageSize(parsed) ? parsed : SALES_PAGE_SIZES[0];
+};
 
 export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale, onDeleteSale }: SimpleSalesPageProps) {
   const { t, i18n } = useTranslation('common');
@@ -71,29 +154,26 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showInvoiceConfirmModal, setShowInvoiceConfirmModal] = useState(false);
   const [showInvoiceViewModal, setShowInvoiceViewModal] = useState(false);
-  const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<any>(null);
-  const [viewingInvoice, setViewingInvoice] = useState<any>(null);
-  const [pendingSale, setPendingSale] = useState<any>(null);
-  const [viewingSale, setViewingSale] = useState<any>(null);
-  const [editingSale, setEditingSale] = useState<any>(null);
+  const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<SaleWithMetadata | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<InvoiceWithRelations | null>(null);
+  const [pendingSale, setPendingSale] = useState<SaleInput | null>(null);
+  const [viewingSale, setViewingSale] = useState<SaleWithMetadata | null>(null);
+  const [editingSale, setEditingSale] = useState<SaleWithMetadata | null>(null);
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [editingField, setEditingField] = useState<{ saleId: string; field: string } | null>(null);
+  const [editingField, setEditingField] = useState<{ saleId: string; field: 'amount' | 'status' } | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'saleNumber' | 'customer' | 'product' | 'amount' | 'status' | 'date'>('date');
+  const [sortBy, setSortBy] = useState<SalesSortField>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('sales_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [pageSize, setPageSize] = useState<number>(() => getSavedSalesPageSize());
 
   // Default kaydedilmiş görünüm uygula
-  const { getDefault } = useSavedListViews<{ searchTerm: string; statusFilter: string; startDate?: string; endDate?: string; sortBy?: typeof sortBy; sortDir?: typeof sortDir; pageSize?: number }>({ listType: 'sales' });
+  const { getDefault } = useSavedListViews<SimpleSalesViewState>({ listType: 'sales' });
   useEffect(() => {
     const def = getDefault();
     if (def && def.state) {
@@ -102,16 +182,22 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         setStatusFilter(def.state.statusFilter ?? 'all');
         setStartDate(def.state.startDate ?? '');
         setEndDate(def.state.endDate ?? '');
-        if (def.state.sortBy) setSortBy(def.state.sortBy as any);
-        if (def.state.sortDir) setSortDir(def.state.sortDir as any);
-        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
-      } catch {}
+        if (def.state.sortBy) setSortBy(def.state.sortBy);
+        if (def.state.sortDir) setSortDir(def.state.sortDir);
+        if (def.state.pageSize && isValidSalesPageSize(def.state.pageSize)) {
+          handlePageSizeChange(def.state.pageSize);
+        }
+      } catch (error) {
+        logger.warn('Failed to hydrate simple sales saved view', error);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleAddSale = (newSale: any) => {
-    console.log('➕ SimpleSalesPage: Yeni satış ekleniyor');
+  const handleAddSale = (newSale: SaleInput) => {
+    logger.info('simpleSales.addSale.request', {
+      viaUpsert: Boolean(onUpsertSale),
+      createInvoice: Boolean(newSale.createInvoice),
+    });
     // Eğer onUpsertSale varsa kullan (numara oluşturma için)
     if (onUpsertSale) {
       onUpsertSale(newSale);
@@ -127,22 +213,36 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const handleConfirmSale = (createInvoice: boolean) => {
     if (!pendingSale) return;
 
-    // Create the sale record
-    const saleToAdd = {
-      id: pendingSale.id,
+    logger.info('simpleSales.confirmation.accepted', {
+      pendingSaleId: pendingSale.id,
+      createInvoice,
+    });
+
+    const fallbackId = pendingSale.id ? String(pendingSale.id) : `temp-${Date.now()}`;
+    const saleDate = pendingSale.date ?? pendingSale.saleDate ?? new Date().toISOString().split('T')[0];
+    const quantity = toNumber(pendingSale.quantity ?? 1) || 1;
+    const rawUnitPrice = toNumber(pendingSale.unitPrice ?? 0);
+    const rawAmount = toNumber(pendingSale.total ?? pendingSale.amount ?? rawUnitPrice * quantity);
+    const normalizedUnitPrice = quantity > 0 ? rawAmount / quantity : rawAmount;
+
+    const saleToAdd: SaleWithMetadata = {
+      id: fallbackId,
       saleNumber: pendingSale.saleNumber,
-      customerName: pendingSale.customerName,
+      customerName: pendingSale.customerName ?? '—',
       customerEmail: pendingSale.customerEmail,
-      productName: pendingSale.productName,
-      quantity: pendingSale.quantity,
-      unitPrice: pendingSale.unitPrice,
-      amount: pendingSale.total,
-      date: pendingSale.saleDate,
-      status: pendingSale.status,
-      paymentMethod: pendingSale.paymentMethod
+      productName: pendingSale.productName ?? '—',
+      quantity,
+      unitPrice: normalizedUnitPrice,
+      amount: rawAmount,
+      total: rawAmount,
+      date: saleDate,
+      status: pendingSale.status ?? 'completed',
+      paymentMethod: pendingSale.paymentMethod,
+      items: pendingSale.items,
+      notes: pendingSale.notes,
     };
     
-    const updatedSales = [saleToAdd, ...sales]; // Add to beginning for reverse order
+    const updatedSales = [saleToAdd, ...sales];
     
     if (onSalesUpdate) {
       onSalesUpdate(updatedSales);
@@ -152,10 +252,10 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     if (createInvoice && onCreateInvoice) {
       // Varsayılan vergi oranı (ürün üzerinde yoksa)
       const defaultTaxRate = 18;
-      const saleTaxRate = (pendingSale as any)?.taxRate ?? defaultTaxRate;
-      const qty = pendingSale.quantity || 1;
-      const grossTotal = pendingSale.total; // KDV dahil tutar
-      const grossUnit = pendingSale.unitPrice || (grossTotal / qty);
+      const saleTaxRate = (pendingSale as Sale & { taxRate?: number })?.taxRate ?? defaultTaxRate;
+      const qty = quantity;
+      const grossTotal = rawAmount; // KDV dahil tutar
+      const grossUnit = normalizedUnitPrice || (grossTotal / qty);
       // Net (KDV hariç) birim fiyat
       const netUnit = grossUnit / (1 + saleTaxRate / 100);
       const netLineTotal = netUnit * qty;
@@ -165,7 +265,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         customerName: pendingSale.customerName,
         customerEmail: pendingSale.customerEmail || '',
         customerAddress: '',
-        issueDate: pendingSale.saleDate,
+        issueDate: saleDate,
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'sent',
         type: 'product',
@@ -197,14 +297,20 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     setPendingSale(null);
   };
 
-  const handleEditSale = (sale: any) => {
-    console.log('✏️ SimpleSalesPage: Satış düzenleniyor:', sale.id);
+  const handleEditSale = (sale: SaleWithMetadata) => {
+    logger.info('simpleSales.edit.opened', {
+      saleId: sale.id,
+      saleNumber: sale.saleNumber,
+    });
     setEditingSale(sale);
     setShowSaleModal(true);
   };
 
-  const handleUpdateSale = (updatedSale: any) => {
-    console.log('✏️ SimpleSalesPage: Satış güncelleniyor');
+  const handleUpdateSale = (updatedSale: SaleInput) => {
+    logger.info('simpleSales.edit.submitted', {
+      viaUpsert: Boolean(onUpsertSale),
+      saleId: updatedSale.id,
+    });
     // Eğer onUpsertSale varsa kullan
     if (onUpsertSale) {
       onUpsertSale(updatedSale);
@@ -212,8 +318,10 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       setShowSaleModal(false);
     } else {
       // Fallback: eski yöntem
-      const updatedSales = sales.map(sale => 
-        sale.id === updatedSale.id ? updatedSale : sale
+      const updatedSales = sales.map((saleRecord) => 
+        updatedSale.id && String(saleRecord.id) === String(updatedSale.id)
+          ? ({ ...saleRecord, ...updatedSale } as SaleWithMetadata)
+          : saleRecord
       );
       if (onSalesUpdate) {
         onSalesUpdate(updatedSales);
@@ -238,30 +346,48 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     }
   };
 
-  const handleViewSale = (sale: any) => {
+  const handleViewSale = (sale: SaleWithMetadata) => {
     setViewingSale(sale);
     setShowSaleViewModal(true);
   };
 
-  const formatAmount = (amount: number) => {
-    if (amount == null || isNaN(amount)) {
-      return formatCurrency(0);
-    }
-    return formatCurrency(amount);
-  };
+  const formatAmount = useCallback((amount: unknown) => {
+    const numeric = toNumber(amount);
+    return formatCurrency(numeric);
+  }, [formatCurrency]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
-  };
+  const formatDate = useCallback((dateString?: string) => {
+    if (!dateString) return '—';
+    const parsed = new Date(dateString);
+    if (Number.isNaN(parsed.getTime())) return '—';
+    const language = i18n.language || 'en';
+    const locale = language.startsWith('tr') ? 'tr-TR' : language;
+    try {
+      return parsed.toLocaleDateString(locale);
+    } catch (error) {
+      logger.warn('Failed to format sale date', { dateString, error });
+      return parsed.toLocaleDateString('en-US');
+    }
+  }, [i18n.language]);
+
+  const getPaymentMethodLabel = useCallback((method?: Sale['paymentMethod']) => {
+    if (!method) return '';
+    switch (method) {
+      case 'cash':
+        return t('common.cash');
+      case 'card':
+        return t('common.card');
+      case 'transfer':
+        return t('common.transfer');
+      case 'check':
+        return t('common.check');
+      default:
+        return method;
+    }
+  }, [t]);
 
   // Net toplam (KDV Hariç): her satış için kalemler varsa unitPrice*quantity toplamı; yoksa tek ürün çarpımı
-  const totalSales = sales.reduce((sum, sale) => {
-    if (Array.isArray(sale.items) && sale.items.length > 0) {
-      const net = sale.items.reduce((s, it) => s + toNumber(it.unitPrice) * toNumber(it.quantity), 0);
-      return sum + net;
-    }
-    return sum + (toNumber(sale.unitPrice) * toNumber(sale.quantity));
-  }, 0);
+  const totalSales = sales.reduce((sum, sale) => sum + resolveSaleTotal(sale), 0);
   const completedSales = sales.filter(sale => sale.status === 'completed').length;
 
   // Dil bazlı net satış etiketi suffix'i
@@ -288,7 +414,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         firstItemName,
         statusVariant,
         sale.date,
-        String(sale.amount ?? sale.total ?? toNumberSafe(sale.quantity) * toNumberSafe(sale.unitPrice))
+        String(resolveSaleTotal(sale))
       ].map(normalizeText).join(' ');
 
       const matchesSearch = q.length === 0 || haystack.includes(q);
@@ -306,11 +432,11 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         case 'customer':
           return compareBy(a, b, x => x.customerName || '', sortDir, 'string');
         case 'product': {
-          const sel = (x: any) => (x.items && x.items.length > 0) ? (x.items[0].productName || '') : (x.productName || '');
+          const sel = (x: SaleWithMetadata) => (x.items && x.items.length > 0) ? (x.items[0].productName || '') : (x.productName || '');
           return compareBy(a, b, sel, sortDir, 'string');
         }
         case 'amount': {
-          const sel = (x: any) => toNumberSafe(x.amount ?? x.total ?? toNumberSafe(x.quantity) * toNumberSafe(x.unitPrice));
+          const sel = (x: SaleWithMetadata) => toNumberSafe(x.amount ?? x.total ?? toNumberSafe(x.quantity) * toNumberSafe(x.unitPrice));
           return compareBy(a, b, sel, sortDir, 'number');
         }
         case 'status':
@@ -326,15 +452,70 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     return filteredSales.slice(start, start + pageSize);
   }, [filteredSales, page, pageSize]);
 
+  const handleExportSales = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!filteredSales.length) {
+      logger.info('simpleSales.export.skipped', { reason: 'empty' });
+      return;
+    }
+
+    try {
+      const headers = [
+        t('sales.sale', { defaultValue: 'Sale' }),
+        t('sales.customer', { defaultValue: 'Customer' }),
+        t('sales.productService', { defaultValue: 'Product/Service' }),
+        t('sales.amount', { defaultValue: 'Amount' }),
+        t('sales.status', { defaultValue: 'Status' }),
+        t('sales.date', { defaultValue: 'Date' }),
+        t('sales.paymentMethod', { defaultValue: 'Payment Method' }),
+      ];
+
+      const rows = filteredSales.map((sale) => {
+        const status = resolveStatusLabel(t, normalizeStatusKey(sale.status));
+        const itemsLabel = Array.isArray(sale.items) && sale.items.length > 0
+          ? `${sale.items[0].productName}${sale.items.length > 1 ? ` (+${sale.items.length - 1})` : ''}`
+          : sale.productName;
+        return [
+          sale.saleNumber || `SAL-${sale.id}`,
+          sale.customerName,
+          itemsLabel,
+          formatAmount(resolveSaleTotal(sale)),
+          status,
+          formatDate(sale.date),
+          getPaymentMethodLabel(sale.paymentMethod) || '—',
+        ];
+      });
+
+      const csvContent = [headers, ...rows]
+        .map((row) => row.map(escapeCsvValue).join(','))
+        .join('\r\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `sales_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      logger.info('simpleSales.export.completed', { rowCount: rows.length });
+    } catch (error) {
+      logger.error('simpleSales.export.failed', { error });
+    }
+  }, [filteredSales, formatAmount, formatDate, getPaymentMethodLabel, t]);
+
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, statusFilter, sortBy, sortDir, startDate, endDate]);
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('sales_pageSize', String(size));
+    if (!isValidSalesPageSize(size)) {
+      logger.warn('Attempted to set invalid sales page size', size);
+      return;
     }
+    setPageSize(size);
+    safeLocalStorage.setItem('sales_pageSize', String(size));
     setPage(1);
   };
 
@@ -369,12 +550,12 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     );
   };
 
-  const handleInlineEdit = (saleId: string, field: string, currentValue: string | number) => {
+  const handleInlineEdit = (saleId: string, field: 'amount' | 'status', currentValue: string | number) => {
     setEditingField({ saleId, field });
     setTempValue(String(currentValue));
   };
 
-  const handleSaveInlineEdit = (sale: any) => {
+  const handleSaveInlineEdit = (sale: SaleWithMetadata) => {
     if (!editingField) return;
     
     const updatedSale = { ...sale };
@@ -383,7 +564,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       const newAmount = parseFloat(tempValue) || 0;
       updatedSale.amount = newAmount;
     } else if (editingField.field === 'status') {
-      updatedSale.status = tempValue as any;
+      updatedSale.status = tempValue as Sale['status'];
     }
     
     const updatedSales = sales.map(s => 
@@ -403,8 +584,11 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     setTempValue('');
   };
 
-  const handleCreateInvoiceFromSale = (sale: any) => {
-    console.log('📄 Fatura oluşturma talebi:', sale.id, sale.saleNumber);
+  const handleCreateInvoiceFromSale = (sale: SaleWithMetadata) => {
+    logger.info('simpleSales.invoice.requested', {
+      saleId: sale.id,
+      saleNumber: sale.saleNumber,
+    });
     
     // Check if invoice already exists for this sale (iki türlü kontrol)
     const existingInvoice = invoices.find(invoice => 
@@ -413,13 +597,21 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     );
 
     if (existingInvoice) {
-      console.log('✅ Mevcut fatura bulundu:', existingInvoice.invoiceNumber, existingInvoice);
-      console.log('👤 Müşteri bilgisi:', existingInvoice.customer);
+      logger.info('simpleSales.invoice.existingFound', {
+        saleId: sale.id,
+        saleNumber: sale.saleNumber,
+        invoiceId: existingInvoice.id,
+        invoiceNumber: existingInvoice.invoiceNumber,
+        hasCustomer: Boolean((existingInvoice as InvoiceWithRelations).customer),
+      });
       // Open existing invoice in modal
       setViewingInvoice(existingInvoice);
       setShowInvoiceViewModal(true);
     } else {
-      console.log('➕ Yeni fatura oluşturulacak');
+      logger.info('simpleSales.invoice.createFlow.start', {
+        saleId: sale.id,
+        saleNumber: sale.saleNumber,
+      });
       // Show confirmation modal
       setSelectedSaleForInvoice(sale);
       setShowInvoiceConfirmModal(true);
@@ -427,14 +619,18 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   };
 
   const handleConfirmCreateInvoice = async () => {
-    if (selectedSaleForInvoice) {
+    if (!selectedSaleForInvoice || isCreatingInvoice) return;
+
+    setIsCreatingInvoice(true);
+    try {
       const sale = selectedSaleForInvoice;
       
-      // Satışın zaten faturası var mı kontrol et
       if (sale.invoiceId) {
-        console.log('ℹ️ Bu satışın zaten faturası var:', sale.invoiceId);
+        logger.info('simpleSales.invoice.linkedSaleDetected', {
+          saleId: sale.id,
+          invoiceId: sale.invoiceId,
+        });
         
-        // Mevcut faturayı bul ve göster
         const existingInvoice = invoices.find(inv => inv.id === sale.invoiceId);
         if (existingInvoice) {
           setShowInvoiceConfirmModal(false);
@@ -445,11 +641,10 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         }
       }
       
-      console.log('🔍 Fatura oluşturma başladı:', {
+      logger.debug('simpleSales.invoice.buildInput.start', {
         saleCustomerName: sale.customerName,
         saleCustomerEmail: sale.customerEmail,
         totalCustomers: customers.length,
-        availableCustomers: customers.map(c => ({ id: c.id, name: c.name, email: c.email }))
       });
       
       const quantity = sale.quantity && sale.quantity > 0 ? sale.quantity : 1;
@@ -463,89 +658,75 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
 
       const calculatedTotal = sale.amount && sale.amount > 0 ? sale.amount : fallbackUnitPrice * quantity;
       const totalAmount = Number.isFinite(calculatedTotal) ? calculatedTotal : 0;
-      
-      // Satıştaki tutar ZATEN KDV DAHİL
-      // Backend InvoiceModal mantığıyla çalışıyor: items'daki fiyatlar KDV DAHİL olmalı
-      // Backend kendi KDV hesabını yapacak (totalWithTax / 1.18 = subtotal)
-      
-      // Birim fiyat KDV DAHİL olmalı (satıştaki gibi)
       const unitPriceWithTax = quantity > 0 ? totalAmount / quantity : fallbackUnitPrice;
 
-      // Fatura türünü ürün kategorisine göre belirle
       const productCategory = (matchedProduct?.category || '').toLowerCase().trim();
       const productNameLower = (matchedProduct?.name || sale.productName || '').toLowerCase().trim();
       
-      console.log('🔍 FATURA TÜRÜ DEBUG:', {
-        'Ürün Adı': matchedProduct?.name || sale.productName,
-        'Kategori (Raw)': matchedProduct?.category,
-        'Kategori (Lower)': productCategory,
-        'Ürün Adı (Lower)': productNameLower,
-        'matchedProduct': matchedProduct
+      logger.debug('simpleSales.invoice.typeDetection', {
+        productName: matchedProduct?.name || sale.productName,
+        categoryRaw: matchedProduct?.category,
+        categoryLower: productCategory,
+        productNameLower,
       });
       
-      // VARSAYILAN: Ürün Satışı (Sadece hizmet kategorisindeki ürünler "Hizmet Satışı" olmalı)
       let invoiceType: 'product' | 'service' = 'product';
-      
-      // Hizmet kategorileri - SADECE bunlar "Hizmet Satışı" olacak
       const serviceCategories = ['hizmet', 'danışmanlık', 'danismanlik', 'eğitim', 'egitim', 'reklam', 'pazarlama'];
       
-      // Önce kategoriyi kontrol et
       if (serviceCategories.some(cat => productCategory.includes(cat))) {
         invoiceType = 'service';
-        console.log('✅ Kategori kontrolünden HİZMET SATIŞI belirlendi');
+        logger.debug('simpleSales.invoice.typeDetection.categoryMatch', {
+          invoiceType,
+        });
       } else if (productCategory.length === 0) {
-        // Kategori yoksa ürün adına bak
         if (serviceCategories.some(cat => productNameLower.includes(cat))) {
           invoiceType = 'service';
-          console.log('✅ Ürün adından HİZMET SATIŞI belirlendi');
+          logger.debug('simpleSales.invoice.typeDetection.nameMatch');
         } else {
-          console.log('✅ ÜRÜN SATIŞI belirlendi (varsayılan - kategori yok)');
+          logger.debug('simpleSales.invoice.typeDetection.defaultProduct');
         }
       } else {
-        console.log('✅ ÜRÜN SATIŞI belirlendi (varsayılan - hizmet değil)');
+        logger.debug('simpleSales.invoice.typeDetection.categoryDefault');
       }
 
-      console.log('🎯 SONUÇ: invoiceType =', invoiceType);
+      logger.info('simpleSales.invoice.typeDetection.result', {
+        invoiceType,
+      });
 
-      // Check if customers list is empty
       if (customers.length === 0) {
-        console.error('❌ Müşteri listesi boş! Önce müşteri ekleyin.');
+        logger.error('simpleSales.invoice.noCustomers');
         alert('Fatura oluşturmak için önce en az bir müşteri eklemelisiniz.\n\n"Müşteriler" sayfasından yeni müşteri ekleyebilirsiniz.');
         setShowInvoiceConfirmModal(false);
+        setSelectedSaleForInvoice(null);
         return;
       }
 
-      // Find customer by name or email (flexible matching)
       const customerNameLower = sale.customerName?.toLowerCase().trim() || '';
       const customerEmailLower = sale.customerEmail?.toLowerCase().trim() || '';
       
       const matchedCustomer = customers.find(c => {
         const nameLower = c.name?.toLowerCase().trim() || '';
         const emailLower = c.email?.toLowerCase().trim() || '';
-        
-        // Check exact match or partial match
         return nameLower === customerNameLower ||
                emailLower === customerEmailLower ||
                nameLower.includes(customerNameLower) ||
                customerNameLower.includes(nameLower);
       });
 
-      console.log('🔍 Müşteri eşleştirme sonucu:', {
-        found: !!matchedCustomer,
-        matchedCustomer: matchedCustomer ? { id: matchedCustomer.id, name: matchedCustomer.name } : null
+      logger.debug('simpleSales.invoice.customerMatch', {
+        found: Boolean(matchedCustomer),
+        matchedCustomerId: matchedCustomer?.id,
       });
 
-      // If no match found, use first customer as fallback
       const customerToUse = matchedCustomer || customers[0];
       
       if (!matchedCustomer) {
-        console.warn('⚠️ Tam eşleşme bulunamadı, ilk müşteri kullanılıyor:', {
-          fallbackCustomer: { id: customerToUse.id, name: customerToUse.name }
+        logger.warn('simpleSales.invoice.customerFallback', {
+          fallbackCustomerId: customerToUse.id,
         });
       }
 
       const taxRate = matchedProduct?.taxRate ?? 18;
-      // totalAmount KDV DAHİL; net birim fiyatı hesapla
       const netUnitPrice = quantity > 0 ? (unitPriceWithTax / (1 + taxRate / 100)) : unitPriceWithTax;
       const netLineTotal = netUnitPrice * quantity;
       const invoiceData = {
@@ -561,8 +742,8 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             productName: matchedProduct?.name || sale.productName,
             description: matchedProduct?.name || sale.productName,
             quantity,
-            unitPrice: netUnitPrice, // KDV hariç birim fiyat
-            total: netLineTotal,     // KDV hariç toplam
+            unitPrice: netUnitPrice,
+            total: netLineTotal,
             taxRate,
           },
         ],
@@ -572,57 +753,55 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         notes: 'Bu fatura ' + (sale.saleNumber || ('SAL-' + sale.id)) + ' numaralı satıştan oluşturulmuştur.',
       };
 
-      console.log('📄 Fatura data hazır:', {
+      logger.debug('simpleSales.invoice.payloadPrepared', {
         customerId: invoiceData.customerId,
-        customerName: sale.customerName,
         saleId: invoiceData.saleId,
         totalWithTax: totalAmount,
-        unitPriceWithTax: unitPriceWithTax,
-        quantity: quantity,
-        lineItems: invoiceData.lineItems
+        unitPriceWithTax,
+        quantity,
       });
 
       try {
         if (onCreateInvoice) {
-          // Faturayı oluştur ve ID'sini al
           const createdInvoice = await onCreateInvoice(invoiceData);
           
-          // Eğer invoice oluşturuldu ve ID varsa
           if (createdInvoice && createdInvoice.id) {
-            console.log('✅ Fatura oluşturuldu, satış güncelleniyor:', {
+            logger.info('simpleSales.invoice.created', {
               invoiceId: createdInvoice.id,
-              saleId: sale.id
+              saleId: sale.id,
             });
             
-            // Satışı invoiceId ile güncelle
             const updatedSale = { ...sale, invoiceId: createdInvoice.id };
-            const updatedSales = sales.map(s => s.id === sale.id ? updatedSale : s);
+            const updatedSales = sales.map((s) => s.id === sale.id ? updatedSale : s);
             
             if (onSalesUpdate) {
               onSalesUpdate(updatedSales);
             }
             
-            console.log('🔗 Satış-Fatura ilişkisi kuruldu');
+            logger.debug('simpleSales.invoice.saleLinked', {
+              saleId: sale.id,
+              invoiceId: createdInvoice.id,
+            });
             
-            // Başarılı olduktan sonra modal'ı kapat
             setShowInvoiceConfirmModal(false);
             setSelectedSaleForInvoice(null);
           } else {
-            console.error('❌ Fatura oluşturuldu ama ID alınamadı:', createdInvoice);
-            // Modal açık kalsın, kullanıcı tekrar denesin
+            logger.error('simpleSales.invoice.missingId', { saleId: sale.id });
           }
         }
       } catch (error) {
-        console.error('❌ Fatura oluşturma hatası:', error);
-        // Hata durumunda modal açık kalır, kullanıcı tekrar deneyebilir
+        logger.error('simpleSales.invoice.createFailed', { saleId: sale.id, error });
         return;
       }
+    } finally {
+      setIsCreatingInvoice(false);
     }
   };
 
   const handleCancelCreateInvoice = () => {
     setShowInvoiceConfirmModal(false);
     setSelectedSaleForInvoice(null);
+    setIsCreatingInvoice(false);
   };
 
   return (
@@ -639,7 +818,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
           </div>
           <button
             onClick={() => {
-              console.log('➕ SimpleSalesPage: Yeni Satış butonu tıklandı, editingSale temizleniyor');
+              logger.debug('simpleSales.modal.openNewSaleFromHeader');
               setEditingSale(null);
               setShowSaleModal(true);
             }}
@@ -685,11 +864,21 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       {/* Sales List */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">{t('sales.salesList')}</h3>
-            <p className="text-sm text-gray-500">
-              {sales.length} {t('sales.salesRegistered')}
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <p className="text-sm text-gray-500">
+                {sales.length} {t('sales.salesRegistered')}
+              </p>
+              <button
+                type="button"
+                onClick={handleExportSales}
+                className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>{t('sales.exportCsv', { defaultValue: 'Export CSV' })}</span>
+              </button>
+            </div>
           </div>
 
           {/* Search and Filter */}
@@ -741,14 +930,16 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 listType="sales"
                 getState={() => ({ searchTerm, statusFilter, startDate, endDate, sortBy, sortDir, pageSize })}
                 applyState={(s) => {
-                  const st = s || {} as any;
+                  const st = (s || {}) as SimpleSalesViewState;
                   setSearchTerm(st.searchTerm ?? '');
                   setStatusFilter(st.statusFilter ?? 'all');
                   setStartDate(st.startDate ?? '');
                   setEndDate(st.endDate ?? '');
                   if (st.sortBy) setSortBy(st.sortBy);
                   if (st.sortDir) setSortDir(st.sortDir);
-                  if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+                  if (st.pageSize && isValidSalesPageSize(st.pageSize)) {
+                    handlePageSizeChange(st.pageSize);
+                  }
                 }}
                 presets={[
                   { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
@@ -784,7 +975,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               {!searchTerm && statusFilter === 'all' && (
                 <button
                   onClick={() => {
-                    console.log('➕ SimpleSalesPage: Yeni Satış butonu (boş liste) tıklandı');
+                    logger.debug('simpleSales.modal.openNewSaleFromEmptyState');
                     setEditingSale(null);
                     setShowSaleModal(true);
                   }}
@@ -914,11 +1105,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                             className="text-sm font-semibold text-green-600 cursor-pointer hover:bg-green-50 rounded p-1 transition-colors"
                             title="Tutarı düzenlemek için tıklayın"
                           >
-                            {formatAmount(
-                              sale.items && sale.items.length > 0
-                                ? sale.items.reduce((sum, it) => sum + toNumber(it.unitPrice) * toNumber(it.quantity), 0)
-                                : toNumber(sale.unitPrice) * toNumber(sale.quantity)
-                            )}
+                            {formatAmount(resolveSaleTotal(sale))}
                           </span>
                         )}
                       </td>
@@ -960,7 +1147,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {(sale as any).createdByName || '—'}
+                        {sale.createdByName || '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">
@@ -969,9 +1156,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                         </div>
                         {sale.paymentMethod && (
                           <div className="text-xs text-gray-400">
-                            {sale.paymentMethod === 'cash' ? t('common.cash') :
-                             sale.paymentMethod === 'card' ? t('common.card') :
-                             sale.paymentMethod === 'transfer' ? t('common.transfer') : t('common.check')}
+                            {getPaymentMethodLabel(sale.paymentMethod)}
                           </div>
                         )}
                       </td>
@@ -1051,7 +1236,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       <SaleModal
         isOpen={showSaleModal}
         onClose={() => {
-          console.log('🚪 SimpleSalesPage: Modal kapatılıyor, editingSale temizleniyor');
+          logger.debug('simpleSales.modal.closeSaleModal');
           setShowSaleModal(false);
           setEditingSale(null);
         }}
@@ -1136,14 +1321,14 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 onClick={() => handleConfirmSale(false)}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Sadece Satış
+                {t('sales.recordOnlySale', { defaultValue: 'Only Sale' })}
               </button>
               <button
                 onClick={() => handleConfirmSale(true)}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
               >
                 <FileText className="w-4 h-4" />
-                <span>Fatura ile Birlikte</span>
+                <span>{t('sales.recordSaleWithInvoice', { defaultValue: 'Sale with Invoice' })}</span>
               </button>
             </div>
           </div>
@@ -1175,7 +1360,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               customerEmail: invoice.customer?.email || invoice.customerEmail || '',
               customerAddress: invoice.customer?.address || invoice.customerAddress || '',
             };
-            generateInvoicePDF(invoiceWithCustomer as any);
+            generateInvoicePDF(invoiceWithCustomer as Invoice);
           });
         }}
       />
@@ -1191,7 +1376,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                   <FileText className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">{t('invoice.createInvoice')}</h2>
+                  <h2 className="text-xl font-semibold text-gray-900">{t('sales.createInvoice')}</h2>
                   <p className="text-sm text-gray-500">{t('sales.createInvoiceQuestion')}</p>
                 </div>
               </div>
@@ -1245,16 +1430,27 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
               <button
                 onClick={handleCancelCreateInvoice}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isCreatingInvoice}
               >
-                İptal
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleConfirmCreateInvoice}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isCreatingInvoice}
               >
-                <FileText className="w-4 h-4" />
-                <span>Evet, Oluştur</span>
+                {isCreatingInvoice ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{t('sales.creatingInvoice', { defaultValue: 'Creating...' })}</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    <span>{t('sales.confirmInvoiceAction', { defaultValue: 'Yes, Create' })}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

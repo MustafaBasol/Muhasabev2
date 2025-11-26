@@ -29,7 +29,8 @@ export class RateLimitMiddleware implements NestMiddleware {
     const clientIP = this.getClientIP(req);
     const isAuthEndpoint = this.isAuthEndpoint(req.path);
     const perRouteLimit = this.getPerRouteLimit(req.path);
-    const isPublicInviteEndpoint = perRouteLimit.key.startsWith('public-invite');
+    const isPublicInviteEndpoint =
+      perRouteLimit.key.startsWith('public-invite');
     const isAdminEndpoint = this.isAdminEndpoint(req.path);
     const isWebhookEndpoint = this.isWebhookEndpoint(req.path);
 

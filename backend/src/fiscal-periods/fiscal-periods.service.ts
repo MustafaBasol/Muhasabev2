@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not } from 'typeorm';
+import { Repository } from 'typeorm';
 import { FiscalPeriod } from './entities/fiscal-period.entity';
 
 export interface CreateFiscalPeriodDto {

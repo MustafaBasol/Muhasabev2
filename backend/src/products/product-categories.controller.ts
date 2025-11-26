@@ -14,6 +14,7 @@ import { ProductCategoriesService } from './product-categories.service';
 import { CreateProductCategoryDto } from './dto/create-product-category.dto';
 import { UpdateProductCategoryExtraDto } from './dto/update-product-category.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 
 @Controller('product-categories')
 @UseGuards(JwtAuthGuard)
@@ -21,18 +22,24 @@ export class ProductCategoriesController {
   constructor(private readonly categoriesService: ProductCategoriesService) {}
 
   @Get()
-  findAll(@Request() req, @Query('includeInactive') includeInactive?: string) {
+  findAll(
+    @Request() req: AuthenticatedRequest,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
     const include = String(includeInactive).toLowerCase() === 'true';
     return this.categoriesService.findAll(req.user.tenantId, include);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Request() req) {
+  findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.categoriesService.findOne(id, req.user.tenantId);
   }
 
   @Post()
-  create(@Body() createCategoryDto: CreateProductCategoryDto, @Request() req) {
+  create(
+    @Body() createCategoryDto: CreateProductCategoryDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.categoriesService.create(createCategoryDto, req.user.tenantId);
   }
 
@@ -40,7 +47,7 @@ export class ProductCategoriesController {
   update(
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateProductCategoryExtraDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.categoriesService.update(
       id,
@@ -50,7 +57,7 @@ export class ProductCategoriesController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Request() req) {
+  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.categoriesService.remove(id, req.user.tenantId);
   }
 }

@@ -1,4 +1,5 @@
 import { TFunction } from 'i18next';
+import { safeLocalStorage } from './localStorageSafe';
 
 // Normalize backend-provided status values like "status.draft", "DRAFT", etc.
 export const normalizeStatusKey = (raw: string): string => {
@@ -22,7 +23,7 @@ export const resolveStatusLabel = (t: TFunction, key: string): string => {
     const rawLang = (
       (t as any)?.i18n?.resolvedLanguage ||
       (t as any)?.i18n?.language ||
-      (typeof localStorage !== 'undefined' ? localStorage.getItem('i18nextLng') : '') ||
+      safeLocalStorage.getItem('i18nextLng') ||
       (typeof document !== 'undefined' ? document.documentElement.lang : '') ||
       (typeof navigator !== 'undefined' ? navigator.language : '') ||
       ''
@@ -74,11 +75,16 @@ export const resolveStatusLabel = (t: TFunction, key: string): string => {
     if (d && d !== k) return d as string;
 
     if ((import.meta as any)?.env?.DEV) {
-      try { console.debug('[i18n][status] Çeviri bulunamadı (fallback):', { key: k, lang }); } catch {}
+      try {
+        console.debug('[i18n][status] Çeviri bulunamadı (fallback):', { key: k, lang });
+      } catch (error) {
+        console.warn('[i18n][status] Debug log failed:', error);
+      }
     }
     // Son çare: ilk harfi büyüt
     return k.charAt(0).toUpperCase() + k.slice(1);
-  } catch {
+  } catch (error) {
+    console.warn('[i18n][status] resolveStatusLabel failed, returning raw key.', error);
     return key;
   }
 };

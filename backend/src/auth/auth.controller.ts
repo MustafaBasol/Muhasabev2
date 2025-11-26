@@ -14,8 +14,9 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Throttle } from '@nestjs/throttler';
-import type { Request } from 'express';
 import { User } from '../common/decorators/user.decorator';
+import type { CurrentUser } from '../common/decorators/user.decorator';
+import type { Request } from 'express';
 
 // Rate limit ayarları ortam değişkenlerinden okunur, varsayılan değerler atanır.
 // REFRESH_RATE_LIMIT_MAX: Dakikada izin verilen maksimum yenileme isteği sayısı.
@@ -45,14 +46,14 @@ export class AuthController {
   @ApiOperation({
     summary: 'Signup (alias of register) - issues email verification token',
   })
-  async signup(@Body() registerDto: RegisterDto, @Req() req: any) {
+  async signup(@Body() registerDto: RegisterDto, @Req() req: Request) {
     return this.authService.signupWithToken(registerDto, req);
   }
 
   @Post('login')
   @ApiOperation({ summary: 'Login user' })
   @HttpCode(200)
-  async login(@Body() loginDto: LoginDto, @Req() req: any) {
+  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
     return this.authService.login(loginDto, req);
   }
 
@@ -60,7 +61,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
-  async getProfile(@User() user: any) {
+  async getProfile(@User() user: CurrentUser) {
     return this.authService.getProfile(user);
   }
 
@@ -75,7 +76,7 @@ export class AuthController {
     },
   })
   @HttpCode(200)
-  async refresh(@User() user: any) {
+  async refresh(@User() user: CurrentUser) {
     // Debug log: route hit confirmation (geçici - üretimde kaldırılabilir)
     // console.log('[AuthController] /auth/refresh endpoint hit for user:', user?.id);
     return this.authService.refresh(user);
@@ -94,7 +95,7 @@ export class AuthController {
     },
   })
   @HttpCode(200)
-  async refreshAlt(@User() user: any) {
+  async refreshAlt(@User() user: CurrentUser) {
     return this.authService.refresh(user);
   }
 
@@ -131,7 +132,7 @@ export class AuthController {
   // New spec endpoint: POST /auth/forgot {email}
   @Post('forgot')
   @ApiOperation({ summary: 'Issue password reset token and send email' })
-  async forgotPassword(@Body() body: { email: string }, @Req() req: any) {
+  async forgotPassword(@Body() body: { email: string }, @Req() req: Request) {
     return this.authService.issuePasswordReset(body.email, req);
   }
 

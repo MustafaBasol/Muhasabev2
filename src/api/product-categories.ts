@@ -18,22 +18,22 @@ export interface UpdateProductCategoryDto {
 export const productCategoriesApi = {
   getAll: async (params?: { includeInactive?: boolean }): Promise<ProductCategory[]> => {
     const query = params?.includeInactive ? '?includeInactive=true' : '';
-    const response = await apiClient.get(`/product-categories${query}`);
+    const response = await apiClient.get<ProductCategory[]>(`/product-categories${query}`);
     return response.data;
   },
 
   getOne: async (id: string): Promise<ProductCategory> => {
-    const response = await apiClient.get(`/product-categories/${id}`);
+    const response = await apiClient.get<ProductCategory>(`/product-categories/${id}`);
     return response.data;
   },
 
   create: async (data: CreateProductCategoryDto): Promise<ProductCategory> => {
-    const response = await apiClient.post('/product-categories', data);
+    const response = await apiClient.post<ProductCategory>('/product-categories', data);
     return response.data;
   },
 
   update: async (id: string, data: UpdateProductCategoryDto): Promise<ProductCategory> => {
-    const response = await apiClient.patch(`/product-categories/${id}`, data);
+    const response = await apiClient.patch<ProductCategory>(`/product-categories/${id}`, data);
     return response.data;
   },
 

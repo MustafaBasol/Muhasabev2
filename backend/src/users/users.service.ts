@@ -2,13 +2,14 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { User, UserRole } from './entities/user.entity';
-import { Tenant, SubscriptionPlan } from '../tenants/entities/tenant.entity';
+import { Tenant } from '../tenants/entities/tenant.entity';
 import archiver from 'archiver';
-import { Readable } from 'stream';
 import { SecurityService } from '../common/security.service';
 import {
   TwoFactorService,
@@ -32,8 +33,33 @@ export interface CreateUserDto {
   tenantId: string;
 }
 
+export type UpdateNotificationPreferencesDto = {
+  invoiceReminders?: boolean;
+  expenseAlerts?: boolean;
+  salesNotifications?: boolean;
+  lowStockAlerts?: boolean;
+  quoteReminders?: boolean;
+};
+
+const toErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message?: unknown }).message === 'string'
+  ) {
+    return String((error as { message: string }).message);
+  }
+  return String(error);
+};
+
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
@@ -43,6 +69,13 @@ export class UsersService {
     private twoFactorService: TwoFactorService,
     private auditService: AuditService,
   ) {}
+
+  private logAuditFailure(event: string, error: unknown) {
+    const message = `${event}: ${error instanceof Error ? error.message : String(error)}`;
+    const stack = error instanceof Error ? error.stack : undefined;
+    this.logger.warn(message);
+    if (stack) this.logger.debug(stack);
+  }
 
   async findAll() {
     return this.userRepository.find({
@@ -76,6 +109,18 @@ export class UsersService {
     return this.userRepository.findOne({
       where: { email },
       relations: ['tenant'],
+    });
+  }
+
+  async findByEmailVerificationToken(token: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { emailVerificationToken: token },
+    });
+  }
+
+  async findByPasswordResetToken(token: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { passwordResetToken: token },
     });
   }
 
@@ -131,38 +176,31 @@ export class UsersService {
     }
 
     console.log('📊 Calling repository.update with:', { id, updateData });
-    await this.userRepository.update(id, updateData);
+    await this.userRepository.update(
+      id,
+      updateData as QueryDeepPartialEntity<User>,
+    );
     return this.findOne(id);
   }
 
   async updateNotificationPreferences(
     id: string,
-    prefs: {
-      invoiceReminders?: boolean;
-      expenseAlerts?: boolean;
-      salesNotifications?: boolean;
-      lowStockAlerts?: boolean;
-      quoteReminders?: boolean;
-    },
+    prefs: UpdateNotificationPreferencesDto,
   ): Promise<User> {
-    // Shallow validation (ensure booleans if provided)
-    const cleaned: any = {};
-    for (const key of [
-      'invoiceReminders',
-      'expenseAlerts',
-      'salesNotifications',
-      'lowStockAlerts',
-      'quoteReminders',
-    ]) {
-      if (key in prefs) {
-        const v = (prefs as any)[key];
-        if (typeof v === 'boolean') cleaned[key] = v;
+    const cleaned: NonNullable<User['notificationPreferences']> = {};
+    (
+      Object.keys(prefs ?? {}) as Array<keyof UpdateNotificationPreferencesDto>
+    ).forEach((key) => {
+      const value = prefs[key];
+      if (typeof value === 'boolean') {
+        cleaned[key] = value;
       }
-    }
+    });
+
     await this.userRepository.update(id, {
       notificationPreferences: cleaned,
       updatedAt: new Date(),
-    } as any);
+    });
     return this.findOne(id);
   }
 
@@ -179,8 +217,11 @@ export class UsersService {
 
   async incrementTokenVersion(userId: string): Promise<User> {
     const user = await this.findOne(userId);
-    const next = ((user as any).tokenVersion || 0) + 1;
-    await this.userRepository.update(userId, { tokenVersion: next, updatedAt: new Date() } as any);
+    const next = (user.tokenVersion ?? 0) + 1;
+    await this.userRepository.update(userId, {
+      tokenVersion: next,
+      updatedAt: new Date(),
+    });
     return this.findOne(userId);
   }
 
@@ -213,14 +254,14 @@ export class UsersService {
           `SELECT * FROM "invoice" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
           [tenantId],
         );
-      } catch (e) {
+      } catch {
         console.log('Invoice table query failed, trying alternatives...');
         try {
           invoices = await entityManager.query(
             `SELECT * FROM invoices WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
             [tenantId],
           );
-        } catch (e2) {
+        } catch {
           console.log('No invoice data found');
         }
       }
@@ -231,13 +272,13 @@ export class UsersService {
           `SELECT * FROM "expense" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
           [tenantId],
         );
-      } catch (e) {
+      } catch {
         try {
           expenses = await entityManager.query(
             `SELECT * FROM expenses WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
             [tenantId],
           );
-        } catch (e2) {
+        } catch {
           console.log('No expense data found');
         }
       }
@@ -248,13 +289,13 @@ export class UsersService {
           `SELECT * FROM "customer" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
           [tenantId],
         );
-      } catch (e) {
+      } catch {
         try {
           customers = await entityManager.query(
             `SELECT * FROM customers WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
             [tenantId],
           );
-        } catch (e2) {
+        } catch {
           console.log('No customer data found');
         }
       }
@@ -265,13 +306,13 @@ export class UsersService {
           `SELECT * FROM "supplier" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
           [tenantId],
         );
-      } catch (e) {
+      } catch {
         try {
           suppliers = await entityManager.query(
             `SELECT * FROM suppliers WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
             [tenantId],
           );
-        } catch (e2) {
+        } catch {
           console.log('No supplier data found');
         }
       }
@@ -282,13 +323,13 @@ export class UsersService {
           `SELECT * FROM "product" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
           [tenantId],
         );
-      } catch (e) {
+      } catch {
         try {
           products = await entityManager.query(
             `SELECT * FROM products WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
             [tenantId],
           );
-        } catch (e2) {
+        } catch {
           console.log('No product data found');
         }
       }
@@ -299,18 +340,18 @@ export class UsersService {
           `SELECT * FROM "product_category" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
           [tenantId],
         );
-      } catch (e) {
+      } catch {
         try {
           productCategories = await entityManager.query(
             `SELECT * FROM product_categories WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
             [tenantId],
           );
-        } catch (e2) {
+        } catch {
           console.log('No product category data found');
         }
       }
-    } catch (error) {
-      console.log('Database query error:', error.message);
+    } catch (error: unknown) {
+      console.log('Database query error:', toErrorMessage(error));
     }
 
     // Collect all user data
@@ -430,17 +471,17 @@ export class UsersService {
         });
       }
 
-      archive.finalize();
+      void archive.finalize();
     });
 
     // Send email notification after successful export
     try {
       // Email service integration would go here
       console.log('Data export ready for user:', user.email);
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(
         '⚠️  Failed to send export notification email:',
-        error.message,
+        toErrorMessage(error),
       );
     }
   }
@@ -464,10 +505,10 @@ export class UsersService {
       // Email service integration would go here
       console.log('Account deletion scheduled for user:', user.email);
       console.log(`📧 Deletion confirmation email sent to ${user.email}`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(
         '⚠️  Failed to send deletion confirmation email:',
-        error.message,
+        toErrorMessage(error),
       );
     }
 
@@ -482,7 +523,7 @@ export class UsersService {
   /**
    * Helper: Convert object array to CSV
    */
-  private convertToCSV(data: any[]): string {
+  private convertToCSV(data: Array<Record<string, unknown>>): string {
     if (!data.length) return '';
 
     const headers = Object.keys(data[0]);
@@ -492,9 +533,31 @@ export class UsersService {
         headers
           .map((header) => {
             const value = row[header];
-            return typeof value === 'string'
-              ? `"${value.replace(/"/g, '""')}"`
-              : value;
+            if (value === null || typeof value === 'undefined') {
+              return '';
+            }
+
+            if (typeof value === 'string') {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+
+            switch (typeof value) {
+              case 'number':
+              case 'boolean':
+              case 'bigint':
+                return String(value);
+              case 'object':
+                if (value instanceof Date) {
+                  return value.toISOString();
+                }
+                return `"${JSON.stringify(value).replace(/"/g, '""')}"`;
+              case 'symbol':
+                return value.toString();
+              case 'function':
+                return value.name ? `<fn:${value.name}>` : '<fn>';
+              default:
+                return '';
+            }
           })
           .join(','),
       ),
@@ -584,7 +647,9 @@ export class UsersService {
         action: AuditAction.UPDATE,
         diff: { event: '2fa-enabled' },
       });
-    } catch {}
+    } catch (error) {
+      this.logAuditFailure('users.2fa.enable.auditFailed', error);
+    }
     return {
       message: '2FA enabled successfully',
       backupCodes,
@@ -671,7 +736,9 @@ export class UsersService {
         action: AuditAction.UPDATE,
         diff: { event: '2fa-disabled' },
       });
-    } catch {}
+    } catch (error) {
+      this.logAuditFailure('users.2fa.disable.auditFailed', error);
+    }
     return {
       message: '2FA disabled successfully',
     };
@@ -715,7 +782,9 @@ export class UsersService {
 
     const backupCodes = this.twoFactorService.generateBackupCodes();
     await this.userRepository.update(userId, {
-      backupCodes: backupCodes.map((c) => this.securityService.hashPasswordSync(c)),
+      backupCodes: backupCodes.map((c) =>
+        this.securityService.hashPasswordSync(c),
+      ),
       updatedAt: new Date(),
     });
 
@@ -728,7 +797,9 @@ export class UsersService {
         action: AuditAction.UPDATE,
         diff: { event: '2fa-backup-codes-regenerated' },
       });
-    } catch {}
+    } catch (error) {
+      this.logAuditFailure('users.2fa.regenerate.auditFailed', error);
+    }
 
     return { backupCodes, count: backupCodes.length };
   }

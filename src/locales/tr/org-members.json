@@ -35,6 +35,39 @@
         "subtitle": "İlk üyenizi davet ederek başlayın",
         "action": "Üye Davet Et"
       }
+    },
+    "join": {
+      "title": "Organizasyona Katıl",
+      "subtitle": "{{orgName}} organizasyonuna katılmaya davet edildiniz",
+      "invitedBy": "{{name}} tarafından davet edildiniz",
+      "role": "Rol: {{role}}",
+      "accept": "Daveti Kabul Et",
+      "decline": "Daveti Reddet",
+      "expired": {
+        "title": "Davet Süresi Doldu",
+        "subtitle": "Bu davet bağlantısının süresi dolmuş",
+        "action": "Yeni davet isteyin"
+      },
+      "invalid": {
+        "title": "Geçersiz Davet",
+        "subtitle": "Bu davet bağlantısı geçersiz",
+        "action": "Ana sayfaya git"
+      },
+      "success": {
+        "title": "Başarılı!",
+        "subtitle": "{{orgName}} organizasyonuna başarıyla katıldınız",
+        "action": "Panele Git"
+      },
+      "error": {
+        "title": "Hata",
+        "subtitle": "Daveti kabul ederken bir hata oluştu",
+        "tryAgain": "Tekrar Dene"
+      },
+      "alreadyMember": {
+        "title": "Zaten Üyesiniz",
+        "subtitle": "Bu organizasyonun zaten bir üyesisiniz",
+        "action": "Panele Git"
+      }
     }
   }
 }

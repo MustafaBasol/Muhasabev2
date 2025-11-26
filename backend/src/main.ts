@@ -1,6 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { json, urlencoded, raw } from 'express';
+import type {
+  Response,
+  ErrorRequestHandler,
+  RequestHandler,
+  CookieOptions,
+} from 'express';
 import { ValidationPipe, RequestMethod } from '@nestjs/common';
+import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
@@ -12,7 +19,96 @@ import { SeedService } from './database/seed.service';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import type { CompressionOptions } from 'compression';
 import { randomBytes } from 'crypto';
+
+type ResponseWithLocals = Response & { locals: Record<string, unknown> };
+type BodyParserError = Error & { type?: string };
+type OriginCallback = (err: Error | null, allow?: boolean) => void;
+
+const isPayloadTooLargeError = (error: unknown): error is BodyParserError => {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const candidate = error as BodyParserError;
+  return (
+    candidate.type === 'entity.too.large' ||
+    candidate.name === 'PayloadTooLargeError'
+  );
+};
+
+const payloadTooLargeHandler: ErrorRequestHandler = (err, _req, res, next) => {
+  if (isPayloadTooLargeError(err)) {
+    res.status(413).json({
+      statusCode: 413,
+      error: 'Payload Too Large',
+      message:
+        'Gönderilen veri çok büyük. Lütfen 5MB altında bir logo veya daha küçük bir veri yükleyin.',
+    });
+    return;
+  }
+  next(err);
+};
+
+const attachLocal = (res: Response, key: string, value: unknown) => {
+  const target = res as ResponseWithLocals;
+  const current = target.locals ?? {};
+  target.locals = { ...current, [key]: value };
+};
+
+const bindCookie = (res: Response): typeof res.cookie =>
+  res.cookie.bind(res) as typeof res.cookie;
+
+const toSafeError = (error: unknown): Error =>
+  error instanceof Error ? error : new Error(String(error));
+
+const toRequestHandler = (middleware: unknown): RequestHandler => {
+  if (typeof middleware !== 'function') {
+    throw new TypeError('Express middleware must be a function');
+  }
+  return middleware as RequestHandler;
+};
+
+type RequestHandlerFactory<TArgs extends unknown[] = []> = (
+  ...args: TArgs
+) => RequestHandler;
+
+const cookieParserFactory = cookieParser as RequestHandlerFactory;
+const compressionFactory = compression as RequestHandlerFactory<
+  [CompressionOptions?]
+>;
+
+const cspNonceMiddleware: RequestHandler = (_req, res, next) => {
+  const nonce = randomBytes(16).toString('base64');
+  res.setHeader(
+    'Content-Security-Policy',
+    `default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'nonce-${nonce}'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-src 'none'`,
+  );
+  attachLocal(res, 'cspNonce', nonce);
+  next();
+};
+
+const secureCookieMiddleware: RequestHandler = (_req, res, next) => {
+  const originalCookie: typeof res.cookie = bindCookie(res);
+  const secureCookie: typeof res.cookie = (
+    name: Parameters<typeof res.cookie>[0],
+    value: Parameters<typeof res.cookie>[1],
+    options?: CookieOptions,
+  ) => {
+    const secureOptions: CookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite:
+        process.env.NODE_ENV === 'production' ? ('strict' as const) : 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/',
+      ...options,
+    };
+    return originalCookie(name, value, secureOptions);
+  };
+  res.cookie = secureCookie;
+  next();
+};
 
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';
@@ -34,20 +130,7 @@ async function bootstrap() {
 
   // Body parser kaynaklı "PayloadTooLargeError" hatasını 413 olarak döndür
   // (aksi halde GlobalExceptionFilter altında 500'e dönüşebiliyor)
-  app.use((err: any, _req: any, res: any, next: any) => {
-    if (
-      err &&
-      (err.type === 'entity.too.large' || err.name === 'PayloadTooLargeError')
-    ) {
-      return res.status(413).json({
-        statusCode: 413,
-        error: 'Payload Too Large',
-        message:
-          'Gönderilen veri çok büyük. Lütfen 5MB altında bir logo veya daha küçük bir veri yükleyin.',
-      });
-    }
-    return next(err);
-  });
+  app.use(payloadTooLargeHandler);
 
   // Güvenlik headers
   app.use(
@@ -75,27 +158,21 @@ async function bootstrap() {
   );
 
   // Cookie parser for secure cookie handling
-  app.use(cookieParser());
+  const cookieParserMiddleware = toRequestHandler(cookieParserFactory());
+  app.use(cookieParserMiddleware);
 
   // Opsiyonel: CSP nonce üretimi (SECURITY_ENABLE_CSP_NONCE=true ise)
   if (String(process.env.SECURITY_ENABLE_CSP_NONCE).toLowerCase() === 'true') {
-    app.use((req, res, next) => {
-      const nonce = randomBytes(16).toString('base64');
-      res.setHeader(
-        'Content-Security-Policy',
-        `default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'nonce-${nonce}'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-src 'none'`,
-      );
-      res.locals = { ...res.locals, cspNonce: nonce };
-      next();
-    });
+    app.use(cspNonceMiddleware);
   }
 
   // HTTP response compression (gzip/deflate)
-  app.use(
-    compression({
+  const compressionMiddleware = toRequestHandler(
+    compressionFactory({
       threshold: 1024, // 1KB ve üzerini sıkıştır
     }),
   );
+  app.use(compressionMiddleware);
 
   // Migrations: production ve development ortamlarında otomatik çalıştır
   // Test ortamında (in-memory) migration gerekmiyor
@@ -118,11 +195,12 @@ async function bootstrap() {
     } else {
       console.log('✅ Uygulanacak migration yok.');
     }
-  } catch (err) {
-    console.error('❌ Migration çalıştırma hatası:', err);
+  } catch (err: unknown) {
+    const safeError = toSafeError(err);
+    console.error('❌ Migration çalıştırma hatası:', safeError);
     // Üretimde migration hatası kritik; uygulamayı başlatmayı durdur.
     if (isProd) {
-      throw err;
+      throw safeError;
     } else {
       console.warn(
         '⚠️ Development ortamında migration hatası yutuldu. Devam ediliyor.',
@@ -139,8 +217,8 @@ async function bootstrap() {
     index: false, // Don't serve index.html automatically
     prefix: '/',
     maxAge: '7d', // statik dosyaları 7 gün cachele
-    setHeaders: (res, path) => {
-      if (/\.(?:js|css|svg|png|jpg|jpeg|gif|woff2?)$/i.test(path)) {
+    setHeaders: (res: Response, filePath: string) => {
+      if (/\.(?:js|css|svg|png|jpg|jpeg|gif|woff2?)$/i.test(filePath)) {
         res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
       }
     },
@@ -152,21 +230,26 @@ async function bootstrap() {
     .map((o) => o.trim())
     .filter(Boolean);
 
-  app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin) {
-        // Curl veya same-origin istekler
-        return callback(null, true);
-      }
-      if (!isProd) {
-        // Development: tüm originlere izin ver, ancak logu azalt
-        return callback(null, true);
-      }
-      // Production: allowlist kontrolü
-      const ok = allowedOrigins.includes(origin);
-      if (ok) return callback(null, true);
-      return callback(new Error(`CORS blocked for origin: ${origin}`), false);
-    },
+  const corsOriginHandler = (
+    origin: string | undefined,
+    callback: OriginCallback,
+  ): void => {
+    if (!origin) {
+      // Curl veya same-origin istekler
+      return callback(null, true);
+    }
+    if (!isProd) {
+      // Development: tüm originlere izin ver, ancak logu azalt
+      return callback(null, true);
+    }
+    // Production: allowlist kontrolü
+    const ok = allowedOrigins.includes(origin);
+    if (ok) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+  };
+
+  const corsOptions: CorsOptions = {
+    origin: corsOriginHandler,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true, // Secure cookies için gerekli
     allowedHeaders: [
@@ -181,26 +264,12 @@ async function bootstrap() {
     maxAge: 86400,
     preflightContinue: false,
     optionsSuccessStatus: 204,
-  });
+  };
+
+  app.enableCors(corsOptions);
 
   // Secure cookie configuration
-  app.use((req, res, next) => {
-    // Override cookie method for secure settings
-    const originalCookie = res.cookie;
-    res.cookie = function (name, value, options = {}) {
-      const secureOptions = {
-        httpOnly: true, // XSS koruması
-        secure: process.env.NODE_ENV === 'production', // HTTPS-only in production
-        sameSite:
-          process.env.NODE_ENV === 'production' ? 'strict' : ('lax' as const),
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        path: '/',
-        ...options,
-      };
-      return originalCookie.call(this, name, value, secureOptions);
-    };
-    next();
-  });
+  app.use(secureCookieMiddleware);
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -227,7 +296,9 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   // Global API prefix (development de de prod ile aynı olsun)
-  app.setGlobalPrefix('api', { exclude: [{ path: 'health/(.*)', method: RequestMethod.ALL }] });
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: 'health/(.*)', method: RequestMethod.ALL }],
+  });
 
   SwaggerModule.setup('api/docs', app, document);
 

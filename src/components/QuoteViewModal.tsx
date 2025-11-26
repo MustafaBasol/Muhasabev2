@@ -1,43 +1,60 @@
-import React, { useEffect, useMemo } from 'react';
-import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, Mail, RefreshCw, Lock, Link as LinkIcon } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { X, Edit, Calendar, User, BadgeDollarSign, Send, Check, XCircle, FileDown, RefreshCw, Lock, Link as LinkIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { sanitizeRteHtml } from '../utils/security';
 import ConfirmModal from './ConfirmModal';
+import { logger } from '../utils/logger';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import type {
+  Quote as QuoteApiModel,
+  QuoteStatus as QuoteApiStatus,
+  QuoteItemDto,
+  QuoteRevision,
+} from '../api/quotes';
 
-export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'expired';
+export type QuoteStatus = QuoteApiStatus;
 
-export interface Quote {
-  id: string;
-  publicId?: string;
-  quoteNumber: string;
-  customerName: string;
-  customerId?: string;
-  issueDate: string; // YYYY-MM-DD
-  validUntil?: string; // YYYY-MM-DD (optional in MVP)
-  currency: 'TRY' | 'USD' | 'EUR' | 'GBP';
+type QuoteMetadata = {
+  createdByName?: string;
+  updatedByName?: string;
+};
+
+export type Quote = QuoteApiModel & QuoteMetadata;
+
+type QuoteLegacyItem = Partial<QuoteItemDto> & {
+  id?: string;
+  name?: string;
+  productName?: string;
+  qty?: number;
+  price?: number;
+  unit_price?: number;
+};
+
+interface NormalizedQuoteItem {
+  key: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
   total: number;
-  status: QuoteStatus;
-  version?: number;
-  scopeOfWorkHtml?: string;
-  items?: Array<{
-    id: string;
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-    productId?: string;
-    unit?: string;
-  }>;
-  revisions?: Array<{
-    version: number;
-    issueDate: string;
-    validUntil?: string;
-    status: QuoteStatus;
-    total: number;
-    items?: Quote['items'];
-    snapshotAt: string;
-  }>;
 }
+
+const normalizeQuoteItem = (raw: QuoteItemDto | QuoteLegacyItem): NormalizedQuoteItem => {
+  const description = raw.description ?? raw.name ?? raw.productName ?? '';
+  const quantity = Number(raw.quantity ?? raw.qty ?? 0);
+  const unitPrice = Number(raw.unitPrice ?? raw.price ?? raw.unit_price ?? 0);
+  const total = Number(
+    raw.total ?? (Number.isFinite(quantity) && Number.isFinite(unitPrice) ? quantity * unitPrice : 0)
+  );
+  const keySource = raw.id ?? `${description}-${unitPrice}-${total}`;
+  return {
+    key: String(keySource),
+    description,
+    quantity,
+    unitPrice,
+    total,
+  };
+};
 
 interface QuoteViewModalProps {
   isOpen: boolean;
@@ -55,10 +72,10 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
 
   // Yalnızca işaretlenen alanlar için dil yardımcıları ve etiketler
   const getActiveLang = () => {
-    try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
+    const storedLang = safeLocalStorage.getItem('i18nextLng');
+    if (storedLang && storedLang.length >= 2) {
+      return storedLang.slice(0, 2).toLowerCase();
+    }
     const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
     return cand.slice(0,2).toLowerCase();
   };
@@ -80,14 +97,14 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
     }
   } as const;
 
-  const statusMap = useMemo(() => ({
+  const statusMap = {
     draft: { label: t('quotes.statusLabels.draft', { defaultValue: L.status.draft }), className: 'bg-gray-100 text-gray-800' },
     sent: { label: t('quotes.statusLabels.sent', { defaultValue: L.status.sent }), className: 'bg-blue-100 text-blue-800' },
     viewed: { label: t('quotes.statusLabels.viewed', { defaultValue: L.status.viewed }), className: 'bg-indigo-100 text-indigo-800' },
     accepted: { label: t('quotes.statusLabels.accepted', { defaultValue: L.status.accepted }), className: 'bg-green-100 text-green-800' },
     declined: { label: t('quotes.statusLabels.declined', { defaultValue: L.status.declined }), className: 'bg-red-100 text-red-800' },
     expired: { label: t('quotes.statusLabels.expired', { defaultValue: L.status.expired }), className: 'bg-yellow-100 text-yellow-800' },
-  }), [t]);
+  } as const;
 
   // Hooks must not be called conditionally across renders.
   // Compute daysLeft unconditionally and guard inside the memo.
@@ -108,7 +125,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
   // Revizyon tablosu için durum etiketi (yalnızca işaretlenen alan)
   const getStatusLabel = (status: string) => {
     const key = String(status) as keyof typeof L.status;
-    const defaults = L.status as any;
+    const defaults = L.status;
     switch (key) {
       case 'draft': return t('quotes.statusLabels.draft', { defaultValue: defaults.draft });
       case 'sent': return t('quotes.statusLabels.sent', { defaultValue: defaults.sent });
@@ -213,21 +230,21 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
             <div className="text-xs text-gray-600">
               <div>
                 <span className="text-gray-500">{L.createdBy}:</span>{' '}
-                <span className="font-medium">{(quote as any).createdByName || '—'}</span>
+                <span className="font-medium">{quote.createdByName || '—'}</span>
               </div>
               <div>
                 <span className="text-gray-500">{L.createdAt}:</span>{' '}
-                <span className="font-medium">{(quote as any).createdAt ? new Date((quote as any).createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{quote.createdAt ? new Date(quote.createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
             <div className="text-xs text-gray-600">
               <div>
                 <span className="text-gray-500">{L.updatedBy}:</span>{' '}
-                <span className="font-medium">{(quote as any).updatedByName || '—'}</span>
+                <span className="font-medium">{quote.updatedByName || '—'}</span>
               </div>
               <div>
                 <span className="text-gray-500">{L.updatedAt}:</span>{' '}
-                <span className="font-medium">{(quote as any).updatedAt ? new Date((quote as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{quote.updatedAt ? new Date(quote.updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
           </div>
@@ -254,19 +271,14 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {(quote.items || []).map((raw) => {
-                      const anyIt = raw as any;
-                      const description = anyIt.description ?? anyIt.name ?? anyIt.productName ?? '';
-                      const quantity = Number(anyIt.quantity ?? anyIt.qty ?? 0);
-                      const unitPrice = Number(anyIt.unitPrice ?? anyIt.price ?? anyIt.unit_price ?? 0);
-                      const total = Number(anyIt.total ?? (quantity * unitPrice) ?? 0);
-                      const key = String(anyIt.id ?? `${description}-${unitPrice}-${total}`);
+                    {(quote.items ?? []).map((raw) => {
+                      const item = normalizeQuoteItem(raw);
                       return (
-                        <tr key={key}>
-                          <td className="px-3 py-2 text-sm text-gray-800">{description}</td>
-                          <td className="px-3 py-2 text-sm text-right text-gray-700">{quantity}</td>
-                          <td className="px-3 py-2 text-sm text-right text-gray-700">{formatCurrency(unitPrice, quote.currency)}</td>
-                          <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{formatCurrency(total, quote.currency)}</td>
+                        <tr key={item.key}>
+                          <td className="px-3 py-2 text-sm text-gray-800">{item.description}</td>
+                          <td className="px-3 py-2 text-sm text-right text-gray-700">{item.quantity}</td>
+                          <td className="px-3 py-2 text-sm text-right text-gray-700">{formatCurrency(item.unitPrice, quote.currency)}</td>
+                          <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{formatCurrency(item.total, quote.currency)}</td>
                         </tr>
                       );
                     })}
@@ -315,7 +327,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
           </div>
 
           {/* Revizyon Geçmişi */}
-          {Array.isArray((quote as any).revisions) && (quote as any).revisions.length > 0 && (
+          {Array.isArray(quote.revisions) && quote.revisions.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('quotes.revisionHistory', { defaultValue: 'Revizyon Geçmişi' })}</h3>
               <div className="overflow-x-auto">
@@ -330,7 +342,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {((quote as any).revisions as any[]).map((rev, idx) => (
+                    {quote.revisions.map((rev: QuoteRevision, idx: number) => (
                       <tr key={`rev-${idx}`}>
                         <td className="px-3 py-2 text-sm text-gray-800">v{rev.version}</td>
                         <td className="px-3 py-2 text-sm text-gray-700">{formatDate(rev.issueDate)}</td>
@@ -346,11 +358,11 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
           )}
 
           {/* İşin Kapsamı */}
-          {((quote as any).scopeOfWorkHtml && String((quote as any).scopeOfWorkHtml).trim().length > 0) && (
+          {(quote.scopeOfWorkHtml && String(quote.scopeOfWorkHtml).trim().length > 0) && (
             <div>
               <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</h3>
               <div className="prose max-w-none prose-sm text-gray-800 border border-gray-200 rounded-lg p-4 bg-white"
-                   dangerouslySetInnerHTML={{ __html: String((quote as any).scopeOfWorkHtml) }} />
+                   dangerouslySetInnerHTML={{ __html: sanitizeRteHtml(String(quote.scopeOfWorkHtml || '')) }} />
             </div>
           )}
 
@@ -363,14 +375,19 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                   id: quote.id,
                   quoteNumber: quote.quoteNumber,
                   customerName: quote.customerName,
-                  customerId: (quote as any).customerId,
+                  customerId: quote.customerId,
                   issueDate: quote.issueDate,
                   validUntil: quote.validUntil,
                   status: quote.status,
-                  currency: quote.currency as any,
+                  currency: quote.currency,
                   total: quote.total,
-                  items: (quote.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
-                  scopeOfWorkHtml: (quote as any).scopeOfWorkHtml || ''
+                  items: (quote.items || []).map((it) => ({
+                    description: it.description,
+                    quantity: it.quantity,
+                    unitPrice: it.unitPrice,
+                    total: it.total,
+                  })),
+                  scopeOfWorkHtml: quote.scopeOfWorkHtml || ''
                 }, { filename: quote.quoteNumber });
               }}
               className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
@@ -388,7 +405,18 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                     const origin = typeof window !== 'undefined' ? window.location.origin : '';
                     const url = `${origin}/public/quote/${encodeURIComponent(String(quote.publicId))}`;
                     await navigator.clipboard.writeText(url);
-                    try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: t('quotes.actions.copyPublicLinkSuccess', { defaultValue: 'Bağlantı kopyalandı.' }) as string, tone: 'success' } })); } catch {}
+                    try {
+                      window.dispatchEvent(
+                        new CustomEvent('showToast', {
+                          detail: {
+                            message: t('quotes.actions.copyPublicLinkSuccess', { defaultValue: 'Bağlantı kopyalandı.' }) as string,
+                            tone: 'success',
+                          },
+                        })
+                      );
+                    } catch (dispatchError) {
+                      logger.debug('Public quote toast dispatch failed', dispatchError);
+                    }
                     // İlk kez paylaşım yapılıyorsa taslak statüsünü 'sent' yap
                     if (onChangeStatus && (quote.status === 'draft')) {
                       onChangeStatus(quote, 'sent');
@@ -399,7 +427,9 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                       const origin = typeof window !== 'undefined' ? window.location.origin : '';
                       const url = `${origin}/public/quote/${encodeURIComponent(String(quote.publicId))}`;
                       alert(url);
-                    } catch {}
+                    } catch (fallbackError) {
+                      logger.debug('Public quote link alert fallback failed', fallbackError);
+                    }
                   }
                 }}
                 className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"

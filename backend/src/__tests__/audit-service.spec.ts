@@ -1,31 +1,60 @@
+import { Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditLog } from '../audit/entities/audit-log.entity';
 
+type QueryBuilderMock = {
+  leftJoinAndSelect: () => QueryBuilderMock;
+  where: () => QueryBuilderMock;
+  andWhere: () => QueryBuilderMock;
+  orderBy: () => QueryBuilderMock;
+  skip: () => QueryBuilderMock;
+  take: () => QueryBuilderMock;
+  getCount: () => Promise<number>;
+  getMany: () => Promise<AuditLog[]>;
+};
+
 // Basit mock repository
 class MockRepo {
-  entries: any[] = [];
-  create(data: any) {
-    return { id: 'log-' + (this.entries.length + 1), createdAt: new Date(), ...data } as AuditLog;
+  entries: AuditLog[] = [];
+
+  create(data: Partial<AuditLog>): AuditLog {
+    return {
+      id: 'log-' + (this.entries.length + 1),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      tenantId: 'tenant',
+      userId: 'user',
+      entity: 'entity',
+      entityId: 'entity-id',
+      action: AuditAction.CREATE,
+      diff: {},
+      ...data,
+    } as AuditLog;
   }
-  async save(entry: any) {
+
+  async save(entry: AuditLog): Promise<AuditLog> {
     this.entries.push(entry);
     return entry;
   }
-  createQueryBuilder() {
+
+  createQueryBuilder(): QueryBuilderMock {
     // Sadece findAll kullanımını kabaca taklit eder
-    const self = this;
-    return {
-      leftJoinAndSelect() { return this; },
-      where() { return this; },
-      andWhere() { return this; },
-      orderBy() { return this; },
-      getCount: async () => self.entries.length,
-      skip() { return this; },
-      take() { return this; },
-      getMany: async () => self.entries,
+    const builder: QueryBuilderMock = {
+      leftJoinAndSelect: () => builder,
+      where: () => builder,
+      andWhere: () => builder,
+      orderBy: () => builder,
+      skip: () => builder,
+      take: () => builder,
+      getCount: async () => this.entries.length,
+      getMany: async () => this.entries,
     };
+    return builder;
   }
-  find() { return this.entries; }
+
+  find(): AuditLog[] {
+    return this.entries;
+  }
 }
 
 describe('AuditService (unit)', () => {
@@ -34,8 +63,7 @@ describe('AuditService (unit)', () => {
 
   beforeEach(() => {
     repo = new MockRepo();
-    // @ts-ignore inject mock repo
-    service = new AuditService(repo);
+    service = new AuditService(repo as unknown as Repository<AuditLog>);
   });
 
   it('masks PII fields in diff', async () => {

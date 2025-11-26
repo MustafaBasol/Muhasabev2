@@ -14,6 +14,37 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { organizationsApi, Invite } from '../api/organizations';
 import TurnstileCaptcha from './TurnstileCaptcha';
+import { safeLocalStorage, safeSessionStorage } from '../utils/localStorageSafe';
+
+type ApiErrorPayload = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error && typeof error === 'object') {
+    const payload = error as ApiErrorPayload;
+    return payload.response?.data?.message || payload.message || fallback;
+  }
+  return fallback;
+};
+
+const safeInvoke = (action: () => void, context: string) => {
+  try {
+    action();
+  } catch (invokeError) {
+    if ((import.meta.env.MODE ?? 'production') !== 'production') {
+      console.warn(`JoinOrganizationPage: ${context} failed`, invokeError);
+    }
+  }
+};
 
 // Ayrı alt bileşen: Şifre belirleme formu (hooks burada güvenli)
 const InvitePasswordForm: React.FC<{
@@ -42,29 +73,60 @@ const InvitePasswordForm: React.FC<{
     try {
       setSubmitting(true);
       await organizationsApi.completeInviteWithPassword(token, password, captchaToken);
-      try { sessionStorage.removeItem('pending_invite_token'); } catch {}
-      try { localStorage.removeItem('pending_invite_token'); } catch {}
+      safeInvoke(
+        () => safeSessionStorage.removeItem('pending_invite_token'),
+        'remove pending_invite_token from sessionStorage',
+      );
+      safeInvoke(
+        () => safeLocalStorage.removeItem('pending_invite_token'),
+        'remove pending_invite_token from localStorage',
+      );
       // Otomatik giriş yap
       try {
         const { authService } = await import('../api/auth');
         await authService.login({ email: invite.email, password });
-        try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: 'Davet kabul edildi. Hoş geldiniz!', tone: 'success' } })); } catch {}
+        safeInvoke(
+          () =>
+            window.dispatchEvent(
+              new CustomEvent('showToast', {
+                detail: {
+                  message: 'Davet kabul edildi. Hoş geldiniz!',
+                  tone: 'success',
+                },
+              }),
+            ),
+          'dispatch invite success toast',
+        );
         onJoinSuccess?.();
-      } catch (e) {
+      } catch {
         // Login başarısız olursa login sayfasına yönlendir
-        try { sessionStorage.setItem('prefill_email', invite.email); } catch {}
-        try { localStorage.setItem('prefill_email', invite.email); } catch {}
+        safeInvoke(
+          () => safeSessionStorage.setItem('prefill_email', invite.email),
+          'store prefill_email in sessionStorage',
+        );
+        safeInvoke(
+          () => safeLocalStorage.setItem('prefill_email', invite.email),
+          'store prefill_email in localStorage',
+        );
         window.location.hash = 'login';
       }
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || t('common.error', 'İşlem başarısız');
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error, t('common.error', 'İşlem başarısız'));
       setError(msg);
       const lowered = String(msg || '').toLowerCase();
       if (lowered.includes('human verification') || lowered.includes('captcha')) {
         setCaptchaToken(null);
         setCaptchaResetKey((prev) => prev + 1);
       }
-      try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: msg, tone: 'error' } })); } catch {}
+      safeInvoke(
+        () =>
+          window.dispatchEvent(
+            new CustomEvent('showToast', {
+              detail: { message: msg, tone: 'error' },
+            }),
+          ),
+        'dispatch invite error toast',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -137,19 +199,24 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuth();
   const captchaRequiredMessage = t('auth.captchaRequired', 'Lütfen insan doğrulamasını tamamlayın.');
-  const siteKey = (import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '';
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+  const isCodespaceHost = typeof window !== 'undefined' && (window.location.hostname?.endsWith('.github.dev') || window.location.hostname?.endsWith('.githubpreview.dev') || window.location.hostname?.includes('.app.github.dev'));
+  const captchaBypassAllowed =
+    import.meta.env.VITE_CAPTCHA_DEV_BYPASS === 'true' ||
+    (import.meta.env.MODE !== 'production' && isCodespaceHost);
+  const skipHumanVerification = captchaBypassAllowed && (!siteKey || isCodespaceHost);
   const [loading, setLoading] = useState(true);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [status, setStatus] = useState<'validating' | 'valid' | 'invalid' | 'expired' | 'accepting' | 'success' | 'error' | 'already_member'>('validating');
   const [error, setError] = useState<string | null>(null);
-  const [humanToken, setHumanToken] = useState<string | null>(siteKey ? null : 'TURNSTILE_SKIPPED');
+  const [humanToken, setHumanToken] = useState<string | null>(skipHumanVerification ? 'TURNSTILE_SKIPPED' : null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
 
   const resetHumanCaptcha = useCallback(() => {
-    setHumanToken(siteKey ? null : 'TURNSTILE_SKIPPED');
+    setHumanToken(skipHumanVerification ? 'TURNSTILE_SKIPPED' : null);
     setCaptchaResetKey((prev) => prev + 1);
-  }, [siteKey]);
+  }, [skipHumanVerification]);
 
   const validateToken = useCallback(async (turnstileToken?: string) => {
     if (!turnstileToken) {
@@ -180,8 +247,8 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
         setStatus('invalid');
         setError(result.error || 'Invalid invite token');
       }
-    } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to validate invite token';
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Failed to validate invite token');
       const lowered = String(message || '').toLowerCase();
       if (lowered.includes('human verification') || lowered.includes('captcha')) {
         setCaptchaError(t('auth.captchaVerificationFailed', 'İnsan doğrulaması doğrulanamadı. Lütfen tekrar deneyin.'));
@@ -193,7 +260,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [token, resetHumanCaptcha, captchaRequiredMessage]);
+  }, [token, resetHumanCaptcha, captchaRequiredMessage, t]);
 
   useEffect(() => {
     if (!token || !humanToken) return;
@@ -215,10 +282,10 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
         onJoinSuccess?.();
       }, 2000);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to accept invite:', error);
       setStatus('error');
-      setError(error.response?.data?.message || 'Failed to accept invitation');
+      setError(getErrorMessage(error, 'Failed to accept invitation'));
     }
   };
 
@@ -474,7 +541,10 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
                   <button
                     type="button"
                     onClick={async () => {
-                      try { sessionStorage.setItem('prefill_email', invite.email); } catch {}
+                      safeInvoke(
+                        () => safeSessionStorage.setItem('prefill_email', invite.email),
+                        'store prefill_email before login redirect',
+                      );
                       await logout();
                       try { window.location.hash = 'login'; } catch { window.location.href = '#login'; }
                     }}
@@ -485,7 +555,10 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
                   <button
                     type="button"
                     onClick={async () => {
-                      try { sessionStorage.setItem('prefill_email', invite.email); } catch {}
+                      safeInvoke(
+                        () => safeSessionStorage.setItem('prefill_email', invite.email),
+                        'store prefill_email before register redirect',
+                      );
                       await logout();
                       try { window.location.hash = 'register'; } catch { window.location.href = '#register'; }
                     }}

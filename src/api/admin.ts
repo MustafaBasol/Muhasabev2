@@ -1,8 +1,33 @@
 import apiClient from './client';
+import { adminAuthStorage } from '../utils/adminAuthStorage';
+import type {
+  AdminTenantSummary,
+  TenantOverview,
+  TenantPlanLimitOverrides,
+  TenantSubscriptionRaw,
+  TenantLimitsResponse,
+} from '../types/admin';
 
-// Helper function to get admin token from localStorage
+type TenantLimitsUpdatePayload = TenantPlanLimitOverrides & {
+  __clearAll?: boolean;
+  __clear?: string[];
+};
+
+type AdminApiError = {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+};
+
+const readAdminError = (error: unknown): AdminApiError =>
+  (typeof error === 'object' && error !== null ? (error as AdminApiError) : {});
+
 const getAdminToken = () => {
-  return localStorage.getItem('admin-token');
+  return adminAuthStorage.getToken();
 };
 
 // Helper function to get admin headers
@@ -64,7 +89,7 @@ export const adminApi = {
     return response.data;
   },
 
-  getTenants: async (filters?: { status?: string; plan?: string; startFrom?: string; startTo?: string }) => {
+  getTenants: async (filters?: { status?: string; plan?: string; startFrom?: string; startTo?: string }): Promise<AdminTenantSummary[]> => {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.plan) params.append('plan', filters.plan);
@@ -74,7 +99,7 @@ export const adminApi = {
     const response = await apiClient.get(`/admin/tenants${qs}`, {
       headers: getAdminHeaders()
     });
-    return response.data;
+    return response.data as AdminTenantSummary[];
   },
 
   getUserData: async (userId: string) => {
@@ -187,6 +212,13 @@ export const adminApi = {
     return response.data;
   },
 
+  markUserVerified: async (userId: string) => {
+    const response = await apiClient.post(`/admin/users/${userId}/verify`, {}, {
+      headers: getAdminHeaders()
+    });
+    return response.data;
+  },
+
   updateUserDetails: async (
     userId: string,
     payload: { firstName?: string; lastName?: string; email?: string; phone?: string; role?: string }
@@ -234,10 +266,10 @@ export const adminApi = {
         { headers: getAdminHeaders() }
       );
       return response.data;
-    } catch (e: any) {
-      // 404 veya diğer durumlarda hata detayını yukarı aktar
-      const status = e?.response?.status;
-      const msg = e?.response?.data?.message || e?.message;
+      } catch (error: unknown) {
+        const details = readAdminError(error);
+        const status = details.response?.status;
+        const msg = details.response?.data?.message || details.message;
       throw new Error(`Silme hatası${status ? ` (HTTP ${status})` : ''}: ${msg || 'Bilinmeyen'}`);
     }
   },
@@ -280,21 +312,15 @@ export const adminApi = {
   },
 
   // Tenant-specific limits
-  getTenantLimits: async (tenantId: string) => {
+  getTenantLimits: async (tenantId: string): Promise<TenantLimitsResponse> => {
     const response = await apiClient.get(`/admin/tenant/${tenantId}/limits`, {
       headers: getAdminHeaders(),
     });
-    return response.data;
+    return response.data as TenantLimitsResponse;
   },
   updateTenantLimits: async (
     tenantId: string,
-    payload: {
-      maxUsers?: number;
-      maxCustomers?: number;
-      maxSuppliers?: number;
-      maxBankAccounts?: number;
-      monthly?: { maxInvoices?: number; maxExpenses?: number };
-    }
+    payload: TenantLimitsUpdatePayload
   ) => {
     const response = await apiClient.patch(`/admin/tenant/${tenantId}/limits`, payload, {
       headers: getAdminHeaders(),
@@ -303,18 +329,18 @@ export const adminApi = {
   },
 
   // Tenant consolidated overview
-  getTenantOverview: async (tenantId: string) => {
+  getTenantOverview: async (tenantId: string): Promise<TenantOverview> => {
     const response = await apiClient.get(`/admin/tenant/${tenantId}/overview`, {
       headers: getAdminHeaders(),
     });
-    return response.data;
+    return response.data as TenantOverview;
   },
   // Tenant Stripe subscription raw details (koltuk hesaplaması, addon qty vb.)
-  getTenantSubscriptionRaw: async (tenantId: string) => {
+  getTenantSubscriptionRaw: async (tenantId: string): Promise<TenantSubscriptionRaw> => {
     const response = await apiClient.get(`/admin/tenant/${tenantId}/subscription-raw`, {
       headers: getAdminHeaders(),
     });
-    return response.data;
+    return response.data as TenantSubscriptionRaw;
   },
   // Tenant invoice history (Stripe invoices)
   getTenantInvoices: async (tenantId: string) => {
@@ -323,11 +349,10 @@ export const adminApi = {
         headers: getAdminHeaders(),
       });
       return response.data;
-    } catch (e: any) {
-      // 404 durumunda UI'yı kırmayalım; boş liste döndür
-      const status = e?.response?.status;
-      if (status === 404) return { invoices: [] };
-      throw e;
+      } catch (error: unknown) {
+        const status = readAdminError(error).response?.status;
+        if (status === 404) return { invoices: [] };
+        throw error;
     }
   },
   // Add user to tenant (no email verification)

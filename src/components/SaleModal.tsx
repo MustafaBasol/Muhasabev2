@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import {
   X,
   TrendingUp,
@@ -15,6 +15,7 @@ import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import type { Product } from '../types';
 import type { Sale } from '../types';
 import StockWarningModal from './StockWarningModal';
+import { logger } from '../utils/logger';
 
 interface Customer {
   id: string;
@@ -36,6 +37,94 @@ interface SaleModalProps {
   products?: Product[];
 }
 
+type StockAwareProduct = Product & {
+  stock?: number | string | null;
+  stockQuantity?: number | string | null;
+};
+
+const getAvailableStock = (product?: Product | null): number | null => {
+  if (!product) return null;
+  const stockAware = product as StockAwareProduct;
+  const candidate = stockAware.stock ?? stockAware.stockQuantity;
+  const numeric = Number(candidate);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+type PaymentMethod = NonNullable<Sale['paymentMethod']>;
+
+interface SaleFormState {
+  saleNumber: string;
+  customerName: string;
+  customerEmail: string;
+  productId: string;
+  productName: string;
+  productUnit: string;
+  quantity: number;
+  unitPrice: number;
+  status: Sale['status'];
+  date: string;
+  paymentMethod: PaymentMethod;
+  notes: string;
+}
+
+const DEFAULT_PAYMENT_METHOD: PaymentMethod = 'cash';
+
+const todayIsoDate = (): string => new Date().toISOString().split('T')[0];
+
+const sanitizeDateValue = (value?: string | null): string => {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) {
+    return todayIsoDate();
+  }
+  return trimmed.slice(0, 10);
+};
+
+const sanitizeQuantity = (value: unknown, fallback = 1): number => {
+  const numeric = typeof value === 'number' ? value : Number.parseFloat(String(value).replace(',', '.'));
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return fallback;
+  }
+  return Math.round(numeric);
+};
+
+const sanitizeUnitPrice = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  const normalized = String(value ?? '0').replace(/\s/g, '').replace(',', '.');
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeId = (value?: string | number | null): string => {
+  if (value == null) return '';
+  return String(value);
+};
+
+const buildSaleFormState = (existing?: Sale | null): SaleFormState => ({
+  saleNumber: existing?.saleNumber ?? '',
+  customerName: existing?.customerName ?? '',
+  customerEmail: existing?.customerEmail ?? '',
+  productId: normalizeId(existing?.productId),
+  productName: existing?.productName ?? '',
+  productUnit: existing?.productUnit ?? '',
+  quantity: sanitizeQuantity(existing?.quantity ?? 1),
+  unitPrice: sanitizeUnitPrice(existing?.unitPrice ?? 0),
+  status: existing?.status ?? 'completed',
+  date: sanitizeDateValue(existing?.date),
+  paymentMethod: existing?.paymentMethod ?? DEFAULT_PAYMENT_METHOD,
+  notes: existing?.notes ?? '',
+});
+
+const findMatchingProduct = (list: Product[], target?: { id?: string | null; name?: string | null }): Product | null => {
+  if (!target) return null;
+  const byId = target.id ? list.find((product) => normalizeId(product.id) === normalizeId(target.id)) : null;
+  if (byId) return byId;
+  const normalizedName = (target.name ?? '').trim().toLowerCase();
+  if (!normalizedName) return null;
+  return list.find((product) => (product.name ?? '').trim().toLowerCase() === normalizedName) ?? null;
+};
+
 export default function SaleModal({
   isOpen,
   onClose,
@@ -45,20 +134,7 @@ export default function SaleModal({
   products = [],
 }: SaleModalProps) {
   const { t, i18n } = useTranslation();
-  const [saleData, setSaleData] = useState({
-    saleNumber: sale?.saleNumber || '', // Boş bırak, backend oluşturacak
-    customerName: sale?.customerName || '',
-    customerEmail: sale?.customerEmail || '',
-    productId: sale?.productId || '',
-    productName: sale?.productName || '',
-    productUnit: sale?.productUnit || '',
-    quantity: sale?.quantity || 1,
-    unitPrice: sale?.unitPrice || 0,
-    status: sale?.status || 'completed',
-    date: sale?.date || new Date().toISOString().split('T')[0],
-    paymentMethod: sale?.paymentMethod || 'cash',
-    notes: sale?.notes || '',
-  });
+  const [saleData, setSaleData] = useState<SaleFormState>(() => buildSaleFormState(sale));
   const [stockWarning, setStockWarning] = useState<{ product: Product; requested: number; available: number } | null>(null);
 
   const [customerSearch, setCustomerSearch] = useState(sale?.customerName || '');
@@ -72,67 +148,28 @@ export default function SaleModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [createInvoice, setCreateInvoice] = useState(false);
 
+  const updateSaleData = (patch: Partial<SaleFormState>) => {
+    setSaleData((current) => ({ ...current, ...patch }));
+  };
+
   React.useEffect(() => {
-    console.log('🎬 SaleModal useEffect çalıştı:', { 
-      isOpen, 
+    logger.debug('SaleModal useEffect invoked', {
+      isOpen,
       hasSale: !!sale,
       saleId: sale?.id,
-      saleName: sale?.customerName 
+      saleName: sale?.customerName,
     });
-    
+
     if (!isOpen) {
       return;
     }
 
-    if (!sale) {
-      console.log('📝 Yeni satış formu hazırlanıyor');
-      setSaleData({
-        saleNumber: '', // Backend oluşturacak
-        customerName: '',
-        customerEmail: '',
-        productId: '',
-        productName: '',
-        productUnit: '',
-        quantity: 1,
-        unitPrice: 0,
-        status: 'completed',
-        date: new Date().toISOString().split('T')[0],
-        paymentMethod: 'cash',
-        notes: '',
-      });
-      setCustomerSearch('');
-      setProductSearch('');
-      setSelectedCustomer(null);
-      setSelectedProductOption(null);
-      setShowCustomerDropdown(false);
-      setShowProductDropdown(false);
-      setErrors({});
-      setCreateInvoice(false);
-      return;
-    }
-
-    console.log('✏️ Mevcut satış formu yükleniyor:', sale.saleNumber);
-    setSaleData({
-      saleNumber: sale.saleNumber || '', // Mevcut numarayı kullan
-      customerName: sale.customerName || '',
-      customerEmail: sale.customerEmail || '',
-      productId: sale.productId || '',
-      productName: sale.productName || '',
-      productUnit: sale.productUnit || '',
-      quantity: sale.quantity || 1,
-      unitPrice: sale.unitPrice || 0,
-      status: sale.status,
-      date: sale.date || new Date().toISOString().split('T')[0],
-      paymentMethod: sale.paymentMethod || 'cash',
-      notes: sale.notes || '',
-    });
-    setCustomerSearch(sale.customerName || '');
-    setProductSearch(sale.productName || '');
+    const nextState = buildSaleFormState(sale);
+    setSaleData(nextState);
+    setCustomerSearch(nextState.customerName);
+    setProductSearch(nextState.productName);
     setSelectedCustomer(null);
-    const matchedProduct = products.find(product =>
-      product.id === sale.productId ||
-      (product.name ? product.name.toLowerCase() : '') === (sale.productName || '').toLowerCase()
-    );
+    const matchedProduct = findMatchingProduct(products, { id: sale?.productId, name: sale?.productName });
     setSelectedProductOption(matchedProduct || null);
     setShowCustomerDropdown(false);
     setShowProductDropdown(false);
@@ -140,23 +177,28 @@ export default function SaleModal({
     setCreateInvoice(false);
   }, [isOpen, sale, products]);
 
-  const total = saleData.quantity * saleData.unitPrice;
-  const safeTotal = Number.isFinite(total) ? total : 0;
+  const safeTotal = useMemo(() => {
+    const total = saleData.quantity * saleData.unitPrice;
+    return Number.isFinite(total) ? total : 0;
+  }, [saleData.quantity, saleData.unitPrice]);
 
-  const filteredCustomers = customers.filter(customer => {
+  const filteredCustomers = useMemo(() => {
     const query = customerSearch.trim().toLowerCase();
     if (!query) {
-      return true;
+      return customers;
     }
-    const name = customer.name ? customer.name.toLowerCase() : '';
-    const company = customer.company ? customer.company.toLowerCase() : '';
-    const email = customer.email ? customer.email.toLowerCase() : '';
-    return name.includes(query) || company.includes(query) || email.includes(query);
-  });
+    return customers.filter((customer) => {
+      const name = customer.name ? customer.name.toLowerCase() : '';
+      const company = customer.company ? customer.company.toLowerCase() : '';
+      const email = customer.email ? customer.email.toLowerCase() : '';
+      return name.includes(query) || company.includes(query) || email.includes(query);
+    });
+  }, [customers, customerSearch]);
 
-  const filteredProducts = products
-      .filter(product => {
-        const query = productSearch.trim().toLowerCase();
+  const filteredProducts = useMemo(() => {
+    const query = productSearch.trim().toLowerCase();
+    return products
+      .filter((product) => {
         if (!query) {
           return true;
         }
@@ -165,15 +207,15 @@ export default function SaleModal({
         const category = product.category ? product.category.toLowerCase() : '';
         return name.includes(query) || sku.includes(query) || category.includes(query);
       })
-    .slice(0, 12);
+      .slice(0, 12);
+  }, [products, productSearch]);
 
   const handleCustomerSelect = (customer: Customer) => {
     setSelectedCustomer(customer);
-    setSaleData(current => ({
-      ...current,
+    updateSaleData({
       customerName: customer.name,
       customerEmail: customer.email,
-    }));
+    });
     setCustomerSearch(customer.name);
     setShowCustomerDropdown(false);
     if (errors.customerName) {
@@ -183,11 +225,8 @@ export default function SaleModal({
 
   const handleCustomerSearchChange = (value: string) => {
     setCustomerSearch(value);
-    setSaleData(current => ({
-      ...current,
-      customerName: value,
-    }));
-    setShowCustomerDropdown(value.length > 0);
+    updateSaleData({ customerName: value });
+    setShowCustomerDropdown(value.trim().length > 0);
     setSelectedCustomer(null);
     if (errors.customerName) {
       setErrors(current => ({ ...current, customerName: '' }));
@@ -196,12 +235,10 @@ export default function SaleModal({
 
   const handleProductSearchChange = (value: string) => {
     setProductSearch(value);
-    setSaleData(current => ({
-      ...current,
+    updateSaleData({
       productName: value,
       productId: '',
-      productUnit: current.productUnit,
-    }));
+    });
     setShowProductDropdown(true);
     setSelectedProductOption(null);
     if (errors.productName) {
@@ -210,24 +247,23 @@ export default function SaleModal({
   };
 
   const handleProductSelect = (product: Product) => {
-    const nextQuantity = saleData.quantity > 0 ? saleData.quantity : 1;
-    const unitPrice = Number(product.unitPrice ?? saleData.unitPrice ?? 0);
+    const nextQuantity = sanitizeQuantity(saleData.quantity);
+    const unitPrice = sanitizeUnitPrice(product.unitPrice ?? saleData.unitPrice ?? 0);
     setSelectedProductOption(product);
-    setProductSearch(product.name);
-    setSaleData(current => ({
-      ...current,
-      productId: product.id,
-      productName: product.name,
-      productUnit: product.unit || current.productUnit,
+    setProductSearch(product.name || '');
+    updateSaleData({
+      productId: normalizeId(product.id),
+      productName: product.name || '',
+      productUnit: product.unit || '',
       unitPrice,
       quantity: nextQuantity,
-    }));
+    });
     setShowProductDropdown(false);
     if (errors.productName) {
       setErrors(current => ({ ...current, productName: '' }));
     }
-    const available = Number((product as any).stock ?? (product as any).stockQuantity ?? NaN);
-    if (Number.isFinite(available) && nextQuantity > available) {
+    const available = getAvailableStock(product);
+    if (available !== null && nextQuantity > available) {
       setStockWarning({ product, requested: nextQuantity, available });
     }
   };
@@ -286,9 +322,9 @@ export default function SaleModal({
       const prod = products.find(p => String(p.id) === String(saleData.productId))
         || products.find(p => String(p.name || '').trim().toLowerCase() === String(saleData.productName || '').trim().toLowerCase());
       if (prod) {
-        const available = Number((prod as any).stock ?? (prod as any).stockQuantity ?? NaN);
+        const available = getAvailableStock(prod);
         const requested = Number(saleData.quantity) || 0;
-        if (Number.isFinite(available) && requested > available) {
+        if (available !== null && requested > available) {
           setStockWarning({ product: prod, requested, available });
           return; // Uyarıyı göster ve kaydı durdur
         }
@@ -301,7 +337,7 @@ export default function SaleModal({
 
     const amount = safeTotal;
 
-    const saleToSave: any = {
+    const saleToSave: (Partial<Sale> & { amount: number; total: number; createInvoice: boolean }) = {
       ...saleData,
       amount,
       total: amount,
@@ -318,23 +354,22 @@ export default function SaleModal({
       delete saleToSave.saleNumber;
     }
 
-    console.log('💾 SaleModal kayıt gönderiyor:', saleToSave);
+    logger.debug('SaleModal saving sale', saleToSave);
     onSave(saleToSave);
     // onClose'u biraz geciktir ki state güncellensin
     setTimeout(() => {
-      console.log('🚪 SaleModal kapanıyor');
+      logger.debug('SaleModal closing after save');
       onClose();
     }, 10);
   };
 
   if (!isOpen) {
-    console.log('🚫 SaleModal render edilmiyor (isOpen=false)');
     return null;
   }
 
-  console.log('✅ SaleModal render ediliyor:', { 
+  logger.debug('SaleModal rendering', {
     saleNumber: saleData.saleNumber || 'YENİ',
-    customerName: saleData.customerName || 'BOŞ'
+    customerName: saleData.customerName || 'BOŞ',
   });
 
   return (
@@ -384,7 +419,7 @@ export default function SaleModal({
               <input
                 type="date"
                 value={saleData.date}
-                onChange={(event) => setSaleData({ ...saleData, date: event.target.value })}
+                onChange={(event) => updateSaleData({ date: sanitizeDateValue(event.target.value) })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 lang={i18n.language}
               />
@@ -443,7 +478,7 @@ export default function SaleModal({
               <input
                 type="email"
                 value={saleData.customerEmail}
-                onChange={(event) => setSaleData({ ...saleData, customerEmail: event.target.value })}
+                onChange={(event) => updateSaleData({ customerEmail: event.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder={t('customers.emailPlaceholder')}
               />
@@ -477,7 +512,7 @@ export default function SaleModal({
             </div>
             {selectedProductOption && (
               <p className="mt-1 text-xs text-gray-500">
-                {t('products.stock')}: {Math.max(0, Number((selectedProductOption as any).stockQuantity ?? (selectedProductOption as any).stock ?? 0))} {selectedProductOption.unit || ''} | {t('products.price')}: {selectedProductOption.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                {t('products.stock')}: {Math.max(0, getAvailableStock(selectedProductOption) ?? 0)} {selectedProductOption.unit || ''} | {t('products.price')}: {selectedProductOption.unitPrice?.toLocaleString(i18n.language, { minimumFractionDigits: 2 })}
               </p>
             )}
             {errors.productName && <p className="text-red-500 text-xs mt-1">{errors.productName}</p>}
@@ -499,7 +534,7 @@ export default function SaleModal({
                       {(product.sku ? `SKU: ${product.sku}` : '')}{product.sku && product.category ? ' • ' : ''}{product.category || ''}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {t('products.price')}: {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} | {t('products.stock')}: {Math.max(0, Number((product as any).stockQuantity ?? (product as any).stock ?? 0))}
+                      {t('products.price')}: {product.unitPrice?.toLocaleString(i18n.language, { minimumFractionDigits: 2 })} | {t('products.stock')}: {Math.max(0, getAvailableStock(product) ?? 0)}
                     </div>
                   </button>
                 ))}
@@ -514,13 +549,13 @@ export default function SaleModal({
                 type="number"
                 value={saleData.quantity}
                 onChange={(event) => {
-                  const q = parseInt(event.target.value, 10) || 1;
-                  setSaleData({ ...saleData, quantity: q });
+                  const q = sanitizeQuantity(event.target.value);
+                  updateSaleData({ quantity: q });
                   if (saleData.productId) {
                     const p = products.find(pr => String(pr.id) === String(saleData.productId));
                     if (p) {
-                      const available = Number((p as any).stock ?? (p as any).stockQuantity ?? NaN);
-                      if (Number.isFinite(available) && q > available) {
+                      const available = getAvailableStock(p);
+                      if (available !== null && q > available) {
                         setStockWarning({ product: p, requested: q, available });
                       }
                     }
@@ -540,7 +575,7 @@ export default function SaleModal({
               <input
                 type="number"
                 value={saleData.unitPrice}
-                onChange={(event) => setSaleData({ ...saleData, unitPrice: parseFloat(event.target.value) || 0 })}
+                onChange={(event) => updateSaleData({ unitPrice: sanitizeUnitPrice(event.target.value) })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="0.00"
                 min="0"
@@ -551,7 +586,7 @@ export default function SaleModal({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('sales.totalExclVAT')}</label>
               <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 font-medium">
-                {safeTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                {safeTotal.toLocaleString(i18n.language, { minimumFractionDigits: 2 })}
               </div>
             </div>
           </div>
@@ -561,7 +596,7 @@ export default function SaleModal({
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('common:statusLabel')}</label>
               <select
                 value={saleData.status}
-                onChange={(event) => setSaleData({ ...saleData, status: event.target.value as Sale['status'] })}
+                onChange={(event) => updateSaleData({ status: event.target.value as Sale['status'] })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="completed">{resolveStatusLabel(t, normalizeStatusKey('completed'))}</option>
@@ -576,7 +611,7 @@ export default function SaleModal({
               </label>
               <select
                 value={saleData.paymentMethod || 'cash'}
-                onChange={(event) => setSaleData({ ...saleData, paymentMethod: event.target.value as 'cash' | 'card' | 'transfer' | 'check' })}
+                onChange={(event) => updateSaleData({ paymentMethod: event.target.value as PaymentMethod })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="cash">{t('payment.cash')}</option>
@@ -591,7 +626,7 @@ export default function SaleModal({
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('common.notes')}</label>
             <textarea
               value={saleData.notes}
-              onChange={(event) => setSaleData({ ...saleData, notes: event.target.value })}
+              onChange={(event) => updateSaleData({ notes: event.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               rows={3}
               placeholder={t('sales.notesPlaceholder')}
@@ -622,7 +657,7 @@ export default function SaleModal({
         requested={stockWarning.requested}
         available={stockWarning.available}
         onAdjust={() => {
-          setSaleData(d => ({ ...d, quantity: stockWarning.available }));
+          updateSaleData({ quantity: sanitizeQuantity(stockWarning.available) });
         }}
         onClose={() => setStockWarning(null)}
       />

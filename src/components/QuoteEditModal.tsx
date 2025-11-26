@@ -5,6 +5,7 @@ import type { Quote, QuoteStatus } from './QuoteViewModal';
 import type { Product } from '../types';
 import ConfirmModal from './ConfirmModal';
 import RichTextEditor from './RichTextEditor';
+import { safeLocalStorage } from '../utils/localStorageSafe';
 
 interface QuoteEditModalProps {
   isOpen: boolean;
@@ -17,10 +18,8 @@ interface QuoteEditModalProps {
 const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote, onSave, products = [] }) => {
   const { t, i18n } = useTranslation();
   const getActiveLang = () => {
-    try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
+    const stored = safeLocalStorage.getItem('i18nextLng');
+    if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
     const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
     return cand.slice(0,2).toLowerCase();
   };

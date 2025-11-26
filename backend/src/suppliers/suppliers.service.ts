@@ -90,9 +90,6 @@ export class SuppliersService {
     });
 
     if (relatedExpenses.length > 0) {
-      const expenseNumbers = relatedExpenses
-        .map((e) => e.expenseNumber)
-        .join(', ');
       throw new HttpException(
         {
           message: 'Bu tedarikçi silinemez çünkü bağlı giderler var',

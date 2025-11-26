@@ -6,14 +6,31 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-  OneToMany,
 } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Organization } from '../../organizations/entities/organization.entity';
 
-const __isTestEnv =
-  process.env.NODE_ENV === 'test' ||
-  typeof process.env.JEST_WORKER_ID !== 'undefined';
+const driverHint = (
+  process.env.TEST_DB ||
+  process.env.TEST_DATABASE ||
+  process.env.TEST_DATABASE_TYPE ||
+  process.env.DB_TYPE ||
+  process.env.DATABASE_CLIENT ||
+  process.env.TYPEORM_CONNECTION ||
+  process.env.TYPEORM_DRIVER ||
+  ''
+).toLowerCase();
+
+const isSqliteHint = ['sqlite', 'better-sqlite3'].includes(driverHint);
+
+const __sqliteFriendlyEnv =
+  isSqliteHint ||
+  (!driverHint &&
+    (process.env.DB_SQLITE === 'true' ||
+      process.env.NODE_ENV === 'test' ||
+      typeof process.env.JEST_WORKER_ID !== 'undefined'));
+
+const timestamptzColumnType = __sqliteFriendlyEnv ? 'datetime' : 'timestamptz';
 
 export enum UserRole {
   SUPER_ADMIN = 'super_admin',
@@ -89,21 +106,21 @@ export class User {
   @Column({ default: false })
   isEmailVerified: boolean;
 
-  @Column({ nullable: true })
-  emailVerificationToken: string;
+  @Column({ nullable: true, type: 'varchar' })
+  emailVerificationToken?: string | null;
 
-  @Column({ nullable: true })
-  emailVerificationSentAt: Date;
+  @Column({ nullable: true, type: timestamptzColumnType })
+  emailVerificationSentAt?: Date | null;
 
-  @Column({ nullable: true })
-  emailVerifiedAt: Date;
+  @Column({ nullable: true, type: timestamptzColumnType })
+  emailVerifiedAt?: Date | null;
 
   // Password reset fields
-  @Column({ nullable: true })
-  passwordResetToken: string;
+  @Column({ nullable: true, type: 'varchar' })
+  passwordResetToken: string | null;
 
-  @Column({ nullable: true })
-  passwordResetExpiresAt: Date;
+  @Column({ nullable: true, type: timestamptzColumnType })
+  passwordResetExpiresAt: Date | null;
 
   @ManyToOne(() => Tenant, (tenant) => tenant.users, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tenantId' })

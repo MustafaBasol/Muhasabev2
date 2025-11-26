@@ -51,15 +51,23 @@ export class BankAccountsService {
         where: { tenantId },
         order: { createdAt: 'DESC' },
       });
-      return list.map(b => ({ ...b }));
-    } catch (e: any) {
-      this.logger.error(`findAll failed tenant=${tenantId} err=${e?.message || e}`);
-      throw e;
+      return list.map((b) => ({ ...b }));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error ?? 'unknown');
+      this.logger.error(`findAll failed tenant=${tenantId} err=${message}`);
+      throw error;
     }
   }
 
-  async update(id: string, dto: Partial<CreateBankAccountDto>, tenantId: string) {
-    const entity = await this.bankAccountsRepo.findOne({ where: { id, tenantId } });
+  async update(
+    id: string,
+    dto: Partial<CreateBankAccountDto>,
+    tenantId: string,
+  ) {
+    const entity = await this.bankAccountsRepo.findOne({
+      where: { id, tenantId },
+    });
     if (!entity) throw new BadRequestException('Bank account not found');
     Object.assign(entity, {
       name: dto.name ?? entity.name,
@@ -69,20 +77,30 @@ export class BankAccountsService {
     });
     try {
       return await this.bankAccountsRepo.save(entity);
-    } catch (e: any) {
-      this.logger.error(`update failed id=${id} tenant=${tenantId} err=${e?.message || e}`);
-      throw e;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error ?? 'unknown');
+      this.logger.error(
+        `update failed id=${id} tenant=${tenantId} err=${message}`,
+      );
+      throw error;
     }
   }
 
   async remove(id: string, tenantId: string) {
-    const entity = await this.bankAccountsRepo.findOne({ where: { id, tenantId } });
+    const entity = await this.bankAccountsRepo.findOne({
+      where: { id, tenantId },
+    });
     if (!entity) throw new BadRequestException('Bank account not found');
     try {
       await this.bankAccountsRepo.remove(entity);
-    } catch (e: any) {
-      this.logger.error(`remove failed id=${id} tenant=${tenantId} err=${e?.message || e}`);
-      throw e;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error ?? 'unknown');
+      this.logger.error(
+        `remove failed id=${id} tenant=${tenantId} err=${message}`,
+      );
+      throw error;
     }
     return { success: true } as const;
   }

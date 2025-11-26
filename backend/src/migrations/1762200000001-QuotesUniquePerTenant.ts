@@ -5,7 +5,7 @@ export class QuotesUniquePerTenant1762200000001 implements MigrationInterface {
     // Eski global unique indeksi kaldır
     try {
       await queryRunner.query('DROP INDEX IF EXISTS "UQ_quotes_quoteNumber"');
-    } catch (_) {
+    } catch {
       // ignore
     }
     // Eğer index constraint olarak yaratılmış ise alternatif isimlerle de deneriz
@@ -13,7 +13,7 @@ export class QuotesUniquePerTenant1762200000001 implements MigrationInterface {
       await queryRunner.query(
         'ALTER TABLE "quotes" DROP CONSTRAINT IF EXISTS "UQ_quotes_quoteNumber"',
       );
-    } catch (_) {
+    } catch {
       // ignore
     }
 
@@ -34,7 +34,7 @@ export class QuotesUniquePerTenant1762200000001 implements MigrationInterface {
       await queryRunner.query(
         'DROP INDEX IF EXISTS "UQ_quotes_tenant_quoteNumber"',
       );
-    } catch (_) {
+    } catch {
       // ignore
     }
 

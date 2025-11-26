@@ -1,5 +1,7 @@
 import apiClient from './client';
 
+export type SaleStatus = 'created' | 'invoiced' | 'refunded' | 'completed' | 'pending' | 'cancelled';
+
 export interface SaleItemDto {
   productId?: string;
   productName?: string;
@@ -21,26 +23,43 @@ export interface CreateSaleDto {
 }
 
 export interface UpdateSaleDto extends Partial<CreateSaleDto> {
-  status?: 'created' | 'invoiced' | 'refunded';
+  status?: SaleStatus;
 }
 
-export const getSales = async (): Promise<any[]> => {
-  const res = await apiClient.get('/sales');
+export interface SaleRecord extends CreateSaleDto {
+  id: string;
+  saleNumber?: string;
+  status?: SaleStatus;
+  amount?: number;
+  total?: number;
+  paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
+  date?: string;
+  productId?: string;
+  productName?: string;
+  productUnit?: string;
+  quantity?: number;
+  unitPrice?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const getSales = async (): Promise<SaleRecord[]> => {
+  const res = await apiClient.get<SaleRecord[]>('/sales');
   return res.data;
 };
 
-export const getSale = async (id: string): Promise<any> => {
-  const res = await apiClient.get(`/sales/${id}`);
+export const getSale = async (id: string): Promise<SaleRecord> => {
+  const res = await apiClient.get<SaleRecord>(`/sales/${id}`);
   return res.data;
 };
 
-export const createSale = async (data: CreateSaleDto): Promise<any> => {
-  const res = await apiClient.post('/sales', data);
+export const createSale = async (data: CreateSaleDto): Promise<SaleRecord> => {
+  const res = await apiClient.post<SaleRecord>('/sales', data);
   return res.data;
 };
 
-export const updateSale = async (id: string, data: UpdateSaleDto): Promise<any> => {
-  const res = await apiClient.patch(`/sales/${id}`, data);
+export const updateSale = async (id: string, data: UpdateSaleDto): Promise<SaleRecord> => {
+  const res = await apiClient.patch<SaleRecord>(`/sales/${id}`, data);
   return res.data;
 };
 

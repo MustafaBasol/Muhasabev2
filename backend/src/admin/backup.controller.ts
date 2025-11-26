@@ -9,8 +9,14 @@ import {
   Headers,
   UnauthorizedException,
 } from '@nestjs/common';
-import { BackupService, BackupMetadata } from './backup.service';
+import {
+  BackupMetadata,
+  BackupService,
+  BackupStatistics,
+} from './backup.service';
 import { AdminService } from './admin.service';
+import type { AdminHeaderMap } from './utils/admin-token.util';
+import { resolveAdminHeaders } from './utils/admin-token.util';
 
 @Controller('admin/backups')
 export class BackupController {
@@ -19,11 +25,16 @@ export class BackupController {
     private readonly adminService: AdminService,
   ) {}
 
-  private checkAdminAuth(headers: any) {
-    const adminToken = headers['admin-token'];
+  private resolveAdminToken(headers?: AdminHeaderMap): string {
+    const { adminToken } = resolveAdminHeaders(headers);
     if (!adminToken) {
       throw new UnauthorizedException('Admin token required');
     }
+    return adminToken;
+  }
+
+  private checkAdminAuth(headers?: AdminHeaderMap) {
+    const adminToken = this.resolveAdminToken(headers);
     if (!this.adminService.isValidAdminToken(adminToken)) {
       throw new UnauthorizedException('Invalid or expired admin token');
     }
@@ -35,8 +46,8 @@ export class BackupController {
   @Get()
   async listBackups(
     @Query('type') type?: 'system' | 'user' | 'tenant',
-    @Headers() headers?: any,
-  ) {
+    @Headers() headers?: AdminHeaderMap,
+  ): Promise<BackupMetadata[]> {
     this.checkAdminAuth(headers);
     return this.backupService.listBackups(type);
   }
@@ -47,8 +58,8 @@ export class BackupController {
   @Get('user/:userId')
   async listUserBackups(
     @Param('userId') userId: string,
-    @Headers() headers?: any,
-  ) {
+    @Headers() headers?: AdminHeaderMap,
+  ): Promise<BackupMetadata[]> {
     this.checkAdminAuth(headers);
     return this.backupService.listUserBackups(userId);
   }
@@ -59,8 +70,8 @@ export class BackupController {
   @Post('system')
   async createSystemBackup(
     @Body('description') description?: string,
-    @Headers() headers?: any,
-  ) {
+    @Headers() headers?: AdminHeaderMap,
+  ): Promise<BackupMetadata> {
     this.checkAdminAuth(headers);
     return this.backupService.createSystemBackup(description);
   }
@@ -72,8 +83,8 @@ export class BackupController {
   async createUserBackup(
     @Param('userId') userId: string,
     @Body('description') description?: string,
-    @Headers() headers?: any,
-  ) {
+    @Headers() headers?: AdminHeaderMap,
+  ): Promise<BackupMetadata> {
     this.checkAdminAuth(headers);
     return this.backupService.createUserBackup(userId, description);
   }
@@ -85,8 +96,8 @@ export class BackupController {
   async createTenantBackup(
     @Param('tenantId') tenantId: string,
     @Body('description') description?: string,
-    @Headers() headers?: any,
-  ) {
+    @Headers() headers?: AdminHeaderMap,
+  ): Promise<BackupMetadata> {
     this.checkAdminAuth(headers);
     return this.backupService.createTenantBackup(tenantId, description);
   }
@@ -98,7 +109,7 @@ export class BackupController {
   async restoreSystem(
     @Param('backupId') backupId: string,
     @Body('confirm') confirm: boolean,
-    @Headers() headers?: any,
+    @Headers() headers?: AdminHeaderMap,
   ) {
     this.checkAdminAuth(headers);
     if (!confirm) {
@@ -115,7 +126,7 @@ export class BackupController {
     @Param('userId') userId: string,
     @Param('backupId') backupId: string,
     @Body('confirm') confirm: boolean,
-    @Headers() headers?: any,
+    @Headers() headers?: AdminHeaderMap,
   ) {
     this.checkAdminAuth(headers);
     if (!confirm) {
@@ -132,7 +143,7 @@ export class BackupController {
     @Param('tenantId') tenantId: string,
     @Param('backupId') backupId: string,
     @Body('confirm') confirm: boolean,
-    @Headers() headers?: any,
+    @Headers() headers?: AdminHeaderMap,
   ) {
     this.checkAdminAuth(headers);
     if (!confirm) {
@@ -147,7 +158,7 @@ export class BackupController {
   @Delete(':backupId')
   async deleteBackup(
     @Param('backupId') backupId: string,
-    @Headers() headers?: any,
+    @Headers() headers?: AdminHeaderMap,
   ) {
     this.checkAdminAuth(headers);
     return this.backupService.deleteBackup(backupId);
@@ -157,7 +168,7 @@ export class BackupController {
    * Eski backup'ları otomatik temizle (30 günden eski)
    */
   @Post('cleanup')
-  async cleanupOldBackups(@Headers() headers?: any) {
+  async cleanupOldBackups(@Headers() headers?: AdminHeaderMap) {
     this.checkAdminAuth(headers);
     return this.backupService.cleanupOldBackups();
   }
@@ -166,7 +177,9 @@ export class BackupController {
    * Backup istatistikleri
    */
   @Get('statistics')
-  async getStatistics(@Headers() headers?: any) {
+  async getStatistics(
+    @Headers() headers?: AdminHeaderMap,
+  ): Promise<BackupStatistics> {
     this.checkAdminAuth(headers);
     return this.backupService.getStatistics();
   }

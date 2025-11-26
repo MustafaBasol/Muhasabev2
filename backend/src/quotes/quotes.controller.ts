@@ -14,6 +14,7 @@ import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
+import type { CurrentUser } from '../common/decorators/user.decorator';
 import { Audit } from '../audit/audit.interceptor';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 
@@ -28,7 +29,7 @@ export class QuotesController {
   @Post('quotes')
   @ApiOperation({ summary: 'Create quote' })
   @Audit('Quote', AuditAction.CREATE)
-  async create(@Body() dto: CreateQuoteDto, @User() user: any) {
+  async create(@Body() dto: CreateQuoteDto, @User() user: CurrentUser) {
     return this.service.create(user.tenantId, dto);
   }
 
@@ -36,7 +37,7 @@ export class QuotesController {
   @ApiBearerAuth()
   @Get('quotes')
   @ApiOperation({ summary: 'List quotes (tenant scoped)' })
-  async findAll(@User() user: any) {
+  async findAll(@User() user: CurrentUser) {
     return this.service.findAll(user.tenantId);
   }
 
@@ -44,7 +45,7 @@ export class QuotesController {
   @ApiBearerAuth()
   @Get('quotes/:id')
   @ApiOperation({ summary: 'Get quote by id (tenant scoped)' })
-  async findOne(@Param('id') id: string, @User() user: any) {
+  async findOne(@Param('id') id: string, @User() user: CurrentUser) {
     return this.service.findOne(user.tenantId, id);
   }
 
@@ -56,7 +57,7 @@ export class QuotesController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateQuoteDto,
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
     return this.service.update(user.tenantId, id, dto);
   }
@@ -66,7 +67,7 @@ export class QuotesController {
   @Delete('quotes/:id')
   @ApiOperation({ summary: 'Delete quote' })
   @Audit('Quote', AuditAction.DELETE)
-  async remove(@Param('id') id: string, @User() user: any) {
+  async remove(@Param('id') id: string, @User() user: CurrentUser) {
     return this.service.remove(user.tenantId, id);
   }
 

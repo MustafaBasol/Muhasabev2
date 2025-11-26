@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
@@ -58,16 +62,13 @@ export class ProductsService {
     let saved: Product;
     try {
       saved = await this.productsRepository.save(product);
-    } catch (err: any) {
-      // SQLite: err.message includes 'SQLITE_CONSTRAINT: UNIQUE constraint failed'
-      // Postgres: err.code === '23505'
-      const isUniqueViolation =
-        err?.code === '23505' ||
-        (typeof err?.message === 'string' && err.message.includes('UNIQUE constraint failed'));
-      if (isUniqueViolation) {
-        throw new BadRequestException('Bu ürün kodu zaten kullanılıyor. Lütfen farklı bir kod deneyin.');
+    } catch (error) {
+      if (this.isUniqueProductCodeError(error)) {
+        throw new BadRequestException(
+          'Bu ürün kodu zaten kullanılıyor. Lütfen farklı bir kod deneyin.',
+        );
       }
-      throw err;
+      throw error;
     }
 
     console.log('✅ Backend: Ürün kaydedildi:', {
@@ -118,5 +119,40 @@ export class ProductsService {
     const product = await this.findOne(id, tenantId);
     product.stock = Number(product.stock) + quantity;
     return this.productsRepository.save(product);
+  }
+
+  private isUniqueProductCodeError(error: unknown): boolean {
+    const { code, message } = this.parseDbError(error);
+    if (code === '23505') {
+      return true;
+    }
+    if (!message) {
+      return false;
+    }
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('unique constraint') ||
+      normalized.includes('unique constraint failed') ||
+      normalized.includes('duplicate key')
+    );
+  }
+
+  private parseDbError(error: unknown) {
+    const result: { code?: string; message?: string } = {};
+    if (typeof error === 'object' && error !== null) {
+      const record = error as Record<string, unknown>;
+      if (typeof record.code === 'string') {
+        result.code = record.code;
+      } else if (typeof record.code === 'number') {
+        result.code = String(record.code);
+      }
+      if (typeof record.message === 'string') {
+        result.message = record.message;
+      }
+    }
+    if (!result.message && error instanceof Error) {
+      result.message = error.message;
+    }
+    return result;
   }
 }

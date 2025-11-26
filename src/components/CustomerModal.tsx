@@ -1,33 +1,36 @@
 import React, { useState } from 'react';
 import { X, User, Mail, Phone, MapPin, Building2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import type { Customer as CustomerModel } from '../api/customers';
 
-interface Customer {
-  id: string;
+type CustomerDraft = Partial<CustomerModel>;
+
+type CustomerFormState = {
   name: string;
   email: string;
   phone: string;
   address: string;
   taxNumber: string;
   company: string;
-  createdAt: string;
-}
+};
 
 interface CustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (customer: Customer) => void;
-  customer?: Customer | null;
+  onSave: (customer: CustomerDraft) => void;
+  customer?: CustomerDraft | null;
 }
 
 export default function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerModalProps) {
   const { t } = useTranslation();
-  const tx = (key: string, def: string) => {
-    const v = t(key as any, { defaultValue: '' }) as string;
-    return v && v !== key && v.trim() !== '' ? v : def;
+  const tx = (key: string, fallback: string): string => {
+    const value = t(key, { defaultValue: fallback });
+    if (typeof value !== 'string') return fallback;
+    const trimmed = value.trim();
+    return trimmed && value !== key ? trimmed : fallback;
   };
   
-  const [customerData, setCustomerData] = useState({
+  const [customerData, setCustomerData] = useState<CustomerFormState>({
     name: customer?.name || '',
     email: customer?.email || '',
     phone: customer?.phone || '',
@@ -62,14 +65,16 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
   }, [isOpen, customer]);
 
   const handleSave = () => {
-    const newCustomer: any = {
+    const newCustomer: CustomerDraft = {
       ...customerData,
     };
     
     // Only include ID if editing existing customer
     if (customer?.id) {
       newCustomer.id = customer.id;
-      newCustomer.createdAt = customer.createdAt;
+      if (customer.createdAt) {
+        newCustomer.createdAt = customer.createdAt;
+      }
     }
     
     onSave(newCustomer);

@@ -11,7 +11,6 @@ import { Transform } from 'class-transformer';
 import {
   NoSqlInjection,
   NoXss,
-  StrongPassword,
 } from '../../common/validators/security.validator';
 
 export class RegisterDto {
@@ -66,7 +65,13 @@ export class RegisterDto {
   })
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value !== 'string') {
+      return value;
+    }
+    const trimmed = value.trim();
+    return trimmed === '' ? undefined : trimmed;
+  })
   @NoXss({ message: 'Company name contains invalid characters' })
   @NoSqlInjection({ message: 'Company name contains invalid characters' })
   @Length(1, 100, {
@@ -76,7 +81,8 @@ export class RegisterDto {
 
   @ApiProperty({
     required: false,
-    description: 'Cloudflare Turnstile token for human verification (mandatory for public signup when Turnstile enabled).',
+    description:
+      'Cloudflare Turnstile token for human verification (mandatory for public signup when Turnstile enabled).',
   })
   @IsOptional()
   @IsString()

@@ -12,6 +12,9 @@ import { useAuth } from '../contexts/AuthContext';
 import StatusPage from './status/StatusPage';
 const AdminSecurityPageLazy = React.lazy(() => import('./admin/AdminSecurityPage'));
 import { BillingInvoiceDTO, listInvoices as userListInvoices } from '../api/billing';
+import { adminAuthStorage } from '../utils/adminAuthStorage';
+import { readLegacyTenantProfile } from '../utils/localStorageSafe';
+import type { TenantOverview } from '../types/admin';
 
 interface User {
   id: string;
@@ -20,6 +23,8 @@ interface User {
   lastName: string;
   role: string;
   isActive: boolean;
+  isEmailVerified?: boolean;
+  emailVerifiedAt?: string;
   lastLoginAt: string;
   lastLoginTimeZone?: string;
   lastLoginUtcOffsetMinutes?: number;
@@ -41,6 +46,7 @@ interface Tenant {
   status: string;
   createdAt?: string;
   subscriptionExpiresAt?: string;
+  maxUsers?: number;
 }
 
 interface TableData {
@@ -94,6 +100,7 @@ const AdminPage: React.FC = () => {
   const [deleteModalUser, setDeleteModalUser] = useState<User | null>(null);
   const [deleteMode, setDeleteMode] = useState<'soft' | 'hard'>('soft');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [verifyingUserId, setVerifyingUserId] = useState<string | null>(null);
   const openEditUser = (u: User) => {
     setEditingUser(u);
     setEditForm({
@@ -136,6 +143,22 @@ const AdminPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const markUserVerified = async (userId: string) => {
+    if (!window.confirm(t('admin.users.markVerifiedConfirm', 'Bu kullanıcıyı doğrulanmış olarak işaretlemek istediğinize emin misiniz?'))) return;
+    try {
+      setVerifyingUserId(userId);
+      await adminApi.markUserVerified(userId);
+      setUsers(prev => prev.map(u => (u.id === userId ? { ...u, isEmailVerified: true } : u)));
+      setActionMessage('Kullanıcı doğrulandı');
+      setTimeout(() => setActionMessage(''), 2000);
+    } catch (e) {
+      console.error('Doğrulama güncellenemedi', e);
+      setError('E-posta doğrulaması güncellenemedi');
+    } finally {
+      setVerifyingUserId(null);
+    }
+  };
   // Şirketler sekmesinde inline düzenleme kontrolü
   const [editingPlanIds, setEditingPlanIds] = useState<Set<string>>(new Set());
   const [editingStatusIds, setEditingStatusIds] = useState<Set<string>>(new Set());
@@ -143,7 +166,7 @@ const AdminPage: React.FC = () => {
 
   // Tenant detayları: limitler + fatura geçmişi
   const [openTenantDetails, setOpenTenantDetails] = useState<Set<string>>(new Set());
-  const [tenantOverviewMap, setTenantOverviewMap] = useState<Record<string, any>>({});
+  const [tenantOverviewMap, setTenantOverviewMap] = useState<Record<string, TenantOverview | null>>({});
   const [tenantInvoicesMap, setTenantInvoicesMap] = useState<Record<string, BillingInvoiceDTO[]>>({});
   // Her tenant için fatura tablosunda "tümünü göster" durumu
   const [showAllInvoicesMap, setShowAllInvoicesMap] = useState<Record<string, boolean>>({});
@@ -205,7 +228,7 @@ const AdminPage: React.FC = () => {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('admin-token');
+    const token = adminAuthStorage.getToken();
     if (token) {
   setIsAuthenticated(true);
   // Varsayılan tenant filtresi: authTenant varsa onu seç, yoksa 'all'
@@ -215,7 +238,6 @@ const AdminPage: React.FC = () => {
   setDataTenantFilter(def);
   loadAllData(def !== 'all' ? def : undefined);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Admin token süresi dolduğunda login ekranına dön
@@ -232,14 +254,12 @@ const AdminPage: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
     loadTables(selectedTenantId !== 'all' ? selectedTenantId : undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTenantId]);
 
   // Users sekmesi: şirket filtresi değişince kullanıcıları yeniden çek
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchUsers(userTenantFilter !== 'all' ? userTenantFilter : undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userTenantFilter]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -249,9 +269,9 @@ const AdminPage: React.FC = () => {
 
     try {
       const response = await adminApi.login(loginForm.username, loginForm.password, loginForm.totp || undefined);
-      if (response.success) {
-  setIsAuthenticated(true);
-  localStorage.setItem('admin-token', response.adminToken);
+        if (response.success) {
+      setIsAuthenticated(true);
+      adminAuthStorage.setToken(response.adminToken);
   // Admin login sonrası, varsayılan olarak kullanıcının tenant'ını seç
   const defaultTenant = authTenant?.id || 'all';
   setSelectedTenantId(defaultTenant);
@@ -337,7 +357,6 @@ const AdminPage: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchTenantsWithFilters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantFilters.status, tenantFilters.plan, tenantFilters.startFrom, tenantFilters.startTo]);
 
   // Sadece tabloları yeniden yüklemek için yardımcı fonksiyon
@@ -392,7 +411,7 @@ const AdminPage: React.FC = () => {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('admin-token');
+    adminAuthStorage.clearToken();
     setUsers([]);
     setTenants([]);
     setTableData({
@@ -815,6 +834,9 @@ const AdminPage: React.FC = () => {
                         Son Giriş Saat Dilimi
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        E-posta Doğrulama
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Durum
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -858,6 +880,18 @@ const AdminPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            user.isEmailVerified ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {user.isEmailVerified ? 'Doğrulandı' : 'Bekliyor'}
+                          </span>
+                          {user.isEmailVerified && user.emailVerifiedAt && (
+                            <div className="text-[11px] text-gray-500 mt-1">
+                              {new Date(user.emailVerifiedAt).toLocaleDateString()}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}>
                             {user.isActive ? 'Aktif' : 'Pasif'}
@@ -885,6 +919,15 @@ const AdminPage: React.FC = () => {
                             >
                               {user.isActive ? 'Pasifleştir' : 'Aktifleştir'}
                             </button>
+                            {!user.isEmailVerified && (
+                              <button
+                                onClick={() => markUserVerified(user.id)}
+                                disabled={verifyingUserId === user.id}
+                                className="px-3 py-1 rounded-md text-xs font-medium text-indigo-700 bg-indigo-100 hover:bg-indigo-200 disabled:opacity-60"
+                              >
+                                {verifyingUserId === user.id ? 'İşleniyor…' : 'Doğrulandı say'}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -981,9 +1024,27 @@ const AdminPage: React.FC = () => {
                 </div>
               </div>
               <div className="p-6 space-y-6">
-                {tenants.map((tenant) => (
-                  <div key={tenant.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {tenants.map((tenant) => {
+                  const overview = tenantOverviewMap[tenant.id];
+                  const effectiveMaxUsers = overview?.limits?.effective?.maxUsers;
+                  const tenantMaxUsers = overview?.tenant?.maxUsers;
+                  const defaultMaxUsers = overview?.limits?.default?.maxUsers;
+                  const fallbackMaxUsers = tenant.maxUsers;
+                  const displayMaxUsers = effectiveMaxUsers ?? tenantMaxUsers ?? fallbackMaxUsers ?? defaultMaxUsers;
+                  const hasOverride = typeof tenantMaxUsers === 'number';
+                  const stripeCustomerId = overview?.tenant?.stripeCustomerId;
+                  const hasStripeCustomer = Boolean(stripeCustomerId);
+                  const showStripeHint = Boolean(overview && !hasStripeCustomer);
+                  const formatMaxUsers = (value?: number | null) => {
+                    if (value === undefined || value === null) return undefined;
+                    return value === -1 ? '∞' : value;
+                  };
+                  const displayMaxUsersLabel = formatMaxUsers(displayMaxUsers) ?? '•';
+                  const defaultMaxUsersLabel = formatMaxUsers(defaultMaxUsers) ?? '•';
+                  const overrideMaxUsersLabel = hasOverride ? `${formatMaxUsers(tenantMaxUsers) ?? tenantMaxUsers} (override)` : '—';
+                  return (
+                    <div key={tenant.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <h3 className="font-semibold text-gray-800">Şirket Adı</h3>
                         <p className="text-gray-600">{tenant.companyName || tenant.name}</p>
@@ -1190,9 +1251,7 @@ const AdminPage: React.FC = () => {
                                 } else {
                                   // Fallback: aynı tenant'a kullanıcı olarak da giriş yapılmışsa user endpointi ile dene
                                   try {
-                                    const meTenant = (() => {
-                                      try { const t = localStorage.getItem('tenant'); return t ? JSON.parse(t) : null; } catch { return null; }
-                                    })();
+                                    const meTenant = readLegacyTenantProfile<{ id?: string }>();
                                     if (meTenant?.id && meTenant.id === tenant.id) {
                                       const u = await userListInvoices(tenant.id);
                                       if (Array.isArray(u?.invoices) && u.invoices.length > 0) {
@@ -1221,14 +1280,7 @@ const AdminPage: React.FC = () => {
                                 </div>
                                 <div>
                                   <span className="text-gray-500">Kullanıcı Limiti (maxUsers): </span>
-                                  <span className="font-medium">{
-                                    (() => {
-                                      const val = tenantOverviewMap[tenant.id]?.maxUsers ?? tenantOverviewMap[tenant.id]?.limits?.maxUsers;
-                                      if (val === undefined || val === null) return '-';
-                                      if (val === -1) return '∞';
-                                      return val;
-                                    })()
-                                  }</span>
+                                  <span className="font-medium">{formatMaxUsers(displayMaxUsers) ?? '-'}</span>
                                 </div>
                               </div>
                             </div>
@@ -1297,7 +1349,7 @@ const AdminPage: React.FC = () => {
                               ) : (
                                 <div className="text-sm text-gray-500">
                                   Fatura bulunamadı.
-                                  {tenantOverviewMap[tenant.id] && !tenantOverviewMap[tenant.id].stripeCustomerId && (
+                                  {showStripeHint && (
                                     <span className="ml-1 text-xs text-gray-400">(Stripe müşteri ID yok – ilk abonelik/fatura işlemi sonrası oluşur)</span>
                                   )}
                                 </div>
@@ -1306,9 +1358,10 @@ const AdminPage: React.FC = () => {
                           </div>
                         )}
                       </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

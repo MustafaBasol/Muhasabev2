@@ -72,35 +72,85 @@ export interface MembershipStats {
   plan: 'STARTER' | 'PRO' | 'BUSINESS';
 }
 
+interface OrganizationWithRole {
+  organization: Organization;
+  role: keyof Role;
+}
+
+interface InviteValidationStatus {
+  status?: string;
+}
+
+type AxiosLikeError = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+} | Error;
+
+const isOrganizationWithRoleArray = (data: unknown): data is OrganizationWithRole[] => (
+  Array.isArray(data) &&
+  data.every((item) => (
+    typeof item === 'object' &&
+    item !== null &&
+    'organization' in item &&
+    typeof (item as { organization?: unknown }).organization === 'object'
+  ))
+);
+
+const isInvite = (data: unknown): data is Invite => (
+  typeof data === 'object' &&
+  data !== null &&
+  'id' in data &&
+  'email' in data &&
+  'role' in data
+);
+
+const getStatus = (data: unknown): string | undefined => {
+  if (typeof data === 'object' && data !== null && 'status' in data) {
+    const status = (data as InviteValidationStatus).status;
+    return typeof status === 'string' ? status : undefined;
+  }
+  return undefined;
+};
+
+const getErrorMessage = (error: unknown): string | undefined => {
+  if (error && typeof error === 'object') {
+    const axiosError = error as AxiosLikeError;
+    return axiosError.response?.data?.message ?? axiosError.message;
+  }
+  return undefined;
+};
+
+type PublicInviteResponse = Invite | (Partial<Invite> & InviteValidationStatus);
+
 export const organizationsApi = {
   // Organization CRUD
   async create(data: CreateOrganizationData): Promise<Organization> {
-    const response = await apiClient.post('/organizations', data);
+    const response = await apiClient.post<Organization>('/organizations', data);
     return response.data;
   },
 
   async getAll(): Promise<Organization[]> {
-    const response = await apiClient.get('/organizations');
-    console.log('🔍 Organizations API response:', response.data);
-    
-    // Backend returns { organization: Organization, role: Role }[]
-    // Extract just the organizations
-    if (Array.isArray(response.data) && response.data.length > 0 && response.data[0].organization) {
-      console.log('✅ Converting backend format to frontend format');
-      return response.data.map((item: any) => item.organization);
+    const response = await apiClient.get<Organization[] | OrganizationWithRole[]>('/organizations');
+    const payload = response.data;
+
+    if (isOrganizationWithRoleArray(payload)) {
+      return payload.map((item) => item.organization);
     }
-    
-    // Fallback for direct Organization[] format
-    return response.data;
+
+    return payload;
   },
 
   async getById(id: string): Promise<Organization> {
-    const response = await apiClient.get(`/organizations/${id}`);
+    const response = await apiClient.get<Organization>(`/organizations/${id}`);
     return response.data;
   },
 
   async update(id: string, data: UpdateOrganizationData): Promise<Organization> {
-    const response = await apiClient.patch(`/organizations/${id}`, data);
+    const response = await apiClient.patch<Organization>(`/organizations/${id}`, data);
     return response.data;
   },
 
@@ -110,7 +160,7 @@ export const organizationsApi = {
 
   // Member Management
   async getMembers(organizationId: string): Promise<OrganizationMember[]> {
-    const response = await apiClient.get(`/organizations/${organizationId}/members`);
+    const response = await apiClient.get<OrganizationMember[]>(`/organizations/${organizationId}/members`);
     return response.data;
   },
 
@@ -119,7 +169,7 @@ export const organizationsApi = {
     memberId: string, 
     data: UpdateMemberRoleData
   ): Promise<OrganizationMember> {
-    const response = await apiClient.patch(`/organizations/${organizationId}/members/${memberId}`, data);
+    const response = await apiClient.patch<OrganizationMember>(`/organizations/${organizationId}/members/${memberId}`, data);
     return response.data;
   },
 
@@ -129,17 +179,20 @@ export const organizationsApi = {
 
   // Invitation System
   async inviteMember(organizationId: string, data: InviteMemberData): Promise<Invite> {
-    const response = await apiClient.post(`/organizations/${organizationId}/invite`, data);
+    const response = await apiClient.post<Invite>(`/organizations/${organizationId}/invite`, data);
     return response.data;
   },
 
   async getPendingInvites(organizationId: string): Promise<Invite[]> {
-    const response = await apiClient.get(`/organizations/${organizationId}/invites`);
+    const response = await apiClient.get<Invite[]>(`/organizations/${organizationId}/invites`);
     return response.data;
   },
 
   async acceptInvite(data: AcceptInviteData): Promise<{ organization: Organization; member: OrganizationMember }> {
-    const response = await apiClient.post('/organizations/accept-invite', data);
+    const response = await apiClient.post<{ organization: Organization; member: OrganizationMember }>(
+      '/organizations/accept-invite',
+      data,
+    );
     return response.data;
   },
 
@@ -148,13 +201,13 @@ export const organizationsApi = {
   },
 
   async resendInvite(organizationId: string, inviteId: string): Promise<Invite> {
-    const response = await apiClient.post(`/organizations/${organizationId}/invites/${inviteId}/resend`);
+    const response = await apiClient.post<Invite>(`/organizations/${organizationId}/invites/${inviteId}/resend`);
     return response.data;
   },
 
   // Plan Limits & Stats
   async getMembershipStats(organizationId: string): Promise<MembershipStats> {
-    const response = await apiClient.get(`/organizations/${organizationId}/membership-stats`);
+    const response = await apiClient.get<MembershipStats>(`/organizations/${organizationId}/membership-stats`);
     return response.data;
   },
 
@@ -166,23 +219,36 @@ export const organizationsApi = {
   }> {
     // Public endpoint'i doğrudan kullan: 401 gürültüsünü engelle
     try {
-      const pub = await apiClient.get(`/public/invites/${token}`, {
+      const pub = await apiClient.get<PublicInviteResponse>(`/public/invites/${token}`, {
         params: turnstileToken ? { turnstileToken } : undefined,
       });
-      if ((pub.data as any)?.status && (pub.data as any).status !== 'valid' && (pub.data as any).status !== 'accepted') {
+
+      const status = getStatus(pub.data);
+      if (status && status !== 'valid' && status !== 'accepted') {
         return { valid: false, error: 'Invalid or expired invite token' };
       }
-      return { valid: true, invite: pub.data };
-    } catch (e2: any) {
-      return { valid: false, error: e2.response?.data?.message || 'Invalid or expired invite token' };
+
+      if (isInvite(pub.data)) {
+        return { valid: true, invite: pub.data };
+      }
+
+      return { valid: true };
+    } catch (error: unknown) {
+      return {
+        valid: false,
+        error: getErrorMessage(error) || 'Invalid or expired invite token',
+      };
     }
   },
 
   async completeInviteWithPassword(token: string, password: string, turnstileToken?: string): Promise<{ success: boolean; email: string }> {
-    const response = await apiClient.post(`/public/invites/${token}/register`, {
-      password,
-      turnstileToken,
-    });
+    const response = await apiClient.post<{ success: boolean; email: string }>(
+      `/public/invites/${token}/register`,
+      {
+        password,
+        turnstileToken,
+      },
+    );
     return response.data;
   }
 };

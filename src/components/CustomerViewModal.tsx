@@ -1,26 +1,22 @@
 import React from 'react';
 import { X, Edit, Mail, Phone, MapPin, Building2, User, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import type { Customer as CustomerModel } from '../api/customers';
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  taxNumber: string;
-  company: string;
-  createdAt: string;
-}
+type CustomerWithMeta = CustomerModel & {
+  createdByName?: string;
+  updatedByName?: string;
+};
 
 interface CustomerViewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  customer: Customer | null;
-  onEdit: (customer: Customer) => void;
-  onCreateInvoice?: (customer: Customer) => void;
-  onRecordPayment?: (customer: Customer) => void;
-  onViewHistory?: (customer: Customer) => void;
+  customer: CustomerWithMeta | null;
+  onEdit: (customer: CustomerWithMeta) => void;
+  onCreateInvoice?: (customer: CustomerWithMeta) => void;
+  onRecordPayment?: (customer: CustomerWithMeta) => void;
+  onViewHistory?: (customer: CustomerWithMeta) => void;
 }
 
 export default function CustomerViewModal({ 
@@ -32,7 +28,7 @@ export default function CustomerViewModal({
   onRecordPayment,
   onViewHistory
 }: CustomerViewModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (!isOpen || !customer) {
     return null;
   }
@@ -40,20 +36,19 @@ export default function CustomerViewModal({
   // Güvenli çeviri yardımcısı: önce common:, sonra düz anahtar; yoksa varsayılan
   const te = (key: string, def: string) => {
     const v1 = t(`common:${key}`, { defaultValue: '' });
-    if (v1 && v1 !== `common:${key}` && v1.trim() !== '') return v1;
-    const v2 = t(key as any, { defaultValue: '' });
-    if (v2 && v2 !== key && v2.trim() !== '') return v2;
+    if (typeof v1 === 'string' && v1 !== `common:${key}` && v1.trim() !== '') return v1;
+    const v2 = t(key, { defaultValue: def });
+    if (typeof v2 === 'string' && v2 !== key && v2.trim() !== '') return v2;
     return def;
   };
 
   // Aktif dili ve tarih yerelini belirle
   const getActiveLang = () => {
-    try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && typeof stored === 'string' && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
-    const i18 = (t as any)?.i18n;
-    const cand = (i18?.resolvedLanguage || i18?.language || 'en') as string;
+    const stored = safeLocalStorage.getItem('i18nextLng');
+    if (stored && stored.length >= 2) {
+      return stored.slice(0, 2).toLowerCase();
+    }
+    const cand = (i18n.resolvedLanguage || i18n.language || 'en');
     return cand.slice(0,2).toLowerCase();
   };
   const toLocale = (l: string) => (l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US');
@@ -105,7 +100,7 @@ export default function CustomerViewModal({
             <div>
               <div>
                 <span className="text-gray-500">{L.createdBy}:</span>{' '}
-                <span className="font-medium">{(customer as any).createdByName || '—'}</span>
+                <span className="font-medium">{customer.createdByName || '—'}</span>
               </div>
               <div>
                 <span className="text-gray-500">{L.createdAt}:</span>{' '}
@@ -115,11 +110,11 @@ export default function CustomerViewModal({
             <div>
               <div>
                 <span className="text-gray-500">{L.updatedBy}:</span>{' '}
-                <span className="font-medium">{(customer as any).updatedByName || '—'}</span>
+                <span className="font-medium">{customer.updatedByName || '—'}</span>
               </div>
               <div>
                 <span className="text-gray-500">{L.updatedAt}:</span>{' '}
-                <span className="font-medium">{(customer as any).updatedAt ? new Date((customer as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{customer.updatedAt ? new Date(customer.updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
           </div>

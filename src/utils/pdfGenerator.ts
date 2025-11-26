@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify';
 import i18n from '../i18n/config';
 import { logger } from '../utils/logger';
 import { secureStorage } from '../utils/storage';
+import { readLegacyTenantId, readLegacyUserProfile, safeLocalStorage } from '../utils/localStorageSafe';
 import type { Invoice, Expense, Sale, InvoiceItem } from '../types';
 
 // Para birimi tipini uygulamanın CurrencyContext'inden alalım (TRY | USD | EUR | GBP)
@@ -46,6 +47,22 @@ export interface CompanyProfile extends BaseCompanyProfile {
 // PDF genel logo yüksekliği (iki şablon için aynı)
 const PDF_LOGO_HEIGHT_PX = 80; // Fatura ve Teklif için eşit ve daha büyük
 
+const pdfWarn = (message: string, error?: unknown) => {
+  if (typeof error !== 'undefined') {
+    logger.warn('[PDF]', message, error);
+  } else {
+    logger.warn('[PDF]', message);
+  }
+};
+
+const pdfDebug = (message: string, error?: unknown) => {
+  if (typeof error !== 'undefined') {
+    logger.debug('[PDF]', message, error);
+  } else {
+    logger.debug('[PDF]', message);
+  }
+};
+
 const normalizeLang = (lang?: string): SettingsLanguage => {
   const l = (lang || i18n.language || 'tr').toLowerCase();
   if (l.startsWith('tr')) return 'tr';
@@ -85,7 +102,7 @@ const formatIban = (iban?: string): string => {
 };
 
 const getSelectedCurrency = (): Currency => {
-  const saved = localStorage.getItem('currency') as Currency | null;
+  const saved = safeLocalStorage.getItem('currency') as Currency | null;
   return saved || 'TRY';
 };
 
@@ -93,15 +110,20 @@ const makeCurrencyFormatter = (currency: Currency) => (amount: number | string |
   const n = toNum(amount ?? 0);
   try {
     return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(n);
-  } catch {
-    // Bazı tarayıcılarda/ortamlarda "GBP" vs. sorun çıkarsa fallback
+  } catch (error) {
+    pdfWarn(`Intl.NumberFormat failed for currency ${currency}; falling back to symbol formatting.`, error);
     const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₺';
     return `${symbol}${n.toFixed(2)}`;
   }
 };
 
 const formatDate = (date: string | number | Date, locale?: string): string => {
-  try { return new Date(date).toLocaleDateString(locale || undefined); } catch { return String(date); }
+  try {
+    return new Date(date).toLocaleDateString(locale || undefined);
+  } catch (error) {
+    pdfWarn('Date formatting failed; returning raw value.', error);
+    return String(date);
+  }
 };
 
 // Uzun adresleri okunabilir satırlara böler (otomatik satır sonu ekleme)
@@ -187,7 +209,9 @@ const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
             spacer.style.display = 'block';
             el.parentElement?.insertBefore(spacer, el);
           }
-        } catch {}
+        } catch (error) {
+          pdfWarn('Failed to insert forced page break spacer.', error);
+        }
       });
 
       // Bölünme korumaları
@@ -206,7 +230,9 @@ const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
             spacer.style.display = 'block';
             el.parentElement?.insertBefore(spacer, el);
           }
-        } catch {}
+        } catch (error) {
+          pdfWarn('Failed to insert avoid-split spacer.', error);
+        }
       });
 
       // Tablo satırlarını (tr) sayfa arasında bölme: ana bölümdeki ürünler tablosu dahil
@@ -225,7 +251,9 @@ const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
             spacer.style.display = 'block';
             rowEl.parentElement?.insertBefore(spacer, rowEl);
           }
-        } catch {}
+        } catch (error) {
+          pdfWarn('Failed to insert table-row spacer for pagination.', error);
+        }
       });
 
       // Sadece kapsam alanında ek koruma
@@ -244,7 +272,9 @@ const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
             spacer.style.display = 'block';
             el.parentElement?.insertBefore(spacer, el);
           }
-        } catch {}
+        } catch (error) {
+          pdfWarn('Failed to reserve scope block space.', error);
+        }
       });
 
       // Canvas al
@@ -382,19 +412,39 @@ const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow
   if (targetWindow && !targetWindow.closed) {
     try {
       targetWindow.location.href = url;
-  targetWindow.addEventListener('unload', () => { try { URL.revokeObjectURL(url); } catch { /* ignore revoke error */ } }, { once: true });
+      targetWindow.addEventListener(
+        'unload',
+        () => {
+          try {
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            pdfDebug('URL.revokeObjectURL failed in unload handler.', error);
+          }
+        },
+        { once: true },
+      );
       return;
-    } catch { /* anchor fallback'e geç */ }
+    } catch (error) {
+      pdfWarn('Failed to push PDF into existing window; falling back to anchor routing.', error);
+    }
   }
 
   // Öncelik: yeni sekme açıp PDF’i görüntülemek
   try {
     const w = window.open(url, '_blank', 'noopener');
     if (w) {
-      setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore revoke error */ } }, 10000);
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          pdfDebug('URL.revokeObjectURL failed after window.open.', error);
+        }
+      }, 10000);
       return;
     }
-  } catch { /* anchor fallback */ }
+  } catch (error) {
+    pdfWarn('window.open failed; attempting anchor fallback.', error);
+  }
 
   // Fallback: programatik anchor → yeni sekme (genelde pop-up sayılmaz)
   try {
@@ -406,12 +456,24 @@ const openPdfInWindow = (pdfData: Blob | string, _filename: string, targetWindow
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore revoke error */ } }, 10000);
+    setTimeout(() => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        pdfDebug('URL.revokeObjectURL failed after anchor click.', error);
+      }
+    }, 10000);
     return;
-  } catch { /* devam */ }
+  } catch (error) {
+    pdfWarn('Anchor-based PDF open failed; falling back to same window navigation.', error);
+  }
 
   // Son çare: aynı sekmeye yönlendir
-  try { window.location.href = url; } catch { /* ignore location change error */ }
+  try {
+    window.location.href = url;
+  } catch (error) {
+    pdfWarn('Failed to navigate current window to PDF.', error);
+  }
 };
 
 
@@ -458,9 +520,9 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
   let invCustomerCompany = '' as string;
   let invCustomerTaxNumber = '' as string;
   try {
-    const tid = (localStorage.getItem('tenantId') || '') as string;
+    const tid = (readLegacyTenantId() || '') as string;
     const key = tid ? `customers_cache_${tid}` : 'customers_cache';
-    const raw = localStorage.getItem(key);
+    const raw = safeLocalStorage.getItem(key);
     const arr = raw ? (JSON.parse(raw) as any[]) : [];
     const found = Array.isArray(arr)
       ? arr.find((c: any) => (invoice as any)?.customerId
@@ -485,7 +547,9 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
       invCustomerCompany = found.company || '';
       invCustomerTaxNumber = found.taxNumber || '';
     }
-  } catch {}
+  } catch (error) {
+    pdfWarn('Failed to hydrate invoice customer metadata from cache.', error);
+  }
 
   // Newline'ları PDF'de kesin satır kırılması için <br/>'e çevir (found olsun veya olmasın uygulanır)
   let invCustomerAddressHtml = invCustomerAddress;
@@ -517,7 +581,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
     <div style="text-align:right;">
       <h3 style="color:#1F2937;margin:0 0 6px 0;">${tf('pdf.invoice.customerInfo')}</h3>
       <div style="font-weight:700;margin-bottom:4px;">${invoice.customerName ?? ''}</div>
-      ${invoiceCustomerFields.length ? `<div style=\"font-size:11px;color:#374151;\">${invoiceCustomerFields.map(f => `<div><strong>${invoiceFieldLabels[f.key]}:</strong> ${f.value}</div>`).join('')}</div>` : ''}
+      ${invoiceCustomerFields.length ? `<div style="font-size:11px;color:#374151;">${invoiceCustomerFields.map(f => `<div><strong>${invoiceFieldLabels[f.key]}:</strong> ${f.value}</div>`).join('')}</div>` : ''}
     </div>
   `;
 
@@ -862,9 +926,9 @@ const buildQuoteHtml = (
   let customerTaxNumber = '';
   let customerCompany = '';
   try {
-    const tid = (localStorage.getItem('tenantId') || '') as string;
+    const tid = (readLegacyTenantId() || '') as string;
     const key = tid ? `customers_cache_${tid}` : 'customers_cache';
-    const raw = localStorage.getItem(key);
+    const raw = safeLocalStorage.getItem(key);
     const arr = raw ? (JSON.parse(raw) as any[]) : [];
     const found = Array.isArray(arr) ? arr.find((c: any) => (quote.customerId && String(c.id) === String(quote.customerId)) || (c.name === quote.customerName)) : null;
     if (found) {
@@ -874,7 +938,9 @@ const buildQuoteHtml = (
       customerTaxNumber = found.taxNumber || '';
       customerCompany = found.company || '';
     }
-  } catch {}
+  } catch (error) {
+    pdfWarn('Failed to hydrate quote customer metadata from cache.', error);
+  }
 
   // Dinamik etiketler (diller) – müşteri alanları
   const fieldLabels = {
@@ -897,7 +963,7 @@ const buildQuoteHtml = (
     <div style="text-align:right;">
       <h3 style="color:#1F2937;margin:0 0 6px 0;">${L.customerInfo}</h3>
       <div style="font-weight:700;margin-bottom:4px;">${quote.customerName}</div>
-      ${customerFields.length ? `<div style="font-size:11px;color:#374151;">${customerFields.map(f => `<div${f.preLine ? ' style=\"white-space:pre-line;\"' : ''}><strong>${fieldLabels[f.key]}:</strong> ${f.value}</div>`).join('')}</div>` : ''}
+      ${customerFields.length ? `<div style="font-size:11px;color:#374151;">${customerFields.map(f => `<div${f.preLine ? ' style="white-space:pre-line;"' : ''}><strong>${fieldLabels[f.key]}:</strong> ${f.value}</div>`).join('')}</div>` : ''}
     </div>
   `;
 
@@ -924,7 +990,10 @@ const buildQuoteHtml = (
         const end = new Date(quote.validUntil).getTime();
         const diff = Math.round((end - start) / 86400000);
         return diff > 0 ? diff : 30;
-      } catch { return 30; }
+      } catch (error) {
+        pdfWarn('Quote validity diff calculation failed; falling back to 30 days.', error);
+        return 30;
+      }
     }
     return 30;
   })();
@@ -1045,19 +1114,24 @@ export const generateQuotePDF = async (quote: QuoteForPdf, opts: OpenOpts & { pr
   let company: Partial<CompanyProfile> | undefined = opts.company;
   if (!company) {
     try {
-      const tid = (localStorage.getItem('tenantId') || '').toString();
+      const tid = (readLegacyTenantId() || '').toString();
       const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
       company = await secureStorage.getJSON<CompanyProfile>(secureKey) ?? undefined;
       if (!company) {
         const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
-        const raw = localStorage.getItem(baseKey) || localStorage.getItem(`${baseKey}_plain`) || localStorage.getItem('company');
+        const raw = safeLocalStorage.getItem(baseKey)
+          || safeLocalStorage.getItem(`${baseKey}_plain`)
+          || safeLocalStorage.getItem('company');
         if (raw) company = JSON.parse(raw);
       }
-    } catch {
+    } catch (error) {
+      pdfWarn('Secure company profile lookup failed; attempting plain localStorage fallback.', error);
       try {
-        const raw = localStorage.getItem('companyProfile') || localStorage.getItem('company');
+        const raw = safeLocalStorage.getItem('companyProfile') || safeLocalStorage.getItem('company');
         if (raw) company = JSON.parse(raw);
-      } catch {}
+      } catch (fallbackError) {
+        pdfWarn('Plain company profile fallback parsing failed.', fallbackError);
+      }
     }
   }
 
@@ -1065,12 +1139,13 @@ export const generateQuotePDF = async (quote: QuoteForPdf, opts: OpenOpts & { pr
   let preparedBy = opts.preparedByName;
   if (!preparedBy) {
     try {
-      const raw = localStorage.getItem('user');
-      if (raw) {
-        const u = JSON.parse(raw);
+      const u = readLegacyUserProfile<{ firstName?: string; lastName?: string; email?: string }>();
+      if (u) {
         preparedBy = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      pdfWarn('Prepared-by info hydrate failed; continuing without name.', error);
+    }
   }
 
   const label = (() => { const l = normalizeLang(opts.lang); return l === 'tr' ? 'Teklifi Hazırlayan' : l === 'fr' ? 'Préparé par' : l === 'de' ? 'Erstellt von' : 'Prepared by'; })();

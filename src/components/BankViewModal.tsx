@@ -1,6 +1,7 @@
 import { X, Edit, CreditCard, Building2, User, Hash, Globe, DollarSign, Calendar, Activity } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency as formatCurrencyUtil, type Currency } from '../utils/currencyFormatter';
+import { safeLocalStorage } from '../utils/localStorageSafe';
 
 interface Bank {
   id: string;
@@ -43,10 +44,8 @@ export default function BankViewModal({
 
   // Dil ve yerel ayar yardımcıları
   const getActiveLang = () => {
-    try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
+    const stored = safeLocalStorage.getItem('i18nextLng');
+    if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
     const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
     return cand.slice(0,2).toLowerCase();
   };

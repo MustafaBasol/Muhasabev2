@@ -6,7 +6,14 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, Between } from 'typeorm';
+import {
+  Repository,
+  DataSource,
+  Between,
+  FindOptionsWhere,
+  FindOptionsSelect,
+} from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { User, UserRole } from '../users/entities/user.entity';
 import {
   Tenant,
@@ -21,7 +28,7 @@ import { Expense } from '../expenses/entities/expense.entity';
 import { Sale } from '../sales/entities/sale.entity';
 import { BankAccount } from '../bank-accounts/entities/bank-account.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
-import { AuditLog } from '../audit/entities/audit-log.entity';
+import { AuditLog, AuditAction } from '../audit/entities/audit-log.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
@@ -29,7 +36,149 @@ import { SecurityService } from '../common/security.service';
 import { AdminConfig } from './entities/admin-config.entity';
 import { AdminSecurityService } from './admin-security.service';
 import { EmailService } from '../services/email.service';
-import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
+import {
+  TenantPlanLimitService,
+  TenantPlanOverrides,
+} from '../common/tenant-plan-limits.service';
+
+const USER_ROLE_SET = new Set<UserRole>(Object.values(UserRole) as UserRole[]);
+
+const isUserRole = (value: unknown): value is UserRole =>
+  typeof value === 'string' && USER_ROLE_SET.has(value as UserRole);
+
+const coerceUserRole = (value?: string): UserRole =>
+  value && isUserRole(value) ? value : UserRole.USER;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+type InformationSchemaColumnRow = {
+  table_name: string;
+  column_name: string;
+  data_type: string;
+  is_nullable: 'YES' | 'NO';
+  column_default: string | number | null;
+};
+
+type CountRow = { count: string };
+
+type ColumnNameRow = { column_name: string };
+
+type ExistsRow = { exists: boolean | number | string };
+
+type TenantBackupSummary = {
+  timestamp: string;
+  tenant: {
+    id: string;
+    name: string;
+    plan: SubscriptionPlan;
+  };
+  counts: {
+    users: number;
+    customers: number;
+    suppliers: number;
+    products: number;
+    invoices: number;
+    expenses: number;
+  };
+};
+
+const isInformationSchemaColumnRow = (
+  value: unknown,
+): value is InformationSchemaColumnRow =>
+  isRecord(value) &&
+  typeof value.table_name === 'string' &&
+  typeof value.column_name === 'string' &&
+  typeof value.data_type === 'string' &&
+  (value.is_nullable === 'YES' || value.is_nullable === 'NO') &&
+  (typeof value.column_default === 'string' ||
+    typeof value.column_default === 'number' ||
+    value.column_default === null);
+
+const isCountRow = (value: unknown): value is CountRow =>
+  isRecord(value) && typeof value.count === 'string';
+
+const isColumnNameRow = (value: unknown): value is ColumnNameRow =>
+  isRecord(value) && typeof value.column_name === 'string';
+
+const isExistsRow = (value: unknown): value is ExistsRow =>
+  isRecord(value) &&
+  (typeof value.exists === 'boolean' ||
+    typeof value.exists === 'number' ||
+    typeof value.exists === 'string');
+
+const parseCountFromRows = (rows: unknown): number => {
+  if (!Array.isArray(rows)) {
+    return 0;
+  }
+  const row = rows.find(isCountRow);
+  return row ? Number.parseInt(row.count, 10) || 0 : 0;
+};
+
+const parseExistsFlag = (rows: unknown): boolean => {
+  if (!Array.isArray(rows)) {
+    return false;
+  }
+  const row = rows.find(isExistsRow);
+  if (!row) {
+    return false;
+  }
+
+  const value = row.exists;
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value === 1;
+  }
+  const normalized = value.toLowerCase();
+  return normalized === 't' || normalized === 'true' || normalized === '1';
+};
+
+const normalizeRecordRows = (rows: unknown): Record<string, unknown>[] =>
+  Array.isArray(rows) ? rows.filter(isRecord) : [];
+
+const extractPlanOverrides = (
+  settings: Tenant['settings'],
+): TenantPlanOverrides | undefined => {
+  if (!isRecord(settings)) {
+    return undefined;
+  }
+  const candidate = settings.planOverrides;
+  if (!isRecord(candidate)) {
+    return undefined;
+  }
+
+  const overrides: TenantPlanOverrides = {};
+
+  if (typeof candidate.maxUsers === 'number') {
+    overrides.maxUsers = candidate.maxUsers;
+  }
+  if (typeof candidate.maxCustomers === 'number') {
+    overrides.maxCustomers = candidate.maxCustomers;
+  }
+  if (typeof candidate.maxSuppliers === 'number') {
+    overrides.maxSuppliers = candidate.maxSuppliers;
+  }
+  if (typeof candidate.maxBankAccounts === 'number') {
+    overrides.maxBankAccounts = candidate.maxBankAccounts;
+  }
+
+  if (isRecord(candidate.monthly)) {
+    overrides.monthly = {};
+    if (typeof candidate.monthly.maxInvoices === 'number') {
+      overrides.monthly.maxInvoices = candidate.monthly.maxInvoices;
+    }
+    if (typeof candidate.monthly.maxExpenses === 'number') {
+      overrides.monthly.maxExpenses = candidate.monthly.maxExpenses;
+    }
+    if (overrides.monthly && Object.keys(overrides.monthly).length === 0) {
+      delete overrides.monthly;
+    }
+  }
+
+  return Object.keys(overrides).length > 0 ? overrides : undefined;
+};
 import { BillingService } from '../billing/billing.service';
 
 @Injectable()
@@ -56,10 +205,10 @@ export class AdminService {
     private invoiceRepository: Repository<Invoice>,
     @InjectRepository(Expense)
     private expenseRepository: Repository<Expense>,
-  @InjectRepository(Sale)
-  private salesRepository: Repository<Sale>,
-  @InjectRepository(BankAccount)
-  private bankAccountRepository: Repository<BankAccount>,
+    @InjectRepository(Sale)
+    private salesRepository: Repository<Sale>,
+    @InjectRepository(BankAccount)
+    private bankAccountRepository: Repository<BankAccount>,
     @InjectRepository(ProductCategory)
     private productCategoryRepository: Repository<ProductCategory>,
     @InjectRepository(AuditLog)
@@ -78,8 +227,15 @@ export class AdminService {
     // 1) Öncelik: AdminConfig (DB)
     const cfg = await this.adminConfigRepo.findOne({ where: { id: 1 } });
     if (cfg) {
-      const ok = await this.adminSecurity.validateLogin(username, password, totp);
-      if (!ok) throw new UnauthorizedException('Invalid admin credentials or 2FA code');
+      const ok = await this.adminSecurity.validateLogin(
+        username,
+        password,
+        totp,
+      );
+      if (!ok)
+        throw new UnauthorizedException(
+          'Invalid admin credentials or 2FA code',
+        );
     } else {
       // 2) Fallback: Env değişkenleri (eski davranış)
       const adminUsername = process.env.ADMIN_USERNAME || 'admin';
@@ -108,7 +264,9 @@ export class AdminService {
         if (!isPasswordValid) {
           throw new UnauthorizedException('Admin credentials not configured');
         }
-        console.warn('⚠️ Falling back to default dev credentials (admin/admin123).');
+        console.warn(
+          '⚠️ Falling back to default dev credentials (admin/admin123).',
+        );
       }
     }
 
@@ -151,32 +309,35 @@ export class AdminService {
   }
 
   async getAllUsers(tenantId?: string) {
-    const where: any = {};
+    const where: FindOptionsWhere<User> = {};
     if (tenantId) {
       where.tenantId = tenantId;
     }
+    const select: FindOptionsSelect<User> = {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      isActive: true,
+      isEmailVerified: true,
+      emailVerifiedAt: true,
+      lastLoginAt: true,
+      lastLoginTimeZone: true,
+      lastLoginUtcOffsetMinutes: true,
+      createdAt: true,
+      tenantId: true,
+      tenant: {
+        id: true,
+        name: true,
+        slug: true,
+        companyName: true,
+      },
+    };
     return this.userRepository.find({
       where,
       relations: ['tenant'],
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        isActive: true,
-        lastLoginAt: true,
-        lastLoginTimeZone: true as any,
-        lastLoginUtcOffsetMinutes: true as any,
-        createdAt: true,
-        tenantId: true,
-        tenant: {
-          id: true,
-          name: true,
-          slug: true,
-          companyName: true,
-        },
-      },
+      select,
     });
   }
 
@@ -188,6 +349,22 @@ export class AdminService {
     user.isActive = !!isActive;
     await this.userRepository.save(user);
     return { success: true };
+  }
+
+  async markUserEmailVerified(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const alreadyVerified = user.isEmailVerified === true;
+    if (!alreadyVerified) {
+      user.isEmailVerified = true;
+      user.emailVerifiedAt = new Date();
+      user.emailVerificationToken = undefined;
+      user.emailVerificationSentAt = undefined;
+      await this.userRepository.save(user);
+    }
+    return { success: true, alreadyVerified };
   }
 
   async updateUser(
@@ -203,7 +380,7 @@ export class AdminService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    const patch: Partial<User> = {};
+    const patch: QueryDeepPartialEntity<User> = {};
     if (payload.firstName !== undefined) patch.firstName = payload.firstName;
     if (payload.lastName !== undefined) patch.lastName = payload.lastName;
     if (payload.email !== undefined) patch.email = payload.email;
@@ -229,7 +406,8 @@ export class AdminService {
         );
       } catch (err) {
         // Yumuşak hata: phone kolonu eklenemezse veya yazılamazsa logla ve devam et
-        console.warn('Phone column update skipped:', err?.message || err);
+        const reason = err instanceof Error ? err.message : String(err);
+        console.warn('Phone column update skipped:', reason);
       }
     }
 
@@ -242,9 +420,11 @@ export class AdminService {
   async updateUserTenant(userId: string, tenantId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
-    await this.userRepository.update(userId, { tenantId: tenant.id } as any);
+    await this.userRepository.update(userId, { tenantId: tenant.id });
     return { success: true, userId, tenantId: tenant.id };
   }
 
@@ -268,31 +448,48 @@ export class AdminService {
       activate?: boolean;
     },
   ) {
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
-    const currentActiveUsers = await this.userRepository.count({ where: { tenantId, isActive: true } as any });
+    const currentActiveUsers = await this.userRepository.count({
+      where: { tenantId, isActive: true },
+    });
 
     // Efektif kullanıcı limiti: Stripe aboneliği varsa tenant.maxUsers, yoksa plan+override
     let effectiveMaxUsers: number;
-    if (tenant.stripeSubscriptionId && Number.isFinite(tenant.maxUsers as any)) {
+    if (tenant.stripeSubscriptionId && Number.isFinite(tenant.maxUsers)) {
       effectiveMaxUsers = Math.max(0, Number(tenant.maxUsers));
     } else {
       const limits = TenantPlanLimitService.getLimitsForTenant(tenant);
       effectiveMaxUsers = limits.maxUsers;
     }
 
-    const canAdd = effectiveMaxUsers === -1 || currentActiveUsers < effectiveMaxUsers;
+    const canAdd =
+      effectiveMaxUsers === -1 || currentActiveUsers < effectiveMaxUsers;
     if (!canAdd) {
-      const limits = tenant.stripeSubscriptionId && Number.isFinite(tenant.maxUsers as any)
-        ? { maxUsers: effectiveMaxUsers, monthly: { maxInvoices: -1, maxExpenses: -1 }, maxCustomers: -1, maxSuppliers: -1, maxBankAccounts: -1 }
-        : TenantPlanLimitService.getLimitsForTenant(tenant);
-      const msg = TenantPlanLimitService.errorMessageForWithLimits('user', limits as any);
-      throw new BadRequestException(msg || 'Plan limitine ulaşıldı: Kullanıcı eklenemiyor');
+      const limits =
+        tenant.stripeSubscriptionId && Number.isFinite(tenant.maxUsers)
+          ? {
+              maxUsers: effectiveMaxUsers,
+              monthly: { maxInvoices: -1, maxExpenses: -1 },
+              maxCustomers: -1,
+              maxSuppliers: -1,
+              maxBankAccounts: -1,
+            }
+          : TenantPlanLimitService.getLimitsForTenant(tenant);
+      const msg = TenantPlanLimitService.errorMessageForWithLimits(
+        'user',
+        limits,
+      );
+      throw new BadRequestException(
+        msg || 'Plan limitine ulaşıldı: Kullanıcı eklenemiyor',
+      );
     }
 
     const email = String(payload.email).trim().toLowerCase();
-    let user = await this.userRepository.findOne({ where: { email } });
+    const user = await this.userRepository.findOne({ where: { email } });
 
     const now = new Date();
     let tempPassword: string | undefined;
@@ -305,7 +502,7 @@ export class AdminService {
       passwordHash = await this.securityService.hashPassword(tempPassword);
     }
 
-    const role = (payload.role as any) || UserRole.USER;
+    const role = coerceUserRole(payload.role);
     const firstName = payload.firstName || '';
     const lastName = payload.lastName || '';
     const activate = payload.activate !== false; // varsayılan true
@@ -316,12 +513,12 @@ export class AdminService {
         tenantId: tenant.id,
         firstName,
         lastName,
-        role: (Object.values(UserRole) as string[]).includes(role) ? (role as any) : UserRole.USER,
+        role,
         isActive: activate,
         isEmailVerified: true,
         emailVerifiedAt: now,
         password: passwordHash || user.password,
-      } as any);
+      });
       return {
         success: true,
         userId: user.id,
@@ -335,20 +532,20 @@ export class AdminService {
     // Yeni kullanıcı oluştur
     const created = this.userRepository.create({
       email,
-      password: passwordHash!,
+      password: passwordHash,
       firstName,
       lastName,
-      role: (Object.values(UserRole) as string[]).includes(role) ? (role as any) : UserRole.USER,
+      role,
       isActive: activate,
       isEmailVerified: true,
       emailVerifiedAt: now,
       tenantId: tenant.id,
-    } as any);
-    const savedUser = await this.userRepository.save(created as any as User);
+    });
+    const savedUser = await this.userRepository.save(created);
     return {
       success: true,
-      userId: (savedUser as User).id,
-      email: (savedUser as User).email,
+      userId: savedUser.id,
+      email: savedUser.email,
       tenantId: tenant.id,
       tempPassword,
       created: true,
@@ -543,23 +740,23 @@ export class AdminService {
         role: true,
         isActive: true,
         lastLoginAt: true,
-        lastLoginTimeZone: true as any,
-        lastLoginUtcOffsetMinutes: true as any,
+        lastLoginTimeZone: true,
+        lastLoginUtcOffsetMinutes: true,
         createdAt: true,
       },
-      order: { createdAt: 'DESC' as any },
+      order: { createdAt: 'DESC' as const },
     });
 
     // Organization members and invites (if organizations feature is used)
-    let organizations: any[] = [];
-    let invites: any[] = [];
+    let organizations: Record<string, unknown>[] = [];
+    let invites: Record<string, unknown>[] = [];
     try {
-      const orgs = await this.dataSource.query(
+      const orgs: unknown = await this.dataSource.query(
         'SELECT o.* FROM organizations o ORDER BY o."createdAt" DESC LIMIT 20',
       );
-      organizations = orgs || [];
+      organizations = normalizeRecordRows(orgs);
       // Davetleri tenant'a göre filtrele: OWNER üyesinin tenantId'si bu tenant olan organizasyonların davetleri
-      const inv = await this.dataSource.query(
+      const inv: unknown = await this.dataSource.query(
         `
         SELECT i.*, o.name as "organizationName"
         FROM invites i
@@ -572,8 +769,8 @@ export class AdminService {
         `,
         [tenantId],
       );
-      invites = inv || [];
-    } catch (_) {
+      invites = normalizeRecordRows(inv);
+    } catch {
       // organizations veya invites tabloları yoksa sessizce geç
     }
 
@@ -609,13 +806,16 @@ export class AdminService {
     if (payload.plan) {
       const oldPlan = tenant.subscriptionPlan;
       tenant.subscriptionPlan = payload.plan;
-      
+
       // Plan değiştiğinde tüm limitleri yeni planın varsayılan değerlerine sıfırla
       if (oldPlan !== payload.plan) {
         console.log(`[Admin] Plan değişikliği: ${oldPlan} -> ${payload.plan}`);
-        
+
         // maxUsers değerini planın varsayılanıyla güncelle
-        if (payload.plan === SubscriptionPlan.PROFESSIONAL || payload.plan === SubscriptionPlan.BASIC) {
+        if (
+          payload.plan === SubscriptionPlan.PROFESSIONAL ||
+          payload.plan === SubscriptionPlan.BASIC
+        ) {
           tenant.maxUsers = 3;
           console.log(`[Admin] maxUsers = 3 (PROFESSIONAL/BASIC)`);
         } else if (payload.plan === SubscriptionPlan.ENTERPRISE) {
@@ -625,17 +825,19 @@ export class AdminService {
           tenant.maxUsers = 1;
           console.log(`[Admin] maxUsers = 1 (FREE)`);
         }
-        
+
         // Manuel plan değişikliği yapıldığında Stripe entegrasyonunu temizle
         // Böylece Stripe'dan gelen bilgiler database bilgisini ezmez
         if (tenant.stripeSubscriptionId || tenant.stripeCustomerId) {
-          console.log(`[Admin] Stripe entegrasyonu temizleniyor (stripeCustomerId: ${tenant.stripeCustomerId}, stripeSubscriptionId: ${tenant.stripeSubscriptionId})`);
+          console.log(
+            `[Admin] Stripe entegrasyonu temizleniyor (stripeCustomerId: ${tenant.stripeCustomerId}, stripeSubscriptionId: ${tenant.stripeSubscriptionId})`,
+          );
           tenant.stripeSubscriptionId = null;
           tenant.stripeCustomerId = null;
           tenant.billingInterval = null;
           // Ödeme planı tarihi - FREE için null, diğerleri için 1 yıl sonra
           if (payload.plan === SubscriptionPlan.FREE) {
-            tenant.subscriptionExpiresAt = null as any;
+            tenant.subscriptionExpiresAt = null;
             tenant.status = TenantStatus.ACTIVE;
           } else {
             // Ücretli planlarda 1 yıl süre ver
@@ -645,35 +847,38 @@ export class AdminService {
             tenant.status = TenantStatus.ACTIVE;
           }
         }
-        
+
         // Tenant'a özel override'ları temizle (artık varsayılan plan limitleri geçerli olacak)
-        if (tenant.settings && typeof tenant.settings === 'object') {
-          const settings = tenant.settings as any;
-          if (settings.planOverrides) {
-            delete settings.planOverrides;
-            tenant.settings = settings;
-            console.log(`[Admin] planOverrides temizlendi`);
-          }
+        if (isRecord(tenant.settings) && 'planOverrides' in tenant.settings) {
+          const settings = { ...tenant.settings } as Record<string, unknown>;
+          delete settings.planOverrides;
+          tenant.settings = settings;
+          console.log(`[Admin] planOverrides temizlendi`);
         }
 
         // Plan düşürme: aktif kullanıcı sayısı yeni limite göre fazla ise uyarı durumu ayarla
         try {
-          const activeUsers = await this.userRepository.count({ where: { tenantId: tenant.id, isActive: true } as any });
+          const activeUsers = await this.userRepository.count({
+            where: { tenantId: tenant.id, isActive: true },
+          });
           const maxAllowed = Math.max(0, Number(tenant.maxUsers || 0));
           const excess = activeUsers - maxAllowed;
           if (excess > 0) {
             // 7 gün süre ver
             const deadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-            (tenant as any).requiredUserReduction = excess;
-            (tenant as any).downgradePendingUntil = deadline;
-            console.log(`[Admin] Plan düşürme beklemede: aktif=${activeUsers} > limit=${maxAllowed}, reduction=${excess}, deadline=${deadline.toISOString()}`);
+            tenant.requiredUserReduction = excess;
+            tenant.downgradePendingUntil = deadline;
+            console.log(
+              `[Admin] Plan düşürme beklemede: aktif=${activeUsers} > limit=${maxAllowed}, reduction=${excess}, deadline=${deadline.toISOString()}`,
+            );
           } else {
             // Fazla yoksa alanları temizle
-            (tenant as any).requiredUserReduction = null;
-            (tenant as any).downgradePendingUntil = null;
+            tenant.requiredUserReduction = null;
+            tenant.downgradePendingUntil = null;
           }
-        } catch (e) {
-          console.warn('Plan düşürme değerlendirmesi yapılamadı:', (e as any)?.message || e);
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          console.warn('Plan düşürme değerlendirmesi yapılamadı:', reason);
         }
       }
     }
@@ -688,7 +893,9 @@ export class AdminService {
     }
 
     await this.tenantRepository.save(tenant);
-    console.log(`[Admin] Tenant kaydedildi - ID: ${tenant.id}, Plan: ${tenant.subscriptionPlan}, maxUsers: ${tenant.maxUsers}`);
+    console.log(
+      `[Admin] Tenant kaydedildi - ID: ${tenant.id}, Plan: ${tenant.subscriptionPlan}, maxUsers: ${tenant.maxUsers}`,
+    );
     return { success: true };
   }
 
@@ -707,7 +914,10 @@ export class AdminService {
       ORDER BY table_name, ordinal_position
     `;
 
-    const columns = await this.dataSource.query(query);
+    const columnsResult: unknown = await this.dataSource.query(query);
+    const columns = Array.isArray(columnsResult)
+      ? columnsResult.filter(isInformationSchemaColumnRow)
+      : [];
 
     // Tabloları grupla (tip güvenli)
     type TableInfo = {
@@ -716,7 +926,7 @@ export class AdminService {
         name: string;
         type: string;
         nullable: boolean;
-        default: any;
+        default: string | number | null;
       }>;
       recordCount?: number;
     };
@@ -741,10 +951,10 @@ export class AdminService {
     const tableList = Object.values(tables);
     for (const table of tableList) {
       try {
-        const countResult = await this.dataSource.query(
+        const countResult: unknown = await this.dataSource.query(
           `SELECT COUNT(*) as count FROM "${table.name}"`,
         );
-        table.recordCount = parseInt(countResult[0].count);
+        table.recordCount = parseCountFromRows(countResult);
       } catch (error) {
         table.recordCount = 0;
       }
@@ -776,53 +986,40 @@ export class AdminService {
     }
 
     let query = `SELECT * FROM "${tableName}"`;
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
-    // TenantId filtresi ekle
+    let includeTenantFilter = false;
     if (tenantId && tableName !== 'tenants') {
-      // Tabloda tenantId kolonu var mı kontrol et
-      const hasTenanIdColumn = await this.dataSource.query(
-        `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = $1 AND column_name = 'tenantId'
-      `,
-        [tableName],
-      );
-
-      if (hasTenanIdColumn.length > 0) {
-        query += ` WHERE "tenantId" = $1`;
-        params.push(tenantId);
-      }
+      includeTenantFilter = await this.tableHasTenantIdColumn(tableName);
     }
 
-    query += ` ORDER BY "createdAt" DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    if (includeTenantFilter && tenantId) {
+      query += ` WHERE "tenantId" = $1`;
+      params.push(tenantId);
+    }
+
+    const limitPlaceholder = params.length + 1;
+    const offsetPlaceholder = params.length + 2;
+    query += ` ORDER BY "createdAt" DESC LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`;
     params.push(limit, offset);
 
-    const data = await this.dataSource.query(query, params);
+    const dataResult: unknown = await this.dataSource.query(query, params);
+    const data = normalizeRecordRows(dataResult);
 
     // Toplam kayıt sayısını al
     let countQuery = `SELECT COUNT(*) as count FROM "${tableName}"`;
-    const countParams: any[] = [];
+    const countParams: Array<string | number> = [];
 
-    if (tenantId && tableName !== 'tenants') {
-      const hasTenanIdColumn = await this.dataSource.query(
-        `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = $1 AND column_name = 'tenantId'
-      `,
-        [tableName],
-      );
-
-      if (hasTenanIdColumn.length > 0) {
-        countQuery += ` WHERE "tenantId" = $1`;
-        countParams.push(tenantId);
-      }
+    if (includeTenantFilter && tenantId) {
+      countQuery += ` WHERE "tenantId" = $1`;
+      countParams.push(tenantId);
     }
 
-    const countResult = await this.dataSource.query(countQuery, countParams);
-    const totalCount = parseInt(countResult[0].count);
+    const countResult: unknown = await this.dataSource.query(
+      countQuery,
+      countParams,
+    );
+    const totalCount = parseCountFromRows(countResult);
 
     return {
       tableName,
@@ -836,13 +1033,33 @@ export class AdminService {
     };
   }
 
+  private async tableHasTenantIdColumn(tableName: string): Promise<boolean> {
+    const rows: unknown = await this.dataSource.query(
+      `
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = $1 AND column_name = 'tenantId'
+      `,
+      [tableName],
+    );
+
+    if (!Array.isArray(rows)) {
+      return false;
+    }
+
+    return rows.some(
+      (row) => isColumnNameRow(row) && row.column_name === 'tenantId',
+    );
+  }
+
   // Data Retention Methods
 
   async getRetentionConfig() {
     try {
       const configPath = path.join(process.cwd(), 'config', 'retention.json');
       const configData = fs.readFileSync(configPath, 'utf8');
-      const config = JSON.parse(configData);
+      const configRaw: unknown = JSON.parse(configData);
+      const config = isRecord(configRaw) ? configRaw : {};
 
       return {
         success: true,
@@ -850,9 +1067,10 @@ export class AdminService {
         configPath,
       };
     } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        error: 'Failed to load retention configuration: ' + error.message,
+        error: 'Failed to load retention configuration: ' + reason,
       };
     }
   }
@@ -895,7 +1113,7 @@ export class AdminService {
             return stats.mtime < cutoffDateBackup;
           }).length;
         }
-      } catch (error) {
+      } catch {
         // Ignore errors
       }
 
@@ -911,9 +1129,10 @@ export class AdminService {
         lastUpdated: new Date().toISOString(),
       };
     } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        error: 'Failed to get retention status: ' + error.message,
+        error: 'Failed to get retention status: ' + reason,
       };
     }
   }
@@ -952,9 +1171,10 @@ export class AdminService {
         },
       };
     } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        error: 'Failed to get retention history: ' + error.message,
+        error: 'Failed to get retention history: ' + reason,
       };
     }
   }
@@ -980,12 +1200,13 @@ export class AdminService {
       let output = '';
       let errorOutput = '';
 
-      child.stdout.on('data', (data) => {
-        output += data.toString();
+      child.stdout?.on('data', (chunk: Buffer | string) => {
+        output += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
       });
 
-      child.stderr.on('data', (data) => {
-        errorOutput += data.toString();
+      child.stderr?.on('data', (chunk: Buffer | string) => {
+        errorOutput +=
+          typeof chunk === 'string' ? chunk : chunk.toString('utf8');
       });
 
       child.on('close', (code) => {
@@ -1007,9 +1228,10 @@ export class AdminService {
       });
 
       child.on('error', (error) => {
+        const reason = error instanceof Error ? error.message : String(error);
         resolve({
           success: false,
-          error: 'Failed to execute retention script: ' + error.message,
+          error: 'Failed to execute retention script: ' + reason,
         });
       });
     });
@@ -1043,12 +1265,13 @@ export class AdminService {
       let output = '';
       let errorOutput = '';
 
-      child.stdout.on('data', (data) => {
-        output += data.toString();
+      child.stdout?.on('data', (chunk: Buffer | string) => {
+        output += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
       });
 
-      child.stderr.on('data', (data) => {
-        errorOutput += data.toString();
+      child.stderr?.on('data', (chunk: Buffer | string) => {
+        errorOutput +=
+          typeof chunk === 'string' ? chunk : chunk.toString('utf8');
       });
 
       child.on('close', (code) => {
@@ -1070,9 +1293,10 @@ export class AdminService {
       });
 
       child.on('error', (error) => {
+        const reason = error instanceof Error ? error.message : String(error);
         resolve({
           success: false,
-          error: 'Failed to execute retention script: ' + error.message,
+          error: 'Failed to execute retention script: ' + reason,
         });
       });
     });
@@ -1085,7 +1309,9 @@ export class AdminService {
     });
     // UI yanlışlıkla slug gönderebilir; slug ile de dene
     if (!tenant) {
-      tenant = await this.tenantRepository.findOne({ where: { slug: tenantId } as any });
+      tenant = await this.tenantRepository.findOne({
+        where: { slug: tenantId },
+      });
     }
     if (!tenant) throw new NotFoundException('Tenant not found');
 
@@ -1101,7 +1327,7 @@ export class AdminService {
       expensesThisMonth,
     ] = await Promise.all([
       // Yalnız aktif kullanıcıları say: UI tarafıyla tutarlılık
-      this.userRepository.count({ where: { tenantId, isActive: true } as any }),
+      this.userRepository.count({ where: { tenantId, isActive: true } }),
       this.customerRepository.count({ where: { tenantId } }),
       this.supplierRepository.count({ where: { tenantId } }),
       // bank accounts table/entity name is bank_accounts
@@ -1110,7 +1336,7 @@ export class AdminService {
           'SELECT COUNT(*)::int AS count FROM "bank_accounts" WHERE "tenantId" = $1',
           [tenantId],
         )
-        .then((r: any[]) => (r?.[0]?.count as number) ?? 0)
+        .then((rows) => parseCountFromRows(rows))
         .catch(() => 0),
       this.invoiceRepository
         .count({
@@ -1136,7 +1362,7 @@ export class AdminService {
     const defaultLimitsBefore = TenantPlanLimitService.getLimits(
       tenant.subscriptionPlan,
     );
-    const overrides = (tenant.settings as any)?.planOverrides || null;
+    const overrides = extractPlanOverrides(tenant.settings) ?? null;
     const effectiveBefore = TenantPlanLimitService.mergeWithOverrides(
       defaultLimitsBefore,
       overrides,
@@ -1146,13 +1372,12 @@ export class AdminService {
     const stripeCustomerExists = !!tenant.stripeCustomerId;
     const tenantHasSub = !!tenant.stripeSubscriptionId;
     const tenantMaxVal = Math.max(0, Number(tenant.maxUsers ?? 0));
-    const effBeforeMax = Math.max(
-      0,
-      Number((effectiveBefore as any)?.maxUsers ?? 0),
-    );
+    const effBeforeMax = Math.max(0, Number(effectiveBefore.maxUsers ?? 0));
     let needSync =
       stripeCustomerExists &&
-      (!tenantHasSub || usersCount > tenantMaxVal || effBeforeMax < tenantMaxVal);
+      (!tenantHasSub ||
+        usersCount > tenantMaxVal ||
+        effBeforeMax < tenantMaxVal);
 
     // Ek kural: Webhook kaçırıldıysa Stripe üzerinde koltuk sayısı/plan değişmiş olabilir.
     // Çok sık çağrılmaması için 60sn'de bir Stripe abonelik özetini kontrol edelim.
@@ -1168,33 +1393,32 @@ export class AdminService {
             const remoteSeats = Math.max(0, Number(raw.computedSeats ?? 0));
             const localBase = Math.max(
               0,
-              Number(
-                // local maxUsers yoksa plan bazındaki default'u baz alalım
-                (tenant.maxUsers ?? (effectiveBefore as any)?.maxUsers ?? 0) as number,
-              ),
+              Number(tenant.maxUsers ?? effectiveBefore.maxUsers ?? 0),
             );
-            const planMismatch = !!raw.plan && raw.plan !== tenant.subscriptionPlan;
+            const planMismatch =
+              !!raw.plan && raw.plan !== tenant.subscriptionPlan;
             const seatMismatch = remoteSeats > 0 && remoteSeats !== localBase;
             if (planMismatch || seatMismatch) {
-              this.logger.verbose(
-                JSON.stringify({
-                  tag: 'ADMIN_SYNC',
-                  tenantId,
-                  reason: planMismatch ? 'plan-mismatch' : 'seats-mismatch',
-                  observed: {
-                    remoteSeats,
-                    localBase,
-                    remotePlan: raw.plan,
-                    localPlan: tenant.subscriptionPlan,
-                  },
-                }),
-              );
+              const mismatchLog = {
+                tag: 'ADMIN_SYNC',
+                tenantId,
+                reason: planMismatch ? 'plan-mismatch' : 'seats-mismatch',
+                observed: {
+                  remoteSeats,
+                  localBase,
+                  remotePlan: raw.plan,
+                  localPlan: tenant.subscriptionPlan,
+                },
+              };
+              this.logger.verbose(JSON.stringify(mismatchLog));
               needSync = true;
             }
           }
-        } catch (e: any) {
-          // Stripe kontrolü başarısız olabilir; sessiz geç ve mevcut kurallarla devam et
-          this.logger.debug(`stripe raw check failed tenant=${tenant.id} ${e?.message || e}`);
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          this.logger.debug(
+            `stripe raw check failed tenant=${tenant.id} ${reason}`,
+          );
         }
       }
     }
@@ -1205,48 +1429,48 @@ export class AdminService {
       const withinThrottle = nowMs - last < 15_000; // 15s throttle
       if (!withinThrottle) {
         // Structured log: trigger
-        this.logger.verbose(
-          JSON.stringify({
-            tag: 'ADMIN_SYNC',
-            tenantId,
-            reason: !tenantHasSub
-              ? 'missing-sub'
-              : usersCount > tenantMaxVal
-                ? 'mismatch-usage'
-                : 'mismatch-effective-or-remote',
-            before: {
-              maxUsers: tenant.maxUsers ?? null,
-              usageUsers: usersCount,
-              effectiveMax: effBeforeMax,
-              stripeCustomerId: tenant.stripeCustomerId,
-              stripeSubscriptionId: tenant.stripeSubscriptionId,
-            },
-          }),
-        );
+        const triggerLog = {
+          tag: 'ADMIN_SYNC',
+          tenantId,
+          reason: !tenantHasSub
+            ? 'missing-sub'
+            : usersCount > tenantMaxVal
+              ? 'mismatch-usage'
+              : 'mismatch-effective-or-remote',
+          before: {
+            maxUsers: tenant.maxUsers ?? null,
+            usageUsers: usersCount,
+            effectiveMax: effBeforeMax,
+            stripeCustomerId: tenant.stripeCustomerId,
+            stripeSubscriptionId: tenant.stripeSubscriptionId,
+          },
+        };
+        this.logger.verbose(JSON.stringify(triggerLog));
         this.lastAdminSyncTrigger.set(tenant.id, nowMs);
         try {
           await this.billingService.syncFromStripe(tenant.id);
-          tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
-          this.logger.verbose(
-            JSON.stringify({
-              tag: 'ADMIN_SYNC',
-              tenantId,
-              status: 'success',
-              after: {
-                maxUsers: tenant?.maxUsers ?? null,
-                stripeSubscriptionId: tenant?.stripeSubscriptionId ?? null,
-              },
-            }),
-          );
-        } catch (e: any) {
-          this.logger.warn(
-            JSON.stringify({
-              tag: 'ADMIN_SYNC',
-              tenantId,
-              status: 'error',
-              message: e?.message || String(e),
-            }),
-          );
+          tenant = await this.tenantRepository.findOne({
+            where: { id: tenantId },
+          });
+          const successLog = {
+            tag: 'ADMIN_SYNC',
+            tenantId,
+            status: 'success',
+            after: {
+              maxUsers: tenant?.maxUsers ?? null,
+              stripeSubscriptionId: tenant?.stripeSubscriptionId ?? null,
+            },
+          };
+          this.logger.verbose(JSON.stringify(successLog));
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          const errorLog = {
+            tag: 'ADMIN_SYNC',
+            tenantId,
+            status: 'error',
+            message: reason,
+          };
+          this.logger.warn(JSON.stringify(errorLog));
         }
       }
     }
@@ -1265,37 +1489,41 @@ export class AdminService {
     // - Eğer tenant Stripe aboneliğine sahipse, efektif limit Stripe koltuk sayısıdır (tenant.maxUsers)
     //   Böylece global plan varsayılan/override'ları (örn. PRO=10) Stripe'ın daha düşük koltuklarına baskın çıkmaz.
     // - Stripe yoksa önceki mantık geçerli kalır (plan varsayılanları ve olası tenant.maxUsers birlikte değerlendirilir).
-    const tenantMax = Number.isFinite(tenant.maxUsers as any)
-      ? (tenant.maxUsers as number)
-      : undefined;
-    const effMax = (effective as any)?.maxUsers as number | undefined;
+    const tenantMax =
+      typeof tenant.maxUsers === 'number' && Number.isFinite(tenant.maxUsers)
+        ? tenant.maxUsers
+        : undefined;
+    const effMax = effective.maxUsers;
     if (tenant.stripeSubscriptionId && typeof tenantMax === 'number') {
-      (effective as any).maxUsers = tenantMax;
+      effective.maxUsers = tenantMax;
     } else if (tenantMax !== undefined) {
-      (effective as any).maxUsers = Math.max(
-        typeof effMax === 'number' ? effMax : 0,
-        tenantMax,
-      );
+      effective.maxUsers = Math.max(effMax ?? 0, tenantMax);
     }
 
     // Plan düşürme alanlarını güncelle/temizle: kullanım limit altına indiyse cleanup
     try {
-      const effMaxUsers = (effective as any)?.maxUsers as number | undefined;
+      const effMaxUsers = effective.maxUsers;
       if (
-        typeof (tenant as any).requiredUserReduction === 'number' &&
+        typeof tenant.requiredUserReduction === 'number' &&
         typeof effMaxUsers === 'number'
       ) {
         const remaining = Math.max(0, usersCount - effMaxUsers);
         if (remaining <= 0) {
-          (tenant as any).requiredUserReduction = null;
-          (tenant as any).downgradePendingUntil = null;
+          tenant.requiredUserReduction = null;
+          tenant.downgradePendingUntil = null;
           await this.tenantRepository.save(tenant);
-        } else if ((tenant as any).requiredUserReduction !== remaining) {
-          (tenant as any).requiredUserReduction = remaining;
+        } else if (tenant.requiredUserReduction !== remaining) {
+          tenant.requiredUserReduction = remaining;
           await this.tenantRepository.save(tenant);
         }
       }
-    } catch {}
+    } catch (error) {
+      this.logger.warn(
+        `AdminService cleanup requiredUserReduction failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
 
     return {
       success: true,
@@ -1308,8 +1536,8 @@ export class AdminService {
         maxUsers: tenant.maxUsers,
         stripeCustomerId: tenant.stripeCustomerId,
         stripeSubscriptionId: tenant.stripeSubscriptionId,
-        downgradePendingUntil: (tenant as any).downgradePendingUntil ?? null,
-        requiredUserReduction: (tenant as any).requiredUserReduction ?? null,
+        downgradePendingUntil: tenant.downgradePendingUntil ?? null,
+        requiredUserReduction: tenant.requiredUserReduction ?? null,
       },
       limits: {
         default: defaultLimits,
@@ -1334,45 +1562,58 @@ export class AdminService {
    * rastgele seçip pasifleştirir. Sayı, limit aşımına göre belirlenir.
    */
   async enforceTenantDowngrade(tenantId: string) {
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
-    const deadline = (tenant as any).downgradePendingUntil as Date | null;
-    const required = Number((tenant as any).requiredUserReduction ?? 0);
+    const deadline = tenant.downgradePendingUntil;
+    const required = Number(tenant.requiredUserReduction ?? 0);
     if (!deadline || required <= 0) {
       return { success: true, enforced: 0, message: 'No enforcement needed' };
     }
     const now = new Date();
     if (deadline > now) {
       const remainsMs = deadline.getTime() - now.getTime();
-      return { success: true, enforced: 0, message: `Deadline not reached (${Math.ceil(remainsMs/1000)}s remaining)` };
+      return {
+        success: true,
+        enforced: 0,
+        message: `Deadline not reached (${Math.ceil(remainsMs / 1000)}s remaining)`,
+      };
     }
 
     // Mevcut aktif kullanıcılar ve efektif limit
     const activeUsers = await this.userRepository.find({
-      where: { tenantId, isActive: true } as any,
+      where: { tenantId, isActive: true },
       select: {
         id: true,
         role: true,
-      } as any,
-      order: { createdAt: 'DESC' as any },
+      },
+      order: { createdAt: 'DESC' as const },
     });
     const base = await this.getTenantLimits(tenantId);
     const effMax = Math.max(0, Number(base?.limits?.effective?.maxUsers ?? 0));
     const over = Math.max(0, (base?.usage?.users ?? 0) - effMax);
     if (over <= 0) {
       // Temizle
-      (tenant as any).requiredUserReduction = null;
-      (tenant as any).downgradePendingUntil = null;
+      tenant.requiredUserReduction = null;
+      tenant.downgradePendingUntil = null;
       await this.tenantRepository.save(tenant);
       return { success: true, enforced: 0, message: 'Already within limits' };
     }
 
     // Hariç tutulacak roller
-    const excluded = new Set<UserRole>([UserRole.TENANT_ADMIN as any, UserRole.SUPER_ADMIN as any]);
-    const candidates = activeUsers.filter((u: any) => !excluded.has(u.role));
+    const excluded = new Set<UserRole>([
+      UserRole.TENANT_ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+    const candidates = activeUsers.filter((user) => !excluded.has(user.role));
     if (candidates.length === 0) {
-      return { success: false, enforced: 0, message: 'No eligible users to deactivate' };
+      return {
+        success: false,
+        enforced: 0,
+        message: 'No eligible users to deactivate',
+      };
     }
     // Rastgele seçim
     const need = Math.min(over, candidates.length);
@@ -1385,7 +1626,7 @@ export class AdminService {
     await this.userRepository
       .createQueryBuilder()
       .update('users')
-      .set({ isActive: false } as any)
+      .set({ isActive: false })
       .where('id IN (:...ids)', { ids })
       .execute();
 
@@ -1395,17 +1636,27 @@ export class AdminService {
           tenantId,
           entity: 'plan_downgrade',
           entityId: tenantId,
-          action: 'UPDATE' as any,
+          action: AuditAction.UPDATE,
           diff: { autoDeactivated: ids, count: ids.length },
         }),
       );
-    } catch {}
+    } catch (error) {
+      this.logger.warn(
+        `AdminService enforceTenantDowngrade audit log failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
 
     // Kalan fazlalığa göre alanları güncelle/temizle
     const newBase = await this.getTenantLimits(tenantId);
-    const newOver = Math.max(0, (newBase?.usage?.users ?? 0) - Math.max(0, Number(newBase?.limits?.effective?.maxUsers ?? 0)));
-    (tenant as any).requiredUserReduction = newOver > 0 ? newOver : null;
-    (tenant as any).downgradePendingUntil = newOver > 0 ? deadline : null;
+    const newOver = Math.max(
+      0,
+      (newBase?.usage?.users ?? 0) -
+        Math.max(0, Number(newBase?.limits?.effective?.maxUsers ?? 0)),
+    );
+    tenant.requiredUserReduction = newOver > 0 ? newOver : null;
+    tenant.downgradePendingUntil = newOver > 0 ? deadline : null;
     await this.tenantRepository.save(tenant);
 
     return { success: true, enforced: ids.length };
@@ -1428,37 +1679,44 @@ export class AdminService {
     });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
-    const settings = tenant.settings || {};
-    const currentOverrides = (settings.planOverrides || {}) as Record<
-      string,
-      any
-    >;
-    let nextOverrides: Record<string, any> = { ...currentOverrides };
+    const settings: Record<string, unknown> = isRecord(tenant.settings)
+      ? { ...tenant.settings }
+      : {};
+    const currentOverrides = (settings.planOverrides ||
+      {}) as TenantPlanOverrides;
+    let nextOverrides: TenantPlanOverrides = { ...currentOverrides };
+    if (currentOverrides.monthly) {
+      nextOverrides.monthly = { ...currentOverrides.monthly };
+    }
 
     // helper
-    const deleteByPath = (obj: any, dotted: string) => {
+    const deleteByPath = (obj: TenantPlanOverrides, dotted: string) => {
       if (!obj || !dotted) return;
       const parts = dotted.split('.');
       if (parts.length === 1) {
-        delete obj[parts[0]];
+        delete obj[parts[0] as keyof TenantPlanOverrides];
         return;
       }
       const last = parts.pop()!;
-      let ref = obj;
+      let ref: unknown = obj;
       for (const p of parts) {
-        if (ref[p] == null || typeof ref[p] !== 'object') return;
+        if (!isRecord(ref) || !isRecord(ref[p])) {
+          return;
+        }
         ref = ref[p];
       }
-      delete ref[last];
+      if (isRecord(ref)) {
+        delete ref[last];
+      }
     };
 
     // clear all
-    if ((patch as any).__clearAll) {
+    if (patch.__clearAll) {
       nextOverrides = {};
     }
 
     // clear specific
-    const clearList = (patch as any).__clear as string[] | undefined;
+    const clearList = patch.__clear;
     if (Array.isArray(clearList)) {
       for (const key of clearList) deleteByPath(nextOverrides, key);
       if (
@@ -1470,7 +1728,15 @@ export class AdminService {
     }
 
     // apply values; null means clear
-    const applyNumber = (key: string, value: any) => {
+    type NumericOverrideKey =
+      | 'maxUsers'
+      | 'maxCustomers'
+      | 'maxSuppliers'
+      | 'maxBankAccounts';
+    const applyNumber = (
+      key: NumericOverrideKey,
+      value: number | null | undefined,
+    ) => {
       if (value === undefined) return;
       if (value === null) {
         delete nextOverrides[key];
@@ -1478,25 +1744,25 @@ export class AdminService {
       }
       nextOverrides[key] = value;
     };
-    applyNumber('maxUsers', (patch as any).maxUsers);
-    applyNumber('maxCustomers', (patch as any).maxCustomers);
-    applyNumber('maxSuppliers', (patch as any).maxSuppliers);
-    applyNumber('maxBankAccounts', (patch as any).maxBankAccounts);
+    applyNumber('maxUsers', patch.maxUsers);
+    applyNumber('maxCustomers', patch.maxCustomers);
+    applyNumber('maxSuppliers', patch.maxSuppliers);
+    applyNumber('maxBankAccounts', patch.maxBankAccounts);
 
     if (patch.monthly !== undefined) {
       if (patch.monthly === null) {
         delete nextOverrides.monthly;
       } else {
         nextOverrides.monthly = { ...(nextOverrides.monthly || {}) };
-        const m = patch.monthly as any;
-        if (m.maxInvoices === null) {
+        const m = patch.monthly;
+        if (m?.maxInvoices === null) {
           if (nextOverrides.monthly) delete nextOverrides.monthly.maxInvoices;
-        } else if (m.maxInvoices !== undefined) {
+        } else if (m?.maxInvoices !== undefined) {
           nextOverrides.monthly.maxInvoices = m.maxInvoices;
         }
-        if (m.maxExpenses === null) {
+        if (m?.maxExpenses === null) {
           if (nextOverrides.monthly) delete nextOverrides.monthly.maxExpenses;
-        } else if (m.maxExpenses !== undefined) {
+        } else if (m?.maxExpenses !== undefined) {
           nextOverrides.monthly.maxExpenses = m.maxExpenses;
         }
         if (
@@ -1530,7 +1796,7 @@ export class AdminService {
     if (!tenant) throw new NotFoundException('Tenant not found');
 
     // İsteğe bağlı: önce hızlı bir JSON backup (temel veri - minimal)
-    let backupSummary: any = null;
+    let backupSummary: TenantBackupSummary | null = null;
     if (opts.backupBefore) {
       try {
         const users = await this.userRepository.find({
@@ -1573,9 +1839,10 @@ export class AdminService {
             expenses: expenses.length,
           },
         };
-      } catch (e) {
+      } catch (error) {
         // Backup başarısız olsa da silme devam edebilir; sadece logla
-        console.error('Pre-delete backup failed:', e);
+        const reason = error instanceof Error ? error.message : String(error);
+        this.logger.error('Pre-delete backup failed:', reason);
       }
     }
 
@@ -1583,13 +1850,12 @@ export class AdminService {
       // Fiziksel silme: Bazı tablolar onDelete CASCADE değil (invoices/expenses gibi).
       // Güvenli sıra ile bağlı verileri temizleyip tenant'ı kaldır.
       // Ön kontrol: opsiyonel tablolar mevcut mu?
-      const hasTable = async (table: string) => {
-        const res = await this.dataSource.query(
+      const hasTable = async (table: string): Promise<boolean> => {
+        const rows: unknown = await this.dataSource.query(
           "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1) AS exists",
           [table],
         );
-        const v = res?.[0]?.exists;
-        return v === true || v === 't' || v === 1;
+        return parseExistsFlag(rows);
       };
       const [hasQuotesTable, hasAuditLogsTable] = await Promise.all([
         hasTable('quotes'),
@@ -1707,7 +1973,7 @@ export class AdminService {
         tenantId,
         entity: 'tenant',
         entityId: tenantId,
-        action: 'UPDATE' as any,
+        action: AuditAction.UPDATE,
         diff: { softDelete: true },
       }),
     );
@@ -1728,7 +1994,7 @@ export class AdminService {
           tenantId: user.tenantId,
           entity: 'user',
           entityId: userId,
-          action: 'DELETE' as any,
+          action: AuditAction.DELETE,
           diff: { hard: true },
         }),
       );
@@ -1742,7 +2008,7 @@ export class AdminService {
         tenantId: user.tenantId,
         entity: 'user',
         entityId: userId,
-        action: 'UPDATE' as any,
+        action: AuditAction.UPDATE,
         diff: { softDelete: true },
       }),
     );
@@ -1757,23 +2023,24 @@ export class AdminService {
     try {
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (!user) throw new NotFoundException('User not found');
-      const next = ((user as any).tokenVersion || 0) + 1;
-      await this.userRepository.update(userId, { tokenVersion: next } as any);
+      const next = (user.tokenVersion ?? 0) + 1;
+      await this.userRepository.update(userId, { tokenVersion: next });
       await this.auditLogRepository.save(
         this.auditLogRepository.create({
           tenantId: user.tenantId,
           entity: 'user',
           entityId: userId,
-          action: 'UPDATE' as any,
+          action: AuditAction.UPDATE,
           diff: { revokeSessions: true, newTokenVersion: next },
         }),
       );
       return { success: true, newTokenVersion: next };
-    } catch (e: any) {
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
       this.logger.warn(
-        `revokeAllUserSessions failed userId=${userId} msg=${e?.message || e}`,
+        `revokeAllUserSessions failed userId=${userId} msg=${reason}`,
       );
-      return { success: false, error: e?.message || String(e) };
+      return { success: false, error: reason };
     }
   }
 
@@ -1787,7 +2054,9 @@ export class AdminService {
     if (process.env.NODE_ENV === 'production') {
       throw new UnauthorizedException('Purge is disabled in production');
     }
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
     const summary: Record<string, number> = {
@@ -1817,7 +2086,9 @@ export class AdminService {
         summary.expenses = expenses.length;
         await manager.remove(Expense, expenses);
       }
-      const bankAccounts = await manager.find(BankAccount, { where: { tenantId } });
+      const bankAccounts = await manager.find(BankAccount, {
+        where: { tenantId },
+      });
       if (bankAccounts.length) {
         summary.bankAccounts = bankAccounts.length;
         await manager.remove(BankAccount, bankAccounts);
@@ -1827,7 +2098,9 @@ export class AdminService {
         summary.products = products.length;
         await manager.remove(Product, products);
       }
-      const productCategories = await manager.find(ProductCategory, { where: { tenantId } });
+      const productCategories = await manager.find(ProductCategory, {
+        where: { tenantId },
+      });
       if (productCategories.length) {
         summary.productCategories = productCategories.length;
         await manager.remove(ProductCategory, productCategories);
@@ -1851,12 +2124,13 @@ export class AdminService {
           tenantId,
           entity: 'tenant_demo_purge',
           entityId: tenantId,
-          action: 'DELETE' as any,
+          action: AuditAction.DELETE,
           diff: summary,
         }),
       );
-    } catch (e) {
-      this.logger.warn('Purge audit log failed: ' + (e as any)?.message);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.logger.warn('Purge audit log failed: ' + reason);
     }
 
     return { success: true, summary };

@@ -4,21 +4,11 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 // Debug bileşeni sadece çeviri sorunlarını teşhis etmek için (dev mod / query param)
 import TranslationDebug from './TranslationDebug';
-
-interface Account {
-  id: string;
-  code: string;
-  name: string;
-  type: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
-  parentId?: string;
-  isActive: boolean;
-  balance: number;
-  createdAt: string;
-}
+import type { ChartAccount } from '../types';
 
 interface ChartOfAccountsPageProps {
-  accounts?: Account[];
-  onAccountsUpdate?: (accounts: Account[]) => void;
+  accounts?: ChartAccount[];
+  onAccountsUpdate?: (accounts: ChartAccount[]) => void;
   invoices?: any[];
   expenses?: any[];
   sales?: any[];
@@ -79,7 +69,7 @@ export default function ChartOfAccountsPage({
   };
 
   // Gerçek verilerden hesap planı oluştur
-  const getDefaultAccounts = (): Account[] => [
+  const getDefaultAccounts = (): ChartAccount[] => [
     // VARLIKLAR (ASSETS)
     { id: '1', code: '100', name: t('chartOfAccounts.accountNames.100'), type: 'asset', isActive: true, balance: 0, createdAt: '2024-01-01' },
     { id: '2', code: '101', name: t('chartOfAccounts.accountNames.101'), type: 'asset', parentId: '1', isActive: true, balance: 0, createdAt: '2024-01-01' },
@@ -106,7 +96,7 @@ export default function ChartOfAccountsPage({
     { id: '19', code: '703', name: t('chartOfAccounts.accountNames.703'), type: 'expense', parentId: '16', isActive: true, balance: 0, createdAt: '2024-01-01' },
   ];
 
-  const [currentAccounts, setCurrentAccounts] = useState<Account[]>(
+  const [currentAccounts, setCurrentAccounts] = useState<ChartAccount[]>(
     accounts.length > 0 ? accounts : getDefaultAccounts()
   );
 
@@ -118,7 +108,7 @@ export default function ChartOfAccountsPage({
   }, [t]);
 
   // Calculate dynamic balances from actual data
-  const calculateDynamicBalance = (account: Account): number => {
+  const calculateDynamicBalance = (account: ChartAccount): number => {
     const accountCode = account.code;
     
     // Calculate based on account type and code

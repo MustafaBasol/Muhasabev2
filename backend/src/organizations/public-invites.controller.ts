@@ -1,4 +1,17 @@
-import { Controller, Get, Param, HttpStatus, Post, Body, Query, Req, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  HttpStatus,
+  Post,
+  Body,
+  Query,
+  Req,
+  ForbiddenException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -21,8 +34,14 @@ export class PublicInvitesController {
 
   @Get(':token')
   @ApiOperation({ summary: 'Public: Validate invitation token (no auth)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Invite details returned' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Invalid invite token' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Invite details returned',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Invalid invite token',
+  })
   async validate(
     @Param('token') token: string,
     @Query('turnstileToken') turnstileToken?: string,
@@ -59,8 +78,13 @@ export class PublicInvitesController {
   }
 
   @Post(':token/register')
-  @ApiOperation({ summary: 'Public: Complete invite by setting password (no auth)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Invite completed, user ready to login' })
+  @ApiOperation({
+    summary: 'Public: Complete invite by setting password (no auth)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Invite completed, user ready to login',
+  })
   async complete(
     @Param('token') token: string,
     @Body() body: PublicCompleteInviteDto,
@@ -92,7 +116,10 @@ export class PublicInvitesController {
     if (!this.turnstileService.isEnabled()) {
       return;
     }
-    const ok = await this.turnstileService.verify(token, this.getRequestIp(req));
+    const ok = await this.turnstileService.verify(
+      token,
+      this.getRequestIp(req),
+    );
     if (!ok) {
       if (!token) {
         throw new ForbiddenException('Human verification required');

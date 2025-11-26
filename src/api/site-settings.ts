@@ -1,8 +1,8 @@
 import apiClient from './client';
+import { adminAuthStorage } from '../utils/adminAuthStorage';
 
-// Helper function to get admin token from localStorage
 const getAdminToken = () => {
-  return localStorage.getItem('admin-token');
+  return adminAuthStorage.getToken();
 };
 
 // Helper function to get admin headers
@@ -42,7 +42,7 @@ export const siteSettingsApi = {
    * Get current site settings (public)
    */
   getSettings: async (): Promise<SiteSettings> => {
-    const response = await apiClient.get('/site-settings');
+    const response = await apiClient.get<SiteSettings>('/site-settings');
     return response.data;
   },
 
@@ -50,7 +50,7 @@ export const siteSettingsApi = {
    * Update site settings (admin only)
    */
   updateSettings: async (updates: Partial<SiteSettings>): Promise<SiteSettings> => {
-    const response = await apiClient.put('/site-settings', updates, {
+    const response = await apiClient.put<SiteSettings>('/site-settings', updates, {
       headers: getAdminHeaders(),
     });
     return response.data;

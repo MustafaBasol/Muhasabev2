@@ -35,6 +35,43 @@ import { SeedService } from './database/seed.service';
 import { RateLimitMiddleware } from './common/rate-limit.middleware';
 import { CSRFMiddleware } from './common/csrf.middleware';
 import { EnsureAttributionColumnsService } from './audit/ensure-attribution-columns.service';
+import './database/patch-typeorm-for-tests';
+
+const coercePort = (value: string | undefined, fallback: number): number => {
+  if (!value) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+type PgUrlParts = {
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  database?: string;
+};
+
+const parseDatabaseUrl = (value?: string): PgUrlParts | null => {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed = new URL(value);
+    const database = parsed.pathname.replace(/^\//, '') || undefined;
+    return {
+      host: parsed.hostname || undefined,
+      port: parsed.port ? Number(parsed.port) : undefined,
+      username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
+      password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+      database,
+    };
+  } catch (error) {
+    console.warn('⚠️  Invalid database URL provided, falling back to discrete env vars.', error);
+    return null;
+  }
+};
 
 @Module({
   imports: [
@@ -53,89 +90,120 @@ import { EnsureAttributionColumnsService } from './audit/ensure-attribution-colu
         const isTest =
           process.env.NODE_ENV === 'test' ||
           typeof process.env.JEST_WORKER_ID !== 'undefined';
-        const preferPostgresInTests = (() => {
-          const flag =
-            process.env.TEST_DB ||
-            process.env.TEST_DATABASE ||
-            process.env.TEST_DATABASE_TYPE;
-          if (flag && ['postgres', 'pg'].includes(flag.toLowerCase())) {
-            return true;
-          }
-          return process.env.FORCE_POSTGRES_FOR_TESTS === 'true';
-        })();
-        const useSqlite =
-          process.env.DB_SQLITE === 'true' ||
-          process.env.DATABASE_TYPE === 'sqlite' ||
-          // Yerel geliştirmede Postgres ayarı yoksa otomatik SQLite'a düş
-          (!process.env.DATABASE_HOST && !process.env.DATABASE_URL);
-        const useSqliteForTests = isTest && !preferPostgresInTests;
+        const entities = [__dirname + '/**/*.entity{.ts,.js}'];
+        const migrations = [__dirname + '/migrations/*{.ts,.js}'];
 
-        // Use in-memory SQLite for tests to avoid external DB dependency
-        // Test ortamı: her zaman memory SQLite kullan (hızlı ve bağımsız)
-        if (useSqliteForTests) {
-          // Test ortamında sqlite kullan (sqlite3 sürücüsü) - timestamp uyumsuzluklarını azaltır
+        if (isTest) {
+          const urlParts =
+            parseDatabaseUrl(process.env.TEST_DATABASE_URL) ||
+            parseDatabaseUrl(process.env.DATABASE_URL);
+          const host =
+            process.env.TEST_DATABASE_HOST ||
+            urlParts?.host ||
+            process.env.DATABASE_HOST ||
+            '127.0.0.1';
+          const port =
+            urlParts?.port ??
+            coercePort(
+              process.env.TEST_DATABASE_PORT || process.env.DATABASE_PORT,
+              5432,
+            );
+          const username =
+            process.env.TEST_DATABASE_USER ||
+            urlParts?.username ||
+            process.env.DATABASE_USER ||
+            'moneyflow';
+          const password =
+            process.env.TEST_DATABASE_PASSWORD ||
+            urlParts?.password ||
+            process.env.DATABASE_PASSWORD ||
+            'moneyflow123';
+          const database =
+            process.env.TEST_DATABASE_NAME ||
+            urlParts?.database ||
+            process.env.DATABASE_NAME ||
+            'app_test';
+          const sslEnabled = process.env.TEST_DATABASE_SSL === 'true';
+
           return {
-            type: 'sqlite',
-            database: ':memory:',
-            entities: [__dirname + '/**/*.entity{.ts,.js}'],
-            synchronize: true,
-            dropSchema: true,
-            logging: false,
+            type: 'postgres',
+            host,
+            port,
+            username,
+            password,
+            database,
+            entities,
+            migrations,
             autoLoadEntities: true,
+            synchronize: false,
+            dropSchema: false,
+            ssl: sslEnabled ? { rejectUnauthorized: false } : false,
+            logging: process.env.TEST_DB_LOGGING === 'true',
           } as const;
         }
 
-        // Geliştirme ortamı: varsayılan olarak yerel SQLite dosyası kullan.
-        // Postgres'e bağlanmak isterseniz .env'de DATABASE_HOST vb. değerleri verin veya DB_SQLITE=false yapın.
-        if (!isProd && useSqlite && !preferPostgresInTests) {
-          // Geliştirmede Postgres env'i eksikse SQLite'a düşüldüğünü belirgin şekilde logla
-          // Bu, farklı ortamlarda "kullanıcılar kayboldu" algısının tipik sebebidir.
-          console.warn('⚠️ Using SQLite dev.db because DATABASE_HOST/URL is not set. For consistent data, set Postgres env (DATABASE_HOST, PORT, USER, PASSWORD, NAME).');
+        const urlParts = parseDatabaseUrl(process.env.DATABASE_URL);
+        const useSqlite =
+          process.env.DB_SQLITE === 'true' ||
+          process.env.DATABASE_TYPE === 'sqlite' ||
+          (!urlParts?.host && !process.env.DATABASE_HOST);
+
+        if (!isProd && useSqlite) {
+          console.warn(
+            '⚠️ Using SQLite dev.db because DATABASE_HOST/URL is not set. For consistent data, set Postgres env (DATABASE_HOST, PORT, USER, PASSWORD, NAME).',
+          );
           const sqlitePath = path.join(__dirname, '..', 'dev.db');
           return {
             type: 'sqlite',
             database: sqlitePath,
-            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            entities,
             synchronize: true,
             logging: process.env.NODE_ENV === 'development',
             autoLoadEntities: true,
           } as const;
         }
 
-        const host = process.env.DATABASE_HOST || (isProd ? '' : 'localhost');
-        const port = parseInt(
-          process.env.DATABASE_PORT || (isProd ? '0' : '5432'),
-        );
+        const host =
+          urlParts?.host ||
+          process.env.DATABASE_HOST ||
+          (isProd ? undefined : 'localhost');
+        const port =
+          urlParts?.port ??
+          coercePort(process.env.DATABASE_PORT, isProd ? 0 : 5432);
         const username =
-          process.env.DATABASE_USER || (isProd ? '' : 'postgres');
+          urlParts?.username ||
+          process.env.DATABASE_USER ||
+          (isProd ? undefined : 'postgres');
         const password =
-          process.env.DATABASE_PASSWORD || (isProd ? '' : 'password123');
+          urlParts?.password ||
+          process.env.DATABASE_PASSWORD ||
+          (isProd ? undefined : 'password123');
         const database =
-          process.env.DATABASE_NAME || (isProd ? '' : 'postgres');
+          urlParts?.database ||
+          process.env.DATABASE_NAME ||
+          (isProd ? undefined : 'postgres');
 
-        if (isProd && (!host || !port || !username || !password || !database)) {
+        if (!host || !port || !username || !password || !database) {
           throw new Error(
-            'Database environment variables are required in production',
+            'Database environment variables are required for Postgres connections',
           );
         }
-
-        // Prod veya bilinçli Postgres konfigürasyonu: Postgres'e bağlan
-        const isTestPostgres = preferPostgresInTests && isTest;
 
         return {
           type: 'postgres',
           host,
-          port: port || 5432,
+          port,
           username,
           password,
           database,
-          entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          migrations: [__dirname + '/migrations/*{.ts,.js}'],
-          synchronize: isTestPostgres ? true : false,
-          dropSchema: isTestPostgres ? true : false,
-          logging:
-            process.env.NODE_ENV === 'development' || isTestPostgres || false,
-          ssl: isProd ? { rejectUnauthorized: false } : false,
+          entities,
+          migrations,
+          synchronize: false,
+          dropSchema: false,
+          logging: process.env.NODE_ENV === 'development',
+          ssl: isProd || process.env.DATABASE_SSL === 'true'
+            ? { rejectUnauthorized: false }
+            : false,
           autoLoadEntities: true,
         } as const;
       },

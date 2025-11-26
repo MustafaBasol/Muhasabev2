@@ -3,16 +3,28 @@ import { X, Download, Edit, Calendar, Mail, MapPin } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+
+interface InvoiceContact {
+  id?: string;
+  name?: string;
+  email?: string;
+  address?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+interface InvoiceLineItem {
+  description?: string;
+  quantity?: number | string;
+  unitPrice?: number | string;
+  total?: number | string;
+}
 
 interface Invoice {
   id: string;
   invoiceNumber: string;
-  customer?: {
-    id: string;
-    name: string;
-    email: string;
-    address?: string;
-  };
+  customer?: InvoiceContact;
   customerName?: string;
   customerEmail?: string;
   customerAddress?: string;
@@ -22,9 +34,17 @@ interface Invoice {
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   issueDate: string;
   dueDate: string;
-  items?: any[];
+  items?: InvoiceLineItem[];
   notes?: string;
   type?: 'product' | 'service';
+  createdByName?: string;
+  createdByUser?: InvoiceContact | null;
+  createdBy?: string;
+  createdAt?: string;
+  updatedByName?: string;
+  updatedByUser?: InvoiceContact | null;
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 interface InvoiceViewModalProps {
@@ -35,30 +55,37 @@ interface InvoiceViewModalProps {
   onDownload?: (invoice: Invoice) => void;
 }
 
-export default function InvoiceViewModal({ 
-  isOpen, 
-  onClose, 
-  invoice, 
-  onEdit, 
-  onDownload 
+export default function InvoiceViewModal({
+  isOpen,
+  onClose,
+  invoice,
+  onEdit,
+  onDownload,
 }: InvoiceViewModalProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
-  // Dil bilgisi ve yerelleştirilmiş yardımcılar
   const getActiveLang = () => {
     try {
-      const stored = localStorage.getItem('i18nextLng');
+      const stored = safeLocalStorage.getItem('i18nextLng');
       if (stored && typeof stored === 'string' && stored.length >= 2) {
-        return stored.slice(0,2).toLowerCase();
+        return stored.slice(0, 2).toLowerCase();
       }
-    } catch {}
-    const i18 = (t as any)?.i18n;
-    const cand = (i18?.resolvedLanguage || i18?.language || 'en') as string;
-    return cand.slice(0,2).toLowerCase();
+    } catch {
+      // Ignore SSR/localStorage access errors and fall back to i18n.
+    }
+    const activeLanguage = i18n.resolvedLanguage || i18n.language || 'en';
+    return activeLanguage.slice(0, 2).toLowerCase();
   };
   const lang = getActiveLang();
-  const toLocale = (l: string) => l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US';
+  const toLocale = (l: string) =>
+    l === 'tr'
+      ? 'tr-TR'
+      : l === 'de'
+        ? 'de-DE'
+        : l === 'fr'
+          ? 'fr-FR'
+          : 'en-US';
   const labels: Record<string, Record<string, string>> = {
     tr: {
       createdBy: 'Oluşturan',
@@ -106,12 +133,35 @@ export default function InvoiceViewModal({
 
   const formatAmount = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return formatCurrency(numAmount || 0);
+    return formatCurrency(Number.isFinite(numAmount) ? numAmount : 0);
+  };
+
+  const resolveUserLabel = (
+    explicit?: string | null,
+    user?: InvoiceContact | null,
+    fallback?: string | null,
+  ) => {
+    const normalizedExplicit = explicit?.trim();
+    const combinedName = [user?.firstName, user?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    return (
+      normalizedExplicit ||
+      (combinedName.length ? combinedName : undefined) ||
+      user?.email ||
+      fallback ||
+      '—'
+    );
   };
 
   const getStatusBadge = (status: string) => {
     const key = normalizeStatusKey(status);
-    const config = statusConfig[key as keyof typeof statusConfig] || { label: resolveStatusLabel(t, key), class: 'bg-gray-100 text-gray-800' } as any;
+    const isKnownKey = (value: string): value is keyof typeof statusConfig =>
+      value in statusConfig;
+    const config = isKnownKey(key)
+      ? statusConfig[key]
+      : { label: resolveStatusLabel(t, key), class: 'bg-gray-100 text-gray-800' };
     return (
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.class}`}>
         {config.label}
@@ -165,38 +215,32 @@ export default function InvoiceViewModal({
               <div>
                 <span className="text-gray-500">{L.createdBy}:</span>{' '}
                 <span className="font-medium">{
-                  ((invoice as any).createdByName
-                    || [
-                         (invoice as any)?.createdByUser?.firstName,
-                         (invoice as any)?.createdByUser?.lastName,
-                       ].filter(Boolean).join(' ').trim()
-                    || (invoice as any)?.createdByUser?.email
-                    || (invoice as any)?.createdBy
-                  ) || '—'
+                  resolveUserLabel(
+                    invoice.createdByName,
+                    invoice.createdByUser,
+                    invoice.createdBy,
+                  )
                 }</span>
               </div>
               <div>
                 <span className="text-gray-500">{L.createdAt}:</span>{' '}
-                <span className="font-medium">{(invoice as any).createdAt ? new Date((invoice as any).createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{invoice.createdAt ? new Date(invoice.createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
             <div>
               <div>
                 <span className="text-gray-500">{L.updatedBy}:</span>{' '}
-                <span className="font-medium">{
-                  ((invoice as any).updatedByName
-                    || [
-                         (invoice as any)?.updatedByUser?.firstName,
-                         (invoice as any)?.updatedByUser?.lastName,
-                       ].filter(Boolean).join(' ').trim()
-                    || (invoice as any)?.updatedByUser?.email
-                    || (invoice as any)?.updatedBy
-                  ) || '—'
-                }</span>
+                <span className="font-medium">
+                  {resolveUserLabel(
+                    invoice.updatedByName,
+                    invoice.updatedByUser,
+                    invoice.updatedBy,
+                  )}
+                </span>
               </div>
               <div>
                 <span className="text-gray-500">{L.updatedAt}:</span>{' '}
-                <span className="font-medium">{(invoice as any).updatedAt ? new Date((invoice as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{invoice.updatedAt ? new Date(invoice.updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
           </div>
@@ -268,16 +312,14 @@ export default function InvoiceViewModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {invoice.items && Array.isArray(invoice.items) && invoice.items.map((item, index) => {
-                    const qty = Number(item.quantity) || 0;
-                    const unit = Number(item.unitPrice) || 0;
-                    // Satır toplamını güvenilir şekilde hesapla (KDV hariç): miktar * birim fiyat
-                    // Eğer hesaplanan değer 0 çıkarsa ve item.total doluysa onu yedek olarak kullan.
-                    const lineTotal = (qty * unit) || (Number(item.total) || 0);
+                  {Array.isArray(invoice.items) && invoice.items.map((item, index) => {
+                    const qty = Number(item?.quantity) || 0;
+                    const unit = Number(item?.unitPrice) || 0;
+                    const lineTotal = qty * unit || Number(item?.total) || 0;
                     return (
-                      <tr key={index}>
-                        <td className="px-4 py-3 text-sm text-gray-900">{item.description}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.quantity}</td>
+                      <tr key={`${item?.description ?? 'item'}-${index}`}>
+                        <td className="px-4 py-3 text-sm text-gray-900">{item?.description || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-center">{item?.quantity ?? '—'}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-right">
                           {formatAmount(unit)}
                         </td>

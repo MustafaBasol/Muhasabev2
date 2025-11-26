@@ -2,25 +2,10 @@ import { useState, useMemo } from 'react';
 import { X, Search, Calendar, User, DollarSign, FileText } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
-
-interface Sale {
-  id: string;
-  saleNumber?: string;
-  customerName: string;
-  customerEmail?: string;
-  productName: string;
-  quantity?: number;
-  unitPrice?: number;
-  amount: number;
-  // Backend'ten gelen alanlar (her zaman mevcut olmayabilir)
-  subtotal?: number;
-  taxAmount?: number;
-  discountAmount?: number;
-  items?: Array<{ quantity?: number; unitPrice?: number; total?: number }>;
-  date: string;
-  paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
-  notes?: string;
-}
+import type { Invoice, Sale } from '../types';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import { logger } from '../utils/logger';
+import { normalizeText, toNumberSafe } from '../utils/sortAndSearch';
 
 interface ExistingSaleSelectionModalProps {
   isOpen: boolean;
@@ -28,7 +13,7 @@ interface ExistingSaleSelectionModalProps {
   onSelectSale: (sale: Sale) => void;
   sales: Sale[];
   // Halihazırda fatura kesilmiş satışları filtrele
-  existingInvoices: any[];
+  existingInvoices: Invoice[];
 }
 
 export default function ExistingSaleSelectionModal({
@@ -39,67 +24,104 @@ export default function ExistingSaleSelectionModal({
   existingInvoices
 }: ExistingSaleSelectionModalProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
+  const fallbackLocale = typeof window !== 'undefined' && window.navigator?.language
+    ? window.navigator.language
+    : 'tr-TR';
+  const locale = useMemo(() => {
+    return safeLocalStorage.getItem('language') || i18n.language || fallbackLocale;
+  }, [i18n.language, fallbackLocale]);
+
+  const normalizeId = (value: unknown): string | null => {
+    if (value == null) return null;
+    const str = String(value).trim();
+    return str ? str : null;
+  };
+
+  const invoicedSaleIdSet = useMemo(() => {
+    const set = new Set<string>();
+    existingInvoices.forEach(invoice => {
+      const saleId = normalizeId(invoice?.saleId);
+      if (saleId) {
+        set.add(saleId);
+      }
+    });
+    return set;
+  }, [existingInvoices]);
 
   // Fatura kesilmemiş satışları filtrele
   const availableSales = useMemo(() => {
-    const invoicedSaleIds = existingInvoices
-      .filter(inv => inv.saleId)
-      .map(inv => inv.saleId);
-    
     return sales.filter(sale => {
-      // 1) Fatura listesinde bu satış ID'si varsa gösterme
-      if (invoicedSaleIds.includes(sale.id)) return false;
-      // 2) Satışın kendisinde invoiceId varsa (frontend state'inde güncel) gösterme
-      if ((sale as any).invoiceId) return false;
+      const saleId = normalizeId(sale.id);
+      if (saleId && invoicedSaleIdSet.has(saleId)) return false;
+      if (sale.invoiceId) return false;
       return true;
     });
-  }, [sales, existingInvoices]);
+  }, [sales, invoicedSaleIdSet]);
 
   // Arama filtresi
   const filteredSales = useMemo(() => {
     if (!searchTerm.trim()) return availableSales;
     
-    const term = searchTerm.toLowerCase();
-    return availableSales.filter(sale =>
-      sale.customerName.toLowerCase().includes(term) ||
-      sale.productName.toLowerCase().includes(term) ||
-      sale.saleNumber?.toLowerCase().includes(term)
-    );
+    const term = normalizeText(searchTerm);
+    return availableSales.filter(sale => {
+      const matchesCustomer = normalizeText(sale.customerName).includes(term);
+      const matchesProduct = normalizeText(sale.productName).includes(term);
+      const matchesSaleNumber = sale.saleNumber ? normalizeText(sale.saleNumber).includes(term) : false;
+      return matchesCustomer || matchesProduct || matchesSaleNumber;
+    });
   }, [availableSales, searchTerm]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+  const formatDate = (value?: string | number | Date | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(locale);
   };
 
   if (!isOpen) return null;
 
   // Görselde gösterilecek tutar: KDV Hariç (satış sayfasıyla aynı mantık)
   const getDisplayAmountExclVAT = (sale: Sale): number => {
-    const s: any = sale as any;
-    // 1) Backend subtotal varsa doğrudan kullan (KDV hariç toplam)
-    const subtotal = Number(s.subtotal);
-    if (Number.isFinite(subtotal) && subtotal > 0) return subtotal;
-    // 2) Kalemlerden hesapla: quantity * unitPrice
-    if (Array.isArray(s.items) && s.items.length > 0) {
-      const sum = s.items.reduce((acc: number, it: any) => {
-        const qty = Number(it?.quantity) || 0;
-        const price = Number(it?.unitPrice) || 0;
-        const total = Number(it?.total);
-        // total alanı KDV içeriyor olabilir; güvenli taraf: qty*price
-        return acc + (qty * price || 0);
+    const subtotal = toNumberSafe(sale.subtotal);
+    if (subtotal > 0) return subtotal;
+
+    if (Array.isArray(sale.items) && sale.items.length > 0) {
+      const sum = sale.items.reduce((acc, item) => {
+        const qty = toNumberSafe(item?.quantity);
+        const unitPrice = toNumberSafe(item?.unitPrice);
+        if (qty <= 0 || unitPrice <= 0) {
+          const explicitTotal = toNumberSafe(item?.total);
+          return acc + (explicitTotal > 0 ? explicitTotal : 0);
+        }
+        return acc + qty * unitPrice;
       }, 0);
-      if (Number.isFinite(sum) && sum > 0) return sum;
+      if (sum > 0) return sum;
     }
-    // 3) total (amount) ve taxAmount varsa: total - taxAmount
-    const total = Number(s.amount ?? s.total);
-    const tax = Number(s.taxAmount);
-    if (Number.isFinite(total) && Number.isFinite(tax)) {
-      return total - tax;
+
+    const grossTotal = toNumberSafe(sale.amount ?? sale.total);
+    const tax = toNumberSafe(sale.taxAmount);
+    if (grossTotal > 0 && tax > 0 && grossTotal > tax) {
+      return grossTotal - tax;
     }
-    // 4) Son çare: mevcut amount'ı dön (geriye uyumluluk)
-    return Number(s.amount) || 0;
+
+    const quantity = toNumberSafe(sale.quantity);
+    const unitPrice = toNumberSafe(sale.unitPrice);
+    if (quantity > 0 && unitPrice > 0) {
+      return quantity * unitPrice;
+    }
+
+    return grossTotal;
+  };
+
+  const handleSelectSale = (sale: Sale) => {
+    logger.info('existingSaleModal.selectSale', {
+      saleId: sale.id,
+      saleNumber: sale.saleNumber,
+      customerName: sale.customerName,
+    });
+    onSelectSale(sale);
   };
 
   return (
@@ -160,7 +182,7 @@ export default function ExistingSaleSelectionModal({
               {filteredSales.map((sale) => (
                 <div
                   key={sale.id}
-                  onClick={() => onSelectSale(sale)}
+                  onClick={() => handleSelectSale(sale)}
                   className="p-6 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <div className="flex items-center justify-between">

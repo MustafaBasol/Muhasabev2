@@ -1,23 +1,45 @@
 import React, { useMemo } from 'react';
-import { useCurrency } from '../contexts/CurrencyContext';
+import { useCurrency, Currency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { Invoice } from '../api/invoices';
+import { Expense } from '../api/expenses';
+import { SaleRecord } from '../api/sales';
+import { Quote } from '../api/quotes';
+
+type InvoiceLike = Partial<Invoice>;
+type ExpenseLike = Partial<Expense>;
+type SaleLike = Partial<SaleRecord>;
+type QuoteLike = Partial<Quote>;
+
+type TransactionType = 'invoice' | 'expense' | 'sale' | 'quote';
+
+interface UnifiedTransaction {
+  id: string;
+  customer: string;
+  amount: string;
+  status?: string;
+  date: string;
+  type: TransactionType;
+  originalData: InvoiceLike | ExpenseLike | SaleLike | QuoteLike;
+  sortDate: Date;
+}
 
 interface RecentTransactionsProps {
-  invoices?: any[];
-  expenses?: any[];
-  sales?: any[];
-  quotes?: any[];
-  onViewInvoice?: (invoice: any) => void;
-  onEditInvoice?: (invoice: any) => void;
-  onDownloadInvoice?: (invoice: any) => void;
-  onViewExpense?: (expense: any) => void;
-  onEditExpense?: (expense: any) => void;
-  onDownloadExpense?: (expense: any) => void;
-  onViewSale?: (sale: any) => void;
-  onEditSale?: (sale: any) => void;
-  onDownloadSale?: (sale: any) => void;
-  onViewQuote?: (quote: any) => void;
+  invoices?: InvoiceLike[];
+  expenses?: ExpenseLike[];
+  sales?: SaleLike[];
+  quotes?: QuoteLike[];
+  onViewInvoice?: (invoice: InvoiceLike) => void;
+  onEditInvoice?: (invoice: InvoiceLike) => void;
+  onDownloadInvoice?: (invoice: InvoiceLike) => void;
+  onViewExpense?: (expense: ExpenseLike) => void;
+  onEditExpense?: (expense: ExpenseLike) => void;
+  onDownloadExpense?: (expense: ExpenseLike) => void;
+  onViewSale?: (sale: SaleLike) => void;
+  onEditSale?: (sale: SaleLike) => void;
+  onDownloadSale?: (sale: SaleLike) => void;
+  onViewQuote?: (quote: QuoteLike) => void;
   onViewAllTransactions?: () => void;
 }
 
@@ -41,41 +63,50 @@ export default function RecentTransactions({
   
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
-  // Opsiyonel callback'ler şu an satır aksiyonlarında kullanılmıyor; lint uyarılarını önlemek için referansla.
-  const _callbacks = { onEditInvoice, onDownloadInvoice, onEditExpense, onDownloadExpense, onEditSale, onDownloadSale, React };
-  void _callbacks;
-  
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(i18n.language, {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
 
-  const formatAmount = (amount?: number | string) => {
-    const n = Number(amount);
-    const safe = Number.isFinite(n) ? n : 0;
-    return formatCurrency(safe);
-  };
+  const unusedCallbacks = { onEditInvoice, onDownloadInvoice, onEditExpense, onDownloadExpense, onEditSale, onDownloadSale };
+  void unusedCallbacks;
+
+  const isCurrency = (value?: string): value is Currency =>
+    value === 'TRY' || value === 'USD' || value === 'EUR' || value === 'GBP';
 
   // Combine all transactions and sort by exact time (descending: newest first)
-  const transactions = useMemo(() => {
+  const transactions = useMemo<UnifiedTransaction[]>(() => {
+    const formatDate = (value?: string | number | Date | null): string => {
+      if (!value) return '—';
+      const date = value instanceof Date ? value : new Date(value);
+      if (Number.isNaN(date.getTime())) return '—';
+      return date.toLocaleDateString(i18n.language, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    };
+
+    const formatAmount = (amount?: number | string | null) => {
+      const n = Number(amount);
+      const safe = Number.isFinite(n) ? n : 0;
+      return formatCurrency(safe);
+    };
+
     // Sıralama mantığı:
     // 1) Ana görünür tarih (issueDate/expenseDate/date) gün sıralamasını belirler.
     // 2) Aynı gün içindeki sıralama için createdAt varsa ve aynı güne denk geliyorsa onu saat/dakika için kullanır;
     //    yoksa updatedAt aynı günse onu kullanır; değilse ana tarih kullanılır.
-    const parseDate = (v: any): Date | null => {
-      if (!v) return null;
-      const d = new Date(v);
-      return isNaN(d.getTime()) ? null : d;
+    const parseDate = (value?: string | number | Date | null): Date | null => {
+      if (!value) return null;
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
     };
     const isSameDay = (a: Date | null, b: Date | null): boolean => {
       if (!a || !b) return false;
       return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
     };
-    const pickSortDate = (raw: any, baseField: string): Date => {
-      const base = parseDate(raw?.[baseField]);
+    const pickSortDate = (
+      raw: Record<string, unknown> & { createdAt?: string | Date; updatedAt?: string | Date },
+      baseField: string
+    ): Date => {
+      const base = parseDate(raw?.[baseField] as string | Date | undefined);
       const created = parseDate(raw?.createdAt);
       const updated = parseDate(raw?.updatedAt);
       if (base) {
@@ -87,49 +118,70 @@ export default function RecentTransactions({
     };
     const allTransactions = [
       // Invoices
-      ...invoices.map(invoice => ({
-        id: invoice.invoiceNumber || invoice.id,
-        customer: (invoice as any)?.customer?.name || (invoice as any)?.customerName || t('dashboard.noCustomer'),
-        amount: formatAmount(invoice.total),
-        status: invoice.status,
-        date: formatDate(invoice.issueDate), // Görsel tarihte gün seviyesinde gösterim
-        type: 'invoice',
-        originalData: invoice,
-        sortDate: pickSortDate(invoice, 'issueDate')
-      })),
+      ...invoices.map((invoice, index) => {
+        const id = invoice.invoiceNumber || invoice.id || invoice.createdAt || `invoice-${index}`;
+        const customer = invoice.customer?.name || invoice.customerName || t('dashboard.noCustomer');
+        const issueDate = invoice.issueDate || invoice.createdAt || invoice.updatedAt;
+        return {
+          id: String(id),
+          customer,
+          amount: formatAmount(invoice.total),
+          status: invoice.status,
+          date: formatDate(issueDate),
+          type: 'invoice' as const,
+          originalData: invoice,
+          sortDate: pickSortDate(invoice, 'issueDate')
+        };
+      }),
       // Expenses
-      ...expenses.map(expense => ({
-        id: expense.expenseNumber || expense.id,
-        customer: expense.description,
-        amount: formatAmount(expense.amount),
-        status: expense.status,
-        date: formatDate(expense.expenseDate),
-        type: 'expense',
-        originalData: expense,
-        sortDate: pickSortDate(expense, 'expenseDate')
-      })),
+      ...expenses.map((expense, index) => {
+        const id = expense.expenseNumber || expense.id || expense.createdAt || `expense-${index}`;
+        const description = expense.description || t('dashboard.noCustomer');
+        const expenseDate = expense.expenseDate || expense.date || expense.createdAt;
+        return {
+          id: String(id),
+          customer: description,
+          amount: formatAmount(expense.amount),
+          status: expense.status,
+          date: formatDate(expenseDate),
+          type: 'expense' as const,
+          originalData: expense,
+          sortDate: pickSortDate(expense, 'expenseDate')
+        };
+      }),
       // Sales
-      ...sales.map(sale => ({
-        id: sale.saleNumber || `SAL-${sale.id}`,
-        customer: sale.customerName,
-        amount: formatAmount(sale.amount),
-        status: sale.status,
-        date: formatDate(sale.date),
-        type: 'sale',
-        originalData: sale,
-        sortDate: pickSortDate(sale, 'date')
-      })),
+      ...sales.map((sale, index) => {
+        const rawId = sale.saleNumber || sale.id || sale.createdAt || `sale-${index}`;
+        const id = sale.saleNumber ? String(rawId) : `SAL-${String(rawId)}`;
+        const saleDate = sale.date || sale.saleDate || sale.createdAt;
+        return {
+          id,
+          customer: sale.customerName || t('dashboard.noCustomer'),
+          amount: formatAmount(sale.amount ?? sale.total),
+          status: sale.status,
+          date: formatDate(saleDate),
+          type: 'sale' as const,
+          originalData: sale,
+          sortDate: pickSortDate(sale, 'date')
+        };
+      }),
       // Quotes
-      ...quotes.map((q: any) => ({
-        id: q.quoteNumber || `Q-${q.id}`,
-        customer: q.customerName,
-        amount: formatCurrency(Number(q.total) || 0, q.currency),
-        status: q.status,
-        date: formatDate(q.issueDate || q.createdAt || new Date().toISOString()),
-        type: 'quote',
-        originalData: q,
-        sortDate: pickSortDate(q, 'issueDate')
-      }))
+      ...quotes.map((quote, index) => {
+        const rawId = quote.quoteNumber || quote.id || quote.createdAt || `quote-${index}`;
+        const id = quote.quoteNumber ? String(rawId) : `Q-${String(rawId)}`;
+        const quoteDate = quote.issueDate || quote.createdAt || quote.updatedAt;
+        const currency = isCurrency(quote.currency) ? quote.currency : undefined;
+        return {
+          id,
+          customer: quote.customerName || t('dashboard.noCustomer'),
+          amount: formatCurrency(Number(quote.total) || 0, currency),
+          status: quote.status,
+          date: formatDate(quoteDate),
+          type: 'quote' as const,
+          originalData: quote,
+          sortDate: pickSortDate(quote, 'issueDate')
+        };
+      })
     ];
 
     // Sort by exact datetime descending and take only the newest 3
@@ -138,8 +190,8 @@ export default function RecentTransactions({
       .slice(0, 3);
   }, [invoices, expenses, sales, quotes, t, formatCurrency, i18n.language]);
 
-  const getStatusBadge = (status: string, type: string) => {
-    const key = normalizeStatusKey(status);
+  const getStatusBadge = (status: string | undefined, type: TransactionType) => {
+    const key = normalizeStatusKey(status || 'unknown');
     if (type === 'quote') {
       // Teklif durumları için bazı anahtarlar quotes.statusLabels.* altında tanımlı değil (draft, sent);
       // Bu nedenle önce quotes.statusLabels.* deniyoruz, bulunamazsa common:status.* fallback kullanıyoruz.
@@ -173,7 +225,7 @@ export default function RecentTransactions({
     return config || { label: resolveStatusLabel(t, key), class: 'bg-gray-100 text-gray-800' };
   };
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (type: TransactionType) => {
     if (type === 'invoice') {
       return (
         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -207,7 +259,7 @@ export default function RecentTransactions({
   };
 
   // Simple click handlers
-  const handleRowClick = (transaction: any) => {
+  const handleRowClick = (transaction: UnifiedTransaction) => {
     if (transaction.type === 'invoice') {
       onViewInvoice?.(transaction.originalData);
     } else if (transaction.type === 'expense') {
@@ -272,43 +324,47 @@ export default function RecentTransactions({
                 </td>
               </tr>
             ) : (
-              transactions.map((transaction) => (
-                <tr 
-                  key={transaction.id} 
-                  onClick={() => handleRowClick(transaction)}
-                  className="hover:bg-gray-50 transition-colors"
-                  style={{ cursor: 'pointer' }}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-3">
-                      {getTypeIcon(transaction.type)}
+              transactions.map((transaction) => {
+                const badge = getStatusBadge(transaction.status, transaction.type);
+                const amountPrefix = transaction.type === 'expense' ? '-' : '+';
+                return (
+                  <tr 
+                    key={transaction.id} 
+                    onClick={() => handleRowClick(transaction)}
+                    className="hover:bg-gray-50 transition-colors"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-3">
+                        {getTypeIcon(transaction.type)}
+                        <span className="text-sm text-gray-900">
+                          {transaction.id}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-900">
-                        {transaction.id}
+                        {transaction.customer}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-900">
-                      {transaction.customer}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-sm font-semibold ${
-                      transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                      {transaction.type === 'expense' ? '-' : '+'}{transaction.amount}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(transaction.status, transaction.type).class}`}>
-                      {getStatusBadge(transaction.status, transaction.type).label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {transaction.date}
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`text-sm font-semibold ${
+                        transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                        {amountPrefix}{transaction.amount}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.class}`}>
+                        {badge.label}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {transaction.date}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

@@ -1,4 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../types/authenticated-request';
 
 /**
  * Decorator to get the current tenant ID from the authenticated user
@@ -6,8 +7,10 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
  */
 export const CurrentTenant = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): string => {
-    const request = ctx.switchToHttp().getRequest();
-    const user = request.user;
+    const request = ctx
+      .switchToHttp()
+      .getRequest<AuthenticatedRequest | undefined>();
+    const user = request?.user;
 
     if (!user || !user.tenantId) {
       throw new Error('Tenant ID not found in user context');

@@ -3,35 +3,46 @@ import type { Sale } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { safeLocalStorage } from '../utils/localStorageSafe';
 
 // Sayısal stringleri güvenli biçimde sayıya çevir ("2000.00", "2.000,00", "2,000.00")
-const toNumber = (v: any): number => {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  if (v == null) return 0;
-  const s = String(v).trim();
-  if (!s) return 0;
+const toNumber = (value: unknown): number => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value == null) return 0;
+  const input = String(value).trim();
+  if (!input) return 0;
 
-  if (s.includes('.') && s.includes(',')) {
-    const withoutThousands = s.replace(/\./g, '');
-    const withDotDecimal = withoutThousands.replace(/,/g, '.');
-    const n = parseFloat(withDotDecimal);
-    return Number.isFinite(n) ? n : 0;
+  if (input.includes('.') && input.includes(',')) {
+    const withoutThousands = input.replace(/\./g, '');
+    const normalized = withoutThousands.replace(/,/g, '.');
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
-  if (s.includes(',') && !s.includes('.')) {
-    const n = parseFloat(s.replace(/,/g, '.'));
-    return Number.isFinite(n) ? n : 0;
+  if (input.includes(',') && !input.includes('.')) {
+    const parsed = Number.parseFloat(input.replace(/,/g, '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
   }
-  const n = parseFloat(s.replace(/\s/g, ''));
-  return Number.isFinite(n) ? n : 0;
+  const parsed = Number.parseFloat(input.replace(/\s/g, ''));
+  return Number.isFinite(parsed) ? parsed : 0;
 };
+
+type SaleMetadata = Partial<{
+  createdByName: string;
+  createdAt: string;
+  updatedByName: string;
+  updatedAt: string;
+}>;
+
+type SaleWithMetadata = Sale & SaleMetadata;
+type SaleItem = NonNullable<Sale['items']>[number];
 
 interface SaleViewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  sale: Sale | null;
-  onEdit: (sale: Sale) => void;
+  sale: SaleWithMetadata | null;
+  onEdit: (sale: SaleWithMetadata) => void;
   onDelete?: (saleId: string) => void;
-  onDownload?: (sale: Sale) => void;
+  onDownload?: (sale: SaleWithMetadata) => void;
 }
 
 export default function SaleViewModal({ 
@@ -49,15 +60,14 @@ export default function SaleViewModal({
 
   // Dil yardımcıları ve sözlük
   const getActiveLang = () => {
-    try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
+    const stored = safeLocalStorage.getItem('i18nextLng');
+    if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
     const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
     return cand.slice(0,2).toLowerCase();
   };
   const toLocale = (l: string) => (l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US');
   const lang = getActiveLang();
+  const locale = toLocale(lang);
 
   const L = {
     details: { tr:'Satış Detayları', en:'Sale Details', fr:'Détails de vente', de:'Verkaufsdetails' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sale Details',
@@ -85,14 +95,47 @@ export default function SaleViewModal({
     notes: { tr:'Notlar', en:'Notes', fr:'Notes', de:'Notizen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Notes',
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(toLocale(lang));
+  const formatDate = (value?: string | number | Date | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(locale);
   };
 
-  const formatAmount = (amount: any) => {
-  const n = toNumber(amount);
-  return formatCurrency(n);
-};
+  const formatDateTime = (value?: string | number | Date | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString(locale);
+  };
+
+  const formatAmount = (amount: unknown) => {
+    return formatCurrency(toNumber(amount));
+  };
+
+  const resolveItemTotal = (item: SaleItem) => {
+    const explicitTotal = toNumber(item.total);
+    return explicitTotal > 0
+      ? explicitTotal
+      : toNumber(item.unitPrice) * toNumber(item.quantity);
+  };
+
+  const items: SaleItem[] = Array.isArray(sale.items) ? sale.items : [];
+  const hasItems = items.length > 0;
+  const itemsTotal = hasItems
+    ? items.reduce((sum, item) => sum + resolveItemTotal(item), 0)
+    : 0;
+  const singleProductQuantity = toNumber(sale.quantity);
+  const singleProductUnitPrice = toNumber(sale.unitPrice);
+  const singleItemTotal = !hasItems ? singleProductUnitPrice * singleProductQuantity : 0;
+  const showSingleProductPricing = !hasItems && (singleProductQuantity > 0 || singleProductUnitPrice > 0);
+
+  const metadata = {
+    createdByName: sale.createdByName || '—',
+    createdAt: formatDateTime(sale.createdAt),
+    updatedByName: sale.updatedByName || '—',
+    updatedAt: formatDateTime(sale.updatedAt),
+  } as const;
 
   const getStatusBadge = (status: string) => {
     const key = normalizeStatusKey(status);
@@ -122,7 +165,7 @@ export default function SaleViewModal({
       transfer: t('payments.methods.transfer', 'Havale/EFT'),
       check: t('payments.methods.check', 'Çek'),
     };
-    return map[key] || method;
+    return map[key] || method || '—';
   };
 
   return (
@@ -180,21 +223,21 @@ export default function SaleViewModal({
             <div>
               <div>
                 <span className="text-gray-500">{L.createdBy}:</span>{' '}
-                <span className="font-medium">{(sale as any).createdByName || '—'}</span>
+                <span className="font-medium">{metadata.createdByName}</span>
               </div>
               <div>
                 <span className="text-gray-500">{L.createdAt}:</span>{' '}
-                <span className="font-medium">{(sale as any).createdAt ? new Date((sale as any).createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{metadata.createdAt}</span>
               </div>
             </div>
             <div>
               <div>
                 <span className="text-gray-500">{L.updatedBy}:</span>{' '}
-                <span className="font-medium">{(sale as any).updatedByName || '—'}</span>
+                <span className="font-medium">{metadata.updatedByName}</span>
               </div>
               <div>
                 <span className="text-gray-500">{L.updatedAt}:</span>{' '}
-                <span className="font-medium">{(sale as any).updatedAt ? new Date((sale as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{metadata.updatedAt}</span>
               </div>
             </div>
           </div>
@@ -225,7 +268,7 @@ export default function SaleViewModal({
                 <div className="flex items-center text-sm">
                   <User className="w-4 h-4 text-gray-400 mr-2" />
                   <span className="text-gray-600">{L.customer}:</span>
-                  <span className="ml-2 font-medium">{sale.customerName}</span>
+                  <span className="ml-2 font-medium">{sale.customerName || '—'}</span>
                 </div>
                 {sale.customerEmail && (
                   <div className="flex items-center text-sm">
@@ -243,7 +286,7 @@ export default function SaleViewModal({
             <h3 className="text-lg font-semibold text-gray-900 mb-4">{L.itemsInfo}</h3>
             
             {/* Çoklu ürün varsa tablo göster */}
-            {sale.items && sale.items.length > 0 ? (
+            {hasItems ? (
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
@@ -263,7 +306,7 @@ export default function SaleViewModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {sale.items.map((item, index) => (
+                    {items.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <div className="flex items-center space-x-2">
@@ -278,7 +321,7 @@ export default function SaleViewModal({
                           {formatAmount(item.unitPrice)}
                         </td>
                         <td className="px-4 py-3 text-right font-medium text-gray-900">
-                          {formatAmount((item.total && toNumber(item.total) > 0) ? item.total : toNumber(item.unitPrice) * toNumber(item.quantity))}
+                          {formatAmount(resolveItemTotal(item))}
                         </td>
                       </tr>
                     ))}
@@ -289,7 +332,7 @@ export default function SaleViewModal({
                         {L.grandTotalExclVat}
                       </td>
                       <td className="px-4 py-4 text-right font-bold text-green-600 text-lg">
-                        {formatAmount(sale.items.reduce((sum, it) => sum + toNumber(it.unitPrice) * toNumber(it.quantity), 0))}
+                        {formatAmount(itemsTotal)}
                       </td>
                     </tr>
                   </tfoot>
@@ -300,15 +343,15 @@ export default function SaleViewModal({
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center space-x-3 mb-2">
                   <Package className="w-5 h-5 text-gray-400" />
-                  <span className="font-medium text-gray-900">{sale.productName}</span>
+                  <span className="font-medium text-gray-900">{sale.productName || '—'}</span>
                 </div>
-                {sale.quantity && sale.unitPrice && (
+                {showSingleProductPricing && (
                   <div className="text-sm text-gray-600 ml-8">
-                    <span>Miktar: {sale.quantity}</span>
+                    <span>{L.quantity}: {sale.quantity ?? '—'}</span>
                     <span className="mx-2">•</span>
-                    <span>Birim Fiyat: {formatAmount(sale.unitPrice)}</span>
+                    <span>{L.unitPrice}: {sale.unitPrice != null ? formatAmount(sale.unitPrice) : '—'}</span>
                     <span className="mx-2">•</span>
-                    <span>Toplam (KDV Hariç): {formatAmount(toNumber(sale.unitPrice) * toNumber(sale.quantity))}</span>
+                    <span>{L.total}: {formatAmount(singleItemTotal)}</span>
                   </div>
                 )}
               </div>
@@ -316,14 +359,14 @@ export default function SaleViewModal({
           </div>
 
           {/* Amount - Sadece tek ürün varsa göster */}
-          {(!sale.items || sale.items.length === 0) && (
+          {!hasItems && (
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{L.amountInfo}</h3>
               <div className="bg-green-50 rounded-lg p-6 border border-green-200">
                 <div className="flex justify-between items-center">
                   <span className="text-green-800 font-medium text-lg">{t('sales.totalExclVat', L.totalExclVat)}</span>
                   <span className="text-2xl font-bold text-green-600">
-                    {formatAmount(toNumber(sale.unitPrice) * toNumber(sale.quantity))}
+                    {formatAmount(singleItemTotal)}
                   </span>
                 </div>
               </div>

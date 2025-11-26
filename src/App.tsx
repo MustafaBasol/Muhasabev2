@@ -7,17 +7,26 @@ import { CookieConsentProvider } from "./contexts/CookieConsentContext";
 import { NotificationPreferencesProvider, useNotificationPreferences } from "./contexts/NotificationPreferencesContext";
 import { analyticsManager } from "./utils/analyticsManager";
 import { useTranslation } from "react-i18next";
-
 import type { CompanyProfile } from "./utils/pdfGenerator";
-import type { 
-  Customer, 
+import type {
   User,
   Product,
   ProductCategory,
+  Sale,
+  Invoice,
+  Bank,
+  ChartAccount,
 } from "./types";
+import type {
+  CustomerRecord,
+  SupplierRecord,
+  InvoiceRecord,
+  ExpenseRecord,
+} from "./types/records";
 import { secureStorage } from "./utils/storage";
 import { getErrorMessage } from "./utils/errorHandler";
 import { isEmailVerificationRequired } from "./utils/emailVerification";
+import { logger } from "./utils/logger";
 
 // API imports
 import * as customersApi from "./api/customers";
@@ -52,7 +61,7 @@ import AdminPage from "./components/AdminPage";
 // New Invoice Flow Modals
 import InvoiceTypeSelectionModal from "./components/InvoiceTypeSelectionModal";
 import ExistingSaleSelectionModal from "./components/ExistingSaleSelectionModal";
-import InvoiceFromSaleModal from "./components/InvoiceFromSaleModal";
+import InvoiceFromSaleModal, { type InvoiceDraftPayload } from "./components/InvoiceFromSaleModal";
 
 // view modals
 import CustomerViewModal from "./components/CustomerViewModal";
@@ -70,7 +79,7 @@ import QuoteEditModal from "./components/QuoteEditModal";
 // history modals
 import CustomerHistoryModal from "./components/CustomerHistoryModal";
 import SupplierHistoryModal from "./components/SupplierHistoryModal";
-import DeleteWarningModal from "./components/DeleteWarningModal";
+import DeleteWarningModal, { type DeleteWarningRelatedItem } from "./components/DeleteWarningModal";
 
 // pages
 import CustomerList from "./components/CustomerList";
@@ -92,7 +101,7 @@ import RegisterPage from "./components/RegisterPage";
 import ForgotPasswordPage from "./components/ForgotPasswordPage";
 import ResetPasswordPage from "./components/ResetPasswordPage";
 import VerifyEmailPage from "./components/VerifyEmailPage";
-import VerifyNoticePage from "./components/VerifyNoticePage"; // Yeni: Kayıt sonrası doğrulama bilgilendirme sayfası
+import VerifyNoticePage from "./components/VerifyNoticePage";
 import LandingPage from "./components/landing/LandingPage";
 import AboutPage from "./components/landing/AboutPage";
 import ApiPage from "./components/landing/ApiPage";
@@ -106,22 +115,36 @@ import CookiePolicy from "./components/legal/CookiePolicy";
 import Imprint from "./components/legal/Imprint";
 import EmailPolicy from "./components/legal/EmailPolicy";
 import HelpCenter from "./components/help/HelpCenter";
-// StatusPage public değil; admin paneli sekmesi içinde kullanılacak
 
 // cookie consent components
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import CookiePreferencesModal from "./components/CookiePreferencesModal";
 
-// legal header
+// legal header & misc
 import LegalHeader from "./components/LegalHeader";
-
-// organization components
 import JoinOrganizationPage from "./components/JoinOrganizationPage";
 import PublicQuotePage from "./components/PublicQuotePage";
 import * as quotesApi from "./api/quotes";
 import { SeoInjector } from "./components/SeoInjector";
 import AnnouncementBar from "./components/AnnouncementBar";
 
+import {
+  readNotificationPrefsCache,
+  readTenantScopedArray,
+  readTenantScopedObject,
+  readTenantScopedValue,
+  buildTenantScopedKey,
+  safeLocalStorage,
+  safeSessionStorage,
+  writeTenantScopedArray,
+  writeTenantScopedObject,
+  writeTenantScopedValue,
+  readLegacyAuthToken,
+  readLegacyTenantId,
+  writeLegacyTenantId,
+  readLegacyUserProfile,
+} from "./utils/localStorageSafe";
+import { toNumberSafe } from "./utils/sortAndSearch";
 import * as ExcelJS from 'exceljs';
 
 const defaultCompany: CompanyProfile = {
@@ -137,8 +160,120 @@ const defaultCompany: CompanyProfile = {
   bankAccountId: undefined,
 };
 
+type Nullable<T> = T | null | undefined;
+
+const toTenantId = (value: Nullable<string | number>): string | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }
+  return undefined;
+};
+
+const resolveTenantScopedId = (
+  tenantCandidate?: { id?: string | null } | null,
+  fallbackTenantId?: Nullable<string | number>
+): string | undefined => {
+  return toTenantId(tenantCandidate?.id)
+    || toTenantId(fallbackTenantId)
+    || toTenantId(readLegacyTenantId());
+};
+
+const getTenantIdForCompanyCache = (): string => toTenantId(readLegacyTenantId()) || '';
+const getCompanyProfileCacheKey = (tenantId: Nullable<string>): string => (tenantId ? `companyProfile_${tenantId}` : 'companyProfile');
+
+const readCompanyProfileFromPlainStorage = (tenantId: Nullable<string>): CompanyProfile | null => {
+  const baseKey = getCompanyProfileCacheKey(tenantId || '');
+  try {
+    const raw = safeLocalStorage.getItem(baseKey)
+      || safeLocalStorage.getItem(`${baseKey}_plain`)
+      || safeLocalStorage.getItem('company');
+    return raw ? (JSON.parse(raw) as CompanyProfile) : null;
+  } catch {
+    return null;
+  }
+};
+
 // Bildirimler başlangıçta boş - backend'den veya işlemlerden dinamik oluşturulacak
 const initialNotifications: HeaderNotification[] = [];
+
+type StoredNotificationInput = Partial<HeaderNotification> & {
+  relatedId?: string | number;
+  firstSeenAt?: number | string;
+  time?: string | number;
+};
+
+const resolveNotificationId = (notif: StoredNotificationInput, index: number): string => {
+  const rawId = typeof notif.id === 'string' && notif.id.trim() ? notif.id.trim() : null;
+  if (rawId) return rawId;
+  const related = notif.relatedId ? String(notif.relatedId) : null;
+  const suffix = `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`;
+  return related ? `${related}-${suffix}` : `notif-${suffix}`;
+};
+
+const coerceTimestamp = (value: unknown, fallback: number): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+};
+
+const normalizeStoredNotifications = (stored?: StoredNotificationInput[] | null): HeaderNotification[] => {
+  const locale = (() => {
+    const lang = typeof navigator !== 'undefined' ? navigator.language : 'tr';
+    return (lang || 'tr').slice(0, 2);
+  })();
+
+  const list = Array.isArray(stored) ? stored : [];
+  return list.map((notif, index) => {
+    const id = resolveNotificationId(notif, index);
+    const tsFromIdMatch = id.match(/\b\d{13}\b/);
+    const guessedTs = tsFromIdMatch ? Number(tsFromIdMatch[0]) : Date.now();
+    const firstSeenAt = coerceTimestamp(notif.firstSeenAt, guessedTs);
+    const timeStr = typeof notif.time === 'string' && notif.time.trim()
+      ? notif.time
+      : new Date(firstSeenAt).toLocaleString(locale);
+
+    return {
+      ...notif,
+      id,
+      firstSeenAt,
+      time: timeStr,
+    } as HeaderNotification;
+  });
+};
+
+const normalizeRelatedItems = (items: unknown): DeleteWarningRelatedItem[] => {
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .filter(item => item != null)
+    .map((item, index) => {
+      if (typeof item === 'object' && item !== null) {
+        const candidate = item as Record<string, unknown>;
+        const rawId = candidate.id;
+        const resolvedId = typeof rawId === 'string' || typeof rawId === 'number'
+          ? rawId
+          : `item-${index}`;
+        return {
+          ...candidate,
+          id: resolvedId,
+        } as DeleteWarningRelatedItem;
+      }
+
+      return {
+        id: `item-${index}`,
+        description: typeof item === 'string' ? item : String(item),
+      } as DeleteWarningRelatedItem;
+    });
+};
 
 const initialProductCategories = ["Genel"]; // Boş başlangıç, backend'den yüklenecek
 const initialProductCategoryObjects: ProductCategory[] = []; // Kategori nesneleri
@@ -153,6 +288,29 @@ interface ImportedCustomer {
   company?: string;
   createdAt?: string;
 }
+ 
+type BackendInvoiceLineItem = {
+  productId?: string | number;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+ 
+type BackendInvoicePayload = {
+  customerId: string;
+  issueDate: string;
+  dueDate: string;
+  type: 'product' | 'service';
+  lineItems: BackendInvoiceLineItem[];
+  taxAmount: number;
+  discountAmount: number;
+  notes: string;
+  status: Invoice['status'];
+  saleId?: string | number;
+};
+
+type SalesUpdater = Sale[] | ((prev: Sale[]) => Sale[]);
 
 const toastToneClasses = {
   success: "border-emerald-200 bg-emerald-50 text-emerald-900",
@@ -166,10 +324,15 @@ interface ToastMessage {
   id: string;
   message: string;
   tone: ToastTone;
+  duration: number;
 }
 
 const formatPercentage = (value: number) =>
   `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+
+const reportSilentError = (scope: string, detail?: unknown) => {
+  logger.debug(scope, detail);
+};
 
 
 const AppContent: React.FC = () => {
@@ -193,7 +356,9 @@ const AppContent: React.FC = () => {
       try {
         const val = t(key as any, params as any) as unknown as string;
         if (val !== key) return String(val);
-      } catch {}
+      } catch (error) {
+        reportSilentError('app.i18n.tOrFirst', { key, error });
+      }
     }
     return fallback;
   }, [t]);
@@ -203,7 +368,7 @@ const AppContent: React.FC = () => {
   
   // Debug currentPage değişikliklerini
   useEffect(() => {
-    console.log('CurrentPage değişti:', currentPage);
+    logger.debug('app.navigation.pageChanged', { page: currentPage });
   }, [currentPage]);
 
   // Legal sayfalara geçişte otomatik en üste kaydır (UX düzeltmesi)
@@ -216,7 +381,9 @@ const AppContent: React.FC = () => {
           window.scrollTo(0, 0);
         }
       }
-    } catch {}
+    } catch (error) {
+      reportSilentError('app.navigation.scrollTopFailed', error);
+    }
   }, [currentPage]);
 
   // E-posta doğrulaması zorunluysa: doğrulanmamış kullanıcıyı sadece doğrulama sayfalarına ve kamu (landing/about/api/legal) sayfalarına izin ver
@@ -234,7 +401,9 @@ const AppContent: React.FC = () => {
       const isLegal = currentPage.startsWith('legal-');
       if (!allowed.has(currentPage) && !isLegal) {
         // Hash tabanlı yönlendirme
-        try { window.location.hash = 'verify-notice'; } catch {}
+        try { window.location.hash = 'verify-notice'; } catch (error) {
+          reportSilentError('app.navigation.hashUpdateFailed', error);
+        }
         setCurrentPage('verify-notice');
       }
     }
@@ -260,32 +429,39 @@ const AppContent: React.FC = () => {
     });
   }, []);
   const [user, setUser] = useState<User>({ name: authUser?.firstName || "User", email: authUser?.email || "" });
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<ChartAccount[]>([]);
   // Şirket bilgisi: önce varsayılan, ardından asenkron olarak secureStorage/localStorage'dan yükle
   const [company, setCompany] = useState<CompanyProfile>(() => defaultCompany);
+  const tenantId = tenant?.id;
+  const authUserTenantId = authUser?.tenantId;
+  const authUserId = authUser?.id;
+  const tenantScopedId = React.useMemo(() => {
+    try {
+      return resolveTenantScopedId({ id: tenantId }, authUserTenantId);
+    } catch {
+      return undefined;
+    }
+  }, [tenantId, authUserTenantId]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const tid = (localStorage.getItem('tenantId') || '') as string;
-        const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+        const tenantIdForCache = getTenantIdForCompanyCache();
+        const secureKey = getCompanyProfileCacheKey(tenantIdForCache);
         const fromSecure = await secureStorage.getJSON<CompanyProfile>(secureKey);
-        let loaded: CompanyProfile | null = fromSecure;
-        if (!loaded) {
-          try {
-            const localKey = tid ? `companyProfile_${tid}` : 'companyProfile';
-            const raw = localStorage.getItem(localKey) || localStorage.getItem(`${localKey}_plain`) || localStorage.getItem('company');
-            loaded = raw ? (JSON.parse(raw) as CompanyProfile) : null;
-          } catch {}
-        }
+        const loaded: CompanyProfile | null = fromSecure ?? readCompanyProfileFromPlainStorage(tenantIdForCache);
         if (!cancelled && loaded) {
           setCompany({ ...defaultCompany, ...loaded! });
           // Eğer şifreli kayıt yoksa ama düz kayıt varsa, bir defaya mahsus migrate et
           if (!fromSecure) {
-            try { await secureStorage.setJSON(secureKey, loaded); } catch {}
+            try {
+              await secureStorage.setJSON(secureKey, loaded);
+            } catch (error) {
+              reportSilentError('app.companyCache.secureWriteFailed', error);
+            }
           }
         }
-      } catch (e) {
+      } catch {
         // yoksay
       }
     })();
@@ -293,18 +469,18 @@ const AppContent: React.FC = () => {
       // Diğer sekmelerden güncelleme geldiğinde tekrar yükle
       (async () => {
         try {
-          const tid = (localStorage.getItem('tenantId') || '') as string;
-          const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+          const tenantIdForCache = getTenantIdForCompanyCache();
+          const secureKey = getCompanyProfileCacheKey(tenantIdForCache);
           const fromSecure = await secureStorage.getJSON<CompanyProfile>(secureKey);
           if (fromSecure) { setCompany({ ...defaultCompany, ...fromSecure }); return; }
-          const localKey = tid ? `companyProfile_${tid}` : 'companyProfile';
-          const raw = localStorage.getItem(localKey) || localStorage.getItem(`${localKey}_plain`) || localStorage.getItem('company');
-          if (raw) {
-            const parsed = JSON.parse(raw) as CompanyProfile;
-            setCompany({ ...defaultCompany, ...parsed });
+          const fallback = readCompanyProfileFromPlainStorage(tenantIdForCache);
+          if (fallback) {
+            setCompany({ ...defaultCompany, ...fallback });
             // Not: Event sırasında secureStorage'a tekrar yazmıyoruz (gereksiz ağır işlem ve olası döngüler)
           }
-        } catch {}
+        } catch (error) {
+          reportSilentError('app.companyCache.refreshFailed', error);
+        }
       })();
     };
     window.addEventListener('company-profile-updated', handler as EventListener);
@@ -316,7 +492,7 @@ const AppContent: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const token = localStorage.getItem('auth_token');
+        const token = readLegacyAuthToken();
         if (!token || !isAuthenticated) return;
         const { tenantsApi } = await import('./api/tenants');
         const me = await tenantsApi.getMyTenant();
@@ -325,16 +501,10 @@ const AppContent: React.FC = () => {
 
         // One-time migration: If backend has empty brand/legal but we have richer local cache, push it to backend
         try {
-          const tid = (localStorage.getItem('tenantId') || tenant?.id || '') as string;
-          const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+          const scopedIdForCompany = tenantScopedId || '';
+          const secureKey = getCompanyProfileCacheKey(scopedIdForCompany);
           const cached: CompanyProfile | null = await secureStorage.getJSON<CompanyProfile>(secureKey).catch(() => null);
-          const cachedFallback = (() => {
-            try {
-              const localKey = tid ? `companyProfile_${tid}` : 'companyProfile';
-              const raw = localStorage.getItem(localKey) || localStorage.getItem(`${localKey}_plain`) || localStorage.getItem('company');
-              return raw ? (JSON.parse(raw) as CompanyProfile) : null;
-            } catch { return null; }
-          })();
+          const cachedFallback = readCompanyProfileFromPlainStorage(scopedIdForCompany);
           const localRich = cached || cachedFallback;
 
           const backendHasBrand = Boolean(brand?.logoDataUrl || brand?.bankAccountId || brand?.country);
@@ -441,50 +611,67 @@ const AppContent: React.FC = () => {
         if (!cancelled) {
           setCompany(updated);
           try {
-            const tid = (localStorage.getItem('tenantId') || '') as string;
-            const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+            const scopedIdForCompany = tenantScopedId || '';
+            const secureKey = getCompanyProfileCacheKey(scopedIdForCompany);
             await secureStorage.setJSON(secureKey, updated);
             window.dispatchEvent(new Event('company-profile-updated'));
-          } catch {}
+          } catch (error) {
+            reportSilentError('app.companyCache.backendSyncFailed', error);
+          }
         }
-      } catch (e) {
+      } catch {
         // Sessizce geç
       }
     })();
     return () => { cancelled = true; };
-  }, [isAuthenticated]);
-  const [notifications, setNotifications] = useState<HeaderNotification[]>(() => {
-    // localStorage'dan (tenant'a özel) yükle, yoksa initialNotifications kullan
-    const tid = localStorage.getItem('tenantId') || '';
-    const key = tid ? `notifications_${tid}` : 'notifications';
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        return parsed.map((notif: any, index: number) => {
-          let id = String(notif?.id || '');
-          if (!id) {
-            id = notif?.relatedId
-              ? `${notif.relatedId}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
-              : `notif-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
-          }
-          // firstSeenAt tahmini: varsa kullan; yoksa ID içindeki 13 haneli timestamp'i dene; olmadı şimdi
-          const tsFromIdMatch = String(id).match(/\b\d{13}\b/);
-          const guessedTs = tsFromIdMatch ? Number(tsFromIdMatch[0]) : Date.now();
-          const firstSeenAt = typeof notif?.firstSeenAt === 'number' ? notif.firstSeenAt : guessedTs;
-          const timeStr = notif?.time && typeof notif.time === 'string' && notif.time.trim()
-            ? notif.time
-            : new Date(firstSeenAt).toLocaleString((navigator.language || 'tr').slice(0,2));
-          return { ...notif, id, firstSeenAt, time: timeStr } as HeaderNotification;
-        });
-      } catch (e) {
-        console.error('Notifications parse error:', e);
-      }
-    }
-    return initialNotifications;
-  });
+  }, [isAuthenticated, tenantScopedId]);
+  const [notifications, setNotifications] = useState<HeaderNotification[]>(initialNotifications);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const navigateTo = React.useCallback((page: string) => {
+    setCurrentPage(page);
+    setIsSidebarOpen(false);
+    setIsNotificationsOpen(false);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
+
+  const openSettingsOn = React.useCallback((tabId: string) => {
+    setSettingsInitialTab(tabId);
+    navigateTo('settings');
+  }, [navigateTo]);
+
+  const hydrateNotifications = React.useCallback(() => {
+    const scopedId = tenantScopedId;
+    const hasActiveTenantContext = Boolean(scopedId || tenantId || authUserTenantId);
+    if (hasActiveTenantContext && scopedId) {
+      const scoped = readTenantScopedArray<HeaderNotification>('notifications', {
+        tenantId: scopedId,
+        fallbackToBase: false,
+      });
+      if (Array.isArray(scoped) && scoped.length > 0) {
+        setNotifications(normalizeStoredNotifications(scoped));
+        return;
+      }
+      setNotifications(initialNotifications);
+      return;
+    }
+    const fallback = readTenantScopedArray<HeaderNotification>('notifications', {
+      tenantId: undefined,
+      fallbackToBase: true,
+    });
+    if (Array.isArray(fallback) && fallback.length > 0) {
+      setNotifications(normalizeStoredNotifications(fallback));
+      return;
+    }
+    setNotifications(initialNotifications);
+  }, [tenantScopedId, tenantId, authUserTenantId]);
+
+  React.useEffect(() => {
+    hydrateNotifications();
+  }, [hydrateNotifications]);
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showSupplierModal, setShowSupplierModal] = useState(false);
@@ -512,62 +699,136 @@ const AppContent: React.FC = () => {
   const [showExistingSaleModal, setShowExistingSaleModal] = useState(false);
   const [showInvoiceFromSaleModal, setShowInvoiceFromSaleModal] = useState(false);
   // Müşteri detayından fatura akışına geçerken ön-seçili müşteri
-  const [preselectedCustomerForInvoice, setPreselectedCustomerForInvoice] = useState<any | null>(null);
+  const [preselectedCustomerForInvoice, setPreselectedCustomerForInvoice] = useState<CustomerRecord | null>(null);
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
   const [deleteWarningData, setDeleteWarningData] = useState<{
     title: string;
     message: string;
-    relatedItems: any[];
+    relatedItems: DeleteWarningRelatedItem[];
     itemType: 'invoice' | 'expense';
   } | null>(null);
-  const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<any>(null);
+  const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
 
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [selectedExpense, setSelectedExpense] = useState<any>(null);
-  const [selectedSale, setSelectedSale] = useState<any>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<SupplierRecord | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRecord | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseRecord | null>(null);
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<QuoteModel | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [selectedBank, setSelectedBank] = useState<any>(null);
-  const [supplierForExpense, setSupplierForExpense] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
+  const [supplierForExpense, setSupplierForExpense] = useState<SupplierExpenseHint | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [saleToDelete, setSaleToDelete] = useState<string | null>(null);
 
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [sales, setSales] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productCategories, setProductCategories] = useState<string[]>(() => initialProductCategories);
   const [productCategoryObjects, setProductCategoryObjects] = useState<ProductCategory[]>(() => initialProductCategoryObjects);
-  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<Bank[]>([]);
+  const bankAccountsRef = React.useRef<Bank[]>([]);
+  const salesHasDataRef = React.useRef(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [_isLoadingData, setIsLoadingData] = useState(true);
   const [infoModal, setInfoModal] = useState<{ title: string; message: string; tone?: 'success' | 'error' | 'info'; confirmLabel?: string; onConfirm?: () => void; cancelLabel?: string; onCancel?: () => void; extraLabel?: string; onExtra?: () => void } | null>(null);
   const [publicQuoteId, setPublicQuoteId] = useState<string | null>(null);
 
-  // Customers state değiştiğinde localStorage cache güncelle (PDF ve diğer offline ihtiyaçlar için)
+  const authUserSnapshot = React.useMemo(() => ({
+    id: authUser?.id ?? null,
+    tenantId: authUser?.tenantId ?? null,
+    firstName: authUser?.firstName ?? '',
+    lastName: authUser?.lastName ?? '',
+    email: authUser?.email ?? '',
+  }), [authUser?.id, authUser?.tenantId, authUser?.firstName, authUser?.lastName, authUser?.email]);
+
+  // Customers state değiştiğinde tenant cache'i güncel tut
   useEffect(() => {
+    writeTenantScopedArray('customers_cache', customers, { tenantId: tenantScopedId, mirrorToBase: true });
+  }, [customers, tenantScopedId]);
+
+  useEffect(() => {
+    bankAccountsRef.current = bankAccounts;
+  }, [bankAccounts]);
+
+  useEffect(() => {
+    salesHasDataRef.current = Array.isArray(sales) && sales.length > 0;
+  }, [sales]);
+
+  const dismissToast = React.useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const showToast = React.useCallback(
+    (message: string | null | undefined, tone: ToastMessage['tone'] = 'info', options?: Partial<ToastMessage>) => {
+      const id = options?.id || crypto.randomUUID?.() || Math.random().toString(36).slice(2);
+      const duration = typeof options?.duration === 'number' ? options.duration : 4000;
+      const resolvedTone = options?.tone ?? tone;
+      const toast: ToastMessage = {
+        id,
+        message: message || t('toasts.common.genericMessage'),
+        tone: resolvedTone,
+        duration,
+      };
+      setToasts(prev => [...prev, toast]);
+      if (duration > 0) {
+        window.setTimeout(() => dismissToast(id), duration);
+      }
+      return id;
+    },
+    [t, dismissToast]
+  );
+
+  useEffect(() => {
+    const handler = (event: CustomEvent<{ message: string; tone?: ToastMessage['tone']; id?: string; duration?: number }>) => {
+      const { message, tone = 'info', id, duration } = event.detail || {};
+      if (!message) return;
+      showToast(message, tone, { id, duration });
+    };
+    window.addEventListener('showToast', handler as EventListener);
+    return () => {
+      window.removeEventListener('showToast', handler as EventListener);
+    };
+  }, [showToast]);
+
+  // Logout sırasında storage'ı yanlışlıkla boş listeyle ezmemek için bayrak
+  const suppressSalesPersistenceRef = React.useRef(false);
+
+  const runWithSalesPersistenceSuppressed = React.useCallback((fn: () => void) => {
+    suppressSalesPersistenceRef.current = true;
     try {
-      const tid = (localStorage.getItem('tenantId') || '').toString();
-      const key = tid ? `customers_cache_${tid}` : 'customers_cache';
-      // Minimal alanlar + gerekli opsiyoneller
-      const serialized = JSON.stringify(customers.map(c => ({
-        id: c.id,
-        name: c.name,
-        email: c.email || '',
-        phone: c.phone || '',
-        address: c.address || '',
-        taxNumber: c.taxNumber || '',
-        company: c.company || ''
-      })));
-      localStorage.setItem(key, serialized);
-    } catch (e) {
-      console.warn('customers_cache yazılamadı', e);
+      fn();
+    } finally {
+      setTimeout(() => {
+        suppressSalesPersistenceRef.current = false;
+      }, 0);
     }
-  }, [customers]);
+  }, []);
+
+  const persistSalesState = React.useCallback((updater: SalesUpdater) => {
+    setSales(prevState => {
+      const prevArray = Array.isArray(prevState) ? (prevState as Sale[]) : [];
+      const nextArray = typeof updater === 'function'
+        ? (updater as (prev: Sale[]) => Sale[])(prevArray)
+        : (Array.isArray(updater) ? updater : prevArray);
+
+      if (!suppressSalesPersistenceRef.current) {
+        try {
+          const tenantScopedIdValue = tenantScopedId;
+          writeTenantScopedArray('sales_cache', nextArray, { tenantId: tenantScopedIdValue, mirrorToBase: true });
+          writeTenantScopedArray('sales', nextArray, { tenantId: tenantScopedIdValue, mirrorToBase: true });
+          window.dispatchEvent(new Event('sales-cache-updated'));
+        } catch (error) {
+          logger.warn('app.sales.cacheWriteFailed', error);
+        }
+      }
+
+      return nextArray;
+    });
+  }, [tenantScopedId]);
 
   // Load data from backend on mount
   useEffect(() => {
@@ -578,13 +839,18 @@ const AppContent: React.FC = () => {
       if (match && match[1]) {
         setPublicQuoteId(decodeURIComponent(match[1]));
       }
-    } catch {}
+    } catch (error) {
+      reportSilentError('app.publicQuote.decodeFailed', error);
+    }
 
     const loadData = async () => {
       // Check if we have auth token
-      const token = localStorage.getItem('auth_token');
+      const token = readLegacyAuthToken();
       if (!token || !isAuthenticated) {
-        console.log('⚠️ Token yok veya authenticated değil, state temizleniyor');
+        logger.warn('app.bootstrap.tokenMissing', {
+          isAuthenticated,
+          hasToken: Boolean(token),
+        });
         // Logout durumunda state'i temizle
         setCustomers([]);
         setSuppliers([]);
@@ -596,36 +862,36 @@ const AppContent: React.FC = () => {
       }
       try {
         setIsLoadingData(true);
-        console.log('🔄 Backend verisi yükleniyor...');
+        logger.info('app.bootstrap.fetch.start');
         
         // API isteklerini sıralı olarak gönder (rate limiting'i önlemek için)
-        console.log('📊 Customers yükleniyor...');
+        logger.debug('app.bootstrap.fetch.step', { resource: 'customers' });
         const customersData = await customersApi.getCustomers();
         
-        console.log('🏭 Suppliers yükleniyor...');
+        logger.debug('app.bootstrap.fetch.step', { resource: 'suppliers' });
         const suppliersData = await suppliersApi.getSuppliers();
         
-        console.log('📦 Products yükleniyor...');
+        logger.debug('app.bootstrap.fetch.step', { resource: 'products' });
         const productsData = await productsApi.getProducts();
         
-        console.log('🧾 Invoices yükleniyor...');
+        logger.debug('app.bootstrap.fetch.step', { resource: 'invoices' });
         const invoicesData = await invoicesApi.getInvoices();
         
-        console.log('💸 Expenses yükleniyor...');
+        logger.debug('app.bootstrap.fetch.step', { resource: 'expenses' });
         const expensesData = await expensesApi.getExpenses();
 
-        console.log('🛒 Sales yükleniyor...');
+        logger.debug('app.bootstrap.fetch.step', { resource: 'sales' });
         let salesData: any[] = [];
         try {
           salesData = await salesApi.getSales();
         } catch (e) {
-          console.warn('Sales yüklenemedi, offline cache kullanılacak:', e);
+          logger.warn('app.bootstrap.salesLoadFailed', e);
         }
         
-        console.log('🏷️ Categories yükleniyor...');
+        logger.debug('app.bootstrap.fetch.step', { resource: 'productCategories' });
         const categoriesData = await import('./api/product-categories').then(({ productCategoriesApi }) => productCategoriesApi.getAll());
 
-        console.log('✅ Backend verisi yüklendi. Raw data:', {
+        logger.debug('app.bootstrap.fetch.success', {
           customers: customersData,
           suppliers: suppliersData,
           products: productsData,
@@ -643,7 +909,7 @@ const AppContent: React.FC = () => {
         const safeExpensesData = Array.isArray(expensesData) ? expensesData : [];
         const safeCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];
 
-        console.log('✅ Güvenli veri boyutları:', {
+        logger.info('app.bootstrap.safeSizes', {
           customers: safeCustomersData.length,
           suppliers: safeSuppliersData.length,
           products: safeProductsData.length,
@@ -712,6 +978,7 @@ const AppContent: React.FC = () => {
         if (Array.isArray(salesData)) {
           // Satışları haritalarken müşteri adını ve temel ürün alanlarını doldur
           // Öncelik: backend s.customer?.name -> s.customerName -> customers listesinden s.customerId eşleşmesi
+          const currentUserDisplayName = `${authUserSnapshot.firstName} ${authUserSnapshot.lastName}`.trim() || authUserSnapshot.email || undefined;
           const mappedSales = salesData.map((s: any) => {
             const resolvePersonName = (p: any): string | undefined => {
               if (!p) return undefined;
@@ -750,14 +1017,14 @@ const AppContent: React.FC = () => {
             // Oluşturan / Güncelleyen bilgilerini mümkün olan en erken aşamada doldur
             const createdByName = s?.createdByName
               || resolvePersonName(s?.createdBy)
-              || (s?.createdById && authUser?.id && String(s.createdById) === String(authUser.id)
-                    ? `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.email || undefined
-                    : undefined);
+              || (s?.createdById && authUserSnapshot.id && String(s.createdById) === String(authUserSnapshot.id)
+                ? currentUserDisplayName
+                : undefined);
             const updatedByName = s?.updatedByName
               || resolvePersonName(s?.updatedBy)
-              || (s?.updatedById && authUser?.id && String(s.updatedById) === String(authUser.id)
-                    ? `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.email || undefined
-                    : undefined);
+              || (s?.updatedById && authUserSnapshot.id && String(s.updatedById) === String(authUserSnapshot.id)
+                ? currentUserDisplayName
+                : undefined);
 
             return {
               ...s,
@@ -779,10 +1046,9 @@ const AppContent: React.FC = () => {
           });
           // Backend'ten gelen liste, kullanıcı eklerken tamamlanan ilk yükleme tarafından
           // state'i ezmemeli. Mevcut state ile birleştirip (saleNumber,id) bazında tekilleştir.
-          setSales(prev => {
+          persistSalesState(prev => {
             const byKey = new Map<string, any>();
             const makeKey = (x: any) => `${x?.saleNumber || ''}#${x?.id || ''}`;
-            // Önce mevcut state, sonra backend verisi: backend aynı kaydı içeriyorsa onu tercih et.
             for (const s of Array.isArray(prev) ? prev : []) {
               byKey.set(makeKey(s), s);
             }
@@ -792,32 +1058,25 @@ const AppContent: React.FC = () => {
             return Array.from(byKey.values());
           });
         }
-        // Debug: log a sample of expenses to inspect status/amount values
-        console.log('🔎 Loaded expenses sample (first 10):', mappedExpenses.slice(0, 10).map(e => ({ id: e.id, amount: e.amount, status: e.status, expenseDate: e.expenseDate })));
+        // Debug amaçlı küçük bir örnek kaydı logger üzerinden paylaş
+        logger.debug('app.bootstrap.expenseSample', {
+          sample: mappedExpenses.slice(0, 10).map(e => ({ id: e.id, amount: e.amount, status: e.status, expenseDate: e.expenseDate })),
+        });
         
-        // Cache all data to localStorage for persistence (tenant-scoped)
-        try {
-          const tidScoped = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const cKey = tidScoped ? `customers_cache_${tidScoped}` : 'customers_cache';
-          const sKey = tidScoped ? `suppliers_cache_${tidScoped}` : 'suppliers_cache';
-          const pKey = tidScoped ? `products_cache_${tidScoped}` : 'products_cache';
-          const iKey = tidScoped ? `invoices_cache_${tidScoped}` : 'invoices_cache';
-          const eKey = tidScoped ? `expenses_cache_${tidScoped}` : 'expenses_cache';
-          localStorage.setItem(cKey, JSON.stringify(safeCustomersData));
-          localStorage.setItem(sKey, JSON.stringify(safeSuppliersData));
-          localStorage.setItem(pKey, JSON.stringify(mappedProducts));
-          localStorage.setItem(iKey, JSON.stringify(safeInvoicesData));
-          localStorage.setItem(eKey, JSON.stringify(safeExpensesData));
-        } catch {}
+        const tenantScopedId = resolveTenantScopedId(tenant, authUserSnapshot.tenantId);
+        const tenantWriteOptions = { tenantId: tenantScopedId, mirrorToBase: true } as const;
+        writeTenantScopedArray('customers_cache', safeCustomersData, tenantWriteOptions);
+        writeTenantScopedArray('suppliers_cache', safeSuppliersData, tenantWriteOptions);
+        writeTenantScopedArray('products_cache', mappedProducts, tenantWriteOptions);
+        writeTenantScopedArray('invoices_cache', safeInvoicesData, tenantWriteOptions);
+        writeTenantScopedArray('expenses_cache', safeExpensesData, tenantWriteOptions);
         if (Array.isArray(salesData)) {
-          const tid = localStorage.getItem('tenantId') || '';
-          const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-          try { localStorage.setItem(cacheKey, JSON.stringify(salesData)); } catch {}
+          writeTenantScopedArray('sales_cache', salesData, tenantWriteOptions);
         }
         
-        console.log('💾 Tüm veriler localStorage\'a kaydedildi');
+        logger.info('app.bootstrap.cachePersisted');
       } catch (error) {
-        console.error('❌ Backend veri yükleme hatası:', error);
+        logger.error('app.bootstrap.fetch.failed', error);
         showToast(t('toasts.common.dataLoadError'), 'error');
       } finally {
         setIsLoadingData(false);
@@ -825,106 +1084,47 @@ const AppContent: React.FC = () => {
     };
 
     loadData();
-  }, [isAuthenticated, tenant?.id, authUser?.tenantId]); // isAuthenticated veya tenant ID değiştiğinde tekrar yükle (tenant ID login sonrası geç gelirse boş dashboard sorunu oluşuyordu)
+  }, [isAuthenticated, tenant, authUserSnapshot, persistSalesState, showToast, t]); // isAuthenticated veya tenant değiştiğinde tekrar yükle
 
   // Save Bank accounts cache to localStorage (tenant-scoped)
   useEffect(() => {
-    try {
-      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-      const key = tid ? `bankAccounts_${tid}` : 'bankAccounts';
-      localStorage.setItem(key, JSON.stringify(bankAccounts));
-    } catch {}
-  }, [bankAccounts, tenant?.id, authUser?.tenantId]);
+    writeTenantScopedArray('bankAccounts', bankAccounts, { tenantId: tenantScopedId, mirrorToBase: true });
+  }, [bankAccounts, tenantScopedId]);
 
-  // Logout sırasında storage'ı yanlışlıkla boş listeyle ezmemek için bayrak
-  const suppressSalesPersistenceRef = React.useRef(false);
+  const handleSimpleSalesPageUpdate = React.useCallback((updatedSales: Sale[] = []) => {
+    logger.info('app.sales.simpleList.updated', { count: updatedSales.length });
+    persistSalesState(updatedSales);
+  }, [persistSalesState]);
 
   useEffect(() => {
     // Her değişimde localStorage'ı güncelle (boş liste dahil)
     // Ancak logout akışında state temizlenirken storage'ı EZME!
     if (suppressSalesPersistenceRef.current) return;
     try {
-      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-      const key = tid ? `sales_${tid}` : 'sales';
-      const keyBackup = tid ? `sales_backup_${tid}` : 'sales_backup';
-      const keyTs = tid ? `sales_last_seen_ts_${tid}` : 'sales_last_seen_ts';
-      localStorage.setItem(key, JSON.stringify(sales));
+      const scopedIdForSales = tenantScopedId;
+      const normalizedSales = Array.isArray(sales) ? sales : [];
+      writeTenantScopedArray('sales', normalizedSales, { tenantId: scopedIdForSales, mirrorToBase: true });
       // Yedeği HER ZAMAN mevcut state ile senkron tut (boş liste dahil)
-      localStorage.setItem(keyBackup, JSON.stringify(Array.isArray(sales) ? sales : []));
-      localStorage.setItem(keyTs, String(Date.now()));
-    } catch {}
-  }, [sales, tenant?.id, authUser?.tenantId]);
-
-  // Satışlar için geriye dönük göç: yalnızca hiç anahtar OLUŞTURULMAMIŞSA (null) eski GENEL anahtarlardan bir kerelik taşı
-  useEffect(() => {
-    try {
-      // Authenticated kullanıcıda eski genel anahtarlardan göç yapma — tenant izolasyonunu koru
-      if (isAuthenticated) return;
-      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-      const currentKey = tid ? `sales_${tid}` : 'sales';
-      const currentCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-      // Eğer anahtar daha önce oluşturulmuşsa (boş bile olsa) GÖÇ YAPMA
-      const keyExists = localStorage.getItem(currentKey) !== null || localStorage.getItem(currentCacheKey) !== null;
-      if (keyExists) return;
-
-      // Göç yalnızca bir kez çalışmalı
-      const migrateFlagKey = tid ? `sales_migration_done_${tid}` : 'sales_migration_done';
-      if (localStorage.getItem(migrateFlagKey)) return;
-
-      const collected: any[] = [];
-      // Sadece ESKİ GENEL anahtarlardan taşı (tenant'lar arası sızıntıyı engelle)
-      try {
-        const legacyA = localStorage.getItem('sales');
-        if (legacyA) {
-          const arr = JSON.parse(legacyA);
-          if (Array.isArray(arr)) collected.push(...arr);
-        }
-      } catch {}
-      try {
-        const legacyB = localStorage.getItem('sales_cache');
-        if (legacyB) {
-          const arr = JSON.parse(legacyB);
-          if (Array.isArray(arr)) collected.push(...arr);
-        }
-      } catch {}
-      if (collected.length === 0) return;
-      // Tekilleştir (saleNumber,id)
-      const uniq = new Map<string, any>();
-      collected.forEach((s: any) => {
-        const key = `${s?.saleNumber || ''}#${s?.id || ''}`;
-        if (!uniq.has(key)) uniq.set(key, s);
-      });
-      const migrated = Array.from(uniq.values());
-      // Mevcut tenant anahtarlarına yaz ve state'e yükle (eğer state boşsa)
-      try { localStorage.setItem(currentCacheKey, JSON.stringify(migrated)); } catch {}
-      if (!Array.isArray(sales) || sales.length === 0) {
-        setSales(migrated);
-      }
-      // Bayrağı yaz ve eski genel anahtarları temizle (ileride yanlış geri yükleme olmasın)
-      try { localStorage.setItem(migrateFlagKey, '1'); } catch {}
-      // Eski genel anahtarları silmek güvenli: yalnızca ilk göçte çalışır
-      try { localStorage.removeItem('sales'); } catch {}
-      try { localStorage.removeItem('sales_cache'); } catch {}
-    } catch {}
-  // Bu efekt sadece tenant veya auth kullanıcısı veya auth durumu değiştiğinde çalışsın
-  }, [tenant?.id, authUser?.tenantId, isAuthenticated]);
-  
-  useEffect(() => {
-    if (invoices.length > 0) {
-      try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
-        localStorage.setItem(iKey, JSON.stringify(invoices));
-      } catch {}
+      const serialized = JSON.stringify(normalizedSales);
+      writeTenantScopedValue('sales_backup', serialized, { tenantId: scopedIdForSales, mirrorToBase: false });
+      writeTenantScopedValue('sales_last_seen_ts', Date.now(), { tenantId: scopedIdForSales, mirrorToBase: false });
+    } catch (error) {
+      reportSilentError('app.sales.persistFailed', error);
     }
-  }, [invoices]);
+  }, [sales, tenantScopedId]);
+
+  useEffect(() => {
+    writeTenantScopedArray('invoices_cache', invoices, { tenantId: tenantScopedId, mirrorToBase: true });
+  }, [invoices, tenantScopedId]);
 
   // � Bildirimleri localStorage'a kaydet
   useEffect(() => {
-    const tid = localStorage.getItem('tenantId') || '';
-    const key = tid ? `notifications_${tid}` : 'notifications';
-    try { localStorage.setItem(key, JSON.stringify(notifications)); } catch {}
-  }, [notifications]);
+    try {
+      writeTenantScopedArray('notifications', notifications, { tenantId: tenantScopedId, mirrorToBase: true });
+    } catch (error) {
+      reportSilentError('app.notifications.persistFailed', error);
+    }
+  }, [notifications, tenantScopedId]);
 
   // �🔄 AuthContext'deki user değiştiğinde App.tsx'deki user state'ini güncelle
   useEffect(() => {
@@ -934,45 +1134,38 @@ const AppContent: React.FC = () => {
       let displayName = fullNameRaw;
       if (!displayName) {
         // localStorage'daki user objesinden birleştir (varsa)
-        try {
-          const lsUser = localStorage.getItem('user');
-          if (lsUser) {
-            const parsed = JSON.parse(lsUser);
-            const fromLs = `${parsed?.firstName || ''} ${parsed?.lastName || ''}`.trim() || parsed?.name || '';
-            if (fromLs) displayName = fromLs;
-          }
-        } catch {}
+        const cachedProfile = readLegacyUserProfile<{ firstName?: string; lastName?: string; name?: string }>();
+        if (cachedProfile) {
+          const fromCache = `${cachedProfile.firstName || ''} ${cachedProfile.lastName || ''}`.trim() || cachedProfile.name || '';
+          if (fromCache) displayName = fromCache;
+        }
       }
       setUser(prev => ({
         name: displayName || prev.name || 'User',
         email: authUser.email || prev.email || '',
       }));
-      console.log('🔄 authUser değişti, App.tsx user state güncelleniyor:', {
+      logger.debug('app.auth.userSync', {
         name: displayName || 'User',
         email: authUser.email || '',
       });
       // Tenant bilgisini localStorage'a da yaz (fallback için)
-      try {
-        if (authUser.tenantId != null) {
-          localStorage.setItem('tenantId', String(authUser.tenantId));
-        }
-      } catch {}
+      if (authUser.tenantId != null) {
+        writeLegacyTenantId(authUser.tenantId);
+      }
     }
   }, [authUser]);
 
   // Cross-tab senkron: başka sekmede sales değişirse state'i güncelle
     React.useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-      const key = tid ? `sales_${tid}` : 'sales';
-      const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
+      const scopedId = tenantScopedId;
+      const key = buildTenantScopedKey('sales', scopedId);
+      const cacheKey = buildTenantScopedKey('sales_cache', scopedId);
       // backupKey kullanılmıyor: bilinçli silmelerin geri gelmesini engelle
       if (e.key === key || e.key === cacheKey) {
         try {
-          const a = localStorage.getItem(key);
-          const b = localStorage.getItem(cacheKey);
-          const arrA = a ? JSON.parse(a) : [];
-          const arrB = b ? JSON.parse(b) : [];
+          const arrA = readTenantScopedArray<any>('sales', { tenantId: scopedId, fallbackToBase: false }) ?? [];
+          const arrB = readTenantScopedArray<any>('sales_cache', { tenantId: scopedId, fallbackToBase: false }) ?? [];
           const merged = [...(Array.isArray(arrA) ? arrA : []), ...(Array.isArray(arrB) ? arrB : [])];
           // Önce (saleNumber,id) ile tekilleştir
           const uniq = new Map<string, any>();
@@ -982,65 +1175,62 @@ const AppContent: React.FC = () => {
           });
               const next = Array.from(uniq.values());
               // Artık boş liste gelirse yedekten RESTORE ETME — kullanıcı silmiş olabilir
-              setSales(next);
-        } catch {}
+              runWithSalesPersistenceSuppressed(() => {
+                persistSalesState(next);
+              });
+        } catch (error) {
+          reportSilentError('app.sales.storageSyncFailed', error);
+        }
       }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  }, [tenantScopedId, persistSalesState, runWithSalesPersistenceSuppressed]);
 
   // Cache yükleme: Sadece gerçekten OTURUM YOKSA offline sales'i yükle
-    useEffect(() => {
+  useEffect(() => {
     // Authentication kontrolü - token yoksa veya authenticated değilse ÇIKIŞ
-    const token = localStorage.getItem('auth_token');
+    const token = readLegacyAuthToken();
     // Eğer token varsa ama isAuthenticated henüz false ise, offline veriyi yükleme (yanlış grafik/istatistik parlamasını önlemek için bekle)
     if (!token && !isAuthenticated) {
-      console.log('🔒 Kullanıcı authenticated değil - offline sales yükleniyor');
+      logger.info('app.cache.offlineSalesLoad.start');
       try {
-        const savedSales = localStorage.getItem('sales');
-        if (savedSales) {
-          const salesData = JSON.parse(savedSales);
-          if (Array.isArray(salesData)) {
-            setSales(salesData);
-            console.log('✅ Offline satışlar yüklendi:', salesData.length);
-          }
+        const savedSales = readTenantScopedArray<any>('sales', { tenantId: undefined, fallbackToBase: true });
+        if (Array.isArray(savedSales) && savedSales.length > 0) {
+          persistSalesState(savedSales);
+          logger.info('app.cache.offlineSalesLoad.success', { count: savedSales.length });
         }
       } catch (e) {
-        console.error('Offline sales load error:', e);
+        logger.error('app.cache.offlineSalesLoad.failed', e);
       }
       setIsLoadingData(false);
       return;
     }
 
   // YALNIZCA GERÇEK OTURUM TENANT ID'sini kullan; localStorage fallback KULLANMA (yanlış tenant sızıntısını önlemek için)
-  const tid = (tenant?.id || authUser?.tenantId || '') as string;
-  console.log('📂 localStorage cache yükleniyor (authenticated user)...');
-  const bankKey = tid ? `bankAccounts_${tid}` : 'bankAccounts';
-  const savedBanks = localStorage.getItem(bankKey);
+  const tenantScopedId = toTenantId(tenant?.id) || toTenantId(authUser?.tenantId) || '';
+  logger.info('app.cache.authenticatedLoad.start');
+  const savedBanks = readTenantScopedArray<any>('bankAccounts', { tenantId: tenantScopedId, fallbackToBase: false }) ?? [];
   // Eski/generic anahtar desteği: birleşik oku, tenant anahtarına öncelik ver
-  const savedBanksGeneric = (!savedBanks ? localStorage.getItem('bankAccounts') : null);
-  if (!tid) {
+  const savedBanksGeneric = readTenantScopedArray<any>('bankAccounts', { tenantId: undefined, fallbackToBase: true }) ?? [];
+  if (!tenantScopedId) {
     // Tenant ID henüz belli değilse cache yüklemeyi ertele
     setIsLoadingData(false);
     return;
   }
-  const salesKey = tid ? `sales_${tid}` : 'sales';
-  const salesCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
   // Authenticated kullanıcıda backup'tan otomatik geri yükleme yapmayacağız
-  const savedSales = localStorage.getItem(salesKey);
-  const savedSalesCache = localStorage.getItem(salesCacheKey);
-    const savedCustomers = localStorage.getItem(tid ? `customers_cache_${tid}` : 'customers_cache');
-    const savedSuppliers = localStorage.getItem(tid ? `suppliers_cache_${tid}` : 'suppliers_cache');
-    const savedProducts = localStorage.getItem(tid ? `products_cache_${tid}` : 'products_cache');
-  const savedInvoices = localStorage.getItem(tid ? `invoices_cache_${tid}` : 'invoices_cache');
-  const savedExpenses = localStorage.getItem(tid ? `expenses_cache_${tid}` : 'expenses_cache');
+  const savedSales = readTenantScopedArray<any>('sales', { tenantId: tenantScopedId, fallbackToBase: false }) ?? [];
+  const savedSalesCache = readTenantScopedArray<any>('sales_cache', { tenantId: tenantScopedId, fallbackToBase: true }) ?? [];
+  const savedCustomers = readTenantScopedArray<any>('customers_cache', { tenantId: tenantScopedId, fallbackToBase: true }) ?? [];
+  const savedSuppliers = readTenantScopedArray<any>('suppliers_cache', { tenantId: tenantScopedId, fallbackToBase: true }) ?? [];
+  const savedProducts = readTenantScopedArray<any>('products_cache', { tenantId: tenantScopedId, fallbackToBase: true }) ?? [];
+  const savedInvoices = readTenantScopedArray<any>('invoices_cache', { tenantId: tenantScopedId, fallbackToBase: true }) ?? [];
+  const savedExpenses = readTenantScopedArray<any>('expenses_cache', { tenantId: tenantScopedId, fallbackToBase: true }) ?? [];
+  const fallbackBankList = savedBanks.length ? savedBanks : null;
     
-    if (savedBanks || savedBanksGeneric) {
+    if (savedBanks.length || savedBanksGeneric.length) {
       try {
-        const tenantBanks = savedBanks ? JSON.parse(savedBanks) : [];
-        const genericBanks = savedBanksGeneric ? JSON.parse(savedBanksGeneric) : [];
-        const combined = [...(Array.isArray(tenantBanks)?tenantBanks:[]), ...(Array.isArray(genericBanks)?genericBanks:[])];
+        const combined = [...savedBanks, ...savedBanksGeneric];
         if (combined.length > 0) {
           // id bazında tekilleştir (tenant öncelikli)
           const byId = new Map<string, any>();
@@ -1050,11 +1240,11 @@ const AppContent: React.FC = () => {
             if (!byId.has(id)) byId.set(id, b);
           }
           const list = Array.from(byId.values());
-          console.log('✅ Bankalar cache\'den yüklendi:', list.length);
-          setBankAccounts(list.map((b:any)=>({ ...b, id: String(b.id) })));
+          logger.info('app.cache.banksLoaded', { count: list.length });
+          setBankAccounts(list.map((b: any) => ({ ...b, id: String(b.id) })));
         }
       } catch (e) {
-        console.error('Error loading banks:', e);
+        logger.error('app.cache.banksLoadFailed', e);
       }
     }
     // Ardından backend'den bankalar çekilip cache güncellensin
@@ -1065,14 +1255,12 @@ const AppContent: React.FC = () => {
         // Backend'den gelen 'name' alanını frontend'de kullanılan 'accountName' ile eşle
         const mappedRemote = remote.map((b:any)=>({ ...b, id: String(b.id), accountName: b.name }));
         // Lokal cache veya mevcut state'teki UI alanları ile birleştir (kalıcı kıl)
-        const localList: any[] = (() => {
-          try { return savedBanks ? JSON.parse(savedBanks) : bankAccounts; } catch { return bankAccounts; }
-        })();
+        const localList: any[] = fallbackBankList ?? bankAccountsRef.current;
         // UI alanları için ayrı harita (ek güvence)
-        const uiKey = tid ? `bankUi_${tid}` : 'bankUi';
-        const uiMap: Record<string, any> = (() => {
-          try { const raw = localStorage.getItem(uiKey); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
-        })();
+        const uiMap: Record<string, any> = readTenantScopedObject<Record<string, any>>('bankUi', {
+          tenantId: tenantScopedId,
+          fallbackToBase: false,
+        }) || {};
         const merged = mappedRemote.map((r:any) => {
           const local = (Array.isArray(localList) ? localList : []).find((x:any) => String(x.id) === String(r.id));
           const extra = uiMap[String(r.id)] || {};
@@ -1089,19 +1277,19 @@ const AppContent: React.FC = () => {
           };
         });
         setBankAccounts(merged);
-        try { localStorage.setItem(bankKey, JSON.stringify(merged)); } catch {}
+        try {
+          writeTenantScopedArray('bankAccounts', merged, { tenantId: tenantScopedId, mirrorToBase: true });
+        } catch (error) {
+          reportSilentError('app.cache.bankAccounts.persistFailed', error);
+        }
       } catch (e) {
-        console.warn('Bank accounts fetch failed, cache ile devam', e);
+        logger.warn('app.cache.bankAccounts.refreshFailed', e);
       }
     })();
     
-  if (savedSales || savedSalesCache) {
+  if (savedSales.length || savedSalesCache.length) {
       try {
-        const salesDataA = savedSales ? JSON.parse(savedSales) : [];
-        const salesDataB = savedSalesCache ? JSON.parse(savedSalesCache) : [];
-        const salesData = Array.isArray(salesDataA) || Array.isArray(salesDataB)
-          ? [...(Array.isArray(salesDataA)? salesDataA: []), ...(Array.isArray(salesDataB)? salesDataB: [])]
-          : [];
+        const salesData = [...savedSales, ...savedSalesCache];
         // Not: Artık yalnızca tenant'a özel anahtarlardan okuyoruz; ek filtre veya migrasyona gerek yok
         let filteredSales = salesData;
 
@@ -1127,13 +1315,7 @@ const AppContent: React.FC = () => {
         });
 
         // Cache'ten yüklenen satışları da müşteri adı ile zenginleştir
-        let customersFromCache: any[] = [];
-        try {
-          customersFromCache = savedCustomers ? JSON.parse(savedCustomers) : [];
-          if (!Array.isArray(customersFromCache)) customersFromCache = [];
-        } catch {
-          customersFromCache = [];
-        }
+        const customersFromCache = Array.isArray(savedCustomers) ? savedCustomers : [];
         const hydrated = deduped.map((s: any) => {
           const customerNameFromRel = s?.customer?.name;
           const customerNameFromSelf = s?.customerName;
@@ -1167,49 +1349,38 @@ const AppContent: React.FC = () => {
           return { ...s, customerName, customerEmail, productId, productName, quantity, unitPrice, status: normalizedStatus };
         });
 
-        console.log('✅ Satışlar cache\'den yüklendi:', {
+        logger.info('app.cache.salesLoaded', {
           total: (salesData || []).length,
           filtered: (filteredSales || []).length,
-          unique: deduped.length
+          unique: deduped.length,
         });
         // Artık backup'tan otomatik geri yükleme yok — doğrudan hydrated veriyi kullan
-        setSales(hydrated);
+        runWithSalesPersistenceSuppressed(() => {
+          persistSalesState(hydrated);
+        });
         // Not: Burada storage'ı geriye yazmıyoruz (potansiyel veri kaybını önlemek için)
         // Dedup sonucu daha kısa olabilir; kullanıcı onayı olmadan overwrite etmeyelim.
       } catch (e) {
-        console.error('Error loading sales:', e);
+        logger.error('app.cache.salesLoadFailed', e);
       }
     }
     // Not: authenticated kullanıcıda backup'tan otomatik geri dönüş devre dışı
     
-    if (savedCustomers) {
-      try {
-        const customersData = JSON.parse(savedCustomers);
-        console.log('✅ Müşteriler cache\'den yüklendi:', customersData.length);
-        setCustomers(customersData);
-      } catch (e) {
-        console.error('Error loading customers cache:', e);
-      }
+    if (savedCustomers.length) {
+      logger.info('app.cache.customersLoaded', { count: savedCustomers.length });
+      setCustomers(savedCustomers);
     }
     
-    if (savedSuppliers) {
-      try {
-        const suppliersData = JSON.parse(savedSuppliers);
-        console.log('✅ Tedarikçiler cache\'den yüklendi:', suppliersData.length);
-        setSuppliers(suppliersData);
-      } catch (e) {
-        console.error('Error loading suppliers cache:', e);
-      }
+    if (savedSuppliers.length) {
+      logger.info('app.cache.suppliersLoaded', { count: savedSuppliers.length });
+      setSuppliers(savedSuppliers);
     }
     
-    if (savedProducts) {
+    if (savedProducts.length) {
       try {
-        const productsData = JSON.parse(savedProducts);
-        // Ensure it's an array
-        const safeProductsData = Array.isArray(productsData) ? productsData : [];
-        console.log('✅ Ürünler cache\'den yüklendi:', safeProductsData.length);
+        logger.info('app.cache.productsLoaded', { count: savedProducts.length });
         // Ensure numeric values
-        const normalizedProducts = safeProductsData.map((p: any) => ({
+        const normalizedProducts = savedProducts.map((p: any) => ({
           ...p,
           unitPrice: Number(p.unitPrice) || 0,
           costPrice: Number(p.costPrice) || 0,
@@ -1218,26 +1389,20 @@ const AppContent: React.FC = () => {
         }));
         setProducts(normalizedProducts);
       } catch (e) {
-        console.error('Error loading products cache:', e);
+        logger.error('app.cache.productsLoadFailed', e);
       }
     }
     
-    if (savedInvoices) {
-      try {
-        const invoicesData = JSON.parse(savedInvoices);
-        console.log('✅ Faturalar cache\'den yüklendi:', invoicesData.length);
-        setInvoices(invoicesData);
-      } catch (e) {
-        console.error('Error loading invoices cache:', e);
-      }
+    if (savedInvoices.length) {
+      logger.info('app.cache.invoicesLoaded', { count: savedInvoices.length });
+      setInvoices(savedInvoices);
     }
     
-    if (savedExpenses) {
+    if (savedExpenses.length) {
       try {
-        const expensesData = JSON.parse(savedExpenses);
-        console.log('✅ Giderler cache\'den yüklendi:', expensesData.length);
+        logger.info('app.cache.expensesLoaded', { count: savedExpenses.length });
         // Ensure proper format for expenseDate
-        const mappedExpenses = expensesData.map((e: any) => {
+        const mappedExpenses = savedExpenses.map((e: any) => {
           const expenseDate = typeof e.expenseDate === 'string' ? e.expenseDate : 
             (e.expenseDate ? new Date(e.expenseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
           const dueDate = e.dueDate || e.expenseDate;
@@ -1259,10 +1424,16 @@ const AppContent: React.FC = () => {
         });
         setExpenses(mappedExpenses);
       } catch (e) {
-        console.error('Error loading expenses cache:', e);
+        logger.error('app.cache.expensesLoadFailed', e);
       }
     }
-  }, [isAuthenticated, tenant?.id, authUser?.tenantId]); // tenant ID hazır olduğunda çalıştır
+  }, [
+    isAuthenticated,
+    tenant?.id,
+    authUser?.tenantId,
+    persistSalesState,
+    runWithSalesPersistenceSuppressed,
+  ]); // tenant ID hazır olduğunda çalıştır
 
   // Tenant değiştiğinde eski state'i anında temizle (eski tenant verisinin bir an bile görünmemesi için)
   useEffect(() => {
@@ -1274,10 +1445,10 @@ const AppContent: React.FC = () => {
     setProducts([]);
     setInvoices([]);
     setExpenses([]);
-    setSales([]);
+    persistSalesState([]);
     setBankAccounts([]);
   // Bu temizlik, tenant id değiştiğinde bir defa tetiklenir
-  }, [tenant?.id, authUser?.tenantId]);
+  }, [tenant?.id, authUser?.tenantId, isAuthenticated, persistSalesState]);
 
   // 🗑️ Okunmuş bildirimleri 1 gün sonra otomatik temizle (persistent olanları hariç)
   useEffect(() => {
@@ -1303,7 +1474,10 @@ const AppContent: React.FC = () => {
           if ((n.persistent || n.repeatDaily) && n.read && n.readAt) {
             const ageInMs = now - n.readAt;
             if (ageInMs >= oneDayInMs) {
-              console.log(`🔄 Kalıcı bildirim sıfırlandı: ${n.title}`);
+              logger.debug('app.notifications.persistentReset', {
+                notificationId: n.id,
+                title: n.title,
+              });
               return { ...n, read: false, readAt: undefined };
             }
           }
@@ -1312,7 +1486,7 @@ const AppContent: React.FC = () => {
         
         const removedCount = current.length - filtered.length;
         if (removedCount > 0) {
-          console.log(`🗑️ ${removedCount} eski bildirim temizlendi`);
+          logger.info('app.notifications.cleanupRemoved', { count: removedCount });
         }
         
         return reset;
@@ -1333,10 +1507,113 @@ const AppContent: React.FC = () => {
     [notifications]
   );
 
+  const authUserTwoFactorEnabled = ((authUser as any)?.twoFactorEnabled === true);
+  const tenantScopedIdForNotifications = React.useMemo(() => {
+    try {
+      return resolveTenantScopedId(tenant, authUserTenantId);
+    } catch {
+      return undefined;
+    }
+  }, [tenant, authUserTenantId]);
+
+  const addNotification = React.useCallback((
+    title: string,
+    description: string,
+    type: 'info' | 'warning' | 'success' | 'danger' = 'info',
+    link?: string,
+    options?: {
+      persistent?: boolean;
+      repeatDaily?: boolean;
+      relatedId?: string;
+      i18nTitleKey?: string;
+      i18nDescKey?: string;
+      i18nParams?: Record<string, any>;
+    }
+  ) => {
+    const allowedCategories = new Set(['invoices', 'expenses', 'sales', 'products', 'suppliers', 'quotes']);
+    const category = link || '';
+    const readPrefs = () => {
+      try {
+        const tenantScopedId = tenantScopedIdForNotifications;
+        const userId = authUserId ? String(authUserId) : undefined;
+        return (
+          readNotificationPrefsCache({
+            tenantIds: tenantScopedId ? [tenantScopedId] : undefined,
+            userIds: userId ? [userId] : undefined,
+          }) || {}
+        );
+      } catch {
+        return {};
+      }
+    };
+
+    if (category && !allowedCategories.has(category)) return;
+    if (category === 'products') {
+      const rid = options?.relatedId || '';
+      const isStockAlert = /^low-stock-|^out-of-stock-/.test(rid);
+      if (!isStockAlert) return;
+      const prefs = readPrefs();
+      if (prefs?.lowStockAlerts === false) return;
+    }
+    if (category === 'sales') {
+      const prefs = readPrefs();
+      if (prefs?.salesNotifications === false) return;
+    }
+    if (category === 'quotes') {
+      const prefs = readPrefs();
+      if (prefs?.quoteReminders === false) return;
+    }
+    if (category === 'invoices') {
+      const prefs = readPrefs();
+      if (prefs?.invoiceReminders === false) return;
+    }
+    if (category === 'expenses') {
+      const prefs = readPrefs();
+      if (prefs?.expenseAlerts === false) return;
+    }
+
+    const uniqueId = options?.relatedId
+      ? `${options.relatedId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      : `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const nowTs = Date.now();
+    const timeStr = new Date(nowTs).toLocaleString((navigator.language || 'tr').slice(0, 2));
+    const newNotification: HeaderNotification = {
+      id: uniqueId,
+      title,
+      description,
+      time: timeStr,
+      firstSeenAt: nowTs,
+      type,
+      read: false,
+      link,
+      persistent: options?.persistent,
+      repeatDaily: options?.repeatDaily,
+      relatedId: options?.relatedId,
+      i18nTitleKey: options?.i18nTitleKey,
+      i18nDescKey: options?.i18nDescKey,
+      i18nParams: options?.i18nParams,
+    };
+
+    setNotifications(prev => {
+      if (options?.relatedId) {
+        const filtered = prev.filter(n => n.relatedId !== options.relatedId);
+        return [newNotification, ...filtered];
+      }
+      return [newNotification, ...prev];
+    });
+
+    logger.info('app.notifications.created', {
+      id: newNotification.id,
+      type: newNotification.type,
+      category,
+      persistent: Boolean(newNotification.persistent),
+    });
+  }, [tenantScopedIdForNotifications, authUserId]);
+
   // 2FA hatırlatıcı bildirimi ve ilk açılış modali
   useEffect(() => {
     if (!isAuthenticated) return;
-    const enabled = ((authUser as any)?.twoFactorEnabled === true);
+    const enabled = authUserTwoFactorEnabled;
 
     // 2FA etkin ise: varsa hatırlatıcı bildirimi kaldır ve çık
     if (enabled) {
@@ -1351,13 +1628,15 @@ const AppContent: React.FC = () => {
 
     // İlk açılış modali: kullanıcı/tenant bazlı, HER OTURUMDA bir kez göster (2FA etkinleşene kadar)
     try {
-      const tid = (tenant?.id || authUser?.tenantId || 'default') as string;
-      const uid = (authUser as any)?.id || 'anon';
-      const neverKey = `twofa_modal_never:${tid}:${uid}`;
-      const never = localStorage.getItem(neverKey);
-      if (never) return; // Kullanıcı bir daha hatırlatma dedi
-      const key = `twofa_modal_shown_session:${tid}:${uid}`;
-      const shownThisSession = sessionStorage.getItem(key);
+      const tenantScopedId = resolveTenantScopedId(tenant, authUserTenantId) || 'default';
+      const userKey = String(authUserId || 'anon');
+      const neverMap = readTenantScopedObject<Record<string, string>>('twofa_modal_never', {
+        tenantId: tenantScopedId,
+        fallbackToBase: false,
+      }) || {};
+      if (neverMap[userKey]) return; // Kullanıcı bir daha hatırlatma dedi
+      const key = `twofa_modal_shown_session:${tenantScopedId}:${userKey}`;
+      const shownThisSession = safeSessionStorage.getItem(key);
       if (!shownThisSession) {
         setInfoModal({
           title: tOrFirst(['security.twofa.modalTitle','sales.security.twofa.modalTitle'], 'Hesabınızı Güvenceye Alın'),
@@ -1367,23 +1646,38 @@ const AppContent: React.FC = () => {
           cancelLabel: tOr('common.remindMeLater', 'Daha Sonra'),
           extraLabel: tOrFirst(['security.twofa.neverRemind','sales.security.twofa.neverRemind'], 'Bir daha hatırlatma'),
           onConfirm: () => {
-            try { sessionStorage.setItem(key, '1'); } catch {}
+            safeSessionStorage.setItem(key, '1');
             openSettingsOn('security');
             setInfoModal(null);
           },
           onCancel: () => {
-            try { sessionStorage.setItem(key, '1'); } catch {}
+            safeSessionStorage.setItem(key, '1');
             setInfoModal(null);
           },
           onExtra: () => {
-            try { sessionStorage.setItem(key, '1'); } catch {}
-            try { localStorage.setItem(neverKey, '1'); } catch {}
+            safeSessionStorage.setItem(key, '1');
+            const nextMap = { ...neverMap, [userKey]: '1' };
+            writeTenantScopedObject('twofa_modal_never', nextMap, { tenantId: tenantScopedId, mirrorToBase: false });
             setInfoModal(null);
           },
         });
       }
-    } catch {}
-  }, [isAuthenticated, (authUser as any)?.twoFactorEnabled, authUser?.id, tenant?.id, i18n.language]);
+    } catch (error) {
+      reportSilentError('app.security.twofaPromptFailed', error);
+    }
+  }, [
+    isAuthenticated,
+    authUserTwoFactorEnabled,
+    authUserId,
+    authUserTenantId,
+    tenant,
+    tenantId,
+    i18n.language,
+    addNotification,
+    openSettingsOn,
+    tOr,
+    tOrFirst,
+  ]);
 
   // 🔔 Yaklaşan ve geçmiş ödemeler için bildirim kontrol et
   useEffect(() => {
@@ -1496,7 +1790,9 @@ const AppContent: React.FC = () => {
               );
             }
           });
-        } catch {}
+        } catch (error) {
+          reportSilentError('app.notifications.lowStockCheckFailed', error);
+        }
       }
     };
     
@@ -1519,7 +1815,7 @@ const AppContent: React.FC = () => {
     }, msUntil9am);
     
     return () => clearTimeout(timeout);
-  }, [invoices, expenses, products, isAuthenticated, prefs]);
+  }, [invoices, expenses, products, isAuthenticated, prefs, addNotification, tOr]);
 
   // Ürün kategorileri başka bir componentten güncellendiğinde (create/update/delete)
   // ProductList global bir 'product-categories-updated' eventi dispatch eder; burada dinleyip yeniden yükleriz.
@@ -1548,10 +1844,8 @@ const AppContent: React.FC = () => {
     if (!isAuthenticated) return;
     const loadAndNotifyQuotes = () => {
       try {
-        const tid = (localStorage.getItem('tenantId') || 'default') as string;
-        const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
-        const raw = localStorage.getItem(key);
-        const quotes = raw ? JSON.parse(raw) : [];
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        const quotes = readTenantScopedArray<any>('quotes_cache', { tenantId: tenantScopedId, fallbackToBase: true }) ?? [];
         if (!Array.isArray(quotes)) return;
         if (prefs.quoteReminders === false) return;
         const today = new Date(); today.setHours(0,0,0,0);
@@ -1577,12 +1871,12 @@ const AppContent: React.FC = () => {
             );
           }
         });
-      } catch (e) { /* sessiz */ }
+      } catch { /* sessiz */ }
     };
     loadAndNotifyQuotes();
     const interval = setInterval(loadAndNotifyQuotes, 6 * 60 * 60 * 1000); // 6 saatte bir
     return () => clearInterval(interval);
-  }, [isAuthenticated, prefs]);
+  }, [isAuthenticated, prefs, tenant, tenant?.id, authUser?.tenantId, addNotification, tOr]);
 
   // Dil değişince (veya veriler güncellenince) bildirimleri yeniden yerelleştir
   useEffect(() => {
@@ -1767,7 +2061,9 @@ const AppContent: React.FC = () => {
               } as HeaderNotification;
             }
           }
-        } catch {}
+        } catch (error) {
+          reportSilentError('app.notifications.relocalizeLegacy', { notificationId: n?.id, error });
+        }
 
         // 1) i18n meta'ya göre genel yeniden çeviri
         if (n.i18nTitleKey || n.i18nDescKey) {
@@ -1796,7 +2092,7 @@ const AppContent: React.FC = () => {
     };
 
     relocalize();
-  }, [i18n.language, invoices, expenses, products]);
+  }, [i18n.language, invoices, expenses, products, tOr, tOrFirst]);
 
   const normalizeId = (value?: string | number) => String(value ?? Date.now());
 
@@ -1804,68 +2100,55 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      console.log('Hash değişti:', hash);
+      logger.debug('app.hashRouting.hashChange', { hash });
+
+      const navigate = (page: string, extra?: Record<string, unknown>) => {
+        logger.debug('app.hashRouting.navigate', { hash, targetPage: page, ...extra });
+        setCurrentPage(page);
+      };
+
       if (hash === 'admin') {
-        console.log('Admin sayfasına yönlendiriliyor...');
-        setCurrentPage('admin');
+        navigate('admin');
       } else if (hash === 'register') {
-        console.log('Kayıt sayfasına yönlendiriliyor...');
-        setCurrentPage('register');
+        navigate('register');
       } else if (hash === 'login') {
-        console.log('Giriş sayfasına yönlendiriliyor...');
-        setCurrentPage('login');
+        navigate('login');
       } else if (hash === 'forgot-password') {
-        console.log('Şifre sıfırlama isteği sayfasına yönlendiriliyor...');
-        setCurrentPage('forgot-password');
+        navigate('forgot-password');
       } else if (hash.startsWith('reset-password')) {
-        console.log('Şifre sıfırlama sayfasına yönlendiriliyor...');
         // Keep token in hash; page will parse
-        setCurrentPage('reset-password');
+        navigate('reset-password');
       } else if (hash.startsWith('verify-email')) {
-        console.log('E-posta doğrulama sayfasına yönlendiriliyor...');
-        setCurrentPage('verify-email');
+        navigate('verify-email');
       } else if (hash === 'verify-notice') {
-        console.log('Doğrulama bilgilendirme sayfasına yönlendiriliyor...');
-        setCurrentPage('verify-notice');
+        navigate('verify-notice');
       } else if (hash === 'help') {
-        console.log('Yardım Merkezi sayfasına yönlendiriliyor...');
-        setCurrentPage('help');
+        navigate('help');
       } else if (hash.startsWith('legal/')) {
-        // Legal pages routing
         const legalPage = hash.replace('legal/', '');
-        console.log('Legal sayfasına yönlendiriliyor:', legalPage);
-        setCurrentPage(`legal-${legalPage}`);
+        navigate(`legal-${legalPage}`, { legalPage });
       } else if (hash === 'settings/organization/members') {
-        console.log('Organization members sayfasına yönlendiriliyor...');
-        setCurrentPage('organization-members');
+        navigate('organization-members');
       } else if (hash.startsWith('join?token=')) {
-        // Extract token from hash
         const token = hash.replace('join?token=', '');
-        console.log('Join organization sayfasına yönlendiriliyor, token:', token);
-        setCurrentPage(`join-organization:${token}`);
+        navigate(`join-organization:${token}`, { token });
       } else if (hash === '') {
-        // If no hash, show landing page for non-authenticated users, dashboard for authenticated
         if (isAuthenticated) {
-          console.log('Authenticated user - Ana sayfaya yönlendiriliyor...');
-          setCurrentPage('dashboard');
+          navigate('dashboard', { reason: 'hash-empty-authenticated' });
         } else {
-          console.log('Non-authenticated user - Landing sayfasına yönlendiriliyor...');
-          setCurrentPage('landing');
+          navigate('landing', { reason: 'hash-empty-guest' });
         }
       } else if (hash === 'about') {
-        console.log('Hakkında sayfasına yönlendiriliyor...');
-        setCurrentPage('about');
+        navigate('about');
       } else if (hash === 'api') {
-        console.log('API sayfasına yönlendiriliyor...');
-        setCurrentPage('api');
+        navigate('api');
       } else if (hash.startsWith('customer-history:')) {
-        console.log('Müşteri geçmişi sayfasına yönlendiriliyor...');
-        setCurrentPage(hash);
+        navigate(hash);
       }
     };
 
     // Check initial hash
-    console.log('İlk hash kontrolü:', window.location.hash);
+    logger.debug('app.hashRouting.initialHash', { hash: window.location.hash });
     handleHashChange();
 
     // Listen for hash changes
@@ -1876,45 +2159,7 @@ const AppContent: React.FC = () => {
     };
   }, [isAuthenticated]);
 
-  const dismissToast = React.useCallback((toastId: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== toastId));
-  }, []);
-
-  const showToast = React.useCallback(
-    (message: string, tone: ToastTone = "success") => {
-      const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      setToasts(prev => [...prev, { id, message, tone }]);
-      if (typeof window !== "undefined") {
-        window.setTimeout(() => dismissToast(id), 3600);
-      }
-      return id;
-    },
-    [dismissToast]
-  );
-
-  // Global toast event listener (allows other modules to trigger toasts)
-  useEffect(() => {
-    const handler = (evt: Event) => {
-      try {
-        const ce = evt as CustomEvent<{ message?: string; tone?: ToastTone }>;
-        const msg = ce?.detail?.message;
-        const tone = (ce?.detail?.tone as ToastTone) || 'error';
-        if (msg) {
-          showToast(msg, tone);
-        }
-      } catch (e) {
-        // no-op
-      }
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('showToast', handler as EventListener);
-    }
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('showToast', handler as EventListener);
-      }
-    };
-  }, [showToast]);
+  // Legacy toast helpers will be removed once all call sites are refactored
 
   const confirmAction = (message: string) => {
     if (typeof window === "undefined") {
@@ -1927,22 +2172,31 @@ const AppContent: React.FC = () => {
     setCompany(updated);
     // Kalıcı saklama: secureStorage her zaman; düz localStorage yalnızca şifreleme kapalıysa
     try {
-      const tid = (localStorage.getItem('tenantId') || '') as string;
-      const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+      const tenantScopedId = getTenantIdForCompanyCache();
+      const secureKey = getCompanyProfileCacheKey(tenantScopedId);
       void secureStorage.setJSON(secureKey, updated);
-    } catch {}
+    } catch (error) {
+      reportSilentError('app.companyUpdate.securePersistFailed', error);
+    }
     try {
       const encryptionEnabled = (import.meta as any)?.env?.VITE_ENABLE_ENCRYPTION === 'true';
-      const tid = (localStorage.getItem('tenantId') || '') as string;
-      const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+      const tenantScopedId = getTenantIdForCompanyCache();
+      const baseKey = getCompanyProfileCacheKey(tenantScopedId);
+      const serialized = JSON.stringify(updated);
       if (!encryptionEnabled) {
-        localStorage.setItem(baseKey, JSON.stringify(updated));
+        safeLocalStorage.setItem(baseKey, serialized);
       } else {
         // İsteğe bağlı: sade kopyayı ayrı anahtar altında tut (okumada fallback var)
-        localStorage.setItem(`${baseKey}_plain`, JSON.stringify(updated));
+        safeLocalStorage.setItem(`${baseKey}_plain`, serialized);
       }
-    } catch {}
-    try { window.dispatchEvent(new Event('company-profile-updated')); } catch {}
+    } catch (error) {
+      reportSilentError('app.companyUpdate.plainPersistFailed', error);
+    }
+    try {
+      window.dispatchEvent(new Event('company-profile-updated'));
+    } catch (error) {
+      reportSilentError('app.companyUpdate.dispatchFailed', error);
+    }
   };
 
   // Plan bilgisi yardımcıları
@@ -2005,7 +2259,12 @@ const AppContent: React.FC = () => {
   const handleCloseNotifications = () => setIsNotificationsOpen(false);
 
   const handleNotificationClick = (notification: HeaderNotification) => {
-    console.log('🔔 Bildirime tıklandı:', notification);
+    logger.info('app.notifications.clicked', {
+      id: notification.id,
+      type: notification.type,
+      link: notification.link,
+      persistent: Boolean(notification.persistent),
+    });
     
     // Persistent/repeatDaily bildirimleri için özel işlem
     if (notification.persistent || notification.repeatDaily) {
@@ -2018,7 +2277,7 @@ const AppContent: React.FC = () => {
             : n
         )
       );
-      console.log('⏰ Kalıcı bildirim - ertesi gün tekrar görünecek');
+      logger.debug('app.notifications.persistentHandled', { id: notification.id });
     } else {
       // Normal bildirimleri okundu yap
       const now = Date.now();
@@ -2040,20 +2299,13 @@ const AppContent: React.FC = () => {
         openSettingsOn('security');
         return;
       }
-    } catch {}
+    } catch (error) {
+      reportSilentError('app.notifications.twofaRedirectFailed', error);
+    }
 
     // Eğer link varsa o sayfaya git
     if (notification.link) {
       navigateTo(notification.link);
-    }
-  };
-
-  const navigateTo = (page: string) => {
-    setCurrentPage(page);
-    setIsSidebarOpen(false);
-    setIsNotificationsOpen(false);
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -2070,10 +2322,11 @@ const AppContent: React.FC = () => {
         const next = prev.map(inv => String(inv.id) === String(saved.id) ? saved : inv);
         // Cache'i güncelle
         try {
-          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
-          localStorage.setItem(iKey, JSON.stringify(next));
-        } catch {}
+          const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+          writeTenantScopedArray('invoices_cache', next, { tenantId: tenantScopedId, mirrorToBase: true });
+        } catch (error) {
+          reportSilentError('app.invoices.inlineUpdate.persistFailed', error);
+        }
         return next;
       });
       showToast(t('toasts.invoices.updateSuccess'), 'success');
@@ -2083,18 +2336,13 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const openSettingsOn = (tabId: string) => {
-    setSettingsInitialTab(tabId);
-    navigateTo('settings');
-  };
-
   const handleLogout = () => {
     setCurrentPage('dashboard');
     handleCloseNotifications();
     // State'leri temizle
-    // Storage'ı boş listeyle ezmemek için suppression aktif et
-    suppressSalesPersistenceRef.current = true;
-    setSales([]);
+    runWithSalesPersistenceSuppressed(() => {
+      persistSalesState([]);
+    });
     setCustomers([]);
     setSuppliers([]);
     setProducts([]);
@@ -2102,111 +2350,10 @@ const AppContent: React.FC = () => {
     setExpenses([]);
     setBankAccounts([]);
     logout();
-    // Bir sonraki event loop'ta suppression'ı kaldır (UI state temiz ama storage korunur)
-    setTimeout(() => { suppressSalesPersistenceRef.current = false; }, 0);
   };
 
   const handleToggleSidebar = () => setIsSidebarOpen(prev => !prev);
   const handleCloseSidebar = () => setIsSidebarOpen(false);
-
-  // 🔔 Bildirim ekleme fonksiyonu
-  const addNotification = (
-    title: string,
-    description: string,
-    type: 'info' | 'warning' | 'success' | 'danger' = 'info',
-    link?: string,
-    options?: {
-      persistent?: boolean;
-      repeatDaily?: boolean;
-      relatedId?: string;
-      i18nTitleKey?: string;
-      i18nDescKey?: string;
-      i18nParams?: Record<string, any>;
-    }
-  ) => {
-    // Kategori bazlı filtre: sadece talep edilenler
-    const allowedCategories = new Set(['invoices', 'expenses', 'sales', 'products', 'quotes']);
-    const category = link || '';
-    const readPrefs = () => {
-      try {
-        const tid = (localStorage.getItem('tenantId') || 'default') as string;
-        let uid = 'anon';
-        const userRaw = localStorage.getItem('user');
-        if (userRaw) {
-          const u = JSON.parse(userRaw);
-          uid = u?.id || u?._id || uid;
-        }
-        const key = `notif_prefs:${tid}:${uid}`;
-        const raw = localStorage.getItem(key);
-        return raw ? JSON.parse(raw) : {};
-      } catch { return {}; }
-    };
-
-    // İzin verilmeyen kategorileri sessizce yoksay
-    if (category && !allowedCategories.has(category)) {
-      return;
-    }
-    // products: sadece low/out-of-stock ilgili bildirimlere izin ver
-    if (category === 'products') {
-      const rid = options?.relatedId || '';
-      const isStockAlert = /^low-stock-|^out-of-stock-/.test(rid);
-      if (!isStockAlert) {
-        return; // yeni ürün vb. bildirimleri gösterme
-      }
-      const prefs = readPrefs();
-      if (prefs?.lowStockAlerts === false) return;
-    }
-    if (category === 'sales') {
-      const prefs = readPrefs();
-      if (prefs?.salesNotifications === false) return;
-    }
-    if (category === 'quotes') {
-      const prefs = readPrefs();
-      if (prefs?.quoteReminders === false) return;
-    }
-    if (category === 'invoices') {
-      const prefs = readPrefs();
-      if (prefs?.invoiceReminders === false) return;
-    }
-    if (category === 'expenses') {
-      const prefs = readPrefs();
-      if (prefs?.expenseAlerts === false) return;
-    }
-
-    // Benzersiz ID oluştur (Date.now + random)
-    const uniqueId = options?.relatedId 
-      ? `${options.relatedId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
-      : `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    const nowTs = Date.now();
-    const timeStr = new Date(nowTs).toLocaleString((navigator.language || 'tr').slice(0,2));
-    const newNotification: HeaderNotification = {
-      id: uniqueId,
-      title,
-      description,
-      time: timeStr,
-      firstSeenAt: nowTs,
-      type,
-      read: false,
-      link,
-      persistent: options?.persistent,
-      repeatDaily: options?.repeatDaily,
-      relatedId: options?.relatedId,
-      i18nTitleKey: options?.i18nTitleKey,
-      i18nDescKey: options?.i18nDescKey,
-      i18nParams: options?.i18nParams,
-    };
-    
-    // Aynı relatedId'ye sahip eski bildirimi kaldır (tekrar gösterilmemesi için)
-    setNotifications(prev => {
-      if (options?.relatedId) {
-        const filtered = prev.filter(n => n.relatedId !== options.relatedId);
-        return [newNotification, ...filtered];
-      }
-      return [newNotification, ...prev];
-    });
-    console.log('🔔 Yeni bildirim eklendi:', newNotification);
-  };
 
   const upsertCustomer = async (customerData: Partial<Customer>) => {
     try {
@@ -2309,7 +2456,7 @@ const AppContent: React.FC = () => {
         setDeleteWarningData({
           title: 'Müşteri Silinemez',
           message: error.response.data.message,
-          relatedItems: error.response.data.relatedInvoices,
+          relatedItems: normalizeRelatedItems(error.response.data.relatedInvoices),
           itemType: 'invoice'
         });
         setShowDeleteWarning(true);
@@ -2321,25 +2468,25 @@ const AppContent: React.FC = () => {
 
   const handleImportCustomers = async (file: File) => {
     try {
-      console.log('Starting customer import, file:', file.name, file.type);
+      logger.info('app.import.customers.start', { fileName: file.name, fileType: file.type });
       const data = await file.arrayBuffer();
       
-      let rows: Record<string, unknown>[] = [];
+      const rows: Record<string, unknown>[] = [];
       
       // Handle CSV files separately
       if (file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')) {
-        console.log('Processing as CSV file');
+        logger.debug('app.import.customers.csvDetected');
         const text = new TextDecoder('utf-8').decode(data);
         const lines = text.split('\n').filter(line => line.trim());
         
         if (lines.length < 2) {
-          console.log('CSV file has insufficient data');
+          logger.warn('app.import.customers.csvInsufficientData', { lineCount: lines.length });
           setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
           return;
         }
         
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        console.log('CSV headers:', headers);
+        logger.debug('app.import.customers.csvHeaders', { headers });
         
         for (let i = 1; i < lines.length; i++) {
           const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
@@ -2351,18 +2498,18 @@ const AppContent: React.FC = () => {
         }
       } else {
         // Handle Excel files
-        console.log('Processing as Excel file');
+        logger.debug('app.import.customers.excelDetected');
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(data);
         
         const worksheet = workbook.worksheets[0];
         if (!worksheet) {
-          console.log('No worksheet found in file');
+          logger.warn('app.import.customers.excelNoWorksheet');
           setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
           return;
         }
         
-        console.log('Worksheet found, row count:', worksheet.rowCount);
+        logger.debug('app.import.customers.excelWorksheet', { rowCount: worksheet.rowCount });
         
         worksheet.eachRow((row, rowNumber) => {
           if (rowNumber === 1) return; // Skip header
@@ -2453,20 +2600,20 @@ const AppContent: React.FC = () => {
         })
         .filter((item): item is ImportedCustomer => Boolean(item));
 
-      console.log('Processed customers:', imported.length, imported);
+      logger.info('app.import.customers.parsed', { count: imported.length });
       
       if (imported.length === 0) {
-        console.log('No valid customers found after processing');
+        logger.warn('app.import.customers.noValidRecords');
         setInfoModal({ title: t('common.warning'), message: t('customers.import.noCustomersFound') });
         return;
       }
 
       // Persist imported customers to backend if possible
       try {
-        console.log('Attempting to persist imported customers to backend...', imported);
+        logger.info('app.import.customers.persist.start', { count: imported.length });
         const results = await Promise.allSettled(
           imported.map((c, idx) => {
-            console.log('Requesting createCustomer for index', idx, c);
+            logger.debug('app.import.customers.persist.request', { index: idx, name: c.name || 'unknown' });
             return customersApi.createCustomer({
               name: c.name,
               email: c.email || undefined,
@@ -2475,10 +2622,14 @@ const AppContent: React.FC = () => {
               taxNumber: c.taxNumber || undefined,
               company: c.company || undefined,
             }).then(res => {
-              console.log('createCustomer fulfilled for index', idx, res);
+              logger.debug('app.import.customers.persist.success', { index: idx, customerId: res?.id });
               return res;
             }).catch(err => {
-              console.error('createCustomer rejected for index', idx, err);
+              logger.warn('app.import.customers.persist.failure', {
+                index: idx,
+                name: c.name || 'unknown',
+                error: getErrorMessage(err),
+              });
               throw err;
             });
           })
@@ -2513,34 +2664,36 @@ const AppContent: React.FC = () => {
           return next;
         });
 
+        logger.info('app.import.customers.persist.result', { created: created.length, failed: failed.length });
+
         // Notify user about results
         if (failed.length === 0) {
           setInfoModal({ title: t('common.success'), message: t('customers.import.success', { count: created.length }) });
         } else {
           const msg = `${t('customers.import.success', { count: created.length })}\n${failed.length} kayıt başarısız.`;
           setInfoModal({ title: t('common.warning'), message: msg });
-          console.error('Import failures:', failed);
+          logger.warn('app.import.customers.persist.partialFailure', { failedCount: failed.length });
         }
       } catch (err) {
-        console.error('Error while persisting imported customers', err);
+        logger.error('app.import.customers.persist.exception', err);
         setInfoModal({ title: t('common.error'), message: t('customers.import.error') + '\n\nDetay: ' + (err instanceof Error ? err.message : String(err)) });
       }
     } catch (error) {
-      console.error("Customer import failed", error);
+      logger.error('app.import.customers.failed', error);
       setInfoModal({ title: t('common.error'), message: t('customers.import.error') + "\n\nDetay: " + (error instanceof Error ? error.message : String(error)) });
     }
   };
 
   const handleImportProducts = async (file: File) => {
     try {
-      console.log('Starting product import, file:', file.name, file.type);
+      logger.info('app.import.products.start', { fileName: file.name, fileType: file.type });
       const data = await file.arrayBuffer();
 
-      let rows: Record<string, unknown>[] = [];
+      const rows: Record<string, unknown>[] = [];
 
       // CSV işleme
       if (file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')) {
-        console.log('Processing as CSV file');
+        logger.debug('app.import.products.csvDetected');
         const text = new TextDecoder('utf-8').decode(data);
         const lines = text.split('\n').filter(line => line.trim());
 
@@ -2560,7 +2713,7 @@ const AppContent: React.FC = () => {
         }
       } else {
         // Excel işleme
-        console.log('Processing as Excel file');
+        logger.debug('app.import.products.excelDetected');
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(data);
         const worksheet = workbook.worksheets[0];
@@ -2666,15 +2819,19 @@ const AppContent: React.FC = () => {
         })
         .filter((p): p is ImportedProduct => Boolean(p));
 
+      logger.info('app.import.products.parsed', { count: imported.length });
+
       if (imported.length === 0) {
+        logger.warn('app.import.products.noValidRecords');
         setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
         return;
       }
 
       // Backend'e kaydet
       try {
+        logger.info('app.import.products.persist.start', { count: imported.length });
         const results = await Promise.allSettled(
-          imported.map((p) => {
+          imported.map((p, index) => {
             const dto = {
               name: p.name,
               code: p.sku || p.name, // SKU yoksa isimden üret
@@ -2687,7 +2844,20 @@ const AppContent: React.FC = () => {
               description: p.description,
               taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
             } as const;
-            return productsApi.createProduct(dto).then(res => res);
+            logger.debug('app.import.products.persist.request', { index, name: p.name });
+            return productsApi.createProduct(dto)
+              .then(res => {
+                logger.debug('app.import.products.persist.success', { index, productId: res?.id });
+                return res;
+              })
+              .catch(err => {
+                logger.warn('app.import.products.persist.failure', {
+                  index,
+                  name: p.name,
+                  error: getErrorMessage(err),
+                });
+                throw err;
+              });
           })
         );
 
@@ -2713,27 +2883,26 @@ const AppContent: React.FC = () => {
           }));
           setProducts(prev => {
             const next = [...prev, ...mapped];
-            try {
-              const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-              const pKey = tid ? `products_cache_${tid}` : 'products_cache';
-              localStorage.setItem(pKey, JSON.stringify(next));
-            } catch {}
+            const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+            writeTenantScopedArray('products_cache', next, { tenantId: tenantScopedId, mirrorToBase: true });
             return next;
           });
         }
+
+        logger.info('app.import.products.persist.result', { created: created.length, failed: failed.length });
 
         if (failed.length === 0) {
           setInfoModal({ title: t('common.success'), message: `${created.length} ürün başarıyla içe aktarıldı!` });
         } else {
           setInfoModal({ title: t('common.warning'), message: `${created.length} ürün içe aktarıldı, ${failed.length} kayıt başarısız.` });
-          console.error('Product import failures:', failed);
+          logger.warn('app.import.products.persist.partialFailure', { failedCount: failed.length });
         }
       } catch (err) {
-        console.error('Error while persisting imported products', err);
+        logger.error('app.import.products.persist.exception', err);
         setInfoModal({ title: t('common.error'), message: (t('customers.import.error') || 'İçe aktarma hatası') + '\n\nDetay: ' + (err instanceof Error ? err.message : String(err)) });
       }
     } catch (error) {
-      console.error('Product import failed', error);
+      logger.error('app.import.products.failed', error);
       setInfoModal({ title: t('common.error'), message: (t('customers.import.error') || 'İçe aktarma hatası') + '\n\nDetay: ' + (error instanceof Error ? error.message : String(error)) });
     }
   };
@@ -2789,7 +2958,7 @@ const AppContent: React.FC = () => {
         setDeleteWarningData({
           title: 'Tedarikçi Silinemez',
           message: error.response.data.message,
-          relatedItems: error.response.data.relatedExpenses,
+          relatedItems: normalizeRelatedItems(error.response.data.relatedExpenses),
           itemType: 'expense'
         });
         setShowDeleteWarning(true);
@@ -2801,7 +2970,7 @@ const AppContent: React.FC = () => {
 
   const upsertInvoice = async (invoiceData: any) => {
     try {
-      console.log('📄 upsertInvoice çağrıldı:', {
+      logger.info('app.invoices.upsert.start', {
         id: invoiceData.id,
         saleId: invoiceData.saleId,
         customerId: invoiceData.customerId,
@@ -2844,7 +3013,7 @@ const AppContent: React.FC = () => {
           : undefined,
       };
       
-      console.log('📤 Backend\'e gönderilecek data:', {
+      logger.debug('app.invoices.upsert.payload', {
         customerId: cleanData.customerId,
         items: cleanData.items.length,
         firstItem: cleanData.items[0],
@@ -2889,10 +3058,11 @@ const AppContent: React.FC = () => {
         const newInvoices = invoices.map(i => i.id === updated.id ? updated : i);
         setInvoices(newInvoices);
         try {
-          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
-          localStorage.setItem(iKey, JSON.stringify(newInvoices));
-        } catch {}
+          const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+          writeTenantScopedArray('invoices_cache', newInvoices, { tenantId: tenantScopedId, mirrorToBase: true });
+        } catch (error) {
+          reportSilentError('app.invoices.update.persistFailed', error);
+        }
         
         // İade faturasına dönüşmüşse: stokları UI'de geri ekle + satışı iptal et
         if (!wasRefund && isNowRefund) {
@@ -2911,11 +3081,13 @@ const AppContent: React.FC = () => {
                 status: newStock <= 0 ? 'out-of-stock' : newStock <= (p.reorderLevel || 0) ? 'low' : 'active'
               };
             }));
-          } catch {}
+          } catch (error) {
+            reportSilentError('app.invoices.stockRestoreFailed', error);
+          }
           
           // İlgili satışı 'refunded' yap
           if ((updated as any).saleId) {
-            setSales(prev => prev.map(s => 
+            persistSalesState(prev => prev.map(s => 
               String(s.id) === String((updated as any).saleId) 
                 ? { ...s, status: 'refunded' }
                 : s
@@ -2923,7 +3095,7 @@ const AppContent: React.FC = () => {
           }
         }
         
-        console.log('💾 Fatura cache güncellendi (update)');
+        logger.debug('app.invoices.cacheUpdated', { action: 'update' });
         showToast(t('toasts.invoices.updateSuccess'), 'success');
         return updated; // Güncellenen faturayı return et
       } else {
@@ -2946,10 +3118,12 @@ const AppContent: React.FC = () => {
               }
             }
           }
-        } catch {}
+        } catch (error) {
+          reportSilentError('app.invoices.preCreate.stockCheckFailed', error);
+        }
 
         const created = await invoicesApi.createInvoice(cleanData);
-        console.log('✅ Fatura oluşturuldu:', {
+        logger.info('app.invoices.create.success', {
           id: created.id,
           invoiceNumber: created.invoiceNumber,
           type: created.type,
@@ -2967,7 +3141,7 @@ const AppContent: React.FC = () => {
           String(cleanData.type || '').toLowerCase() !== 'return'
         ) {
           try {
-            console.log('🔄 Otomatik satış (backend) oluşturuluyor...');
+            logger.debug('app.sales.autoCreate.fromInvoice.start', { invoiceId: created.id });
 
             // Müşteri bilgileri
             const customerInfo = customers.find(c => c.id === cleanData.customerId);
@@ -3013,17 +3187,7 @@ const AppContent: React.FC = () => {
             } as any;
 
             // Satış state + cache
-            setSales(prev => {
-              const next = [...prev, uiSale];
-              try {
-                const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-                const salesKey = tid ? `sales_${tid}` : 'sales';
-                const salesCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-                localStorage.setItem(salesKey, JSON.stringify(next));
-                localStorage.setItem(salesCacheKey, JSON.stringify(next));
-              } catch {}
-              return next;
-            });
+            persistSalesState(prev => [...prev, uiSale]);
 
             // Ürün stoklarını sadece UI'de düş (backend zaten düşürdü)
             try {
@@ -3039,24 +3203,26 @@ const AppContent: React.FC = () => {
                   status: ns <= 0 ? 'out-of-stock' : ns <= (p.reorderLevel || 0) ? 'low' : 'active'
                 };
               }));
-            } catch {}
+            } catch (error) {
+              reportSilentError('app.sales.autoCreate.stockAdjustFailed', error);
+            }
 
             // Faturayı satış ile ilişkilendir (tip güvenliği için saleId ekli UpdateInvoiceDto)
             try {
               await invoicesApi.updateInvoice(String(created.id), { saleId: String(savedSale.id) });
               setInvoices(prev => prev.map(inv => String(inv.id) === String(created.id) ? { ...inv, saleId: savedSale.id } : inv));
             } catch (e) {
-              console.warn('Invoice link update failed:', e);
+              logger.warn('app.invoices.linkUpdateFailed', e);
             }
 
             // Bildirim
             try {
-              const tid = (localStorage.getItem('tenantId') || 'default') as string;
-              const userRaw = localStorage.getItem('user');
-              let uid = 'anon';
-              if (userRaw) { const u = JSON.parse(userRaw); uid = u?.id || u?._id || uid; }
-              const key = `notif_prefs:${tid}:${uid}`;
-              const prefs = JSON.parse(localStorage.getItem(key) || '{}');
+              const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+              const userId = (authUser as any)?.id ? String((authUser as any).id) : undefined;
+              const prefs = readNotificationPrefsCache({
+                tenantIds: tenantScopedId ? [tenantScopedId] : undefined,
+                userIds: userId ? [userId] : undefined,
+              }) || {};
               if (prefs?.salesNotifications !== false) {
                 addNotification(
                   tOr('notifications.sales.created.title', 'Yeni satış kaydedildi'),
@@ -3066,7 +3232,9 @@ const AppContent: React.FC = () => {
                   { i18nTitleKey: 'notifications.sales.created.title', i18nDescKey: 'notifications.sales.created.desc', i18nParams: { customerName, summary: String((savedSale as any)?.items?.[0]?.productName || ''), totalAmount: Number(savedSale.total)||0 } }
                 );
               }
-            } catch {}
+            } catch (error) {
+              reportSilentError('app.sales.autoCreate.notificationFailed', error);
+            }
 
           } catch (saleError) {
             console.error('⚠️ Otomatik satış (backend) oluşturulamadı:', saleError);
@@ -3078,11 +3246,12 @@ const AppContent: React.FC = () => {
         const newInvoices = [...invoices, created];
         setInvoices(newInvoices);
         try {
-          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
-          localStorage.setItem(iKey, JSON.stringify(newInvoices));
-        } catch {}
-        console.log('💾 Fatura cache güncellendi (create)');
+          const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+          writeTenantScopedArray('invoices_cache', newInvoices, { tenantId: tenantScopedId, mirrorToBase: true });
+        } catch (error) {
+          reportSilentError('app.invoices.create.persistFailed', error);
+        }
+        logger.debug('app.invoices.cacheUpdated', { action: 'create' });
         showToast(t('toasts.invoices.createWithSaleSuccess'), 'success');
         
         // 🔔 Bildirim ekle
@@ -3114,18 +3283,19 @@ const AppContent: React.FC = () => {
       const newInvoices = invoices.filter(invoice => String(invoice.id) !== String(invoiceId));
       setInvoices(newInvoices);
       try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
-        localStorage.setItem(iKey, JSON.stringify(newInvoices));
-      } catch {}
-      console.log('💾 Fatura cache güncellendi (delete)');
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        writeTenantScopedArray('invoices_cache', newInvoices, { tenantId: tenantScopedId, mirrorToBase: true });
+      } catch (error) {
+        reportSilentError('app.invoices.delete.persistFailed', error);
+      }
+      logger.debug('app.invoices.cacheUpdated', { action: 'delete' });
       showToast(t('invoices.deleteSuccess', { defaultValue: 'Fatura silindi' }), 'success');
     } catch (error: any) {
       console.error('Invoice delete error:', error);
       const errorMessage = error.response?.data?.message || '';
       
       // Hata durumunda cache'i güncelleme - fatura listede kalacak
-      console.log('❌ Fatura silinemedi, cache güncellenmedi');
+      logger.warn('app.invoices.cacheUpdateSkipped', { action: 'delete' });
       
       // Check if error is about locked period
       if (errorMessage.includes('locked period') || errorMessage.includes('kilitli dönem') || errorMessage.includes('Cannot modify records')) {
@@ -3152,10 +3322,11 @@ const AppContent: React.FC = () => {
       );
       setInvoices(updatedInvoices);
       try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
-        localStorage.setItem(iKey, JSON.stringify(updatedInvoices));
-      } catch {}
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        writeTenantScopedArray('invoices_cache', updatedInvoices, { tenantId: tenantScopedId, mirrorToBase: true });
+      } catch (error) {
+        reportSilentError('app.invoices.void.persistFailed', error);
+      }
       
       // Backend stokları geri ekledi; UI state'ini de güncelle
       if (invoiceToVoid) {
@@ -3172,11 +3343,13 @@ const AppContent: React.FC = () => {
               status: newStock <= 0 ? 'out-of-stock' : newStock <= (p.reorderLevel || 0) ? 'low' : 'active'
             };
           }));
-        } catch {}
+        } catch (error) {
+          reportSilentError('app.invoices.void.stockRestoreFailed', error);
+        }
         
         // İlgili satışı iptal et
         if ((invoiceToVoid as any).saleId) {
-          setSales(prev => prev.map(s => 
+          persistSalesState(prev => prev.map(s => 
             String(s.id) === String((invoiceToVoid as any).saleId) 
               ? { ...s, status: 'cancelled' }
               : s
@@ -3201,10 +3374,11 @@ const AppContent: React.FC = () => {
       );
       setInvoices(updatedInvoices);
       try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
-        localStorage.setItem(iKey, JSON.stringify(updatedInvoices));
-      } catch {}
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        writeTenantScopedArray('invoices_cache', updatedInvoices, { tenantId: tenantScopedId, mirrorToBase: true });
+      } catch (error) {
+        reportSilentError('app.invoices.restore.persistFailed', error);
+      }
       showToast(t('toasts.invoices.restoreSuccess'), 'success');
     } catch (error: any) {
       console.error('Invoice restore error:', error);
@@ -3257,10 +3431,11 @@ const AppContent: React.FC = () => {
         const newExpenses = expenses.map(e => e.id === mappedUpdated.id ? mappedUpdated : e);
         setExpenses(newExpenses);
         try {
-          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
-          localStorage.setItem(eKey, JSON.stringify(newExpenses));
-        } catch {}
+          const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+          writeTenantScopedArray('expenses_cache', newExpenses, { tenantId: tenantScopedId, mirrorToBase: true });
+        } catch (error) {
+          reportSilentError('app.expenses.update.persistFailed', error);
+        }
         showToast(t('toasts.expenses.updateSuccess'), 'success');
       } else {
         const created = await expensesApi.createExpense(cleanData);
@@ -3273,10 +3448,11 @@ const AppContent: React.FC = () => {
         const newExpenses = [...expenses, mappedCreated];
         setExpenses(newExpenses);
         try {
-          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
-          localStorage.setItem(eKey, JSON.stringify(newExpenses));
-        } catch {}
+          const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+          writeTenantScopedArray('expenses_cache', newExpenses, { tenantId: tenantScopedId, mirrorToBase: true });
+        } catch (error) {
+          reportSilentError('app.expenses.create.persistFailed', error);
+        }
         showToast(t('toasts.expenses.createSuccess'), 'success');
         
         // 🔔 Bildirim ekle
@@ -3308,18 +3484,19 @@ const AppContent: React.FC = () => {
       const newExpenses = expenses.filter(expense => String(expense.id) !== String(expenseId));
       setExpenses(newExpenses);
       try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
-        localStorage.setItem(eKey, JSON.stringify(newExpenses));
-      } catch {}
-      console.log('💾 Gider cache güncellendi (delete)');
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        writeTenantScopedArray('expenses_cache', newExpenses, { tenantId: tenantScopedId, mirrorToBase: true });
+      } catch (error) {
+        reportSilentError('app.expenses.delete.persistFailed', error);
+      }
+      logger.debug('app.expenses.cacheUpdated', { action: 'delete' });
       showToast(t('expenses.deleteSuccess'), 'success');
     } catch (error: any) {
       console.error('Expense delete error:', error);
       const errorMessage = error.response?.data?.message || '';
       
       // Hata durumunda cache'i güncelleme - gider listede kalacak
-      console.log('❌ Gider silinemedi, cache güncellenmedi');
+      logger.warn('app.expenses.cacheUpdateSkipped', { action: 'delete' });
       
       // Check if error is about locked period
       if (errorMessage.includes('locked period') || errorMessage.includes('kilitli dönem') || errorMessage.includes('Cannot modify records')) {
@@ -3340,10 +3517,11 @@ const AppContent: React.FC = () => {
       );
       setExpenses(updatedExpenses);
       try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
-        localStorage.setItem(eKey, JSON.stringify(updatedExpenses));
-      } catch {}
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        writeTenantScopedArray('expenses_cache', updatedExpenses, { tenantId: tenantScopedId, mirrorToBase: true });
+      } catch (error) {
+        reportSilentError('app.expenses.void.persistFailed', error);
+      }
       showToast(t('toasts.expenses.cancelSuccess'), 'success');
     } catch (error: any) {
       console.error('Expense void error:', error);
@@ -3366,10 +3544,11 @@ const AppContent: React.FC = () => {
       const next = expenses.map(e => (String(e.id) === String(mapped.id) ? mapped : e));
       setExpenses(next);
       try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
-        localStorage.setItem(eKey, JSON.stringify(next));
-      } catch {}
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        writeTenantScopedArray('expenses_cache', next, { tenantId: tenantScopedId, mirrorToBase: true });
+      } catch (error) {
+        reportSilentError('app.expenses.inlineStatus.persistFailed', error);
+      }
       showToast(t('toasts.expenses.statusUpdateSuccess'), 'success');
     } catch (error: any) {
       console.error('Expense status update error:', error);
@@ -3392,10 +3571,11 @@ const AppContent: React.FC = () => {
       );
       setExpenses(updatedExpenses);
       try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const eKey = tid ? `expenses_cache_${tid}` : 'expenses_cache';
-        localStorage.setItem(eKey, JSON.stringify(updatedExpenses));
-      } catch {}
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        writeTenantScopedArray('expenses_cache', updatedExpenses, { tenantId: tenantScopedId, mirrorToBase: true });
+      } catch (error) {
+        reportSilentError('app.expenses.restore.persistFailed', error);
+      }
       showToast(t('toasts.expenses.restoreSuccess'), 'success');
     } catch (error: any) {
       console.error('Expense restore error:', error);
@@ -3424,7 +3604,7 @@ const AppContent: React.FC = () => {
     }
     
     // Backend'e kaydet ve state'i güncelle
-    let isNewSale = !saleData?.id;
+    const isNewSale = !saleData?.id;
 
     try {
       // Müşteri ID'sini bul (isim/email eşlemesi)
@@ -3492,15 +3672,7 @@ const AppContent: React.FC = () => {
           updatedAt: saved?.updatedAt || new Date().toISOString(),
         } as any;
 
-        setSales(prev => {
-          const next = [...prev, mapped];
-          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const key = tid ? `sales_${tid}` : 'sales';
-          const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-          localStorage.setItem(key, JSON.stringify(next));
-          try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
-          return next;
-        });
+        persistSalesState(prev => [...prev, mapped]);
         showToast(t('toasts.sales.createSuccess'), 'success');
       } else {
         const id = String(saleData.id);
@@ -3512,8 +3684,7 @@ const AppContent: React.FC = () => {
           notes: dto.notes,
         };
         const updated = await salesApi.updateSale(id, patch);
-        setSales(prev => {
-          const next = prev.map(s => String(s.id) === id ? {
+        persistSalesState(prev => prev.map(s => String(s.id) === id ? {
             ...s,
             saleNumber: updated.saleNumber || s.saleNumber,
             date: updated.saleDate ? String(updated.saleDate).slice(0,10) : s.date,
@@ -3523,20 +3694,13 @@ const AppContent: React.FC = () => {
             notes: updated.notes ?? s.notes,
             updatedByName: updated?.updatedByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || s.updatedByName,
             updatedAt: updated?.updatedAt || new Date().toISOString(),
-          } : s);
-          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const key = tid ? `sales_${tid}` : 'sales';
-          const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-          localStorage.setItem(key, JSON.stringify(next));
-          try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
-          return next;
-        });
+          } : s));
         showToast(t('toasts.sales.updateSuccess'), 'success');
       }
     } catch (err: any) {
       console.error('❌ Sales upsert error:', err);
       // Offline fallback: yerel kaydetmeye devam et
-      setSales(prev => {
+      persistSalesState(prev => {
         const newItem = {
           ...saleData,
           id: saleData.id || `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
@@ -3549,13 +3713,7 @@ const AppContent: React.FC = () => {
           updatedAt: new Date().toISOString(),
         };
         const existsIdx = prev.findIndex(p => String(p.id) === String(newItem.id));
-        const next = existsIdx >= 0 ? prev.map((p, i) => i === existsIdx ? newItem : p) : [...prev, newItem];
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const key = tid ? `sales_${tid}` : 'sales';
-        const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-        localStorage.setItem(key, JSON.stringify(next));
-        try { localStorage.setItem(cacheKey, JSON.stringify(next)); } catch {}
-        return next;
+        return existsIdx >= 0 ? prev.map((p, i) => i === existsIdx ? newItem : p) : [...prev, newItem];
       });
       showToast(getErrorMessage(err) || t('toasts.sales.localSaved'), 'info');
     }
@@ -3616,13 +3774,16 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const upsertSaleRef = React.useRef(upsertSale);
+  upsertSaleRef.current = upsertSale;
+
   const handleDeleteSale = async (saleId: string, opts?: { skipConfirm?: boolean }) => {
     if (!opts?.skipConfirm) {
       if (!confirm(t('sales.deleteConfirm', { defaultValue: 'Bu satışı silmek istediğinizden emin misiniz?' }))) {
         return;
       }
     }
-    console.log('🗑️ Satış silme talebi:', saleId);
+    logger.info('app.sales.delete.request', { saleId });
     // const prevSnapshot = [...sales];
     try {
       await salesApi.deleteSale(String(saleId));
@@ -3631,16 +3792,9 @@ const AppContent: React.FC = () => {
       showToast(getErrorMessage(err) || t('toasts.sales.deleteError'), 'error');
       return; // Başarısızsa yerel olarak silme, veri tutarlılığı korunur
     }
-    setSales(prev => {
+    persistSalesState(prev => {
       const filtered = prev.filter(sale => String(sale.id) !== String(saleId));
-      try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const key = tid ? `sales_${tid}` : 'sales';
-        const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-        localStorage.setItem(key, JSON.stringify(filtered));
-        localStorage.setItem(cacheKey, JSON.stringify(filtered));
-      } catch {}
-      console.log('✅ Satış silindi, kalan satış sayısı:', filtered.length);
+      logger.info('app.sales.delete.success', { remaining: filtered.length });
       return filtered;
     });
     showToast(t('toasts.sales.deleteSuccess'), 'success');
@@ -3651,17 +3805,6 @@ const AppContent: React.FC = () => {
   const requestDeleteSale = (saleId: string | number) => {
     setSaleToDelete(String(saleId));
   };
-
-  // Sales state değiştiğinde cache'i senkron tut (çapraz sekme uyumu)
-  React.useEffect(() => {
-    if (suppressSalesPersistenceRef.current) return;
-    try {
-      const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-      const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-      localStorage.setItem(cacheKey, JSON.stringify(sales));
-      window.dispatchEvent(new Event('sales-cache-updated'));
-    } catch {}
-  }, [sales, tenant?.id, authUser?.tenantId]);
 
   const upsertProduct = async (productData: Partial<Product>) => {
     try {
@@ -3683,7 +3826,7 @@ const AppContent: React.FC = () => {
         categoryTaxRateOverride: productData.categoryTaxRateOverride ? Number(productData.categoryTaxRateOverride) : undefined, // Özel KDV
       };
 
-      console.log('🚀 Frontend: Backend\'e gönderiliyor:', {
+      logger.debug('app.products.upsert.payload', {
         name: backendData.name,
         category: backendData.category,
         taxRate: backendData.taxRate,
@@ -3773,7 +3916,7 @@ const AppContent: React.FC = () => {
           taxRate: taxRate,
         });
         
-        console.log('✅ Kategori backend\'e eklendi:', newCategory);
+        logger.info('app.productCategories.created', { id: newCategory.id, name: newCategory.name });
         
         // State'leri güncelle
         setProductCategoryObjects(prev => [...prev, newCategory]);
@@ -3951,12 +4094,12 @@ const AppContent: React.FC = () => {
             };
           });
           try {
-            const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-            const key = tid ? `bankAccounts_${tid}` : 'bankAccounts';
-            localStorage.setItem(key, JSON.stringify(next));
-            const uiKey = tid ? `bankUi_${tid}` : 'bankUi';
-            const uiRaw = localStorage.getItem(uiKey);
-            const uiMap = uiRaw ? JSON.parse(uiRaw) : {};
+            const tenantScopedIdForBank = resolveTenantScopedId(tenant, authUser?.tenantId);
+            writeTenantScopedArray('bankAccounts', next, { tenantId: tenantScopedIdForBank, mirrorToBase: true });
+            const uiMap: Record<string, any> = readTenantScopedObject<Record<string, any>>('bankUi', {
+              tenantId: tenantScopedIdForBank,
+              fallbackToBase: false,
+            }) || {};
             uiMap[String(updated.id)] = {
               isActive: bankData.isActive !== false,
               accountType: bankData.accountType || 'checking',
@@ -3965,8 +4108,10 @@ const AppContent: React.FC = () => {
               routingNumber: (bankData as any).routingNumber || '',
               swiftBic: (bankData as any).swiftBic || '',
             };
-            localStorage.setItem(uiKey, JSON.stringify(uiMap));
-          } catch {}
+            writeTenantScopedObject('bankUi', uiMap, { tenantId: tenantScopedIdForBank, mirrorToBase: false });
+          } catch (error) {
+            reportSilentError('app.banks.update.persistFailed', error);
+          }
           return next;
         });
         const msgUpdated = i18n.language === 'tr' ? 'Banka hesabı güncellendi' :
@@ -3997,12 +4142,12 @@ const AppContent: React.FC = () => {
             },
           ];
           try {
-            const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-            const key = tid ? `bankAccounts_${tid}` : 'bankAccounts';
-            localStorage.setItem(key, JSON.stringify(next));
-            const uiKey = tid ? `bankUi_${tid}` : 'bankUi';
-            const uiRaw = localStorage.getItem(uiKey);
-            const uiMap = uiRaw ? JSON.parse(uiRaw) : {};
+            const tenantScopedIdForBank = resolveTenantScopedId(tenant, authUser?.tenantId);
+            writeTenantScopedArray('bankAccounts', next, { tenantId: tenantScopedIdForBank, mirrorToBase: true });
+            const uiMap: Record<string, any> = readTenantScopedObject<Record<string, any>>('bankUi', {
+              tenantId: tenantScopedIdForBank,
+              fallbackToBase: false,
+            }) || {};
             uiMap[String(created.id)] = {
               isActive: bankData.isActive !== false,
               accountType: bankData.accountType || 'checking',
@@ -4011,8 +4156,10 @@ const AppContent: React.FC = () => {
               routingNumber: (bankData as any).routingNumber || '',
               swiftBic: (bankData as any).swiftBic || '',
             };
-            localStorage.setItem(uiKey, JSON.stringify(uiMap));
-          } catch {}
+            writeTenantScopedObject('bankUi', uiMap, { tenantId: tenantScopedIdForBank, mirrorToBase: false });
+          } catch (error) {
+            reportSilentError('app.banks.create.persistFailed', error);
+          }
           return next;
         });
         const msgAdded = i18n.language === 'tr' ? 'Banka hesabı eklendi' :
@@ -4057,343 +4204,6 @@ const AppContent: React.FC = () => {
     setSelectedSupplier(supplier ?? null);
     setShowSupplierModal(true);
   };
-
-  const openInvoiceModal = async (invoice?: any) => {
-    // Eğer mevcut fatura düzenleniyor ise önce detayları (lineItems) gerekiyorsa çek
-    if (invoice) {
-      let full = invoice;
-      const hasItems = Array.isArray(invoice.items) && invoice.items.length > 0;
-      const hasLineItems = Array.isArray((invoice as any).lineItems) && (invoice as any).lineItems.length > 0;
-      try {
-        if (!hasItems && !hasLineItems && invoice.id) {
-          full = await invoicesApi.getInvoice(String(invoice.id));
-        }
-      } catch (e) {
-        console.warn('Fatura detayı alınamadı, mevcut veri kullanılacak:', e);
-      }
-      setSelectedInvoice(normalizeInvoiceForUi(full));
-      setShowInvoiceModal(true);
-    } else {
-      // Yeni fatura için tip seçim modalını aç
-      setShowInvoiceTypeModal(true);
-    }
-  };
-
-  // Yeni fatura akışı handler'ları
-  const handleNewSaleForInvoice = () => {
-    setShowInvoiceTypeModal(false);
-    // Direkt eski invoice modal'ını aç; müşteri seçiliyse ön doldur
-    if (preselectedCustomerForInvoice) {
-      setSelectedInvoice({
-        id: normalizeId(preselectedCustomerForInvoice.id),
-        customerName: preselectedCustomerForInvoice.name,
-        customerEmail: preselectedCustomerForInvoice.email,
-        customerAddress: preselectedCustomerForInvoice.address,
-        status: 'draft',
-        issueDate: new Date().toISOString().split('T')[0],
-      });
-    } else {
-      setSelectedInvoice(null);
-    }
-    setShowInvoiceModal(true);
-  };
-
-  const handleExistingSaleForInvoice = () => {
-    setShowInvoiceTypeModal(false);
-    setShowExistingSaleModal(true);
-  };
-
-  const handleReturnInvoice = () => {
-    setShowInvoiceTypeModal(false);
-    // InvoiceModal'ı type='return' olarak aç
-    if (preselectedCustomerForInvoice) {
-      setSelectedInvoice({
-        _isReturnInvoice: true,
-        id: normalizeId(preselectedCustomerForInvoice.id),
-        customerName: preselectedCustomerForInvoice.name,
-        customerEmail: preselectedCustomerForInvoice.email,
-        customerAddress: preselectedCustomerForInvoice.address,
-        status: 'draft',
-        issueDate: new Date().toISOString().split('T')[0],
-      } as any);
-    } else {
-      setSelectedInvoice({ _isReturnInvoice: true } as any);
-    }
-    setShowInvoiceModal(true);
-  };
-
-  const handleSelectSaleForInvoice = (sale: any) => {
-    setSelectedSaleForInvoice(sale);
-    setShowExistingSaleModal(false);
-    setShowInvoiceFromSaleModal(true);
-  };
-
-  const handleCreateInvoiceFromSale = async (invoiceData: any) => {
-    try {
-      console.log('🔍 Invoice data gönderilecek:', invoiceData);
-      
-      // customerId yoksa customerName'den bul veya saleId'den bul
-      let customerId = invoiceData.customerId;
-      
-      // Eğer selectedSaleForInvoice varsa oradan customerId al
-      if (!customerId && selectedSaleForInvoice) {
-        const customer = customers.find(c => c.name === selectedSaleForInvoice.customerName);
-        customerId = customer?.id;
-        console.log('👤 Satıştan müşteri ID bulundu:', {
-          saleCustomerName: selectedSaleForInvoice.customerName,
-          foundCustomerId: customerId
-        });
-      }
-      
-      // customerName'den bul
-      if (!customerId && invoiceData.customerName) {
-        const customer = customers.find(c => c.name === invoiceData.customerName);
-        customerId = customer?.id;
-        console.log('👤 Müşteri adından ID bulundu:', {
-          customerName: invoiceData.customerName,
-          foundCustomerId: customerId,
-          availableCustomers: customers.map(c => ({ id: c.id, name: c.name }))
-        });
-      }
-      
-      if (!customerId) {
-        showToast(t('toasts.sales.customerNotFound'), 'error');
-        throw new Error('customerId gerekli');
-      }
-      
-      // Frontend modaldan gelen veriyi backend formatına dönüştür
-      const backendData: any = {
-        customerId: customerId,
-        issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
-        dueDate: invoiceData.dueDate,
-        type: invoiceData.type || 'service',
-        lineItems: (invoiceData.items || []).map((item: any) => ({
-          productId: item.productId,
-          description: item.description || item.productName || 'Ürün/Hizmet',
-          quantity: Number(item.quantity) || 1,
-          unitPrice: Number(item.unitPrice) || 0,
-          total: Number(item.total) || 0,
-        })),
-        taxAmount: Number(invoiceData.taxAmount) || 0,
-        discountAmount: Number(invoiceData.discountAmount) || 0,
-        notes: invoiceData.notes || '',
-        status: invoiceData.status || 'draft',
-      };
-
-      // Satıştan fatura oluşturuluyorsa ilişkiyi payload'a ekle (backend destekliyorsa)
-      if (selectedSaleForInvoice?.id) {
-        backendData.saleId = selectedSaleForInvoice.id;
-      }
-      
-      console.log('🚀 Backend formatında gönderilecek veri:', backendData);
-      
-      // Backend'e invoice oluştur
-  const created = await invoicesApi.createInvoice(backendData);
-      
-      console.log('✅ Fatura oluşturuldu:', {
-        id: created.id,
-        invoiceNumber: created.invoiceNumber,
-        lineItems: created.lineItems
-      });
-      
-      // Frontend state'ini güncelle
-      const createdWithLink = selectedSaleForInvoice?.id && !created.saleId
-        ? { ...created, saleId: selectedSaleForInvoice.id }
-        : created;
-      const newInvoices = [...invoices, createdWithLink];
-      setInvoices(newInvoices);
-      try {
-        const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-        const iKey = tid ? `invoices_cache_${tid}` : 'invoices_cache';
-        localStorage.setItem(iKey, JSON.stringify(newInvoices));
-      } catch {}
-      
-      // 🔗 Satışa invoiceId ekle
-      if (selectedSaleForInvoice) {
-        const updatedSale = {
-          ...selectedSaleForInvoice,
-          invoiceId: created.id,
-        };
-        
-        const updatedSales = sales.map(s => 
-          s.id === selectedSaleForInvoice.id ? updatedSale : s
-        );
-        setSales(updatedSales);
-        try {
-          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const salesKey = tid ? `sales_${tid}` : 'sales';
-          const salesCacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-          localStorage.setItem(salesCacheKey, JSON.stringify(updatedSales));
-          localStorage.setItem(salesKey, JSON.stringify(updatedSales));
-        } catch {}
-        console.log('🔗 Satış fatura ile ilişkilendirildi:', {
-          saleId: selectedSaleForInvoice.id,
-          invoiceId: created.id
-        });
-      }
-      
-      // 🔔 Bildirimler
-      const customerInfo = customers.find(c => c.id === customerId);
-      addNotification(
-        tOr('notifications.invoices.created.title', 'Yeni fatura oluşturuldu'),
-        tOr('notifications.invoices.created.desc', `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`, { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' }),
-        'success',
-        'invoices',
-        { i18nTitleKey: 'notifications.invoices.created.title', i18nDescKey: 'notifications.invoices.created.desc', i18nParams: { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' } }
-      );
-      
-      showToast(t('toasts.invoices.createSuccess'), 'success');
-      
-      // Modal'ları kapat
-      setShowInvoiceFromSaleModal(false);
-      setSelectedSaleForInvoice(null);
-      
-      // Oluşturulan faturayı döndür
-      return created;
-    } catch (error: any) {
-      console.error('Invoice creation error:', error);
-      const errorMsg = error.response?.data?.message || error.message || 'Fatura oluşturulamadı';
-      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
-      throw error;
-    }
-  };
-
-  const openExpenseModal = (expense?: any, supplierHint?: any) => {
-    setSelectedExpense(expense ?? null);
-    setSupplierForExpense(supplierHint ?? null);
-    setShowExpenseModal(true);
-  };
-
-  const openSaleModal = (sale?: any) => {
-    console.log('🚪 openSaleModal çağrıldı:', {
-      modalAcikMi: showSaleModal,
-      saleId: sale?.id,
-      isNewSale: !sale
-    });
-    
-    // Modal kapalıysa direkt aç
-    if (!showSaleModal) {
-      console.log('✅ Modal kapalı, direkt açılıyor');
-      setSelectedSale(sale || null);
-      setShowSaleModal(true);
-      return;
-    }
-    
-    // Modal açıksa: kapat → bekle → state güncelle → aç
-    console.log('♻️ Modal açık, kapatıp yeniden açılacak');
-    setShowSaleModal(false);
-    setTimeout(() => {
-      console.log('⏱️ 100ms sonra state güncelleniyor');
-      setSelectedSale(sale || null);
-      setTimeout(() => {
-        console.log('⏱️ 50ms sonra modal açılıyor');
-        setShowSaleModal(true);
-      }, 50);
-    }, 100);
-  };
-
-  const openProductModal = (product?: any) => {
-    setSelectedProduct(product ?? null);
-    setShowProductModal(true);
-  };
-
-  const openProductCategoryModal = () => {
-    setShowProductCategoryModal(true);
-  };
-
-  const openProductViewModal = (product: any) => {
-    setSelectedProduct(product);
-    setShowProductViewModal(true);
-  };
-
-  const openBankModal = (bank?: any) => {
-    setSelectedBank(bank ?? null);
-    setShowBankModal(true);
-  };
-
-  const closeCustomerModal = () => {
-    setShowCustomerModal(false);
-    setSelectedCustomer(null);
-  };
-
-  const closeSupplierModal = () => {
-    setShowSupplierModal(false);
-    setSelectedSupplier(null);
-  };
-
-  const closeInvoiceModal = () => {
-    setShowInvoiceModal(false);
-    setSelectedInvoice(null);
-    // Fatura akışı bittiğinde ön-seçili müşteriyi sıfırla
-    setPreselectedCustomerForInvoice(null);
-  };
-
-  const closeExpenseModal = () => {
-    setShowExpenseModal(false);
-    setSelectedExpense(null);
-    setSupplierForExpense(null);
-  };
-
-  const closeSaleModal = () => {
-    console.log('🚪❌ closeSaleModal çağrıldı');
-    setShowSaleModal(false);
-    // Modal tamamen kapanana kadar bekle
-    setTimeout(() => {
-      console.log('⏱️ 100ms sonra selectedSale temizleniyor');
-      setSelectedSale(null);
-    }, 100);
-  };
-
-  const closeProductModal = () => {
-    setShowProductModal(false);
-    setSelectedProduct(null);
-  };
-
-  const closeProductCategoryModal = () => {
-    setShowProductCategoryModal(false);
-  };
-
-  const closeBankModal = () => {
-    setShowBankModal(false);
-    setSelectedBank(null);
-  };
-
-  const closeCustomerViewModal = () => setShowCustomerViewModal(false);
-  const closeSupplierViewModal = () => setShowSupplierViewModal(false);
-  const closeInvoiceViewModal = () => setShowInvoiceViewModal(false);
-  const closeExpenseViewModal = () => setShowExpenseViewModal(false);
-  const closeSaleViewModal = () => setShowSaleViewModal(false);
-  const closeProductViewModal = () => {
-    setShowProductViewModal(false);
-  };
-  const closeBankViewModal = () => setShowBankViewModal(false);
-  const closeCustomerHistoryModal = () => setShowCustomerHistoryModal(false);
-  const closeSupplierHistoryModal = () => setShowSupplierHistoryModal(false);
-
-  const handleCreateInvoiceFromCustomer = (customer: any) => {
-    // Üçlü menü akışını aç ve müşteri bağlamını taşı
-    setPreselectedCustomerForInvoice(customer || null);
-    setShowCustomerViewModal(false);
-    setShowCustomerHistoryModal(false);
-    setShowInvoiceTypeModal(true);
-  };
-
-  const handleRecordPaymentForCustomer = (customer: any) => {
-    setInvoices(prev => prev.map(invoice => {
-      if (invoice.customerName === customer.name && invoice.status !== "paid") {
-        return { ...invoice, status: "paid" };
-      }
-      return invoice;
-    }));
-  };
-
-  const handleCreateExpenseFromSupplier = (supplier: any) => {
-    openExpenseModal(null, { name: supplier?.name, category: supplier?.category });
-    setShowSupplierViewModal(false);
-    setShowSupplierHistoryModal(false);
-  };
-
-  
 
   // Invoice nesnesini UI için normalize et: lineItems -> items, müşteri alanlarını zenginleştir
   const normalizeInvoiceForUi = React.useCallback((inv: any) => {
@@ -4463,7 +4273,349 @@ const AppContent: React.FC = () => {
     return { ...inv, items, customerName, customerEmail, customerAddress, customer, type: derivedType || inv.type };
   }, [products, productCategoryObjects]);
 
-  const handleDownloadInvoice = async (invoice: any) => {
+  const openInvoiceModal = React.useCallback(async (invoice?: any) => {
+    // Eğer mevcut fatura düzenleniyor ise önce detayları (lineItems) gerekiyorsa çek
+    if (invoice) {
+      let full = invoice;
+      const hasItems = Array.isArray(invoice.items) && invoice.items.length > 0;
+      const hasLineItems = Array.isArray((invoice as any).lineItems) && (invoice as any).lineItems.length > 0;
+      try {
+        if (!hasItems && !hasLineItems && invoice.id) {
+          full = await invoicesApi.getInvoice(String(invoice.id));
+        }
+      } catch (e) {
+        console.warn('Fatura detayı alınamadı, mevcut veri kullanılacak:', e);
+      }
+      setSelectedInvoice(normalizeInvoiceForUi(full));
+      setShowInvoiceModal(true);
+    } else {
+      // Yeni fatura için tip seçim modalını aç
+      setShowInvoiceTypeModal(true);
+    }
+  }, [normalizeInvoiceForUi]);
+
+  // Yeni fatura akışı handler'ları
+  const handleNewSaleForInvoice = () => {
+    setShowInvoiceTypeModal(false);
+    // Direkt eski invoice modal'ını aç; müşteri seçiliyse ön doldur
+    if (preselectedCustomerForInvoice) {
+      setSelectedInvoice({
+        id: normalizeId(preselectedCustomerForInvoice.id),
+        customerName: preselectedCustomerForInvoice.name,
+        customerEmail: preselectedCustomerForInvoice.email,
+        customerAddress: preselectedCustomerForInvoice.address,
+        status: 'draft',
+        issueDate: new Date().toISOString().split('T')[0],
+      });
+    } else {
+      setSelectedInvoice(null);
+    }
+    setShowInvoiceModal(true);
+  };
+
+  const handleExistingSaleForInvoice = () => {
+    setShowInvoiceTypeModal(false);
+    setShowExistingSaleModal(true);
+  };
+
+  const handleReturnInvoice = () => {
+    setShowInvoiceTypeModal(false);
+    // InvoiceModal'ı type='return' olarak aç
+    if (preselectedCustomerForInvoice) {
+      setSelectedInvoice({
+        _isReturnInvoice: true,
+        id: normalizeId(preselectedCustomerForInvoice.id),
+        customerName: preselectedCustomerForInvoice.name,
+        customerEmail: preselectedCustomerForInvoice.email,
+        customerAddress: preselectedCustomerForInvoice.address,
+        status: 'draft',
+        issueDate: new Date().toISOString().split('T')[0],
+      } as any);
+    } else {
+      setSelectedInvoice({ _isReturnInvoice: true } as any);
+    }
+    setShowInvoiceModal(true);
+  };
+
+  const handleSelectSaleForInvoice = (sale: Sale) => {
+    setSelectedSaleForInvoice(sale);
+    setShowExistingSaleModal(false);
+    setShowInvoiceFromSaleModal(true);
+  };
+
+  const handleCreateInvoiceFromSale = async (invoiceData: InvoiceDraftPayload) => {
+    const normalizeInvoiceLineItems = (items?: InvoiceDraftPayload['items']): BackendInvoiceLineItem[] => {
+      if (!Array.isArray(items)) return [];
+      return items
+        .filter(Boolean)
+        .map((item) => {
+          const quantity = Math.max(1, toNumberSafe(item.quantity));
+          const unitPrice = Math.max(0, toNumberSafe(item.unitPrice));
+          const normalizedTotal = (() => {
+            const explicit = toNumberSafe(item.total);
+            if (explicit > 0) return explicit;
+            const fallback = quantity * unitPrice;
+            return Number.isFinite(fallback) ? fallback : 0;
+          })();
+          return {
+            productId: item.productId,
+            description: item.description || t('products.name', 'Product'),
+            quantity,
+            unitPrice,
+            total: normalizedTotal,
+          };
+        });
+    };
+
+    try {
+      logger.info('app.invoiceFromSale.request', {
+        saleId: selectedSaleForInvoice?.id,
+        lineItemCount: invoiceData.items?.length,
+      });
+
+      let customerId = invoiceData.customerId;
+
+      if (!customerId && selectedSaleForInvoice) {
+        const customer = customers.find((c) => c.name === selectedSaleForInvoice.customerName);
+        customerId = customer?.id;
+        logger.info('app.invoiceFromSale.customerResolvedFromSale', {
+          saleCustomerName: selectedSaleForInvoice.customerName,
+          foundCustomerId: customerId,
+        });
+      }
+
+      if (!customerId && invoiceData.customerName) {
+        const customer = customers.find((c) => c.name === invoiceData.customerName);
+        customerId = customer?.id;
+        logger.info('app.invoiceFromSale.customerResolvedFromName', {
+          customerName: invoiceData.customerName,
+          foundCustomerId: customerId,
+        });
+      }
+
+      if (!customerId) {
+        logger.warn('app.invoiceFromSale.customerNotFound', {
+          providedCustomerName: invoiceData.customerName,
+          saleCustomerName: selectedSaleForInvoice?.customerName,
+        });
+        showToast(t('toasts.sales.customerNotFound'), 'error');
+        throw new Error('customerId required');
+      }
+
+      const lineItems = normalizeInvoiceLineItems(invoiceData.items);
+      if (!lineItems.length) {
+        logger.warn('app.invoiceFromSale.noLineItems', { saleId: selectedSaleForInvoice?.id });
+        showToast(t('invoices.noLineItemsError', 'Faturaya aktarılacak satır bulunamadı.'), 'error');
+        throw new Error('lineItems required');
+      }
+
+      const backendData: BackendInvoicePayload = {
+        customerId,
+        issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
+        dueDate: invoiceData.dueDate,
+        type: invoiceData.type || 'service',
+        lineItems,
+        taxAmount: Math.max(0, toNumberSafe(invoiceData.taxAmount)),
+        discountAmount: Math.max(0, toNumberSafe(invoiceData.discountAmount)),
+        notes: invoiceData.notes?.trim() || '',
+        status: invoiceData.status || 'draft',
+      };
+
+      if (selectedSaleForInvoice?.id) {
+        backendData.saleId = selectedSaleForInvoice.id;
+      }
+
+      const created = await invoicesApi.createInvoice(backendData);
+      logger.info('app.invoiceFromSale.success', {
+        invoiceId: created.id,
+        invoiceNumber: created.invoiceNumber,
+        linkedSaleId: backendData.saleId,
+      });
+
+      const createdWithLink = selectedSaleForInvoice?.id && !created.saleId
+        ? { ...created, saleId: selectedSaleForInvoice.id }
+        : created;
+      const newInvoices = [...invoices, createdWithLink];
+      setInvoices(newInvoices);
+      try {
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        writeTenantScopedArray('invoices_cache', newInvoices, { tenantId: tenantScopedId, mirrorToBase: true });
+      } catch (cacheError) {
+        logger.warn('app.invoiceFromSale.cacheWriteFailed', cacheError);
+      }
+
+      if (selectedSaleForInvoice) {
+        persistSalesState(prev => prev.map(s =>
+          s.id === selectedSaleForInvoice.id
+            ? { ...s, invoiceId: created.id }
+            : s
+        ));
+        logger.info('app.invoiceFromSale.saleLinked', {
+          saleId: selectedSaleForInvoice.id,
+          invoiceId: created.id,
+        });
+      }
+
+      const customerInfo = customers.find((c) => c.id === customerId);
+      addNotification(
+        tOr('notifications.invoices.created.title', 'Yeni fatura oluşturuldu'),
+        tOr('notifications.invoices.created.desc', `${created.invoiceNumber} - ${customerInfo?.name || 'Müşteri'} için fatura hazır.`, { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' }),
+        'success',
+        'invoices',
+        { i18nTitleKey: 'notifications.invoices.created.title', i18nDescKey: 'notifications.invoices.created.desc', i18nParams: { invoiceNumber: created.invoiceNumber, customerName: customerInfo?.name || 'Müşteri' } }
+      );
+
+      showToast(t('toasts.invoices.createSuccess'), 'success');
+
+      setShowInvoiceFromSaleModal(false);
+      setSelectedSaleForInvoice(null);
+
+      return created;
+    } catch (error) {
+      logger.error('app.invoiceFromSale.failed', error);
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      const errorMsg = err.response?.data?.message || err.message || t('toasts.invoices.createError', 'Fatura oluşturulamadı');
+      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+      throw error;
+    }
+  };
+
+  const openExpenseModal = (expense?: ExpenseRecord | null, supplierHint?: SupplierExpenseHint | null) => {
+    setSelectedExpense(expense ?? null);
+    setSupplierForExpense(supplierHint ?? null);
+    setShowExpenseModal(true);
+  };
+
+  const openSaleModal = React.useCallback((sale?: Sale | null) => {
+    logger.debug('app.saleModal.openRequested', {
+      modalOpen: showSaleModal,
+      saleId: sale?.id,
+      isNewSale: !sale,
+    });
+
+    // Modal kapalıysa direkt aç
+    if (!showSaleModal) {
+      logger.debug('app.saleModal.openImmediate', { saleId: sale?.id });
+      setSelectedSale(sale || null);
+      setShowSaleModal(true);
+      return;
+    }
+
+    // Modal açıksa: kapat → bekle → state güncelle → aç
+    logger.debug('app.saleModal.reopenSequenceStart', { saleId: sale?.id });
+    setShowSaleModal(false);
+    setTimeout(() => {
+      logger.debug('app.saleModal.reopenSetSelected', { saleId: sale?.id });
+      setSelectedSale(sale || null);
+      setTimeout(() => {
+        logger.debug('app.saleModal.reopenFinalize', { saleId: sale?.id });
+        setShowSaleModal(true);
+      }, 50);
+    }, 100);
+  }, [showSaleModal]);
+
+  const openProductModal = (product?: Product | null) => {
+    setSelectedProduct(product ?? null);
+    setShowProductModal(true);
+  };
+
+  const openProductCategoryModal = () => {
+    setShowProductCategoryModal(true);
+  };
+
+  const openProductViewModal = (product: Product) => {
+    setSelectedProduct(product);
+    setShowProductViewModal(true);
+  };
+
+  const openBankModal = (bank?: Bank | null) => {
+    setSelectedBank(bank ?? null);
+    setShowBankModal(true);
+  };
+
+  const closeCustomerModal = () => {
+    setShowCustomerModal(false);
+    setSelectedCustomer(null);
+  };
+
+  const closeSupplierModal = () => {
+    setShowSupplierModal(false);
+    setSelectedSupplier(null);
+  };
+
+  const closeInvoiceModal = () => {
+    setShowInvoiceModal(false);
+    setSelectedInvoice(null);
+    // Fatura akışı bittiğinde ön-seçili müşteriyi sıfırla
+    setPreselectedCustomerForInvoice(null);
+  };
+
+  const closeExpenseModal = () => {
+    setShowExpenseModal(false);
+    setSelectedExpense(null);
+    setSupplierForExpense(null);
+  };
+
+  const closeSaleModal = () => {
+    logger.debug('app.saleModal.closeRequested');
+    setShowSaleModal(false);
+    // Modal tamamen kapanana kadar bekle
+    setTimeout(() => {
+      logger.debug('app.saleModal.selectionCleared');
+      setSelectedSale(null);
+    }, 100);
+  };
+
+  const closeProductModal = () => {
+    setShowProductModal(false);
+    setSelectedProduct(null);
+  };
+
+  const closeProductCategoryModal = () => {
+    setShowProductCategoryModal(false);
+  };
+
+  const closeBankModal = () => {
+    setShowBankModal(false);
+    setSelectedBank(null);
+  };
+
+  const closeCustomerViewModal = () => setShowCustomerViewModal(false);
+  const closeSupplierViewModal = () => setShowSupplierViewModal(false);
+  const closeInvoiceViewModal = () => setShowInvoiceViewModal(false);
+  const closeExpenseViewModal = () => setShowExpenseViewModal(false);
+  const closeSaleViewModal = () => setShowSaleViewModal(false);
+  const closeProductViewModal = () => {
+    setShowProductViewModal(false);
+  };
+  const closeBankViewModal = () => setShowBankViewModal(false);
+  const closeCustomerHistoryModal = () => setShowCustomerHistoryModal(false);
+  const closeSupplierHistoryModal = () => setShowSupplierHistoryModal(false);
+
+  const handleCreateInvoiceFromCustomer = (customer: CustomerRecord | null) => {
+    // Üçlü menü akışını aç ve müşteri bağlamını taşı
+    setPreselectedCustomerForInvoice(customer || null);
+    setShowCustomerViewModal(false);
+    setShowCustomerHistoryModal(false);
+    setShowInvoiceTypeModal(true);
+  };
+
+  const handleRecordPaymentForCustomer = (customer: CustomerRecord) => {
+    setInvoices(prev => prev.map(invoice => {
+      if (invoice.customerName === customer.name && invoice.status !== "paid") {
+        return { ...invoice, status: "paid" };
+      }
+      return invoice;
+    }));
+  };
+
+  const handleCreateExpenseFromSupplier = (supplier: SupplierRecord) => {
+    openExpenseModal(null, { name: supplier?.name, category: supplier?.category });
+    setShowSupplierViewModal(false);
+    setShowSupplierHistoryModal(false);
+  };
+
+  const handleDownloadInvoice = React.useCallback(async (invoice: any) => {
     try {
       // PDF için eksikse tam detay çek (lineItems)
       let full = invoice;
@@ -4483,7 +4635,7 @@ const AppContent: React.FC = () => {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, [company, i18n.language, normalizeInvoiceForUi]);
 
   // Güvenli görüntüleme: Fatura detayı eksikse (items/lineItems), önce tam veriyi çekip normalize ederek view modal'ı aç
   const openInvoiceView = React.useCallback(async (invoice: any) => {
@@ -4542,7 +4694,7 @@ const AppContent: React.FC = () => {
       window.removeEventListener('open-quote-edit', onOpenQuoteEdit as any);
       window.removeEventListener('open-sale-edit', onOpenSaleEdit as any);
     };
-  }, [openInvoiceModal, handleDownloadInvoice]);
+  }, [openInvoiceModal, handleDownloadInvoice, openSaleModal]);
 
   const handleDownloadExpense = async (expense: any) => {
     try {
@@ -4725,7 +4877,7 @@ const AppContent: React.FC = () => {
       outstandingAmount,
       totalCash,
     };
-  }, [invoices, expenses, sales, customers, bankAccounts, t]);
+  }, [invoices, expenses, sales, bankAccounts, t, formatCurrency]);
 
   const handleExportData = () => {
     const payload = {
@@ -4738,7 +4890,7 @@ const AppContent: React.FC = () => {
       bankAccounts,
       company,
     };
-    console.info("Exported data", payload);
+    logger.info('app.data.exported', { payload });
   };
 
   const handleImportData = (payload: any) => {
@@ -4756,7 +4908,7 @@ const AppContent: React.FC = () => {
       setExpenses(payload.expenses.map((expense: any) => ({ ...expense, id: String(expense.id) })));
     }
     if (Array.isArray(payload.sales)) {
-      setSales(payload.sales.map((sale: any) => ({ ...sale, id: String(sale.id) })));
+      persistSalesState(payload.sales.map((sale: any) => ({ ...sale, id: String(sale.id) })));
     }
     if (Array.isArray(payload.products)) {
       const normalizedProducts: Product[] = payload.products.map((product: Product) => ({
@@ -4807,12 +4959,12 @@ const AppContent: React.FC = () => {
             // Quotes: Son İşlemler için local cache'den oku (tenant scoped)
             let quotesForRecent: any[] = [];
             try {
-              const tid = tenant?.id;
-              const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
-              const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
-              const list = raw ? JSON.parse(raw) : [];
+              const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+              const list = readTenantScopedArray<any>('quotes_cache', { tenantId: tenantScopedId }) ?? [];
               if (Array.isArray(list)) quotesForRecent = list;
-            } catch {}
+            } catch (error) {
+              reportSilentError('app.dashboard.quotesCache.readFailed', error);
+            }
             return (
           <RecentTransactions
             invoices={invoices}
@@ -4982,11 +5134,7 @@ const AppContent: React.FC = () => {
             sales={sales}
             invoices={invoices}
             products={products}
-            onSalesUpdate={(updatedSales) => {
-              // Her satış için upsertSale çağır
-              console.log('📊 SimpleSalesPage sales güncelleme:', updatedSales.length);
-              setSales(updatedSales);
-            }}
+            onSalesUpdate={handleSimpleSalesPageUpdate}
             onUpsertSale={upsertSale}
             onCreateInvoice={upsertInvoice}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
@@ -5007,12 +5155,12 @@ const AppContent: React.FC = () => {
               // Quotes: Raporlar sayfası için local cache'den oku (tenant scoped)
               let list: any[] = [];
               try {
-                const tid = tenant?.id || (authUser?.tenantId ? String(authUser.tenantId) : undefined);
-                const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
-                const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
-                const parsed = raw ? JSON.parse(raw) : [];
+                const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+                const parsed = readTenantScopedArray<any>('quotes_cache', { tenantId: tenantScopedId }) ?? [];
                 if (Array.isArray(parsed)) list = parsed;
-              } catch {}
+              } catch (error) {
+                reportSilentError('app.reports.quotesCache.readFailed', error);
+              }
               return list;
             })()}
           />
@@ -5037,7 +5185,7 @@ const AppContent: React.FC = () => {
             onEditSale={sale => openSaleModal(sale)}
             onInvoicesUpdate={setInvoices}
             onExpensesUpdate={setExpenses}
-            onSalesUpdate={setSales}
+            onSalesUpdate={(nextSales) => persistSalesState(nextSales)}
           />
         );
       case "chart-of-accounts":
@@ -5209,11 +5357,10 @@ const AppContent: React.FC = () => {
           products={products}
           onCreate={(payload: QuoteCreatePayload) => {
             try {
-              const tid = (authUser?.tenantId != null ? String(authUser.tenantId) : (localStorage.getItem('tenantId') || '')) as string;
-              const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
-              const raw = localStorage.getItem(key);
-              const list = raw ? (JSON.parse(raw) as any[]) : [];
-              const nextIndex = (Array.isArray(list) ? list.length : 0) + 1;
+              const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+              const existingQuotes = readTenantScopedArray<any>('quotes_cache', { tenantId: tenantScopedId }) ?? [];
+              const list = Array.isArray(existingQuotes) ? existingQuotes : [];
+              const nextIndex = list.length + 1;
               const id = `q${Date.now()}`;
               const quoteNumber = `Q-${new Date().getFullYear()}-${String(nextIndex).padStart(4, '0')}`;
               const next = {
@@ -5229,8 +5376,8 @@ const AppContent: React.FC = () => {
                 version: 1,
                 items: payload.items,
               };
-              const updated = [next, ...(Array.isArray(list) ? list : [])];
-              localStorage.setItem(key, JSON.stringify(updated));
+              const updated = [next, ...list];
+              writeTenantScopedArray('quotes_cache', updated, { tenantId: tenantScopedId, mirrorToBase: true });
               setShowQuoteCreateModal(false);
               showToast(t('toasts.quotes.createSuccess'), 'success');
             } catch (e) {
@@ -5465,11 +5612,12 @@ const AppContent: React.FC = () => {
 
               // Local quotes cache'i güncelle (CustomerHistoryModal bu cache'i okuyor)
               try {
-                const tid = (localStorage.getItem('tenantId') || '') as string;
-                const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
-                const raw = localStorage.getItem(key);
-                const list: any[] = raw ? JSON.parse(raw) : [];
-                const next = Array.isArray(list) ? list.map((q: any) => (
+                const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+                const existingQuotes = readTenantScopedArray<any>('quotes_cache', {
+                  tenantId: tenantScopedId,
+                  fallbackToBase: true,
+                }) ?? [];
+                const next = Array.isArray(existingQuotes) ? existingQuotes.map((q: any) => (
                   String(q.id) === String(saved.id)
                     ? {
                         ...q,
@@ -5487,10 +5635,17 @@ const AppContent: React.FC = () => {
                       }
                     : q
                 )) : [];
-                localStorage.setItem(key, JSON.stringify(next));
-                try { window.dispatchEvent(new Event('quotes-cache-updated')); } catch {}
-              } catch (e) {
-                console.warn('Quotes cache update failed:', e);
+                writeTenantScopedArray('quotes_cache', next, {
+                  tenantId: tenantScopedId,
+                  mirrorToBase: true,
+                });
+                try {
+                  window.dispatchEvent(new Event('quotes-cache-updated'));
+                } catch (error) {
+                  reportSilentError('app.quotes.cache.dispatchFailed', error);
+                }
+              } catch (error) {
+                reportSilentError('app.quotes.cache.updateFailed', error);
               }
             } catch (e) {
               console.error('Quote update failed:', e);
@@ -5657,19 +5812,20 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     const processAcceptedQuotes = async () => {
       try {
-        const tid = (authUser?.tenantId != null ? String(authUser.tenantId) : (localStorage.getItem('tenantId') || '')) as string;
-        const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
-        const raw = localStorage.getItem(key);
-        if (!raw) return;
-        const list: any[] = JSON.parse(raw);
-        if (!Array.isArray(list) || list.length === 0) return;
+        const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+        const quotesCache = readTenantScopedArray<any>('quotes_cache', {
+          tenantId: tenantScopedId,
+          fallbackToBase: true,
+        });
+        if (!Array.isArray(quotesCache) || quotesCache.length === 0) return;
 
+        const list = [...quotesCache];
         let changed = false;
         for (const q of list) {
           if (q && q.status === 'accepted') {
             // Çoklu sekme yarışı için basit bir kilit: pending:<token> → done
-            const flagKey = `quote_converted_${q.id}`;
-            const curr = localStorage.getItem(flagKey);
+            const flagBaseKey = `quote_converted_${q.id}`;
+            const curr = readTenantScopedValue(flagBaseKey, { tenantId: tenantScopedId, fallbackToBase: false });
             if (curr === 'done' || q.convertedToSale) {
               continue;
             }
@@ -5678,9 +5834,13 @@ const AppContent: React.FC = () => {
               continue;
             }
             const token = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-            try { localStorage.setItem(flagKey, `pending:${token}`); } catch {}
+            try {
+              writeTenantScopedValue(flagBaseKey, `pending:${token}`, { tenantId: tenantScopedId, mirrorToBase: false });
+            } catch (error) {
+              reportSilentError('app.quotes.accepted.lockPersistFailed', error);
+            }
             // Kilidi gerçekten aldık mı?
-            const verify = localStorage.getItem(flagKey);
+            const verify = readTenantScopedValue(flagBaseKey, { tenantId: tenantScopedId, fallbackToBase: false });
             if (verify !== `pending:${token}`) {
               continue;
             }
@@ -5743,20 +5903,12 @@ const AppContent: React.FC = () => {
                 status: 'completed' as const,
                 sourceQuoteId: String(q.id),
               } as any;
-              setSales(prev => {
+              persistSalesState(prev => {
                 const exists = prev.some(s => String((s as any).sourceQuoteId || '') === String(q.id) || String(s.id) === String(saved.id));
-                const next = exists ? prev : [...prev, mapped];
-                try {
-                  const tid = localStorage.getItem('tenantId') || '';
-                  const key = tid ? `sales_${tid}` : 'sales';
-                  const cacheKey = tid ? `sales_cache_${tid}` : 'sales_cache';
-                  localStorage.setItem(key, JSON.stringify(next));
-                  localStorage.setItem(cacheKey, JSON.stringify(next));
-                } catch {}
-                return next;
+                return exists ? prev : [...prev, mapped];
               });
-            } catch (e) {
-              console.warn('Quote→Sale dönüşümünde backend hatası, local fallback kullanılacak:', e);
+            } catch (error) {
+              reportSilentError('app.quotes.accepted.remoteConversionFailed', error);
               // Fallback: Local state ile oluştur (idempotent upsert)
               const saleData = {
                 customerName: q.customerName,
@@ -5769,25 +5921,36 @@ const AppContent: React.FC = () => {
                 sourceType: 'quote',
                 sourceQuoteId: String(q.id),
               };
-              try { await upsertSale(saleData); } catch {}
+              const latestUpsertSale = upsertSaleRef.current;
+              if (latestUpsertSale) {
+                try {
+                  await latestUpsertSale(saleData);
+                } catch (error) {
+                  reportSilentError('app.quotes.accepted.localSaleUpsertFailed', error);
+                }
+              }
             }
             q.convertedToSale = true;
             // Kilidi tamamlandı olarak işaretle
-            try { localStorage.setItem(flagKey, 'done'); } catch {}
+            try {
+              writeTenantScopedValue(flagBaseKey, 'done', { tenantId: tenantScopedId, mirrorToBase: false });
+            } catch (error) {
+              reportSilentError('app.quotes.accepted.lockReleaseFailed', error);
+            }
             changed = true;
           }
         }
         if (changed) {
-          localStorage.setItem(key, JSON.stringify(list));
+          writeTenantScopedArray('quotes_cache', list, { tenantId: tenantScopedId, mirrorToBase: true });
         }
-      } catch (e) {
-        console.warn('Accepted quotes processing failed:', e);
+      } catch (error) {
+        reportSilentError('app.quotes.accepted.processingFailed', error);
       }
     };
 
     const onStorage = (e: StorageEvent) => {
-      const tid = (authUser?.tenantId != null ? String(authUser.tenantId) : (localStorage.getItem('tenantId') || '')) as string;
-      const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+      const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+      const key = tenantScopedId ? `quotes_cache_${tenantScopedId}` : 'quotes_cache';
       if (e.key === key) {
         processAcceptedQuotes();
       }
@@ -5800,8 +5963,8 @@ const AppContent: React.FC = () => {
       }
     };
 
-  window.addEventListener('storage', onStorage);
-  window.addEventListener('quotes-cache-updated', processAcceptedQuotes as any);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('quotes-cache-updated', processAcceptedQuotes as any);
     document.addEventListener('visibilitychange', onVisibility);
     // İlk açılışta kontrol et
     processAcceptedQuotes();
@@ -5811,7 +5974,13 @@ const AppContent: React.FC = () => {
       window.removeEventListener('quotes-cache-updated', processAcceptedQuotes as any);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  }, [
+    tenant,
+    authUser?.tenantId,
+    products,
+    customers,
+    persistSalesState,
+  ]);
 
   // If this is a public quote view, render a minimal standalone page
   if (publicQuoteId) {
@@ -5946,17 +6115,18 @@ const AppContent: React.FC = () => {
         const found = customers.find((c: any) => String(c.id) === String(cid));
         if (found?.name) return String(found.name);
         try {
-          const tid = (tenant?.id || authUser?.tenantId || localStorage.getItem('tenantId') || '') as string;
-          const key = tid ? `customers_cache_${tid}` : 'customers_cache';
-          const raw = localStorage.getItem(key);
-          if (raw) {
-            const arr = JSON.parse(raw);
-            if (Array.isArray(arr)) {
-              const fromCache = arr.find((c: any) => String(c.id) === String(cid));
-              if (fromCache?.name) return String(fromCache.name);
-            }
+          const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+          const cachedCustomers = readTenantScopedArray<any>('customers_cache', {
+            tenantId: tenantScopedId,
+            fallbackToBase: true,
+          });
+          if (Array.isArray(cachedCustomers)) {
+            const fromCache = cachedCustomers.find((c: any) => String(c.id) === String(cid));
+            if (fromCache?.name) return String(fromCache.name);
           }
-        } catch {}
+        } catch (error) {
+          reportSilentError('app.sidebar.customerCache.readFailed', error);
+        }
       }
       return undefined;
     }

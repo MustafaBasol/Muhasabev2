@@ -104,6 +104,9 @@ export interface Sale {
   unitPrice?: number;
   amount: number;
   total?: number; // Toplam tutar (amount ile aynı olabilir)
+  subtotal?: number; // KDV hariç toplam
+  taxAmount?: number;
+  discountAmount?: number;
   status: 'completed' | 'pending' | 'cancelled';
   date: string;
   paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
@@ -114,9 +117,11 @@ export interface Sale {
   items?: Array<{ // Çoklu ürün desteği
     productId?: string;
     productName: string;
+    description?: string;
     quantity: number;
     unitPrice: number;
     total: number;
+    taxRate?: number;
   }>;
 }
 
@@ -130,6 +135,17 @@ export interface Bank {
   currency: string;
   accountType: 'checking' | 'savings' | 'credit';
   isActive: boolean;
+  createdAt: string;
+}
+
+export interface ChartAccount {
+  id: string;
+  code: string;
+  name: string;
+  type: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
+  parentId?: string;
+  isActive: boolean;
+  balance: number;
   createdAt: string;
 }
 

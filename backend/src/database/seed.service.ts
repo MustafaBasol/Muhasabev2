@@ -19,11 +19,9 @@ export class SeedService {
       await this.ensureSchemaCompatibility();
 
       // Check if database is empty
-      const userCount = await this.dataSource.query(
-        'SELECT COUNT(*) as count FROM users',
-      );
+      const existingUsers = await this.getExistingUserCount();
 
-      if (userCount[0].count > 0) {
+      if (existingUsers > 0) {
         this.logger.log('✅ Database already has data, skipping seed');
         return;
       }
@@ -44,7 +42,9 @@ export class SeedService {
 
       this.logger.log('✅ Database seeded successfully!');
     } catch (error) {
-      this.logger.error('❌ Error seeding database:', error);
+      this.logger.error(
+        `❌ Error seeding database: ${this.getErrorMessage(error)}`,
+      );
       // Don't throw - allow app to start even if seeding fails
     }
   }
@@ -167,10 +167,43 @@ export class SeedService {
             ALTER TABLE "tenants" ADD "stateOfIncorporation" character varying;
           END IF;
         END$$;`);
-    } catch (e) {
+    } catch (error) {
       this.logger.warn(
-        `⚠️ Schema compatibility check skipped: ${e?.message || e}`,
+        `⚠️ Schema compatibility check skipped: ${this.getErrorMessage(error)}`,
       );
+    }
+  }
+
+  private async getExistingUserCount(): Promise<number> {
+    const rowsResult: unknown = await this.dataSource.query(
+      'SELECT COUNT(*) as count FROM users',
+    );
+    if (!Array.isArray(rowsResult) || rowsResult.length === 0) {
+      return 0;
+    }
+    const firstRow = rowsResult[0] as Record<string, unknown> | undefined;
+    const rawCount = firstRow?.count;
+    if (typeof rawCount === 'number') {
+      return rawCount;
+    }
+    if (typeof rawCount === 'string') {
+      const parsed = Number(rawCount);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
     }
   }
 }

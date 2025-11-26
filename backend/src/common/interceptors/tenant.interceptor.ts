@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import type { AuthenticatedRequest } from '../types/authenticated-request';
 
 /**
  * Interceptor to log tenant-specific requests and ensure tenant isolation
@@ -15,8 +16,10 @@ import { tap } from 'rxjs/operators';
 export class TenantInterceptor implements NestInterceptor {
   private readonly logger = new Logger(TenantInterceptor.name);
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const request = context
+      .switchToHttp()
+      .getRequest<AuthenticatedRequest & { tenantId?: string }>();
     const user = request.user;
 
     if (user && user.tenantId) {

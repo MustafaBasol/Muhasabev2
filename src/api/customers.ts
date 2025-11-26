@@ -35,7 +35,7 @@ export interface UpdateCustomerDto {
  * Tüm müşterileri listele (tenant-aware)
  */
 export const getCustomers = async (): Promise<Customer[]> => {
-  const response = await apiClient.get('/customers');
+  const response = await apiClient.get<Customer[]>('/customers');
   return response.data;
 };
 
@@ -43,7 +43,7 @@ export const getCustomers = async (): Promise<Customer[]> => {
  * Tek müşteri getir
  */
 export const getCustomer = async (id: string): Promise<Customer> => {
-  const response = await apiClient.get(`/customers/${id}`);
+  const response = await apiClient.get<Customer>(`/customers/${id}`);
   return response.data;
 };
 
@@ -51,7 +51,7 @@ export const getCustomer = async (id: string): Promise<Customer> => {
  * Yeni müşteri oluştur
  */
 export const createCustomer = async (data: CreateCustomerDto): Promise<Customer> => {
-  const response = await apiClient.post('/customers', data);
+  const response = await apiClient.post<Customer>('/customers', data);
   return response.data;
 };
 
@@ -62,7 +62,7 @@ export const updateCustomer = async (
   id: string,
   data: UpdateCustomerDto
 ): Promise<Customer> => {
-  const response = await apiClient.patch(`/customers/${id}`, data);
+  const response = await apiClient.patch<Customer>(`/customers/${id}`, data);
   return response.data;
 };
 

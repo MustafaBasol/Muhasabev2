@@ -5,21 +5,25 @@ import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../contexts/CurrencyContext';
 // DOMPurify doğrudan kullanılmıyor; RTE içeriği için sanitizeRteHtml kullanıyoruz
 import { sanitizeRteHtml } from '../utils/security';
-import { getPublicQuote, markViewedPublic, acceptPublic, declinePublic } from '../api/quotes';
+import {
+  getPublicQuote,
+  markViewedPublic,
+  acceptPublic,
+  declinePublic,
+  type QuotePublic,
+  type QuoteItemDto,
+  type TenantPublicProfile,
+} from '../api/quotes';
+import { readLegacyUserProfile } from '../utils/localStorageSafe';
 
-interface QuoteItem { id: string; description: string; quantity: number; unitPrice: number; total: number; }
-interface QuotePublic {
-  id: string;
-  quoteNumber: string;
-  customerName: string;
-  issueDate: string;
-  validUntil?: string;
-  currency: 'TRY'|'USD'|'EUR'|'GBP';
-  total: number;
-  status: 'draft'|'sent'|'viewed'|'accepted'|'declined'|'expired';
-  items?: QuoteItem[];
-  scopeOfWorkHtml?: string;
-}
+type QuoteRuntimeItem = Partial<QuoteItemDto> & {
+  id?: string | number;
+  name?: string;
+  productName?: string;
+  qty?: number;
+  price?: number;
+  unit_price?: number;
+};
 
 interface PublicQuotePageProps { quoteId: string; }
 
@@ -29,7 +33,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
   const [quote, setQuote] = useState<QuotePublic | null>(null);
   const [processing, setProcessing] = useState<false | 'accept' | 'decline'>(false);
   const [info, setInfo] = useState<string | null>(null);
-  const [company, setCompany] = useState<any | null>(null);
+  const [company, setCompany] = useState<TenantPublicProfile | null>(null);
   const [preparedBy, setPreparedBy] = useState<string | null>(null);
   const [markedViewed, setMarkedViewed] = useState(false);
 
@@ -40,12 +44,11 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
         const data = await getPublicQuote(String(quoteId));
         if (!cancelled) {
           setQuote(data);
-          // Backend'ten gelen tenantPublicProfile varsa şirket bilgilerini buradan al
-          if ((data as any)?.tenantPublicProfile) {
-            setCompany((data as any).tenantPublicProfile);
+          if (data?.tenantPublicProfile) {
+            setCompany(data.tenantPublicProfile);
           }
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) setQuote(null);
       }
     })();
@@ -70,40 +73,47 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
 
   // "Hazırlayan" bilgisini lokal kullanıcıdan (sadece görüntüleme için) yükle
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     try {
-      const rawUser = localStorage.getItem('user');
-      if (rawUser) {
-        const u = JSON.parse(rawUser);
-        const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
-        setPreparedBy(name || null);
+      const u = readLegacyUserProfile<{ firstName?: string; lastName?: string; email?: string }>();
+      if (!u) {
+        setPreparedBy(null);
+        return;
       }
-    } catch {}
+      const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
+      setPreparedBy(name || null);
+    } catch {
+      setPreparedBy(null);
+    }
   }, []);
 
   const todayISO = new Date().toISOString().slice(0,10);
   const isExpiredByDate = quote?.validUntil ? (quote.validUntil < todayISO) : false;
   const showExpired = quote && !['accepted','declined','expired'].includes(quote.status) && isExpiredByDate;
 
+  const normalizeItem = (item: QuoteRuntimeItem) => {
+    const description = item.description ?? item.name ?? item.productName ?? '';
+    const quantity = Number(item.quantity ?? item.qty ?? 0);
+    const unitPrice = Number(item.unitPrice ?? item.price ?? item.unit_price ?? 0);
+    const total = Number(item.total ?? quantity * unitPrice);
+    const key = item.id ?? `${description}-${unitPrice}-${total}`;
+    return { description, quantity, unitPrice, total, key };
+  };
+
   // Görüntülenecek toplam: backend total yoksa kalemlerden hesapla
   const displayTotal = useMemo(() => {
     if (!quote) return 0;
     const backendTotal = Number(quote.total) || 0;
     if (backendTotal > 0) return backendTotal;
-    const sumFromItems = (quote.items || []).reduce((sum, it) => {
-      const itemTotal = Number(it.total);
-      if (!isNaN(itemTotal) && itemTotal !== 0) return sum + itemTotal;
-      // total yoksa quantity * unitPrice dene
-      const qty = Number(it.quantity) || 0;
-      const price = Number(it.unitPrice) || 0;
-      return sum + (qty * price);
-    }, 0);
+    const sumFromItems = (quote.items || []).reduce((sum, item) => sum + normalizeItem(item).total, 0);
     return Number(sumFromItems) || 0;
   }, [quote]);
 
   type SettingsLanguage = 'tr' | 'en' | 'fr' | 'de';
   const activeLang = useMemo<SettingsLanguage>(() => {
     const l = (i18n.language || 'tr').toLowerCase().substring(0,2);
-    return (['tr','en','fr','de'] as const).includes(l as any) ? (l as SettingsLanguage) : 'en';
+    const supported: SettingsLanguage[] = ['tr','en','fr','de'];
+    return supported.includes(l as SettingsLanguage) ? (l as SettingsLanguage) : 'en';
   }, [i18n.language]);
 
   const L = useMemo(() => ({
@@ -147,7 +157,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
   }, [company?.country, activeLang]);
 
   const legalRows = useMemo(() => {
-    const c = company || {};
+    const c = company ?? ({} as TenantPublicProfile);
     const row = (label: string, value?: string) => value ? (<div key={label} className="text-sm text-gray-800"><strong>{label}:</strong> <span>{value}</span></div>) : null;
     switch (country) {
       case 'TR':
@@ -273,8 +283,16 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
                   status: quote.status,
                   currency: quote.currency,
                   total: displayTotal,
-                  items: (quote.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
-                  scopeOfWorkHtml: (quote as any).scopeOfWorkHtml || ''
+                  items: (quote.items || []).map(it => {
+                    const normalized = normalizeItem(it);
+                    return {
+                      description: normalized.description,
+                      quantity: normalized.quantity,
+                      unitPrice: normalized.unitPrice,
+                      total: normalized.total,
+                    };
+                  }),
+                  scopeOfWorkHtml: quote.scopeOfWorkHtml || ''
                 }, { filename: quote.quoteNumber, company: company || undefined });
               }}
               className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
@@ -286,11 +304,11 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
                 const url = window.location.href;
                 try { 
                   await navigator.clipboard.writeText(url);
-                  try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: L.copied, tone: 'success' } })); } catch {}
+                  try { window.dispatchEvent(new CustomEvent('showToast', { detail: { message: L.copied, tone: 'success' } })); } catch (toastError) { console.warn('Toast event dispatch failed', toastError); }
                   setInfo(L.copied);
                 } catch (err) {
                   console.warn('Failed to copy link to clipboard', err);
-                  try { alert(url); } catch {}
+                  try { alert(url); } catch (alertError) { console.warn('Alert fallback failed', alertError); }
                 }
               }}
               className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
@@ -358,19 +376,15 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {(quote.items || []).map((raw) => {
-                  const anyIt = raw as any;
-                  const description = anyIt.description ?? anyIt.name ?? anyIt.productName ?? '';
-                  const quantity = Number(anyIt.quantity ?? anyIt.qty ?? 0);
-                  const unitPrice = Number(anyIt.unitPrice ?? anyIt.price ?? anyIt.unit_price ?? 0);
-                  const total = Number(anyIt.total ?? (quantity * unitPrice) ?? 0);
-                  const key = String(anyIt.id ?? `${description}-${unitPrice}-${total}`);
+                {(quote.items || []).map((item) => {
+                  const normalized = normalizeItem(item);
+                  const key = String(normalized.key);
                   return (
                     <tr key={key}>
-                      <td className="px-3 py-2 text-sm text-gray-800">{description}</td>
-                      <td className="px-3 py-2 text-sm text-right text-gray-700">{quantity}</td>
-                      <td className="px-3 py-2 text-sm text-right text-gray-700">{formatCurrency(unitPrice, quote.currency)}</td>
-                      <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{formatCurrency(total, quote.currency)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-800">{normalized.description}</td>
+                      <td className="px-3 py-2 text-sm text-right text-gray-700">{normalized.quantity}</td>
+                      <td className="px-3 py-2 text-sm text-right text-gray-700">{formatCurrency(normalized.unitPrice, quote.currency)}</td>
+                      <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{formatCurrency(normalized.total, quote.currency)}</td>
                     </tr>
                   );
                 })}
@@ -386,12 +400,12 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
         )}
 
         {/* İşin Kapsamı (genel sayfada görünür) */}
-        {Boolean((quote as any).scopeOfWorkHtml) && (
+        {Boolean(quote.scopeOfWorkHtml) && (
           <div className="mt-8">
             <div className="text-base font-semibold text-gray-900 mb-2">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</div>
             <div
               className="prose prose-sm max-w-none text-gray-800"
-              dangerouslySetInnerHTML={{ __html: sanitizeRteHtml((quote as any).scopeOfWorkHtml || '') }}
+              dangerouslySetInnerHTML={{ __html: sanitizeRteHtml(quote.scopeOfWorkHtml || '') }}
             />
           </div>
         )}

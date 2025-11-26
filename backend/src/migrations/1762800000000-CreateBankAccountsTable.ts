@@ -1,6 +1,14 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableIndex,
+  TableForeignKey,
+} from 'typeorm';
 
-export class CreateBankAccountsTable1762800000000 implements MigrationInterface {
+export class CreateBankAccountsTable1762800000000
+  implements MigrationInterface
+{
   public async up(queryRunner: QueryRunner): Promise<void> {
     // bank_accounts tablosu
     const tableExists = await queryRunner.hasTable('bank_accounts');
@@ -71,11 +79,17 @@ export class CreateBankAccountsTable1762800000000 implements MigrationInterface 
 
       await queryRunner.createIndex(
         'bank_accounts',
-        new TableIndex({ name: 'IDX_bank_accounts_tenant_id', columnNames: ['tenantId'] }),
+        new TableIndex({
+          name: 'IDX_bank_accounts_tenant_id',
+          columnNames: ['tenantId'],
+        }),
       );
       await queryRunner.createIndex(
         'bank_accounts',
-        new TableIndex({ name: 'IDX_bank_accounts_created_at', columnNames: ['createdAt'] }),
+        new TableIndex({
+          name: 'IDX_bank_accounts_created_at',
+          columnNames: ['createdAt'],
+        }),
       );
     }
   }

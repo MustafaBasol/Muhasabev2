@@ -6,7 +6,7 @@ import i18n from './i18n/config';
 import App from './App';
 import './index.css';
 import './i18n/config'; // i18n konfigürasyonunu yükle
-import './debug-env.js'; // Environment debug
+import './debug-env'; // Environment debug
 import { logger } from './utils/logger';
 
 // Konsol gürültüsünü azalt: debug/info varsayılan olarak susturulur

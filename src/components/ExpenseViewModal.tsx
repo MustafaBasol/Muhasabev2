@@ -3,31 +3,31 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { useMemo } from 'react';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import type { Expense as ExpenseModel, ExpenseStatus } from '../api/expenses';
 
-interface Expense {
-  id: string;
-  expenseNumber: string;
-  description: string;
-  supplier?: {
-    id: string;
-    name: string;
-    email: string;
-    address: string;
-  };
+type ExpenseSupplierDetails = {
+  id?: string;
+  name?: string;
+  email?: string;
+  address?: string;
+};
+
+type ExpenseViewModel = Omit<ExpenseModel, 'amount' | 'expenseDate' | 'status' | 'supplier'> & {
   amount: number | string;
-  category: string;
-  status: 'draft' | 'approved' | 'paid' | 'pending' | 'rejected';
   expenseDate: string;
-  notes?: string;
-  receiptUrl?: string;
-}
+  status: ExpenseStatus | 'draft';
+  supplier?: ExpenseSupplierDetails | string;
+  createdByName?: string;
+  updatedByName?: string;
+};
 
 interface ExpenseViewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  expense: Expense | null;
-  onEdit: (expense: Expense) => void;
-  onDownload?: (expense: Expense) => void;
+  expense: ExpenseViewModel | null;
+  onEdit: (expense: ExpenseViewModel) => void;
+  onDownload?: (expense: ExpenseViewModel) => void;
 }
 
 export default function ExpenseViewModal({ 
@@ -38,25 +38,22 @@ export default function ExpenseViewModal({
   onDownload 
 }: ExpenseViewModalProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Güçlü çeviri: önce common: ile dener, sonra çıplak anahtarı, en sonda varsayılan metni verir
-  const te = (key: string, def: string) => {
-    const v1 = t(`common:${key}`, { defaultValue: '' });
-    if (v1 && v1 !== `common:${key}` && v1.trim() !== '') return v1;
-    const v2 = t(key as any, { defaultValue: '' });
-    if (v2 && v2 !== key && v2.trim() !== '') return v2;
+  const translate = (key: string, def: string) => {
+    const scoped = t(`common:${key}`, { defaultValue: '' });
+    if (scoped && scoped !== `common:${key}` && scoped.trim() !== '') return scoped;
+    const raw = t(key, { defaultValue: '' });
+    if (raw && raw !== key && raw.trim() !== '') return raw;
     return def;
   };
 
   // Sadece oluşturma/güncelleme bölümünde kullanılacak dil ve etiket yardımcıları
   const getActiveLang = () => {
-    try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && typeof stored === 'string' && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
-    const i18 = (t as any)?.i18n;
-    const cand = (i18?.resolvedLanguage || i18?.language || 'en') as string;
+    const stored = safeLocalStorage.getItem('i18nextLng');
+    if (stored && typeof stored === 'string' && stored.length >= 2) return stored.slice(0,2).toLowerCase();
+    const cand = (i18n?.resolvedLanguage || i18n?.language || 'en').toString();
     return cand.slice(0,2).toLowerCase();
   };
   const toLocale = (l: string) => (l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US');
@@ -70,14 +67,17 @@ export default function ExpenseViewModal({
   const L = labels[lang] || labels.en;
 
   const statusConfig = useMemo(() => ({
-    draft: { label: resolveStatusLabel(t, 'draft'), class: 'bg-gray-100 text-gray-800' },
-    approved: { label: resolveStatusLabel(t, 'approved'), class: 'bg-blue-100 text-blue-800' },
-    paid: { label: resolveStatusLabel(t, 'paid'), class: 'bg-green-100 text-green-800' },
-    pending: { label: resolveStatusLabel(t, 'pending'), class: 'bg-yellow-100 text-yellow-800' },
-    rejected: { label: resolveStatusLabel(t, 'rejected'), class: 'bg-red-100 text-red-800' }
-  }), [t]);
+    draft: { label: resolveStatusLabel(t, 'draft'), className: 'bg-gray-100 text-gray-800' },
+    approved: { label: resolveStatusLabel(t, 'approved'), className: 'bg-blue-100 text-blue-800' },
+    paid: { label: resolveStatusLabel(t, 'paid'), className: 'bg-green-100 text-green-800' },
+    pending: { label: resolveStatusLabel(t, 'pending'), className: 'bg-yellow-100 text-yellow-800' },
+    rejected: { label: resolveStatusLabel(t, 'rejected'), className: 'bg-red-100 text-red-800' }
+  } as Record<string, { label: string; className: string }>), [t]);
   
   if (!isOpen || !expense) return null;
+
+  const supplierDetails = typeof expense.supplier === 'string' ? undefined : expense.supplier;
+  const supplierName = typeof expense.supplier === 'string' ? expense.supplier : expense.supplier?.name;
 
   // Kategori çeviri fonksiyonu (i18n üzerinden)
   const getCategoryLabel = (category: string): string => {
@@ -85,7 +85,9 @@ export default function ExpenseViewModal({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(toLocale(lang));
   };
 
   const formatAmount = (amount: number | string) => {
@@ -97,8 +99,8 @@ export default function ExpenseViewModal({
   const getSupplierDisplay = (name?: string) => {
     const n = (name || '').trim();
     // Dil bazlı varsayılan
-    const lang = (t as any)?.i18n?.language ? String((t as any).i18n.language).slice(0,2).toLowerCase() : 'tr';
-    const localizedFallback = lang === 'tr' ? 'Tedarikçi Yok' : lang === 'de' ? 'Kein Lieferant' : lang === 'fr' ? 'Aucun Fournisseur' : 'No Supplier';
+    const langCode = (i18n?.language || 'tr').slice(0,2).toLowerCase();
+    const localizedFallback = langCode === 'tr' ? 'Tedarikçi Yok' : langCode === 'de' ? 'Kein Lieferant' : langCode === 'fr' ? 'Aucun Fournisseur' : 'No Supplier';
     if (!n) return t('common:noSupplier', { defaultValue: localizedFallback });
     const normalized = n.toLowerCase();
     const placeholders = [
@@ -114,12 +116,12 @@ export default function ExpenseViewModal({
 
   const getStatusBadge = (status: string) => {
     const key = normalizeStatusKey(status);
-    const config = (statusConfig as any)[key] || {
+    const config = statusConfig[key] || {
       label: resolveStatusLabel(t, key),
-      class: 'bg-gray-100 text-gray-800'
+      className: 'bg-gray-100 text-gray-800'
     };
     return (
-      <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.class}`}>
+      <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.className}`}>
         {config.label}
       </span>
     );
@@ -133,7 +135,7 @@ export default function ExpenseViewModal({
           <div className="flex items-center space-x-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{expense.expenseNumber}</h2>
-              <p className="text-sm text-gray-500">{te('expense.details', 'Expense Details')}</p>
+              <p className="text-sm text-gray-500">{translate('expense.details', 'Expense Details')}</p>
             </div>
             {getStatusBadge(expense.status)}
           </div>
@@ -172,64 +174,60 @@ export default function ExpenseViewModal({
             <div>
               <div>
                 <span className="text-gray-500">{L.createdBy}:</span>{' '}
-                <span className="font-medium">{(expense as any).createdByName || '—'}</span>
+                <span className="font-medium">{expense.createdByName || '—'}</span>
               </div>
               <div>
                 <span className="text-gray-500">{L.createdAt}:</span>{' '}
-                <span className="font-medium">{(expense as any).createdAt ? new Date((expense as any).createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{expense.createdAt ? new Date(expense.createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
             <div>
               <div>
                 <span className="text-gray-500">{L.updatedBy}:</span>{' '}
-                <span className="font-medium">{(expense as any).updatedByName || '—'}</span>
+                <span className="font-medium">{expense.updatedByName || '—'}</span>
               </div>
               <div>
                 <span className="text-gray-500">{L.updatedAt}:</span>{' '}
-                <span className="font-medium">{(expense as any).updatedAt ? new Date((expense as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{expense.updatedAt ? new Date(expense.updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
               </div>
             </div>
           </div>
           {/* Expense Header */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{te('expense.information', 'Expense Information')}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{translate('expense.information', 'Expense Information')}</h3>
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">{te('expense.date', 'Expense Date')}:</span>
+                  <span className="text-gray-600">{translate('expense.date', 'Expense Date')}:</span>
                   <span className="ml-2 font-medium">{formatDate(expense.expenseDate)}</span>
                 </div>
                 <div className="flex items-center text-sm">
                   <Tag className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">{te('expense.category', 'Category')}:</span>
+                  <span className="text-gray-600">{translate('expense.category', 'Category')}:</span>
                   <span className="ml-2 font-medium">{getCategoryLabel(expense.category)}</span>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{te('expense.supplier', 'Supplier')}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{translate('expense.supplier', 'Supplier')}</h3>
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <Building2 className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">{te('expense.supplier', 'Supplier')}:</span>
-                  <span className="ml-2 font-medium">{getSupplierDisplay(
-                    typeof (expense as any).supplier === 'string' 
-                      ? String((expense as any).supplier) 
-                      : (expense as any).supplier?.name
-                  )}</span>
+                  <span className="text-gray-600">{translate('expense.supplier', 'Supplier')}:</span>
+                  <span className="ml-2 font-medium">{getSupplierDisplay(supplierName)}</span>
                 </div>
-                {expense.supplier?.email && (
+                {supplierDetails?.email && (
                   <div className="flex items-center text-sm">
                     <span className="text-gray-600">E-posta:</span>
-                    <span className="ml-2 font-medium">{expense.supplier.email}</span>
+                    <span className="ml-2 font-medium">{supplierDetails.email}</span>
                   </div>
                 )}
-                {expense.supplier?.address && (
+                {supplierDetails?.address && (
                   <div className="flex items-start text-sm">
                     <span className="text-gray-600">Adres:</span>
-                    <span className="ml-2 font-medium">{expense.supplier.address}</span>
+                    <span className="ml-2 font-medium">{supplierDetails.address}</span>
                   </div>
                 )}
               </div>
@@ -246,10 +244,10 @@ export default function ExpenseViewModal({
 
           {/* Amount */}
           <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">{te('expense.amount', 'Amount')}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{translate('expense.amount', 'Amount')}</h3>
             <div className="bg-red-50 rounded-lg p-6 border border-red-200">
               <div className="flex justify-between items-center">
-                <span className="text-red-800 font-medium text-lg">{te('expense.amount', 'Amount')}:</span>
+                <span className="text-red-800 font-medium text-lg">{translate('expense.amount', 'Amount')}:</span>
                 <span className="text-2xl font-bold text-red-600">
                   {formatAmount(expense.amount)}
                 </span>
@@ -260,7 +258,7 @@ export default function ExpenseViewModal({
           {/* Receipt */}
           {expense.receiptUrl && (
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{te('expense.receipt', 'Receipt')}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{translate('expense.receipt', 'Receipt')}</h3>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center space-x-3">
                   <Receipt className="w-5 h-5 text-blue-600" />
@@ -270,7 +268,7 @@ export default function ExpenseViewModal({
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-700 font-medium underline"
                   >
-                    {te('expense.viewReceipt', 'View Receipt')}
+                    {translate('expense.viewReceipt', 'View Receipt')}
                   </a>
                 </div>
               </div>

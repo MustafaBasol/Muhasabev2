@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, Check, Download, AlertCircle, UserCheck } from 'lucide-react';
+import { safeLocalStorage } from '../../utils/localStorageSafe';
 
 const DataProcessingAddendum: React.FC = () => {
   const { i18n } = useTranslation('common');
@@ -484,7 +485,7 @@ const DataProcessingAddendum: React.FC = () => {
     setAcceptanceDate(timestamp);
     
     // Store acceptance in localStorage (in real app, this would go to backend)
-    localStorage.setItem('dpa-acceptance', JSON.stringify({
+    safeLocalStorage.setItem('dpa-acceptance', JSON.stringify({
       accepted: true,
       timestamp,
       version: '1.0'

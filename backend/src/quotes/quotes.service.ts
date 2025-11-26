@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
 import { Quote, QuoteStatus } from './entities/quote.entity';
@@ -7,8 +7,80 @@ import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { BankAccount } from '../bank-accounts/entities/bank-account.entity';
 
+type QuoteWithPublicProfile = Quote & {
+  tenantPublicProfile?: TenantPublicProfile;
+};
+
+type TenantPublicProfile = {
+  name: string;
+  address: string;
+  taxNumber: string;
+  taxOffice: string;
+  phone: string;
+  email: string;
+  website: string;
+  mersisNumber: string;
+  kepAddress: string;
+  siretNumber: string;
+  sirenNumber: string;
+  apeCode: string;
+  tvaNumber: string;
+  rcsNumber: string;
+  steuernummer: string;
+  umsatzsteuerID: string;
+  handelsregisternummer: string;
+  geschaeftsfuehrer: string;
+  einNumber: string;
+  taxId: string;
+  businessLicenseNumber: string;
+  stateOfIncorporation: string;
+  logoDataUrl?: string;
+  bankAccountId?: string;
+  iban?: string;
+  bankName?: string;
+  country?: string;
+};
+
+type TenantBrandSettings = {
+  logoDataUrl?: string;
+  bankAccountId?: string;
+  defaultBankAccountId?: string;
+  country?: string;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const extractBrandSettings = (
+  settings: Tenant['settings'],
+): TenantBrandSettings => {
+  if (!isRecord(settings)) {
+    return {};
+  }
+  const rawBrand = settings.brand;
+  if (!isRecord(rawBrand)) {
+    return {};
+  }
+  const brand: TenantBrandSettings = {};
+  if (typeof rawBrand.logoDataUrl === 'string') {
+    brand.logoDataUrl = rawBrand.logoDataUrl;
+  }
+  if (typeof rawBrand.bankAccountId === 'string') {
+    brand.bankAccountId = rawBrand.bankAccountId;
+  }
+  if (typeof rawBrand.defaultBankAccountId === 'string') {
+    brand.defaultBankAccountId = rawBrand.defaultBankAccountId;
+  }
+  if (typeof rawBrand.country === 'string') {
+    brand.country = rawBrand.country;
+  }
+  return brand;
+};
+
 @Injectable()
 export class QuotesService {
+  private readonly logger = new Logger(QuotesService.name);
+
   constructor(
     @InjectRepository(Quote)
     private readonly repo: Repository<Quote>,
@@ -17,6 +89,22 @@ export class QuotesService {
     @InjectRepository(BankAccount)
     private readonly bankAccountsRepo: Repository<BankAccount>,
   ) {}
+
+  private logWarning(
+    event: string,
+    error: unknown,
+    level: 'warn' | 'error' = 'warn',
+  ) {
+    const message = `${event}: ${error instanceof Error ? error.message : String(error)}`;
+    if (level === 'error') {
+      this.logger.error(
+        message,
+        error instanceof Error ? error.stack : undefined,
+      );
+      return;
+    }
+    this.logger.warn(message);
+  }
 
   private isPast(date: Date | null | undefined): boolean {
     if (!date) return false;
@@ -38,7 +126,8 @@ export class QuotesService {
       q.status = QuoteStatus.EXPIRED;
       try {
         return await this.repo.save(q);
-      } catch {
+      } catch (error) {
+        this.logWarning('quotes.maybeExpire.persistFailed', error);
         // Sessizce devam et; statü güncellemesi başarısız olsa bile listeleme çalışsın
         return q;
       }
@@ -65,7 +154,8 @@ export class QuotesService {
       );
       const hasRow = Array.isArray(rowsUnknown) && rowsUnknown.length > 0;
       return hasRow ? id : null;
-    } catch {
+    } catch (error) {
+      this.logWarning('quotes.ensureCustomerExists.queryFailed', error);
       // Herhangi bir DB hatasında güvenli tarafta kal ve null'a düş
       return null;
     }
@@ -114,7 +204,8 @@ export class QuotesService {
           generatedPublicId = first.id;
         }
       }
-    } catch {
+    } catch (error) {
+      this.logWarning('quotes.generatePublicId.queryFailed', error);
       // publicId üretilemezse TypeORM save sırasında DB default/trigger yoksa undefined kalır
       generatedPublicId = undefined;
     }
@@ -209,7 +300,7 @@ export class QuotesService {
   }
 
   // Public operations via publicId
-  async findByPublicId(publicId: string) {
+  async findByPublicId(publicId: string): Promise<QuoteWithPublicProfile> {
     const q = await this.repo.findOne({ where: { publicId } });
     if (!q) throw new NotFoundException('Quote not found');
     // Enrich with tenant public profile for display on public page
@@ -222,7 +313,7 @@ export class QuotesService {
       if (!tenant) return base;
 
       // Logo & preferences from tenant.settings.brand
-      const brand = ((tenant.settings || {}) as any)?.brand || {};
+      const brand = extractBrandSettings(tenant.settings || null);
       let resolvedIban: string | undefined = undefined;
       let resolvedBankName: string | undefined = undefined;
       const defaultBankId: string | undefined =
@@ -236,10 +327,12 @@ export class QuotesService {
             resolvedIban = ba.iban;
             resolvedBankName = ba.bankName || undefined;
           }
-        } catch {}
+        } catch (error) {
+          this.logWarning('quotes.publicProfile.bankLookupFailed', error);
+        }
       }
 
-      return {
+      const enriched: QuoteWithPublicProfile = {
         ...base,
         tenantPublicProfile: {
           name: tenant.companyName || tenant.name,
@@ -249,31 +342,31 @@ export class QuotesService {
           phone: tenant.phone || '',
           email: tenant.email || '',
           website: tenant.website || '',
-          // Legal fields
-          mersisNumber: (tenant as any).mersisNumber || '',
-          kepAddress: (tenant as any).kepAddress || '',
-          siretNumber: (tenant as any).siretNumber || '',
-          sirenNumber: (tenant as any).sirenNumber || '',
-          apeCode: (tenant as any).apeCode || '',
-          tvaNumber: (tenant as any).tvaNumber || '',
-          rcsNumber: (tenant as any).rcsNumber || '',
-          steuernummer: (tenant as any).steuernummer || '',
-          umsatzsteuerID: (tenant as any).umsatzsteuerID || '',
-          handelsregisternummer: (tenant as any).handelsregisternummer || '',
-          geschaeftsfuehrer: (tenant as any).geschaeftsfuehrer || '',
-          einNumber: (tenant as any).einNumber || '',
-          taxId: (tenant as any).taxId || '',
-          businessLicenseNumber: (tenant as any).businessLicenseNumber || '',
-          stateOfIncorporation: (tenant as any).stateOfIncorporation || '',
-          // Branding
+          mersisNumber: tenant.mersisNumber || '',
+          kepAddress: tenant.kepAddress || '',
+          siretNumber: tenant.siretNumber || '',
+          sirenNumber: tenant.sirenNumber || '',
+          apeCode: tenant.apeCode || '',
+          tvaNumber: tenant.tvaNumber || '',
+          rcsNumber: tenant.rcsNumber || '',
+          steuernummer: tenant.steuernummer || '',
+          umsatzsteuerID: tenant.umsatzsteuerID || '',
+          handelsregisternummer: tenant.handelsregisternummer || '',
+          geschaeftsfuehrer: tenant.geschaeftsfuehrer || '',
+          einNumber: tenant.einNumber || '',
+          taxId: tenant.taxId || '',
+          businessLicenseNumber: tenant.businessLicenseNumber || '',
+          stateOfIncorporation: tenant.stateOfIncorporation || '',
           logoDataUrl: brand.logoDataUrl || '',
           bankAccountId: defaultBankId,
           iban: resolvedIban,
           bankName: resolvedBankName,
           country: brand.country || '',
         },
-      } as any;
-    } catch {
+      };
+      return enriched;
+    } catch (error) {
+      this.logWarning('quotes.publicProfile.enrichFailed', error);
       return base;
     }
   }

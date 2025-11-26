@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Users, Clock, Mail, RotateCcw, X, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,6 +11,7 @@ import {
   Organization,
   MembershipStats 
 } from '../api/organizations';
+import { logger } from '../utils/logger';
 
 const OrganizationMembersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -23,85 +24,60 @@ const OrganizationMembersPage: React.FC = () => {
   const [membershipStats, setMembershipStats] = useState<MembershipStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const refreshAndLoad = async () => {
-      try {
-        await refreshUser();
-      } catch (e) {
-        console.warn('refreshUser failed, continuing with cached data:', e);
-      }
-      loadData();
-    };
-    refreshAndLoad();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Billing başarılarında davet kapasitesi artmış olabilir; yeniden yükle
-  useEffect(() => {
-    const onBillingSuccess = () => {
-      try { loadData(); } catch {}
-    };
-    window.addEventListener('billingSuccess', onBillingSuccess as EventListener);
-    return () => { window.removeEventListener('billingSuccess', onBillingSuccess as EventListener); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const normalizePlanLabel = (plan?: string): 'STARTER' | 'PRO' | 'BUSINESS' => {
+  const normalizePlanLabel = useCallback((plan?: string): 'STARTER' | 'PRO' | 'BUSINESS' => {
     if (!plan) return 'STARTER';
-    const p = plan.toLowerCase();
-    if (p.includes('enterprise') || p === 'business') return 'BUSINESS';
-    if (p.includes('professional') || p === 'pro') return 'PRO';
+    const normalized = plan.toLowerCase();
+    if (normalized.includes('enterprise') || normalized === 'business') return 'BUSINESS';
+    if (normalized.includes('professional') || normalized === 'pro') return 'PRO';
     return 'STARTER';
-  };
+  }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 Loading organization data...');
+      logger.debug('Loading organization data...');
 
-      // Get user's organizations (for now, get the first one)
       const organizations = await organizationsApi.getAll();
-      console.log('📊 Organizations received:', organizations);
+      logger.debug('Organizations received:', organizations);
 
       if (!organizations || organizations.length === 0) {
-        console.log('❌ No organizations found');
+        logger.warn('No organizations found');
         setError('No organization found');
         return;
       }
 
-  let org = organizations[0]; // Use first organization for now
-      console.log('✅ Selected organization:', org);
+      let org = organizations[0];
+      logger.debug('Selected organization:', org);
 
       if (!org || !org.id) {
-        console.error('❌ Invalid organization object:', org);
+        logger.error('Invalid organization object:', org);
         setError('Invalid organization data');
         return;
       }
 
-      // Frontend düzeltmesi: Organizasyon planı STARTER ama tenant ücretli ise gösterimi eşitle
       try {
         if (org && tenant?.subscriptionPlan) {
           const mapped = normalizePlanLabel(tenant.subscriptionPlan);
-          // Sadece görüntüsel override
           if (mapped !== org.plan) {
             org = { ...org, plan: mapped };
           }
         }
-      } catch {}
+      } catch (error) {
+        logger.warn('Plan normalization failed, continuing with original plan', error);
+      }
       setCurrentOrganization(org);
 
-      console.log('🔄 Loading members, invites, and stats for org:', org.id);
+      logger.debug('Loading members, invites, and stats for org:', org.id);
 
-      // Get members, pending invites, and membership stats in parallel
       const [membersData, invitesData, statsData] = await Promise.all([
         organizationsApi.getMembers(org.id),
         organizationsApi.getPendingInvites(org.id),
         organizationsApi.getMembershipStats(org.id)
       ]);
 
-      console.log('✅ Data loaded successfully:', {
+      logger.debug('Data loaded successfully:', {
         members: membersData.length,
         invites: invitesData.length,
         stats: statsData
@@ -113,17 +89,12 @@ const OrganizationMembersPage: React.FC = () => {
       if (patchedStats && tenant?.subscriptionPlan) {
         const mapped = normalizePlanLabel(tenant.subscriptionPlan);
         if (mapped !== patchedStats.plan) patchedStats.plan = mapped;
-        // Tercihen tenant.maxUsers'ı esas al
         if (typeof tenant.maxUsers === 'number' && tenant.maxUsers > 0) {
           patchedStats.maxMembers = tenant.maxUsers;
-        } else {
-          // Backend 1 dönerse minimum eşikler uygula
-          if (patchedStats.maxMembers <= 1) {
-            if (mapped === 'PRO' && patchedStats.maxMembers < 3) patchedStats.maxMembers = 3;
-            if (mapped === 'BUSINESS' && patchedStats.maxMembers < 10) patchedStats.maxMembers = 10;
-          }
+        } else if (patchedStats.maxMembers <= 1) {
+          if (mapped === 'PRO' && patchedStats.maxMembers < 3) patchedStats.maxMembers = 3;
+          if (mapped === 'BUSINESS' && patchedStats.maxMembers < 10) patchedStats.maxMembers = 10;
         }
-        // canAddMore yeniden hesapla
         if (patchedStats.maxMembers !== -1) {
           patchedStats.canAddMore = patchedStats.currentMembers < patchedStats.maxMembers;
         } else {
@@ -132,20 +103,45 @@ const OrganizationMembersPage: React.FC = () => {
       }
       setMembershipStats(patchedStats);
 
-      // Find current user's role
       const currentMember = membersData.find(m => m.user.id === user?.id);
       if (currentMember) {
         setCurrentUserRole(currentMember.role);
-        console.log('✅ Current user role:', currentMember.role);
+        logger.debug('Current user role:', currentMember.role);
       }
 
-    } catch (error: any) {
-      console.error('❌ Failed to load organization data:', error);
-      setError(error.response?.data?.message || 'Failed to load organization data');
+    } catch (error) {
+      logger.error('Failed to load organization data:', error);
+      const message = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
+      setError(message || 'Failed to load organization data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [normalizePlanLabel, tenant?.subscriptionPlan, tenant?.maxUsers, user?.id]);
+
+  useEffect(() => {
+    const refreshAndLoad = async () => {
+      try {
+        await refreshUser();
+      } catch (e) {
+        logger.warn('refreshUser failed, continuing with cached data:', e);
+      }
+      loadData();
+    };
+    refreshAndLoad();
+  }, [loadData, refreshUser]);
+
+  // Billing başarılarında davet kapasitesi artmış olabilir; yeniden yükle
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onBillingSuccess = () => {
+      logger.debug('Billing success detected, refreshing organization members');
+      void loadData();
+    };
+    window.addEventListener('billingSuccess', onBillingSuccess as EventListener);
+    return () => {
+      window.removeEventListener('billingSuccess', onBillingSuccess as EventListener);
+    };
+  }, [loadData]);
 
   const handleMemberRemoved = (memberId: string) => {
     setMembers(prev => prev.filter(m => m.id !== memberId));
@@ -157,54 +153,53 @@ const OrganizationMembersPage: React.FC = () => {
     ));
   };
 
-  const handleInviteSent = () => {
-    // Reload pending invites and membership stats
-    if (currentOrganization) {
-      Promise.all([
+  const handleInviteSent = useCallback(async () => {
+    if (!currentOrganization) return;
+    try {
+      const [invites, stats] = await Promise.all([
         organizationsApi.getPendingInvites(currentOrganization.id),
         organizationsApi.getMembershipStats(currentOrganization.id)
-      ])
-        .then(([invites, stats]) => {
-          const patchedStats2 = stats ? { ...stats } : null;
-          if (patchedStats2 && tenant?.subscriptionPlan) {
-            const mapped = normalizePlanLabel(tenant.subscriptionPlan);
-            if (mapped !== patchedStats2.plan) patchedStats2.plan = mapped;
-            if (typeof tenant.maxUsers === 'number' && tenant.maxUsers > 0) {
-              patchedStats2.maxMembers = tenant.maxUsers;
-            } else {
-              if (patchedStats2.maxMembers <= 1) {
-                if (mapped === 'PRO' && patchedStats2.maxMembers < 3) patchedStats2.maxMembers = 3;
-                if (mapped === 'BUSINESS' && patchedStats2.maxMembers < 10) patchedStats2.maxMembers = 10;
-              }
-            }
-            if (patchedStats2.maxMembers !== -1) {
-              patchedStats2.canAddMore = patchedStats2.currentMembers < patchedStats2.maxMembers;
-            } else {
-              patchedStats2.canAddMore = true;
-            }
-          }
-          setPendingInvites(invites);
-          setMembershipStats(patchedStats2);
-        })
-        .catch(console.error);
+      ]);
+      const patchedStats = stats ? { ...stats } : null;
+      if (patchedStats && tenant?.subscriptionPlan) {
+        const mapped = normalizePlanLabel(tenant.subscriptionPlan);
+        if (mapped !== patchedStats.plan) patchedStats.plan = mapped;
+        if (typeof tenant.maxUsers === 'number' && tenant.maxUsers > 0) {
+          patchedStats.maxMembers = tenant.maxUsers;
+        } else if (patchedStats.maxMembers <= 1) {
+          if (mapped === 'PRO' && patchedStats.maxMembers < 3) patchedStats.maxMembers = 3;
+          if (mapped === 'BUSINESS' && patchedStats.maxMembers < 10) patchedStats.maxMembers = 10;
+        }
+        if (patchedStats.maxMembers !== -1) {
+          patchedStats.canAddMore = patchedStats.currentMembers < patchedStats.maxMembers;
+        } else {
+          patchedStats.canAddMore = true;
+        }
+      }
+      setPendingInvites(invites);
+      setMembershipStats(patchedStats);
+    } catch (error) {
+      logger.error('Failed to refresh pending invites after sending', error);
     }
-  };
+  }, [currentOrganization, normalizePlanLabel, tenant?.subscriptionPlan, tenant?.maxUsers]);
 
   const handleResendInvite = async (invite: Invite) => {
     if (!currentOrganization) return;
 
     try {
       await organizationsApi.resendInvite(currentOrganization.id, invite.id);
+      await handleInviteSent();
       
       const successEvent = new CustomEvent('showToast', {
         detail: { message: t('org.members.pendingInvites.resendSuccess'), tone: 'success' }
       });
       window.dispatchEvent(successEvent);
-    } catch (error: any) {
-      console.error('Failed to resend invite:', error);
+    } catch (error) {
+      logger.error('Failed to resend invite', error);
+      const responseMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
       const errorEvent = new CustomEvent('showToast', {
         detail: { 
-          message: error.response?.data?.message || 'Failed to resend invite', 
+          message: responseMessage || 'Failed to resend invite', 
           tone: 'error' 
         }
       });
@@ -228,11 +223,12 @@ const OrganizationMembersPage: React.FC = () => {
         detail: { message: t('org.members.pendingInvites.cancelSuccess'), tone: 'success' }
       });
       window.dispatchEvent(successEvent);
-    } catch (error: any) {
-      console.error('Failed to cancel invite:', error);
+    } catch (error) {
+      logger.error('Failed to cancel invite', error);
+      const responseMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
       const errorEvent = new CustomEvent('showToast', {
         detail: { 
-          message: error.response?.data?.message || 'Failed to cancel invite', 
+          message: responseMessage || 'Failed to cancel invite', 
           tone: 'error' 
         }
       });
@@ -249,7 +245,7 @@ const OrganizationMembersPage: React.FC = () => {
       });
       window.dispatchEvent(successEvent);
     } catch (err) {
-      console.error('Failed to copy invite link', err);
+      logger.error('Failed to copy invite link', err);
       const errorEvent = new CustomEvent('showToast', {
         detail: { message: t('common.copyFailed', 'Kopyalama başarısız'), tone: 'error' }
       });

@@ -9,6 +9,8 @@ import { useAuth } from '../contexts/AuthContext';
 import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import { logger } from '../utils/logger';
 // preset etiketleri i18n'den alınır
 
 // Archive threshold: invoices older than this many days will only appear in archive
@@ -46,6 +48,37 @@ interface InvoiceListProps {
   onRestoreInvoice?: (invoiceId: string) => void;
 }
 
+type InvoiceSortField = 'invoiceNumber' | 'customer' | 'description' | 'amount' | 'status' | 'dueDate' | 'issueDate';
+type InvoiceSortState = { by: InvoiceSortField; dir: SortDir };
+
+type InvoiceListViewState = {
+  searchTerm: string;
+  statusFilter: string;
+  startDate?: string;
+  endDate?: string;
+  showVoided?: boolean;
+  sort?: InvoiceSortState;
+  pageSize?: number;
+};
+
+const INVOICE_PAGE_SIZES = [20, 50, 100] as const;
+const isValidInvoicePageSize = (value: number): value is (typeof INVOICE_PAGE_SIZES)[number] =>
+  INVOICE_PAGE_SIZES.includes(value as (typeof INVOICE_PAGE_SIZES)[number]);
+
+const getSavedInvoicePageSize = (): number => {
+  const saved = safeLocalStorage.getItem('invoices_pageSize');
+  const parsed = saved ? Number(saved) : INVOICE_PAGE_SIZES[0];
+  return isValidInvoicePageSize(parsed) ? parsed : INVOICE_PAGE_SIZES[0];
+};
+
+const isInvoiceSortState = (value: unknown): value is InvoiceSortState => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<InvoiceSortState>;
+  const fields: InvoiceSortField[] = ['invoiceNumber', 'customer', 'description', 'amount', 'status', 'dueDate', 'issueDate'];
+  const dirs: SortDir[] = ['asc', 'desc'];
+  return Boolean(candidate.by && candidate.dir && fields.includes(candidate.by) && dirs.includes(candidate.dir));
+};
+
 export default function InvoiceList({ 
   invoices, 
   onAddInvoice, 
@@ -70,19 +103,15 @@ export default function InvoiceList({
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidingInvoice, setVoidingInvoice] = useState<Invoice | null>(null);
   const [voidReason, setVoidReason] = useState('');
-  const [sort, setSort] = useState<{ by: 'invoiceNumber' | 'customer' | 'description' | 'amount' | 'status' | 'dueDate' | 'issueDate'; dir: SortDir }>({ by: 'issueDate', dir: 'desc' });
+  const [sort, setSort] = useState<InvoiceSortState>({ by: 'issueDate', dir: 'desc' });
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('invoices_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [pageSize, setPageSize] = useState<number>(() => getSavedInvoicePageSize());
 
   // Default kaydedilmiş görünümü açılışta uygula
-  const { getDefault } = useSavedListViews<{ searchTerm: string; statusFilter: string; startDate?: string; endDate?: string; showVoided?: boolean; sort?: typeof sort; pageSize?: number }>({ listType: 'invoices' });
+  const { getDefault } = useSavedListViews<InvoiceListViewState>({ listType: 'invoices' });
   useEffect(() => {
     const def = getDefault();
     if (def && def.state) {
@@ -92,15 +121,16 @@ export default function InvoiceList({
         setStartDate(def.state.startDate ?? '');
         setEndDate(def.state.endDate ?? '');
         setShowVoided(Boolean(def.state.showVoided));
-        if (def.state.sort && (def.state.sort as any).by && (def.state.sort as any).dir) {
-          setSort(def.state.sort as any);
+        if (isInvoiceSortState(def.state.sort)) {
+          setSort(def.state.sort);
         }
-        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) {
+        if (def.state.pageSize && isValidInvoicePageSize(def.state.pageSize)) {
           handlePageSizeChange(def.state.pageSize);
         }
-      } catch {}
+      } catch (error) {
+        logger.warn('Failed to hydrate invoice saved view', error);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Plan kullanımı: Free/Starter için bu ayki fatura sayısı (isVoided hariç)
@@ -216,10 +246,9 @@ export default function InvoiceList({
   }, [debouncedSearch, statusFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('invoices_pageSize', String(size));
-    }
+    const nextSize = isValidInvoicePageSize(size) ? size : INVOICE_PAGE_SIZES[0];
+    setPageSize(nextSize);
+    safeLocalStorage.setItem('invoices_pageSize', String(nextSize));
     setPage(1);
   };
 
@@ -422,14 +451,18 @@ export default function InvoiceList({
                 pageSize,
               })}
               applyState={(s) => {
-                const st = s || {} as any;
+                const st: Partial<InvoiceListViewState> = s ?? {};
                 setSearchTerm(st.searchTerm ?? '');
                 setStatusFilter(st.statusFilter ?? 'all');
                 setStartDate(st.startDate ?? '');
                 setEndDate(st.endDate ?? '');
                 setShowVoided(Boolean(st.showVoided));
-                if (st.sort && st.sort.by && st.sort.dir) setSort(st.sort);
-                if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+                if (isInvoiceSortState(st.sort)) {
+                  setSort(st.sort);
+                }
+                if (st.pageSize && isValidInvoicePageSize(st.pageSize)) {
+                  handlePageSizeChange(st.pageSize);
+                }
               }}
               presets={[
                 { id: 'this-month', label: t('presets.thisMonth'), apply: () => {

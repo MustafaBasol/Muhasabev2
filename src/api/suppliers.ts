@@ -34,7 +34,7 @@ export interface UpdateSupplierDto {
  * Tüm tedarikçileri listele
  */
 export const getSuppliers = async (): Promise<Supplier[]> => {
-  const response = await apiClient.get('/suppliers');
+  const response = await apiClient.get<Supplier[]>('/suppliers');
   return response.data;
 };
 
@@ -42,7 +42,7 @@ export const getSuppliers = async (): Promise<Supplier[]> => {
  * Tek tedarikçi getir
  */
 export const getSupplier = async (id: string): Promise<Supplier> => {
-  const response = await apiClient.get(`/suppliers/${id}`);
+  const response = await apiClient.get<Supplier>(`/suppliers/${id}`);
   return response.data;
 };
 
@@ -50,7 +50,7 @@ export const getSupplier = async (id: string): Promise<Supplier> => {
  * Yeni tedarikçi oluştur
  */
 export const createSupplier = async (data: CreateSupplierDto): Promise<Supplier> => {
-  const response = await apiClient.post('/suppliers', data);
+  const response = await apiClient.post<Supplier>('/suppliers', data);
   return response.data;
 };
 
@@ -61,7 +61,7 @@ export const updateSupplier = async (
   id: string,
   data: UpdateSupplierDto
 ): Promise<Supplier> => {
-  const response = await apiClient.patch(`/suppliers/${id}`, data);
+  const response = await apiClient.patch<Supplier>(`/suppliers/${id}`, data);
   return response.data;
 };
 

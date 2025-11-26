@@ -1,3 +1,4 @@
+import { safeLocalStorage } from './localStorageSafe';
 export type Currency = 'TRY' | 'USD' | 'EUR';
 
 export interface CurrencyConfig {
@@ -77,7 +78,7 @@ export const formatCurrencyCompact = (amount: number, currency: Currency = 'TRY'
  * LocalStorage'dan currency tercihini oku
  */
 export const getSavedCurrency = (): Currency => {
-  const saved = localStorage.getItem('currency');
+  const saved = safeLocalStorage.getItem('currency');
   return (saved as Currency) || 'TRY';
 };
 
@@ -85,5 +86,5 @@ export const getSavedCurrency = (): Currency => {
  * LocalStorage'a currency tercihini kaydet
  */
 export const saveCurrency = (currency: Currency): void => {
-  localStorage.setItem('currency', currency);
+  safeLocalStorage.setItem('currency', currency);
 };

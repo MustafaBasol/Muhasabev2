@@ -3,22 +3,25 @@ import { X, Receipt, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import type { Expense } from '../api/expenses';
+import type { Supplier as SupplierModel } from '../api/suppliers';
 
-type ExpenseListItem = {
-  expenseNumber: string;
-  description: string;
-  expenseDate: string;
-  amount: number;
-  status: 'draft' | 'approved' | 'paid' | string;
+type SupplierSummary = Pick<SupplierModel, 'id' | 'name'> & Partial<Pick<SupplierModel, 'email' | 'company'>>;
+
+type ExpenseListItem = Pick<Expense, 'id' | 'expenseNumber' | 'description' | 'amount' | 'status'> & {
+  expenseDate?: string | Date;
+  date?: string | Date;
 };
+
+type EnrichedExpense = ExpenseListItem & { _rowId: string };
 
 interface SupplierHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  supplier: { name: string } | null;
+  supplier: SupplierSummary | null;
   expenses: ExpenseListItem[];
   onViewExpense?: (expense: ExpenseListItem) => void;
-  onCreateExpense?: (supplier: { name: string }) => void;
+  onCreateExpense?: (supplier: SupplierSummary) => void;
 }
 
 export default function SupplierHistoryModal({ 
@@ -30,7 +33,7 @@ export default function SupplierHistoryModal({
   onCreateExpense
 }: SupplierHistoryModalProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const statusLabels = useMemo(() => ({
     paid: `✅ ${resolveStatusLabel(t, 'paid')}`,
@@ -38,14 +41,35 @@ export default function SupplierHistoryModal({
     draft: `📝 ${resolveStatusLabel(t, 'draft')}`
   }), [t]);
 
-  if (!isOpen || !supplier) return null;
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+  const formatDate = (value?: string | Date) => {
+    if (!value) return '—';
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString(i18n.language === 'tr' ? 'tr-TR' : undefined);
   };
 
-  const formatAmount = (amount: number) => {
-    return formatCurrency(amount);
+  const formatAmount = (amount?: number) => {
+    const numeric = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
+    return formatCurrency(numeric);
+  };
+
+  const resolvedExpenses: EnrichedExpense[] = useMemo(() => {
+    if (!Array.isArray(expenses)) return [];
+    return expenses
+      .filter(Boolean)
+      .map((expense, index) => ({
+        ...expense,
+        _rowId: expense.id || expense.expenseNumber || `expense-${index}`,
+      }));
+  }, [expenses]);
+
+  if (!isOpen || !supplier) return null;
+
+  const handleCreateExpense = () => {
+    onCreateExpense?.(supplier);
+  };
+
+  const handleViewExpense = (expense: ExpenseListItem) => {
+    onViewExpense?.(expense);
   };
 
   return (
@@ -58,7 +82,7 @@ export default function SupplierHistoryModal({
               {supplier.name} - {t('supplier.expenseHistory')}
             </h2>
             <p className="text-sm text-gray-500">
-              {expenses.length} {t('supplier.expensesFound')}
+              {resolvedExpenses.length} {t('supplier.expensesFound')}
             </p>
           </div>
           <button
@@ -70,7 +94,7 @@ export default function SupplierHistoryModal({
         </div>
 
         <div className="p-6">
-          {expenses.length === 0 ? (
+          {resolvedExpenses.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Receipt className="w-8 h-8 text-gray-400" />
@@ -86,7 +110,7 @@ export default function SupplierHistoryModal({
                   💡 <strong>{t('supplier.tip')}</strong> {t('supplier.tipDesc')}
                 </p>
                 <button
-                  onClick={() => onCreateExpense?.(supplier)}
+                  onClick={handleCreateExpense}
                   className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
                 >
                   {t('supplier.createExpense')}
@@ -95,8 +119,8 @@ export default function SupplierHistoryModal({
             </div>
           ) : (
             <div className="space-y-4">
-              {expenses.map((expense, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+              {resolvedExpenses.map((expense) => (
+                <div key={expense._rowId} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
@@ -104,16 +128,16 @@ export default function SupplierHistoryModal({
                       </div>
                       <div>
                         <button
-                          onClick={() => onViewExpense?.(expense)}
+                          onClick={() => handleViewExpense(expense)}
                           className="font-medium text-red-600 hover:text-red-800 transition-colors cursor-pointer"
                           title={t('supplier.viewExpense')}
                         >
-                          {expense.expenseNumber}
+                          {expense.expenseNumber || t('expenses.unnamed', { defaultValue: 'Gider' })}
                         </button>
                         <p className="text-sm text-gray-600">{expense.description}</p>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-3 h-3 mr-1" />
-                          {formatDate(expense.expenseDate)}
+                          {formatDate(expense.expenseDate || expense.date)}
                         </div>
                       </div>
                     </div>

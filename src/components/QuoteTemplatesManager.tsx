@@ -4,6 +4,7 @@ import RichTextEditor from './RichTextEditor';
 import { availableTokens, deleteTemplate, getDefaultTemplate, listTemplates, QuoteTemplate, setDefaultTemplate, upsertTemplate } from '../utils/quoteTemplates';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { readLegacyTenantId } from '../utils/localStorageSafe';
 
 interface Props {
   isOpen: boolean;
@@ -21,7 +22,7 @@ const normalizePlan = (p?: string) => {
 const QuoteTemplatesManager: React.FC<Props> = ({ isOpen, onClose, planRaw }) => {
   const { t } = useTranslation();
   const { tenant } = useAuth();
-  const tenantId = (tenant as any)?.id || localStorage.getItem('tenantId') || undefined;
+  const tenantId = (tenant as any)?.id || readLegacyTenantId() || undefined;
   const plan = normalizePlan(planRaw || (tenant as any)?.subscriptionPlan);
   const [items, setItems] = useState<QuoteTemplate[]>([]);
   const [current, setCurrent] = useState<QuoteTemplate | null>(null);

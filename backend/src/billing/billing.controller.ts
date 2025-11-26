@@ -9,9 +9,11 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { BillingService } from './billing.service';
+import type { UpgradeStatusSummary } from './billing.service';
 import { SubscriptionPlan } from '../tenants/entities/tenant.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
+import type { CurrentUser } from '../common/decorators/user.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('billing')
@@ -29,10 +31,9 @@ export class BillingController {
       successUrl: string;
       cancelUrl: string;
     },
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
-    const customerEmail =
-      (user?.email || user?.username || '').toString() || undefined;
+    const customerEmail = this.resolveCustomerEmail(user);
     return this.billing.createCheckoutSession({ ...body, customerEmail });
   }
 
@@ -40,12 +41,10 @@ export class BillingController {
   async portal(
     @Param('tenantId') tenantId: string,
     @Query('returnUrl') returnUrl: string,
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      // Basit yetki kontrolü: kendi tenant'ı dışında erişemez
-      throw new ForbiddenException();
-    }
+    this.assertTenantAccess(user, tenantId);
+    // Basit yetki kontrolü: kendi tenant'ı dışında erişemez
     return this.billing.createPortalSession(tenantId, returnUrl);
   }
 
@@ -53,67 +52,62 @@ export class BillingController {
   async updateSeats(
     @Param('tenantId') tenantId: string,
     @Body() body: { seats: number; billNow?: boolean },
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
+    this.assertTenantAccess(user, tenantId);
     return this.billing.updateSeats(tenantId, body.seats);
   }
 
   @Post(':tenantId/cancel')
   async cancelAtPeriodEnd(
     @Param('tenantId') tenantId: string,
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
+    this.assertTenantAccess(user, tenantId);
     return this.billing.cancelAtPeriodEnd(tenantId);
   }
 
   // Aboneliği yeniden başlat (cancel_at_period_end = false)
   @Post(':tenantId/resume')
-  async resume(
-    @Param('tenantId') tenantId: string,
-    @User() user: any,
-  ) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
+  async resume(@Param('tenantId') tenantId: string, @User() user: CurrentUser) {
+    this.assertTenantAccess(user, tenantId);
     return this.billing.resumeCancellation(tenantId);
   }
 
   @Get(':tenantId/invoices')
-  async invoices(@Param('tenantId') tenantId: string, @User() user: any) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
+  async invoices(
+    @Param('tenantId') tenantId: string,
+    @User() user: CurrentUser,
+  ) {
+    this.assertTenantAccess(user, tenantId);
     return this.billing.listInvoices(tenantId);
   }
 
   @Get(':tenantId/history')
-  async history(@Param('tenantId') tenantId: string, @User() user: any) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
+  async history(
+    @Param('tenantId') tenantId: string,
+    @User() user: CurrentUser,
+  ) {
+    this.assertTenantAccess(user, tenantId);
     return this.billing.listHistory(tenantId);
   }
 
   // Upgrade durumunu hızlı sorgulama (plan güncellendi mi? son ücretli fatura?)
   @Get(':tenantId/upgrade-status')
-  async upgradeStatus(@Param('tenantId') tenantId: string, @User() user: any) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
+  async upgradeStatus(
+    @Param('tenantId') tenantId: string,
+    @User() user: CurrentUser,
+  ): Promise<UpgradeStatusSummary> {
+    this.assertTenantAccess(user, tenantId);
     return this.billing.getUpgradeStatus(tenantId);
   }
 
   @Post(':tenantId/sync')
-  async manualSync(@Param('tenantId') tenantId: string, @User() user: any) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
+  async manualSync(
+    @Param('tenantId') tenantId: string,
+    @User() user: CurrentUser,
+  ) {
+    this.assertTenantAccess(user, tenantId);
     return this.billing.syncFromStripe(tenantId);
   }
 
@@ -121,12 +115,18 @@ export class BillingController {
   @Post(':tenantId/plan-update')
   async planUpdate(
     @Param('tenantId') tenantId: string,
-    @Body() body: { plan: SubscriptionPlan | string; interval: 'month' | 'year'; seats?: number; chargeNow?: boolean; interactive?: boolean; idempotencyKey?: string },
-    @User() user: any,
+    @Body()
+    body: {
+      plan: SubscriptionPlan | string;
+      interval: 'month' | 'year';
+      seats?: number;
+      chargeNow?: boolean;
+      interactive?: boolean;
+      idempotencyKey?: string;
+    },
+    @User() user: CurrentUser,
   ) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
+    this.assertTenantAccess(user, tenantId);
     return this.billing.updatePlanAndInterval({
       tenantId,
       plan: body.plan,
@@ -142,13 +142,15 @@ export class BillingController {
   @Post(':tenantId/addon/checkout')
   async addonCheckout(
     @Param('tenantId') tenantId: string,
-    @Body() body: { additional: number; successUrl?: string; cancelUrl?: string },
-    @User() user: any,
+    @Body()
+    body: { additional: number; successUrl?: string; cancelUrl?: string },
+    @User() user: CurrentUser,
   ) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
-    return this.billing.addAddonUsersProrated({ tenantId, additional: body.additional });
+    this.assertTenantAccess(user, tenantId);
+    return this.billing.addAddonUsersProrated({
+      tenantId,
+      additional: body.additional,
+    });
   }
 
   // İlave kullanıcıları anında faturalandır ve tahsil et
@@ -156,34 +158,52 @@ export class BillingController {
   async addonCharge(
     @Param('tenantId') tenantId: string,
     @Body() body: { additional: number },
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
-    if (String(user?.tenantId) !== String(tenantId)) {
-      throw new ForbiddenException();
-    }
-    return this.billing.addAddonUsersAndInvoiceNow({ tenantId, additional: body.additional });
+    this.assertTenantAccess(user, tenantId);
+    return this.billing.addAddonUsersAndInvoiceNow({
+      tenantId,
+      additional: body.additional,
+    });
   }
 
   // Alternatif route (tenantId body'de) - 404 durumunda frontend fallback için
   @Post('addon/charge')
   async addonChargeAlt(
     @Body() body: { tenantId: string; additional: number },
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
-    if (String(user?.tenantId) !== String(body.tenantId)) {
-      throw new ForbiddenException();
-    }
-    return this.billing.addAddonUsersAndInvoiceNow({ tenantId: body.tenantId, additional: body.additional });
+    this.assertTenantAccess(user, body?.tenantId);
+    return this.billing.addAddonUsersAndInvoiceNow({
+      tenantId: body.tenantId,
+      additional: body.additional,
+    });
   }
 
   @Post('addon/prorate')
   async addonProrateAlt(
     @Body() body: { tenantId: string; additional: number },
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
-    if (String(user?.tenantId) !== String(body.tenantId)) {
+    this.assertTenantAccess(user, body?.tenantId);
+    return this.billing.addAddonUsersProrated({
+      tenantId: body.tenantId,
+      additional: body.additional,
+    });
+  }
+
+  private resolveCustomerEmail(user?: CurrentUser) {
+    const email = typeof user?.email === 'string' ? user.email.trim() : '';
+    return email.length > 0 ? email : undefined;
+  }
+
+  private assertTenantAccess(user: CurrentUser | undefined, tenantId?: string) {
+    const normalizedTenantId = tenantId?.trim();
+    if (!user?.tenantId || !normalizedTenantId) {
       throw new ForbiddenException();
     }
-    return this.billing.addAddonUsersProrated({ tenantId: body.tenantId, additional: body.additional });
+    if (user.tenantId !== normalizedTenantId) {
+      throw new ForbiddenException();
+    }
   }
 }

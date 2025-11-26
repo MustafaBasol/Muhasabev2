@@ -57,7 +57,7 @@ export interface UpdateExpenseDto {
  * Tüm giderleri listele
  */
 export const getExpenses = async (): Promise<Expense[]> => {
-  const response = await apiClient.get('/expenses');
+  const response = await apiClient.get<Expense[]>('/expenses');
   return response.data;
 };
 
@@ -65,7 +65,7 @@ export const getExpenses = async (): Promise<Expense[]> => {
  * Tek gider getir
  */
 export const getExpense = async (id: string): Promise<Expense> => {
-  const response = await apiClient.get(`/expenses/${id}`);
+  const response = await apiClient.get<Expense>(`/expenses/${id}`);
   return response.data;
 };
 
@@ -73,7 +73,7 @@ export const getExpense = async (id: string): Promise<Expense> => {
  * Yeni gider oluştur
  */
 export const createExpense = async (data: CreateExpenseDto): Promise<Expense> => {
-  const response = await apiClient.post('/expenses', data);
+  const response = await apiClient.post<Expense>('/expenses', data);
   return response.data;
 };
 
@@ -84,7 +84,7 @@ export const updateExpense = async (
   id: string,
   data: UpdateExpenseDto
 ): Promise<Expense> => {
-  const response = await apiClient.patch(`/expenses/${id}`, data);
+  const response = await apiClient.patch<Expense>(`/expenses/${id}`, data);
   return response.data;
 };
 
@@ -95,7 +95,7 @@ export const updateExpenseStatus = async (
   id: string,
   status: ExpenseStatus
 ): Promise<Expense> => {
-  const response = await apiClient.patch(`/expenses/${id}/status`, { status });
+  const response = await apiClient.patch<Expense>(`/expenses/${id}/status`, { status });
   return response.data;
 };
 
@@ -110,7 +110,7 @@ export const deleteExpense = async (id: string): Promise<void> => {
  * Gider iptal et (void)
  */
 export const voidExpense = async (id: string, reason: string): Promise<Expense> => {
-  const response = await apiClient.patch(`/expenses/${id}/void`, { reason });
+  const response = await apiClient.patch<Expense>(`/expenses/${id}/void`, { reason });
   return response.data;
 };
 
@@ -118,6 +118,6 @@ export const voidExpense = async (id: string, reason: string): Promise<Expense> 
  * Gider geri yükle (restore)
  */
 export const restoreExpense = async (id: string): Promise<Expense> => {
-  const response = await apiClient.patch(`/expenses/${id}/restore`);
+  const response = await apiClient.patch<Expense>(`/expenses/${id}/restore`);
   return response.data;
 };

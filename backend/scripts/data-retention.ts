@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { createConnection, DataSource } from 'typeorm';
+import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { format } from 'date-fns';

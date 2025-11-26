@@ -85,20 +85,13 @@ export class CustomersService {
 
     try {
       return await this.customersRepository.save(customer);
-    } catch (e: any) {
-      // Gracefully handle DB unique index violation (e.g., on normalized email)
-      const message = String(e?.message || '').toLowerCase();
-      const code = e?.code || e?.errno;
-      if (
-        code === '23505' ||
-        message.includes('unique') ||
-        message.includes('duplicate')
-      ) {
+    } catch (error) {
+      if (this.isUniqueCustomerConstraint(error)) {
         throw new BadRequestException(
           'Bu e-posta ile zaten bir müşteri kayıtlı',
         );
       }
-      throw e;
+      throw error;
     }
   }
 
@@ -165,5 +158,41 @@ export class CustomersService {
     const customer = await this.findOne(id, tenantId);
     customer.balance = Number(customer.balance) + amount;
     return this.customersRepository.save(customer);
+  }
+
+  private isUniqueCustomerConstraint(error: unknown): boolean {
+    const { code, errno, message } = this.parseDbError(error);
+    if (code === '23505' || errno === '23505') {
+      return true;
+    }
+    if (!message) {
+      return false;
+    }
+    const normalized = message.toLowerCase();
+    return normalized.includes('unique') || normalized.includes('duplicate');
+  }
+
+  private parseDbError(error: unknown) {
+    const result: { code?: string; errno?: string; message?: string } = {};
+    if (typeof error === 'object' && error !== null) {
+      const record = error as Record<string, unknown>;
+      if (typeof record.code === 'string') {
+        result.code = record.code;
+      } else if (typeof record.code === 'number') {
+        result.code = String(record.code);
+      }
+      if (typeof record.errno === 'string') {
+        result.errno = record.errno;
+      } else if (typeof record.errno === 'number') {
+        result.errno = String(record.errno);
+      }
+      if (typeof record.message === 'string') {
+        result.message = record.message;
+      }
+    }
+    if (!result.message && error instanceof Error) {
+      result.message = error.message;
+    }
+    return result;
   }
 }

@@ -28,6 +28,96 @@ import { useSavedListViews } from '../hooks/useSavedListViews';
 // product-categories API'yi dinamik içeri aktararak kod bölmeyi (code-splitting) iyileştir
 const loadProductCategoriesApi = async () => (await import('../api/product-categories')).productCategoriesApi;
 import type { ProductCategory } from '../types';
+import { logger } from '../utils/logger';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+
+const PRODUCT_PAGE_SIZES = [20, 50, 100] as const;
+const DEFAULT_CATEGORY_NAME = 'Genel';
+const PRODUCT_CATEGORY_EVENT = 'product-categories-updated';
+
+const SERVICE_ALIAS_SET = new Set([
+  'hizmet',
+  'hizmetler',
+  'services',
+  'servisler',
+  'dienstleistungen',
+]);
+
+const PRODUCT_ALIAS_SET = new Set([
+  'urun',
+  'urunler',
+  'ürün',
+  'ürünler',
+  'products',
+  'produits',
+  'produkte',
+]);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const dispatchProductCategoriesUpdated = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(new Event(PRODUCT_CATEGORY_EVENT));
+  } catch (error) {
+    logger.debug('Product category event dispatch failed', error);
+  }
+};
+
+const toCanonical = (name: string): string => {
+  const raw = (name || '').trim();
+  const normalized = raw
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+  if (SERVICE_ALIAS_SET.has(normalized)) return '__MAIN_SERVICES__';
+  if (PRODUCT_ALIAS_SET.has(normalized)) return '__MAIN_PRODUCTS__';
+  return raw;
+};
+
+const categoriesEqual = (left: string, right: string) =>
+  toCanonical(left).localeCompare(toCanonical(right), 'tr-TR', { sensitivity: 'accent' }) === 0;
+
+type ApiErrorPayload = {
+  message?: string;
+  code?: string;
+  count?: number;
+};
+
+const getApiErrorData = (error: unknown): ApiErrorPayload | null => {
+  if (!isRecord(error)) return null;
+  const response = 'response' in error ? (error as { response?: unknown }).response : undefined;
+  if (!isRecord(response)) return null;
+  const data = 'data' in response ? (response as { data?: unknown }).data : undefined;
+  return isRecord(data) ? (data as ApiErrorPayload) : null;
+};
+
+const getPreferredLanguage = (): string => {
+  try {
+    const stored = safeLocalStorage.getItem('i18nextLng');
+    if (stored && stored.length >= 2) {
+      return stored.slice(0, 2).toLowerCase();
+    }
+  } catch (error) {
+    logger.debug('Unable to read preferred language', error);
+  }
+  return 'en';
+};
+
+const isValidPageSize = (value: number): value is (typeof PRODUCT_PAGE_SIZES)[number] =>
+  PRODUCT_PAGE_SIZES.includes(value as (typeof PRODUCT_PAGE_SIZES)[number]);
+
+const getSavedPageSize = (): number => {
+  try {
+    const saved = safeLocalStorage.getItem('products_pageSize');
+    const parsed = saved ? Number(saved) : PRODUCT_PAGE_SIZES[0];
+    return isValidPageSize(parsed) ? parsed : PRODUCT_PAGE_SIZES[0];
+  } catch (error) {
+    logger.debug('Unable to read saved product page size', error);
+    return PRODUCT_PAGE_SIZES[0];
+  }
+};
 
 // Ana kategori isimlerini çeviren yardımcı fonksiyon
 const translateCategoryName = (categoryName: string, t: (key: string) => string): string => {
@@ -65,6 +155,14 @@ interface ProductListProps {
 type FilterId = 'category' | 'stock' | 'sort';
 export type ProductBulkAction = 'update-price' | 'assign-category' | 'archive' | 'delete';
 
+type ProductListViewState = {
+  searchTerm: string;
+  categoryFilter: string;
+  stockFilter: string;
+  sortOption: string;
+  pageSize?: number;
+};
+
 interface FilterDefinition {
   id: FilterId;
   label: string;
@@ -90,15 +188,7 @@ export default function ProductList({
 }: ProductListProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
-  // Lokal sözlük: sadece bu sayfadaki eksik başlıklar için
-  const getActiveLang = () => {
-    try {
-      const s = localStorage.getItem('i18nextLng');
-      if (s && s.length >= 2) return s.slice(0,2).toLowerCase();
-    } catch {}
-    return 'en';
-  };
-  const lang = getActiveLang();
+  const lang = getPreferredLanguage();
   const L = {
     sort: { tr: 'Sıralama', en: 'Sort', fr: 'Tri', de: 'Sortierung' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sort',
     showArchived: { tr: 'Arşivlenmişleri göster', en: 'Show archived', fr: 'Afficher archivés', de: 'Archivierte anzeigen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Show archived',
@@ -126,26 +216,21 @@ export default function ProductList({
     onConfirm: () => void | Promise<void>;
   } | null>(null);
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('products_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [pageSize, setPageSize] = useState<number>(getSavedPageSize);
 
   // Default kaydedilmiş görünüm uygula
-  const { getDefault } = useSavedListViews<{ searchTerm: string; categoryFilter: string; stockFilter: string; sortOption: string; pageSize?: number }>({ listType: 'products' });
+  const { getDefault } = useSavedListViews<ProductListViewState>({ listType: 'products' });
   useEffect(() => {
     const def = getDefault();
-    if (def && def.state) {
-      try {
-        setSearchTerm(def.state.searchTerm ?? '');
-        setCategoryFilter(def.state.categoryFilter ?? 'all');
-        setStockFilter(def.state.stockFilter ?? 'all');
-        setSortOption(def.state.sortOption ?? 'recent');
-        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
-      } catch {}
+    if (def?.state) {
+      setSearchTerm(def.state.searchTerm ?? '');
+      setCategoryFilter(def.state.categoryFilter ?? 'all');
+      setStockFilter(def.state.stockFilter ?? 'all');
+      setSortOption(def.state.sortOption ?? 'recent');
+      if (def.state.pageSize && isValidPageSize(def.state.pageSize)) {
+        handlePageSizeChange(def.state.pageSize);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Kategori bilgilerini backend'den çek
@@ -155,8 +240,8 @@ export default function ProductList({
         const api = await loadProductCategoriesApi();
         const data = await api.getAll({ includeInactive: true });
         setCategoryObjects(data);
-      } catch (error) {
-        console.error('Kategoriler yüklenirken hata:', error);
+      } catch (error: unknown) {
+        logger.error('Kategoriler yüklenirken hata:', error);
       }
     };
     fetchCategories();
@@ -167,25 +252,6 @@ export default function ProductList({
   const sortFilterMenuRef = React.useRef<HTMLDivElement | null>(null);
   const selectAllCheckboxRef = React.useRef<HTMLInputElement | null>(null);
 
-  const defaultCategoryName = 'Genel';
-  const toCanonical = (name: string): string => {
-    const raw = (name || '').trim();
-    const lower = raw
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '')
-      .toLowerCase();
-    const servicesAliases = [
-      'hizmet', 'hizmetler', 'services', 'servisler', 'dienstleistungen'
-    ];
-    const productsAliases = [
-      'urun', 'urunler', 'ürün', 'ürünler', 'products', 'produits', 'produkte'
-    ];
-    if (servicesAliases.includes(lower)) return '__MAIN_SERVICES__';
-    if (productsAliases.includes(lower)) return '__MAIN_PRODUCTS__';
-    return raw;
-  };
-  const categoriesEqual = (left: string, right: string) =>
-    toCanonical(left).localeCompare(toCanonical(right), 'tr-TR', { sensitivity: 'accent' }) === 0;
 
   const availableCategories = useMemo(
     () => {
@@ -233,7 +299,7 @@ export default function ProductList({
       const categoryObj = categoryObjects.find(cat => 
         cat.name.localeCompare(category, 'tr-TR', { sensitivity: 'accent' }) === 0
       );
-      return categoryObj?.isProtected || categoriesEqual(category, defaultCategoryName);
+      return categoryObj?.isProtected || categoriesEqual(category, DEFAULT_CATEGORY_NAME);
     });
 
     // Her ana kategori için alt kategorilerini organize et
@@ -249,7 +315,7 @@ export default function ProductList({
         );
         // Alt kategori ise ve bu ana kategoriye ait ise
         return !subCategoryObj?.isProtected && 
-               !categoriesEqual(category, defaultCategoryName) &&
+               !categoriesEqual(category, DEFAULT_CATEGORY_NAME) &&
                subCategoryObj?.parentId === categoryObj?.id;
       });
 
@@ -266,19 +332,19 @@ export default function ProductList({
         cat.name.localeCompare(category, 'tr-TR', { sensitivity: 'accent' }) === 0
       );
       return !categoryObj?.isProtected && 
-             !categoriesEqual(category, defaultCategoryName) &&
+             !categoriesEqual(category, DEFAULT_CATEGORY_NAME) &&
              !categoryObj?.parentId;
     });
 
     return { hierarchicalCategories, orphanSubCategories };
-  }, [availableCategories, categoryObjects, defaultCategoryName]);
+  }, [availableCategories, categoryObjects]);
 
   const { hierarchicalCategories, orphanSubCategories } = categoryHierarchy;
 
   const categoryUsage = useMemo(() => {
     const usage = new Map<string, number>();
     products.forEach(product => {
-      const category = (product.category || defaultCategoryName).trim() || defaultCategoryName;
+      const category = (product.category || DEFAULT_CATEGORY_NAME).trim() || DEFAULT_CATEGORY_NAME;
       usage.set(category, (usage.get(category) ?? 0) + 1);
     });
     return usage;
@@ -396,7 +462,7 @@ export default function ProductList({
       });
 
     return sorted;
-  }, [products, searchTerm, categoryFilter, stockFilter, sortOption]);
+  }, [products, searchTerm, categoryFilter, stockFilter, sortOption, findCategoryByName, isDescendantOrSame]);
 
   const handleCategoryRename = (category: string) => {
     // Kategori objesini bul ve gerçek KDV oranını al
@@ -427,15 +493,16 @@ export default function ProductList({
         // Kategori listesini yenile
         const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
         setCategoryObjects(updatedCategories);
-        try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
+        dispatchProductCategoriesUpdated();
         
         // Modal'ı kapat
         setIsCategoryModalOpen(false);
         return;
-      } catch (error: any) {
-        console.error('Kategori eklenirken hata:', error);
-        if (error.response?.data?.message) {
-          alert(error.response.data.message);
+      } catch (error: unknown) {
+        logger.error('Kategori eklenirken hata:', error);
+        const data = getApiErrorData(error);
+        if (typeof data?.message === 'string') {
+          alert(data.message);
         }
         return;
       }
@@ -451,7 +518,7 @@ export default function ProductList({
     );
     
     if (!categoryObj) {
-      console.error('Kategori bulunamadı:', currentName);
+      logger.error('Kategori bulunamadı:', currentName);
       setEditingCategoryData(null);
       return;
     }
@@ -474,7 +541,7 @@ export default function ProductList({
       // Kategori listesini yenile
       const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
       setCategoryObjects(updatedCategories);
-      try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
+      dispatchProductCategoriesUpdated();
       
       // İsim değiştiyse parent component'i bilgilendir
       if (updated !== currentName) {
@@ -490,10 +557,11 @@ export default function ProductList({
       }
       
       setEditingCategoryData(null);
-    } catch (error: any) {
-      console.error('Kategori güncellenirken hata:', error);
-      if (error.response?.data?.message) {
-        setInfoModal({ title: t('common.error'), message: error.response.data.message });
+    } catch (error: unknown) {
+      logger.error('Kategori güncellenirken hata:', error);
+      const data = getApiErrorData(error);
+      if (typeof data?.message === 'string') {
+        setInfoModal({ title: t('common.error'), message: data.message });
       }
     }
   };
@@ -504,11 +572,11 @@ export default function ProductList({
       await api.delete(categoryId);
       const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
       setCategoryObjects(updatedCategories);
-      try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
+      dispatchProductCategoriesUpdated();
       setEditingCategoryData(null);
-    } catch (error: any) {
-      console.error('Kategori arşivlenirken hata:', error);
-      const data = error?.response?.data;
+    } catch (error: unknown) {
+      logger.error('Kategori arşivlenirken hata:', error);
+      const data = getApiErrorData(error);
       if (data?.code === 'CATEGORY_HAS_PRODUCTS') {
         const count = Number(data?.count ?? 0);
         // Uyarı gösterirken düzenleme modalını kapat
@@ -517,7 +585,7 @@ export default function ProductList({
           title: t('common.warning'),
           message: t('products.cannotArchiveCategoryWithProducts', { count }),
         });
-      } else if (data?.message) {
+      } else if (typeof data?.message === 'string') {
         // Diğer hata durumlarında da düzenleme modalını kapatmak kullanıcı deneyimini sadeleştirir
         setEditingCategoryData(null);
         setInfoModal({ title: t('common.error'), message: data.message });
@@ -531,19 +599,20 @@ export default function ProductList({
       await api.update(categoryId, { isActive: true });
       const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
       setCategoryObjects(updatedCategories);
-      try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
+      dispatchProductCategoriesUpdated();
       setEditingCategoryData(null);
-    } catch (error: any) {
-      console.error('Kategori aktif edilirken hata:', error);
-      if (error.response?.data?.message) {
-        setInfoModal({ title: t('common.error'), message: error.response.data.message });
+    } catch (error: unknown) {
+      logger.error('Kategori aktif edilirken hata:', error);
+      const data = getApiErrorData(error);
+      if (typeof data?.message === 'string') {
+        setInfoModal({ title: t('common.error'), message: data.message });
       }
     }
   };
 
   const handleCategoryDelete = async (category: string) => {
     if (typeof window === 'undefined') return;
-    if (categoriesEqual(category, defaultCategoryName)) {
+    if (categoriesEqual(category, DEFAULT_CATEGORY_NAME)) {
       setInfoModal({ title: t('common.warning'), message: t('products.generalCategoryCannotDeleteAlert') });
       return;
     }
@@ -579,15 +648,15 @@ export default function ProductList({
             await api.delete(categoryObj.id);
             const updatedCategories = await (await loadProductCategoriesApi()).getAll({ includeInactive: true });
             setCategoryObjects(updatedCategories);
-            try { window.dispatchEvent(new Event('product-categories-updated')); } catch {}
+            dispatchProductCategoriesUpdated();
           }
           onDeleteCategory(category);
-        } catch (error: any) {
-          console.error('Kategori silinirken hata:', error);
-          const data = error.response?.data;
+        } catch (error: unknown) {
+          logger.error('Kategori silinirken hata:', error);
+          const data = getApiErrorData(error);
           if (data?.code === 'CATEGORY_HAS_PRODUCTS') {
             setInfoModal({ title: t('common.warning'), message: t('products.deleteCategoryWithProducts', { count: data.count }) });
-          } else if (data?.message) {
+          } else if (typeof data?.message === 'string') {
             setInfoModal({ title: t('common.error'), message: data.message });
           }
         } finally {
@@ -779,10 +848,9 @@ export default function ProductList({
   }, [searchTerm, categoryFilter, stockFilter, sortOption]);
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('products_pageSize', String(size));
-    }
+    const nextSize = isValidPageSize(size) ? size : PRODUCT_PAGE_SIZES[0];
+    setPageSize(nextSize);
+    safeLocalStorage.setItem('products_pageSize', String(nextSize));
     setPage(1);
   };
 
@@ -900,7 +968,7 @@ export default function ProductList({
                   {hierarchicalCategories.map(({ mainCategory, subCategories, categoryObj }) => {
                     const mainUsage = categoryUsage.get(mainCategory) ?? 0;
                     const isMainActive = categoryFilter !== 'all' && categoriesEqual(mainCategory, categoryFilter);
-                    const isDefault = categoriesEqual(mainCategory, defaultCategoryName);
+                    const isDefault = categoriesEqual(mainCategory, DEFAULT_CATEGORY_NAME);
                     const isProtected = categoryObj?.isProtected || false;
                     
                     return (
@@ -1221,16 +1289,17 @@ export default function ProductList({
                   )}
                 </div>
                 <div className="mt-3 flex items-center justify-end">
-                  <SavedViewsBar
+                  <SavedViewsBar<ProductListViewState>
                     listType="products"
                     getState={() => ({ searchTerm, categoryFilter, stockFilter, sortOption, pageSize })}
-                    applyState={(s) => {
-                      const st = s || {} as any;
-                      setSearchTerm(st.searchTerm ?? '');
-                      setCategoryFilter(st.categoryFilter ?? 'all');
-                      setStockFilter(st.stockFilter ?? 'all');
-                      setSortOption(st.sortOption ?? 'recent');
-                      if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+                    applyState={(state) => {
+                      setSearchTerm(state.searchTerm ?? '');
+                      setCategoryFilter(state.categoryFilter ?? 'all');
+                      setStockFilter(state.stockFilter ?? 'all');
+                      setSortOption(state.sortOption ?? 'recent');
+                      if (state.pageSize && isValidPageSize(state.pageSize)) {
+                        handlePageSizeChange(state.pageSize);
+                      }
                     }}
                     presets={[
                       { id: 'low-stock', label: t('products.lowStockFilter'), apply: () => setStockFilter('low') },

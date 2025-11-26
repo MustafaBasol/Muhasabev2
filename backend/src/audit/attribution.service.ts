@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+type AttributionPatch = {
+  createdById?: string;
+  createdByName?: string | null;
+  updatedById?: string;
+  updatedByName?: string | null;
+};
 import { Quote } from '../quotes/entities/quote.entity';
 import { Sale } from '../sales/entities/sale.entity';
 import { Invoice } from '../invoices/entities/invoice.entity';
@@ -9,7 +15,14 @@ import { Product } from '../products/entities/product.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { Supplier } from '../suppliers/entities/supplier.entity';
 
-type KnownEntity = 'Quote' | 'Sale' | 'Invoice' | 'Expense' | 'Product' | 'Customer' | 'Supplier';
+export type KnownEntity =
+  | 'Quote'
+  | 'Sale'
+  | 'Invoice'
+  | 'Expense'
+  | 'Product'
+  | 'Customer'
+  | 'Supplier';
 
 @Injectable()
 export class AttributionService {
@@ -33,9 +46,18 @@ export class AttributionService {
     const id = user.id;
     const name = (user.name || '').trim() || null;
 
-    const applyCreate = { createdById: id, createdByName: name, updatedById: id, updatedByName: name } as any;
-    const applyUpdate = { updatedById: id, updatedByName: name } as any;
-    const patch = action === 'CREATE' ? applyCreate : applyUpdate;
+    const applyCreate: AttributionPatch = {
+      createdById: id,
+      createdByName: name,
+      updatedById: id,
+      updatedByName: name,
+    };
+    const applyUpdate: AttributionPatch = {
+      updatedById: id,
+      updatedByName: name,
+    };
+    const patch: AttributionPatch =
+      action === 'CREATE' ? applyCreate : applyUpdate;
 
     try {
       switch (entity) {
@@ -63,10 +85,14 @@ export class AttributionService {
         default:
           return;
       }
-    } catch (e) {
+    } catch (error) {
       // Sessizce yut: attribution hatası ana akışı bozmasın
-      // eslint-disable-next-line no-console
-      console.warn('Attribution update failed', { entity, entityId, error: (e as any)?.message });
+      const reason = error instanceof Error ? error.message : String(error);
+      console.warn('Attribution update failed', {
+        entity,
+        entityId,
+        error: reason,
+      });
     }
   }
 }

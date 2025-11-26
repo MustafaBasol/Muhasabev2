@@ -11,6 +11,17 @@ This repo includes TypeORM migrations for new email-based features:
 - Organization invite emails now link to a hash-based route so they work on static hosting: `/#join?token=...`
 - Resending an invite extends expiry and sends the email again.
 
+### Frontend legacy cache migration (Nov 2025)
+
+The React app no longer executes the legacy `sales`/`sales_cache` localStorage migration on every bootstrap. After deploying this change, run the browser-only helper once per tenant/user that still has pre-tenantized caches:
+
+1. Authenticate as the tenant owner (or at least open the app once) so the browser contains the relevant legacy `sales` keys.
+2. Open `legacy-sales-migrator.html` on the **same origin** as the app (e.g. `https://app.example.com/legacy-sales-migrator.html`).
+3. Verify the prefilled tenant ID, click **Durumu İncele** to view legacy vs tenant-scoped counts, then click **Migrasyonu Çalıştır**.
+4. Keep the "global keys" checkbox enabled to delete the root `sales` keys afterward; re-run only if you intentionally need to copy the data for another tenant profile.
+
+The page writes directly to `localStorage`, mimicking the previous runtime effect, and records a `sales_migration_manual_*` marker so ops teams can double-check completion via DevTools.
+
 ### Site Settings / SEO & Analytics (Nov 2025)
 
 - A new migration was added: `1762826000000-CreateSiteSettingsTable.ts`

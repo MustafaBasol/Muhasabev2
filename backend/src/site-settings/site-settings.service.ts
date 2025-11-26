@@ -23,7 +23,7 @@ export class SiteSettingsService {
   async getSettings(): Promise<SiteSettings> {
     try {
       const now = Date.now();
-      
+
       // Return cached if still valid
       if (this.cachedSettings && now - this.lastCacheTime < this.CACHE_TTL) {
         return this.cachedSettings;
@@ -68,11 +68,11 @@ export class SiteSettingsService {
     }
 
     const saved = await this.siteSettingsRepo.save(settings);
-    
+
     // Clear cache
     this.cachedSettings = null;
     this.logger.log('Site settings updated');
-    
+
     return saved;
   }
 

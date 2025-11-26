@@ -16,8 +16,17 @@ export class AddTokenVersionToUsers1768951530000 implements MigrationInterface {
       );
     } else {
       // Fallback for sqlite: check pragma
-      const cols: any[] = await queryRunner.query('PRAGMA table_info(users)');
-      const exists = cols.some((c: any) => c.name === 'tokenVersion');
+      const colsRaw: unknown = await queryRunner.query(
+        'PRAGMA table_info(users)',
+      );
+      const cols = Array.isArray(colsRaw) ? colsRaw : [];
+      const exists = cols.some((col) => {
+        if (!col || typeof col !== 'object') {
+          return false;
+        }
+        const nameValue = (col as { name?: unknown }).name;
+        return typeof nameValue === 'string' && nameValue === 'tokenVersion';
+      });
       if (!exists) {
         await queryRunner.query(
           'ALTER TABLE "users" ADD COLUMN "tokenVersion" integer NOT NULL DEFAULT 0',
@@ -30,7 +39,9 @@ export class AddTokenVersionToUsers1768951530000 implements MigrationInterface {
     // Non-destructive rollback: leave column if other code depends; but implement drop for completeness.
     const driver = (queryRunner.connection.options.type || '').toLowerCase();
     if (driver === 'postgres') {
-      await queryRunner.query('ALTER TABLE "users" DROP COLUMN IF EXISTS "tokenVersion"');
+      await queryRunner.query(
+        'ALTER TABLE "users" DROP COLUMN IF EXISTS "tokenVersion"',
+      );
     } else {
       // SQLite cannot drop column easily prior to newer versions; skip.
     }

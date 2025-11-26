@@ -26,15 +26,15 @@ export interface UpdateBankAccountDto {
 
 export const bankAccountsApi = {
   async list(): Promise<BankAccount[]> {
-    const res = await apiClient.get('/bank-accounts');
+    const res = await apiClient.get<BankAccount[]>('/bank-accounts');
     return res.data;
   },
   async create(data: CreateBankAccountDto): Promise<BankAccount> {
-    const res = await apiClient.post('/bank-accounts', data);
+    const res = await apiClient.post<BankAccount>('/bank-accounts', data);
     return res.data;
   },
   async update(id: string, data: UpdateBankAccountDto): Promise<BankAccount> {
-    const res = await apiClient.patch(`/bank-accounts/${id}`, data);
+    const res = await apiClient.patch<BankAccount>(`/bank-accounts/${id}`, data);
     return res.data;
   },
   async remove(id: string): Promise<void> {

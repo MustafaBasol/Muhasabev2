@@ -27,5 +27,20 @@
   "pending": "Ausstehend",
   "approved": "Genehmigt",
   "paid": "Bezahlt",
-  "rejected": "Abgelehnt"
+  "rejected": "Abgelehnt",
+  "unpaid": "Unbezahlt",
+  "overdue": "Überfällig",
+  "draft": "Entwurf",
+  "sent": "Gesendet",
+  "cancelled": "Storniert",
+  "completed": "Abgeschlossen",
+  "active": "Aktiv",
+  "inactive": "Inaktiv",
+  "viewed": "Angesehen",
+  "accepted": "Akzeptiert",
+  "declined": "Abgelehnt",
+  "expired": "Abgelaufen",
+  "invoiced": "Fakturiert",
+  "created": "Erstellt",
+  "refunded": "Erstattet"
 }

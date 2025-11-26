@@ -5,18 +5,20 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { TenantsService } from '../tenants/tenants.service';
+import { Tenant } from '../tenants/entities/tenant.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { UserRole } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { EmailService } from '../services/email.service';
 import { SecurityService } from '../common/security.service';
 import { TurnstileService } from '../common/turnstile.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import * as crypto from 'crypto';
@@ -27,8 +29,22 @@ import { LoginAttemptsService } from './login-attempts.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { Role } from '../common/enums/organization.enum';
 
+type RequestHeaders = Record<string, string | string[] | undefined>;
+
+type RequestContext = {
+  ip?: string;
+  headers?: RequestHeaders;
+};
+
+type ClientEnvHints = {
+  timeZone?: string;
+  utcOffsetMinutes?: number;
+};
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private usersService: UsersService,
     private tenantsService: TenantsService,
@@ -54,7 +70,6 @@ export class AuthService {
   private resendCooldown = new Map<string, number>();
   // Replaced by LoginAttemptsService (memory or Redis)
 
-
   async register(registerDto: RegisterDto) {
     // Turnstile mandatory for public signup when secret configured
     if (this.turnstileService.isEnabled()) {
@@ -63,7 +78,9 @@ export class AuthService {
         if (!registerDto.turnstileToken) {
           throw new BadRequestException('Human verification required');
         }
-        throw new BadRequestException('Human verification failed, please try again.');
+        throw new BadRequestException(
+          'Human verification failed, please try again.',
+        );
       }
     }
     this.enforcePasswordPolicy(registerDto.password);
@@ -108,16 +125,18 @@ export class AuthService {
       'http://localhost:5174';
     const appBase = frontendUrl.replace(/\/?$/, '');
     const verifyLink = `${appBase}/auth/verify?token=${raw}&u=${user.id}`;
-    const subjectVerify = locale === 'tr' ? 'E-posta Doğrulama' : 'Email Verification';
-    const htmlVerify = locale === 'tr'
-      ? `
+    const subjectVerify =
+      locale === 'tr' ? 'E-posta Doğrulama' : 'Email Verification';
+    const htmlVerify =
+      locale === 'tr'
+        ? `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#059669;">E-posta Doğrulama</h2>
           <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
           <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
           <p><a href="${verifyLink}">${verifyLink}</a></p>
         </div>`
-      : `
+        : `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#059669;">Email Verification</h2>
           <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
@@ -137,7 +156,9 @@ export class AuthService {
           type: 'verify',
         },
       });
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.register.email', error);
+    }
 
     // Generate JWT token
     const payload = {
@@ -145,33 +166,12 @@ export class AuthService {
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
-      tokenVersion: (user as any).tokenVersion || 0,
+      tokenVersion: user.tokenVersion ?? 0,
     };
 
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        tenantId: user.tenantId,
-        isEmailVerified: (user as any).isEmailVerified === true,
-        // Enriched for immediate UI display (only from user on register)
-        lastLoginAt: (user as any).lastLoginAt,
-        lastLoginTimeZone: (user as any).lastLoginTimeZone,
-        lastLoginUtcOffsetMinutes: (user as any).lastLoginUtcOffsetMinutes,
-      },
-      tenant: {
-        id: tenant.id,
-        name: tenant.name,
-        slug: tenant.slug,
-        subscriptionPlan: tenant.subscriptionPlan,
-        status: tenant.status,
-        maxUsers: tenant.maxUsers,
-        subscriptionExpiresAt: tenant.subscriptionExpiresAt,
-        cancelAtPeriodEnd: (tenant as any).cancelAtPeriodEnd === true,
-      },
+      user: this.buildUserPayload(user),
+      tenant: this.buildTenantPayload(tenant),
       token: this.jwtService.sign(payload),
     };
   }
@@ -179,7 +179,7 @@ export class AuthService {
   /**
    * Spec-compliant signup endpoint: issues verification token and returns minimal info.
    */
-  async signupWithToken(registerDto: RegisterDto, req?: any) {
+  async signupWithToken(registerDto: RegisterDto, req?: RequestContext) {
     const res = await this.register(registerDto);
     // Audit log
     try {
@@ -190,20 +190,30 @@ export class AuthService {
         entity: 'auth',
         action: AuditAction.CREATE,
         diff: { event: 'signup', email: registerDto.email },
-        ip: req?.ip,
-        userAgent: req?.headers?.['user-agent'],
+        ip: this.resolveClientIp(req),
+        userAgent: this.resolveUserAgent(req),
       });
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.signup.audit', error);
+    }
     return { success: true };
   }
 
-  async login(loginDto: LoginDto, req?: any) {
-    const ip = req?.ip || (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
-    const alreadyCaptcha = await this.attemptsService.requireCaptcha(loginDto.email, ip);
+  async login(loginDto: LoginDto, req?: RequestContext) {
+    const ip = this.resolveClientIp(req) ?? 'unknown';
+    const { clientTimeZone, clientUtcOffsetMinutes, clientLocale } = loginDto;
+    const alreadyCaptcha = await this.attemptsService.requireCaptcha(
+      loginDto.email,
+      ip,
+    );
     if (alreadyCaptcha) {
-      const ok = await this.turnstileService.verify(loginDto.turnstileToken, ip);
+      const ok = await this.turnstileService.verify(
+        loginDto.turnstileToken,
+        ip,
+      );
       if (!ok) {
-        if (!loginDto.turnstileToken) throw new ForbiddenException('CAPTCHA_REQUIRED');
+        if (!loginDto.turnstileToken)
+          throw new ForbiddenException('CAPTCHA_REQUIRED');
         throw new UnauthorizedException('Human verification failed');
       }
     }
@@ -212,16 +222,25 @@ export class AuthService {
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
       await this.attemptsService.increment(loginDto.email, ip);
-      const need = await this.attemptsService.requireCaptcha(loginDto.email, ip);
+      const need = await this.attemptsService.requireCaptcha(
+        loginDto.email,
+        ip,
+      );
       if (need) throw new ForbiddenException('CAPTCHA_REQUIRED');
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Validate password
-    const isPasswordValid = await this.usersService.validatePassword(user, loginDto.password);
+    const isPasswordValid = await this.usersService.validatePassword(
+      user,
+      loginDto.password,
+    );
     if (!isPasswordValid) {
       await this.attemptsService.increment(loginDto.email, ip);
-      const need = await this.attemptsService.requireCaptcha(loginDto.email, ip);
+      const need = await this.attemptsService.requireCaptcha(
+        loginDto.email,
+        ip,
+      );
       if (need) throw new ForbiddenException('CAPTCHA_REQUIRED');
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -248,17 +267,19 @@ export class AuthService {
     await this.usersService.updateLastLogin(user.id);
     // Persist client time zone hints if provided
     try {
-      const updates: any = {};
-      if ((loginDto as any).clientTimeZone) {
-        updates.lastLoginTimeZone = (loginDto as any).clientTimeZone;
+      const updates: Partial<User> = {};
+      if (clientTimeZone) {
+        updates.lastLoginTimeZone = clientTimeZone;
       }
-      if (typeof (loginDto as any).clientUtcOffsetMinutes === 'number') {
-        updates.lastLoginUtcOffsetMinutes = (loginDto as any).clientUtcOffsetMinutes;
+      if (typeof clientUtcOffsetMinutes === 'number') {
+        updates.lastLoginUtcOffsetMinutes = clientUtcOffsetMinutes;
       }
       if (Object.keys(updates).length > 0) {
         await this.usersService.update(user.id, updates);
       }
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.login.clientHints', error);
+    }
 
     // Audit login with client env hints (non-blocking)
     try {
@@ -269,43 +290,51 @@ export class AuthService {
         action: AuditAction.UPDATE,
         diff: {
           event: 'login',
-          clientTimeZone: (loginDto as any).clientTimeZone,
-          clientUtcOffsetMinutes: (loginDto as any).clientUtcOffsetMinutes,
-          clientLocale: (loginDto as any).clientLocale,
+          clientTimeZone,
+          clientUtcOffsetMinutes,
+          clientLocale,
         },
-        ip: req?.ip,
-        userAgent: req?.headers?.['user-agent'],
+        ip: this.resolveClientIp(req),
+        userAgent: this.resolveUserAgent(req),
       });
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.login.audit', error);
+    }
 
     // === Organizasyon Tenant Senkronizasyonu ===
     // Senaryo: Kullanıcının kişisel tenant'ında veri yok; başka bir organizasyonda MEMBER/ADMIN ise
     // dashboard verilerini OWNER'ın tenantId'si üzerinden görmek istiyor.
     // Mevcut mantık: İlk non-OWNER organizasyon için OWNER tenantId'sini benimse.
     try {
-      const orgs = await this.organizationsService.getUserOrganizations(user.id);
+      const orgs = await this.organizationsService.getUserOrganizations(
+        user.id,
+      );
       if (Array.isArray(orgs) && orgs.length > 0) {
         // Kullanıcının OWNER olmadığı ilk organizasyonu seç
-        const targetMembership = orgs.find(o => o.role !== Role.OWNER);
+        const targetMembership = orgs.find((o) => o.role !== Role.OWNER);
         if (targetMembership) {
-          const ownerTid = await (this.organizationsService as any).getOwnerTenantId(targetMembership.organization.id);
+          const ownerTid = await this.organizationsService.getOwnerTenantId(
+            targetMembership.organization.id,
+          );
           if (ownerTid && ownerTid !== user.tenantId) {
             await this.usersService.update(user.id, { tenantId: ownerTid });
-            (user as any).tenantId = ownerTid;
+            user.tenantId = ownerTid;
             try {
               const ownerTenant = await this.tenantsService.findOne(ownerTid);
-              (user as any).tenant = ownerTenant;
-            } catch {}
+              user.tenant = ownerTenant;
+            } catch (error) {
+              this.logSoftError('auth.login.ownerTenantLoad', error);
+            }
           }
         }
       }
-    } catch {
-      // Sessiz geç
+    } catch (error) {
+      this.logSoftError('auth.login.orgSync', error);
     }
 
     // If 2FA is enabled, require token (TOTP or backup code)
-    if ((user as any).twoFactorEnabled) {
-      const token = (loginDto as any).twoFactorToken;
+    if (user.twoFactorEnabled) {
+      const token = loginDto.twoFactorToken;
       if (!token) {
         // Özel durum: Frontend bu mesajı yakalayıp ikinci adımı gösterecek
         throw new ForbiddenException('MFA_REQUIRED');
@@ -322,69 +351,26 @@ export class AuthService {
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
-      tokenVersion: (user as any).tokenVersion || 0,
+      tokenVersion: user.tokenVersion ?? 0,
     };
 
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        tenantId: user.tenantId,
-        isEmailVerified: (user as any).isEmailVerified === true,
-        // Enriched for immediate UI display
-        lastLoginAt: (user as any).lastLoginAt,
-        lastLoginTimeZone:
-          (loginDto as any).clientTimeZone || (user as any).lastLoginTimeZone,
-        lastLoginUtcOffsetMinutes:
-          typeof (loginDto as any).clientUtcOffsetMinutes === 'number'
-            ? (loginDto as any).clientUtcOffsetMinutes
-            : (user as any).lastLoginUtcOffsetMinutes,
-      },
-      tenant: user.tenant
-        ? {
-            id: user.tenant.id,
-            name: user.tenant.name,
-            slug: user.tenant.slug,
-            subscriptionPlan: user.tenant.subscriptionPlan,
-            status: user.tenant.status,
-            maxUsers: (user.tenant as any).maxUsers,
-            subscriptionExpiresAt: (user.tenant as any).subscriptionExpiresAt,
-            cancelAtPeriodEnd: (user.tenant as any).cancelAtPeriodEnd === true,
-          }
-        : null,
+      user: this.buildUserPayload(user, {
+        timeZone: clientTimeZone,
+        utcOffsetMinutes:
+          typeof clientUtcOffsetMinutes === 'number'
+            ? clientUtcOffsetMinutes
+            : undefined,
+      }),
+      tenant: this.buildTenantPayload(user.tenant),
       token: this.jwtService.sign(payload),
     };
   }
 
-  async getProfile(user: any) {
+  async getProfile(user: User) {
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        tenantId: user.tenantId,
-        isEmailVerified: user.isEmailVerified === true,
-        lastLoginAt: user.lastLoginAt,
-        lastLoginTimeZone: (user as any).lastLoginTimeZone,
-        lastLoginUtcOffsetMinutes: (user as any).lastLoginUtcOffsetMinutes,
-      },
-      tenant: user.tenant
-        ? {
-            id: user.tenant.id,
-            name: user.tenant.name,
-            slug: user.tenant.slug,
-            subscriptionPlan: user.tenant.subscriptionPlan,
-            status: user.tenant.status,
-            maxUsers: user.tenant.maxUsers,
-            subscriptionExpiresAt: user.tenant.subscriptionExpiresAt,
-            cancelAtPeriodEnd: user.tenant.cancelAtPeriodEnd === true,
-          }
-        : null,
+      user: this.buildUserPayload(user),
+      tenant: this.buildTenantPayload(user.tenant),
     };
   }
 
@@ -392,7 +378,7 @@ export class AuthService {
    * Issue a new short-lived access token for sliding sessions.
    * Frontend will call this periodically (e.g. every 5 minutes) while user is active.
    */
-  async refresh(user: any) {
+  async refresh(user: User) {
     if (!user) {
       throw new UnauthorizedException('Invalid session');
     }
@@ -401,7 +387,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
-      tokenVersion: (user as any).tokenVersion || 0,
+      tokenVersion: user.tokenVersion ?? 0,
     };
     return {
       token: this.jwtService.sign(payload),
@@ -420,8 +406,7 @@ export class AuthService {
   async registerViaInvite(
     token: string,
     password: string,
-  ): Promise<{ success: true; email: string }>
-  {
+  ): Promise<{ success: true; email: string }> {
     if (!token || !password) {
       throw new BadRequestException('token and password are required');
     }
@@ -445,7 +430,7 @@ export class AuthService {
     let targetTenantId: string | null = null;
     try {
       const ownerTid = await this.organizationsService.getOwnerTenantId(
-        invite.organization?.id || (invite as any).organizationId,
+        invite.organization?.id || invite.organizationId,
       );
       targetTenantId = ownerTid || null;
     } catch {
@@ -456,12 +441,17 @@ export class AuthService {
       // IMPORTANT: Do NOT create a personal tenant for invited users.
       // Create the user directly and attach to the owner's tenant if resolvable.
       const localPart = (invite.email || '').split('@')[0] || 'Kullanıcı';
+      const tenantIdForCreate =
+        targetTenantId || invite.organization?.id || invite.organizationId;
+      if (!tenantIdForCreate) {
+        throw new BadRequestException('Invite has no organization context');
+      }
       user = await this.usersService.create({
         email: invite.email,
         password,
         firstName: localPart,
         lastName: '',
-        tenantId: targetTenantId || null as any,
+        tenantId: tenantIdForCreate,
       });
     } else {
       // Update password for existing user and align tenant if needed
@@ -479,17 +469,19 @@ export class AuthService {
       await this.usersService.update(user.id, {
         isEmailVerified: true,
         emailVerifiedAt: new Date(),
-        emailVerificationToken: null as unknown as any,
+        emailVerificationToken: null,
       });
     }
 
     // 4) Accept invite and set current org (also ensures tenant sync if not set above)
     await this.organizationsService.acceptInvite(token, user.id);
     try {
-      await (this.usersService as any).userRepository.update(user.id, {
+      await this.usersService.update(user.id, {
         currentOrgId: invite.organization?.id || invite.organizationId,
       });
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.invite.setCurrentOrg', error);
+    }
 
     return { success: true, email: invite.email };
   }
@@ -504,16 +496,15 @@ export class AuthService {
     const minScore = this.getNumberEnv('PASSWORD_MIN_SCORE', 0);
     if (minScore > 0) {
       try {
-        const strength = this.securityService.evaluatePasswordStrength(
-          password,
-        );
+        const strength =
+          this.securityService.evaluatePasswordStrength(password);
         if (strength.score < minScore) {
           throw new BadRequestException(
             `Password too weak (score ${strength.score}/${minScore}). Suggestions: ${strength.suggestions.join('; ')}`,
           );
         }
-      } catch {
-        // evaluate hata verirse default olarak izin ver (fail-open) veya fail-closed tercih edilebilir.
+      } catch (error) {
+        this.logSoftError('auth.passwordStrengthEvaluation', error);
       }
     }
   }
@@ -551,14 +542,20 @@ export class AuthService {
       'http://localhost:5174';
     const appBase = frontendUrl.replace(/\/?$/, '');
     const verifyLink = `${appBase}/auth/verify?token=${raw}&u=${user.id}`;
-    const subjectResend = locale === 'tr' ? 'E-posta Doğrulama (Yeniden)' : 'Email Verification (Resend)';
-    const htmlResend = locale === 'tr' ? `
+    const subjectResend =
+      locale === 'tr'
+        ? 'E-posta Doğrulama (Yeniden)'
+        : 'Email Verification (Resend)';
+    const htmlResend =
+      locale === 'tr'
+        ? `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
         <h2 style="color:#059669;">E-posta Doğrulama (Yeniden)</h2>
         <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
         <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
         <p><a href="${verifyLink}">${verifyLink}</a></p>
-      </div>` : `
+      </div>`
+        : `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
         <h2 style="color:#059669;">Email Verification (Resend)</h2>
         <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
@@ -585,15 +582,12 @@ export class AuthService {
   // Backward-compatible verification using old user field
   async verifyEmailLegacy(token: string) {
     if (!token) throw new BadRequestException('Token required');
-    const repo: any = (this.usersService as any).userRepository;
-    const target = await repo.findOne({
-      where: { emailVerificationToken: token },
-    });
+    const target = await this.usersService.findByEmailVerificationToken(token);
     if (!target) throw new NotFoundException('Invalid or expired token');
     await this.usersService.update(target.id, {
       isEmailVerified: true,
       emailVerifiedAt: new Date(),
-      emailVerificationToken: null as unknown as any,
+      emailVerificationToken: null,
     });
     return { success: true };
   }
@@ -608,7 +602,7 @@ export class AuthService {
       .digest('hex');
     // Find valid tokens for this user (not used, not expired)
     const candidates = await this.evtRepo.find({
-      where: { userId, usedAt: null as any },
+      where: { userId, usedAt: IsNull() },
       order: { createdAt: 'DESC' },
       take: 10,
     });
@@ -641,18 +635,22 @@ export class AuthService {
         }
         await this.evtRepo.save(others);
       }
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.verifyEmail.invalidateOthers', error);
+    }
     // Audit log
     try {
-      const user = await this.usersService.findOne?.(userId as any);
+      const user = await this.usersService.findOne(userId);
       await this.auditService.log({
-        tenantId: (user as any)?.tenantId,
-        userId: userId as any,
+        tenantId: user.tenantId,
+        userId,
         entity: 'auth',
         action: AuditAction.UPDATE,
         diff: { event: 'verify-email' },
       });
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.verifyEmail.audit', error);
+    }
     return { success: true };
   }
 
@@ -666,24 +664,29 @@ export class AuthService {
     try {
       const resetMinutes = this.getNumberEnv('RESET_TOKEN_TTL_MINUTES', 60);
       const expiresAt = new Date(Date.now() + resetMinutes * 60 * 1000);
-      const repo: any = (this.usersService as any).userRepository;
-      await repo.update(user.id, {
+      await this.usersService.update(user.id, {
         passwordResetToken: token,
         passwordResetExpiresAt: expiresAt,
       });
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.forgotLegacy.persistToken', error);
+    }
     const base = this.getFrontendBase();
     const locale = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
     const resetLink = `${base}/#reset-password?token=${token}`;
     try {
-      const subject = locale === 'tr' ? 'Şifre Sıfırlama Talebi' : 'Password Reset Request';
-      const html = locale === 'tr' ? `
+      const subject =
+        locale === 'tr' ? 'Şifre Sıfırlama Talebi' : 'Password Reset Request';
+      const html =
+        locale === 'tr'
+          ? `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#b91c1c;">Şifre Sıfırlama</h2>
           <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
           <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanın (1 saat geçerlidir):</p>
           <p><a href="${resetLink}">${resetLink}</a></p>
-        </div>` : `
+        </div>`
+          : `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#b91c1c;">Password Reset</h2>
           <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
@@ -695,14 +698,13 @@ export class AuthService {
         subject,
         html,
       });
-    } catch (err) {
-      // E-posta sağlayıcısı hatası 500'e dönüşmesin — akışı sessizce başarılı kabul et
-      // (loglama ileride eklenecek)
+    } catch (error) {
+      this.logSoftError('auth.forgotLegacy.email', error);
     }
     return { success: true };
   }
 
-  async issuePasswordReset(email: string, req?: any) {
+  async issuePasswordReset(email: string, req?: RequestContext) {
     const user = await this.usersService.findByEmail(email);
     // Don't reveal
     if (!user) return { success: true };
@@ -715,22 +717,26 @@ export class AuthService {
         userId: user.id,
         tokenHash,
         expiresAt,
-        ip: req?.ip,
-        ua: req?.headers?.['user-agent'],
+        ip: this.resolveClientIp(req) ?? null,
+        ua: this.resolveUserAgent(req) ?? null,
       }),
     );
     const locale2 = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
     const appBase = this.getFrontendBase(req);
     const resetLink = `${appBase}/#reset-password?token=${raw}&u=${user.id}`;
     try {
-      const subject = locale2 === 'tr' ? 'Şifre Sıfırlama Talebi' : 'Password Reset Request';
-      const html = locale2 === 'tr' ? `
+      const subject =
+        locale2 === 'tr' ? 'Şifre Sıfırlama Talebi' : 'Password Reset Request';
+      const html =
+        locale2 === 'tr'
+          ? `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#b91c1c;">Şifre Sıfırlama</h2>
           <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
           <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanın (1 saat geçerlidir):</p>
           <p><a href="${resetLink}">${resetLink}</a></p>
-        </div>` : `
+        </div>`
+          : `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#b91c1c;">Password Reset</h2>
           <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
@@ -749,8 +755,8 @@ export class AuthService {
           type: 'reset',
         },
       });
-    } catch (err) {
-      // Mail gönderimi başarısız olsa bile kullanıcıya başarı döndür (hesap varlığını ortaya çıkarmamak için)
+    } catch (error) {
+      this.logSoftError('auth.reset.email', error);
     }
     // Audit
     try {
@@ -760,10 +766,12 @@ export class AuthService {
         entity: 'auth',
         action: AuditAction.UPDATE,
         diff: { event: 'forgot-password' },
-        ip: req?.ip,
-        userAgent: req?.headers?.['user-agent'],
+        ip: this.resolveClientIp(req),
+        userAgent: this.resolveUserAgent(req),
       });
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.reset.audit', error);
+    }
     return { success: true };
   }
 
@@ -771,13 +779,7 @@ export class AuthService {
     if (!token || !newPassword)
       throw new BadRequestException('Token and newPassword required');
     // Find by token
-    let target: any = null;
-    try {
-      const repo: any = (this.usersService as any).userRepository;
-      target = await repo.findOne({ where: { passwordResetToken: token } });
-    } catch (err) {
-      // no-op: repo erişimi sorununda daha sonra hedef null kontrolü ile hata döneceğiz
-    }
+    const target = await this.usersService.findByPasswordResetToken(token);
     if (!target) throw new NotFoundException('Invalid or expired token');
     if (
       !target.passwordResetExpiresAt ||
@@ -787,8 +789,8 @@ export class AuthService {
     }
     await this.usersService.update(target.id, {
       password: newPassword,
-      passwordResetToken: null as unknown as any,
-      passwordResetExpiresAt: null as unknown as any,
+      passwordResetToken: null,
+      passwordResetExpiresAt: null,
     });
     return { success: true };
   }
@@ -799,14 +801,15 @@ export class AuthService {
    * 2. Request origin / referer içindeki host (dev codespace port değişkenliği)
    * 3. Son çare: http://localhost:5174
    */
-  private getFrontendBase(req?: any): string {
+  private getFrontendBase(req?: RequestContext): string {
     const envBase =
-      process.env.FRONTEND_URL ||
-      process.env.APP_PUBLIC_URL ||
-      '';
+      process.env.FRONTEND_URL || process.env.APP_PUBLIC_URL || '';
     let candidate = (envBase || '').trim();
     // Eğer env içindeki port aktif değilse ve request'te origin varsa onu al
-    const origin = req?.headers?.origin || req?.headers?.referer || '';
+    const origin =
+      this.getHeaderValue(req, 'origin') ||
+      this.getHeaderValue(req, 'referer') ||
+      '';
     if (origin) {
       try {
         const o = new URL(origin);
@@ -818,7 +821,9 @@ export class AuthService {
             candidate = `${o.protocol}//${o.host}`;
           }
         }
-      } catch {}
+      } catch (error) {
+        this.logSoftError('auth.frontendBase.origin', error);
+      }
     }
     if (!candidate) candidate = 'http://localhost:5174';
     // Codespaces ortamında localhost yerine public forwarding domain'i üret
@@ -826,10 +831,14 @@ export class AuthService {
       if (/localhost:\d+/.test(candidate) && process.env.CODESPACE_NAME) {
         const u = new URL(candidate);
         const port = u.port || '5174';
-        const domainSuffix = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN || 'app.github.dev';
+        const domainSuffix =
+          process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN ||
+          'app.github.dev';
         candidate = `https://${process.env.CODESPACE_NAME}-${port}.${domainSuffix}`;
       }
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.frontendBase.codespaces', error);
+    }
     return candidate.replace(/\/?$/, '');
   }
 
@@ -856,14 +865,16 @@ export class AuthService {
             `Password too weak (score ${strength.score}/${minScore}). Suggestions: ${strength.suggestions.join('; ')}`,
           );
         }
-      } catch {}
+      } catch (error) {
+        this.logSoftError('auth.resetHashed.strength', error);
+      }
     }
     const submitHash = crypto
       .createHash('sha256')
       .update(rawToken)
       .digest('hex');
     const candidates = await this.prtRepo.find({
-      where: { userId, usedAt: null as any },
+      where: { userId, usedAt: IsNull() },
       order: { createdAt: 'DESC' },
       take: 10,
     });
@@ -893,7 +904,79 @@ export class AuthService {
         }
         await this.prtRepo.save(others);
       }
-    } catch {}
+    } catch (error) {
+      this.logSoftError('auth.resetHashed.invalidateOthers', error);
+    }
     return { success: true };
+  }
+
+  private buildUserPayload(user: User, hints?: ClientEnvHints) {
+    const hintTimeZone = hints?.timeZone?.trim();
+    const hintOffset = hints?.utcOffsetMinutes;
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      tenantId: user.tenantId,
+      isEmailVerified: user.isEmailVerified === true,
+      lastLoginAt: user.lastLoginAt,
+      lastLoginTimeZone: hintTimeZone || user.lastLoginTimeZone || undefined,
+      lastLoginUtcOffsetMinutes:
+        typeof hintOffset === 'number'
+          ? hintOffset
+          : (user.lastLoginUtcOffsetMinutes ?? undefined),
+    };
+  }
+
+  private buildTenantPayload(tenant?: Tenant | null) {
+    if (!tenant) return null;
+    return {
+      id: tenant.id,
+      name: tenant.name,
+      slug: tenant.slug,
+      subscriptionPlan: tenant.subscriptionPlan,
+      status: tenant.status,
+      maxUsers: tenant.maxUsers,
+      subscriptionExpiresAt: tenant.subscriptionExpiresAt,
+      cancelAtPeriodEnd: tenant.cancelAtPeriodEnd === true,
+    };
+  }
+
+  private logSoftError(event: string, error: unknown) {
+    const message = `${event}: ${error instanceof Error ? error.message : String(error)}`;
+    this.logger.warn(message);
+    if (error instanceof Error && error.stack) {
+      this.logger.debug(error.stack);
+    }
+  }
+
+  private getHeaderValue(
+    req: RequestContext | undefined,
+    header: string,
+  ): string | undefined {
+    const headers = req?.headers;
+    if (!headers) return undefined;
+    const normalized = header.toLowerCase();
+    const raw =
+      headers[normalized] ??
+      headers[header] ??
+      headers[normalized.toUpperCase()];
+    if (Array.isArray(raw)) {
+      return raw[0];
+    }
+    return typeof raw === 'string' ? raw : undefined;
+  }
+
+  private resolveClientIp(req?: RequestContext): string | undefined {
+    const direct = req?.ip?.trim();
+    if (direct) return direct;
+    const forwarded = this.getHeaderValue(req, 'x-forwarded-for');
+    return forwarded?.split(',')[0]?.trim();
+  }
+
+  private resolveUserAgent(req?: RequestContext): string | undefined {
+    return this.getHeaderValue(req, 'user-agent');
   }
 }

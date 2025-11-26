@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner, TableUnique } from 'typeorm';
 
-export class UniqueProductCodePerTenant1762115200000 implements MigrationInterface {
+export class UniqueProductCodePerTenant1762115200000
+  implements MigrationInterface
+{
   public async up(queryRunner: QueryRunner): Promise<void> {
     const table = await queryRunner.getTable('products');
     if (!table) return;

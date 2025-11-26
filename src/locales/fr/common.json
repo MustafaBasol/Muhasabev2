@@ -855,6 +855,16 @@
     "captchaRequired": "Veuillez terminer la vérification humaine.",
     "captchaPrompt": "Veuillez terminer la vérification humaine avant de continuer.",
     "captchaVerificationFailed": "La vérification humaine n'a pas pu être confirmée. Veuillez réessayer.",
+    "verifyRequiredTitle": "Vérification de l’e-mail requise",
+    "verifyRequiredBody": "Nous avons envoyé un lien de vérification à {{email}}. Confirmez votre adresse pour continuer.",
+    "verifyRequiredHint": "L’accès aux fonctionnalités reste bloqué tant que l’adresse n’est pas vérifiée.",
+    "verifyRequiredAction": "Afficher l’état de vérification",
+    "verifyRequiredLogout": "Se déconnecter",
+    "verifyYourEmail": "Vérifiez votre e-mail",
+    "verifySentTo": "Nous avons envoyé un lien de vérification à :",
+    "verifySent": "Nous avons envoyé un lien de vérification à votre adresse e-mail.",
+    "resend": "Renvoyer",
+    "resendCooldown": "Par sécurité, un délai de 60 secondes s’applique",
     "securityVerificationRequired": "Vérification de sécurité requise. Merci de finaliser la vérification.",
     "emailNotVerified": "E-mail non vérifié. Veuillez confirmer votre adresse e-mail avant de continuer.",
     "verificationEmailSent": "E-mail de vérification envoyé. Merci de consulter votre boîte de réception.",
@@ -1650,7 +1660,8 @@
     "descriptionPlaceholder": "Description de la dépense...",
     "totalExpense": "Dépense Totale",
     "receiptUrl": "URL du Reçu/Facture",
-    "receiptUrlHelper": "Vous pouvez ajouter un lien vers l'image/PDF du reçu ou de la facture"
+    "receiptUrlHelper": "Vous pouvez ajouter un lien vers l'image/PDF du reçu ou de la facture",
+    "exportCsv": "Exporter CSV"
   },
   "customers": {
     "title": "Clients",
@@ -1932,6 +1943,10 @@
     "invoiceWillBeDownloaded": "Si une facture est créée, elle sera automatiquement téléchargée au format PDF.",
     "confirmInvoiceCreation": "Créer une facture?",
     "invoiceWillOpen": "La facture s'ouvrira dans la fenêtre de visualisation après sa création.",
+    "recordOnlySale": "Uniquement la vente",
+    "recordSaleWithInvoice": "Vente avec facture",
+    "confirmInvoiceAction": "Oui, créer",
+    "creatingInvoice": "Création...",
     "selectExistingSale": "Sélectionner une Vente Existante",
     "selectSaleForInvoice": "Sélectionnez une vente pour créer une facture",
     "searchSalesPlaceholder": "Rechercher par numéro de vente, client ou produit...",
@@ -2689,6 +2704,39 @@
       "updateRole": {
         "success": "Rôle du membre mis à jour",
         "error": "Échec de la mise à jour du rôle du membre"
+      }
+    },
+    "join": {
+      "title": "Rejoindre l'organisation",
+      "subtitle": "Vous avez été invité à rejoindre {{orgName}}",
+      "invitedBy": "Invité par {{name}}",
+      "role": "Rôle : {{role}}",
+      "accept": "Accepter l'invitation",
+      "decline": "Refuser",
+      "expired": {
+        "title": "Invitation expirée",
+        "subtitle": "Ce lien d'invitation a expiré",
+        "action": "Demander une nouvelle invitation"
+      },
+      "invalid": {
+        "title": "Invitation invalide",
+        "subtitle": "Ce lien d'invitation n'est pas valide",
+        "action": "Aller à l'accueil"
+      },
+      "success": {
+        "title": "Bienvenue !",
+        "subtitle": "Vous avez rejoint {{orgName}} avec succès",
+        "action": "Ouvrir le tableau de bord"
+      },
+      "error": {
+        "title": "Erreur",
+        "subtitle": "Une erreur est survenue pendant l'acceptation",
+        "tryAgain": "Réessayer"
+      },
+      "alreadyMember": {
+        "title": "Déjà membre",
+        "subtitle": "Vous faites déjà partie de cette organisation",
+        "action": "Aller au tableau de bord"
       }
     }
   },

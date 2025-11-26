@@ -8,6 +8,7 @@ process.env.REFRESH_RATE_LIMIT_TTL_SECONDS = '60';
 
 import { Test } from '@nestjs/testing';
 import { INestApplication, ExecutionContext, Injectable } from '@nestjs/common';
+import { Request } from 'express';
 import request from 'supertest';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -19,7 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @Injectable()
 class MockJwtAuthGuard {
   canActivate(context: ExecutionContext) {
-    const req: any = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<Request>();
     // Basit kullanıcı payload'ı ekle
     req.user = { id: 'test-user-id', email: 'test@example.com', role: 'USER' };
     return true;
@@ -28,21 +29,19 @@ class MockJwtAuthGuard {
 
 // AuthService mock: sadece refresh fonksiyonu gerekir.
 class MockAuthService {
-  async refresh(user: any) {
+  async refresh(user: { id: string }) {
     return { token: 'mock-token-for-' + user.id, expiresIn: '15m' };
   }
 }
 
 describe('AuthController Refresh Rate Limiting', () => {
   let app: INestApplication;
+  type SupertestTarget = Parameters<typeof request>[0];
+  let httpServer: SupertestTarget;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [
-        ThrottlerModule.forRoot([
-          { ttl: 60000, limit: 100 },
-        ]),
-      ],
+      imports: [ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }])],
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useClass: MockAuthService },
@@ -55,6 +54,7 @@ describe('AuthController Refresh Rate Limiting', () => {
 
     app = moduleRef.createNestApplication();
     await app.init();
+    httpServer = app.getHttpServer() as SupertestTarget;
   });
 
   afterAll(async () => {
@@ -63,7 +63,7 @@ describe('AuthController Refresh Rate Limiting', () => {
 
   it('should allow requests under the limit', async () => {
     for (let i = 0; i < 5; i++) {
-      const res = await request(app.getHttpServer()).post('/auth/refresh');
+      const res = await request(httpServer).post('/auth/refresh');
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('token');
     }
@@ -72,10 +72,10 @@ describe('AuthController Refresh Rate Limiting', () => {
   it('should block when exceeding the limit', async () => {
     // Önce limite kadar tüket (5 istek)
     for (let i = 0; i < 5; i++) {
-      await request(app.getHttpServer()).post('/auth/refresh');
+      await request(httpServer).post('/auth/refresh');
     }
     // 6. istek 429 dönmeli
-    const res = await request(app.getHttpServer()).post('/auth/refresh');
+    const res = await request(httpServer).post('/auth/refresh');
     expect([429, 403]).toContain(res.status); // Ortam farkları için tolerans (bazı throttle versiyonları 429 döner)
   });
 });

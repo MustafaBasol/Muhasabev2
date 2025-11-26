@@ -8,7 +8,9 @@ import { Product } from '../products/entities/product.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Sale, Customer, Product, ProductCategory])],
+  imports: [
+    TypeOrmModule.forFeature([Sale, Customer, Product, ProductCategory]),
+  ],
   controllers: [SalesController],
   providers: [SalesService],
 })

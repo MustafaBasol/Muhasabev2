@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { X, CreditCard, Building2, User, Hash, Globe, DollarSign } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
@@ -88,10 +88,38 @@ const bankNamesByCountry: Record<string, string[]> = {
   OTHER: ['Other']
 };
 
+const resolveCountryByLanguage = (language?: string): keyof typeof bankNamesByCountry => {
+  const ln = (language || '').toLowerCase();
+  if (ln.startsWith('tr')) return 'TR';
+  if (ln.startsWith('fr')) return 'FR';
+  if (ln.startsWith('de')) return 'DE';
+  if (ln.startsWith('en')) return 'US';
+  return 'OTHER';
+};
+
+const normalizeSupportedCountry = (value?: string, fallback: keyof typeof bankNamesByCountry = 'OTHER'): keyof typeof bankNamesByCountry => {
+  if (!value) return fallback;
+  const upper = value.toUpperCase();
+  if (Object.prototype.hasOwnProperty.call(bankNamesByCountry, upper)) {
+    return upper as keyof typeof bankNamesByCountry;
+  }
+  return fallback;
+};
+
 export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, country }: BankModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { currency: defaultCurrency } = useCurrency();
-  const normalizedCountry = (country || 'TR').toUpperCase();
+  const languageCountry = useMemo(() => resolveCountryByLanguage(i18n.language), [i18n.language]);
+  const normalizedCountry = useMemo(() => {
+    const companyCountry = normalizeSupportedCountry(country);
+    if (!country || companyCountry === 'OTHER') {
+      return languageCountry;
+    }
+    if (languageCountry !== companyCountry) {
+      return languageCountry;
+    }
+    return companyCountry;
+  }, [country, languageCountry]);
   const bankNames = bankNamesByCountry[normalizedCountry] || bankNamesByCountry['OTHER'];
   const showIBAN = normalizedCountry !== 'US';
   const showRoutingNumber = normalizedCountry === 'US';
@@ -125,7 +153,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
   });
 
   // Değişiklik takibi (dirty check)
-  const baseline = React.useMemo(() => {
+  const baseline = useMemo(() => {
     if (!initialBankData) return null;
     return {
       bankName: initialBankData.bankName || '',
@@ -146,7 +174,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
     bankData.bankName && bankData.accountName && (showIBAN ? bankData.iban : (bankData as any).routingNumber)
   );
 
-  const isDirty = React.useMemo(() => {
+  const isDirty = useMemo(() => {
     if (!baseline) {
       // Yeni hesap oluştururken gerekli alanlar doldurulunca aktif olsun
       return requiredOk;

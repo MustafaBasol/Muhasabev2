@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
+import type { AuthenticatedRequest } from '../types/authenticated-request';
 
 /**
  * Guard to ensure tenant isolation
@@ -15,7 +16,9 @@ export class TenantGuard implements CanActivate {
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context
+      .switchToHttp()
+      .getRequest<AuthenticatedRequest & { tenantId?: string }>();
     const user = request.user;
 
     if (!user || !user.tenantId) {

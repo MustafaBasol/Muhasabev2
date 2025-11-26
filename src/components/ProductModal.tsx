@@ -9,13 +9,20 @@ import {
   FileText
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { Product } from './ProductList';
-import type { ProductCategory } from '../types';
+import type { Product, ProductCategory } from '../types';
+
+declare global {
+  interface Window {
+    i18next?: {
+      language?: string;
+    };
+  }
+}
 
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (product: Product) => void;
+  onSave: (product: Partial<Product>) => void;
   product?: Product | null;
   categories: string[];
   categoryObjects?: ProductCategory[]; // Kategori nesneleri (taxRate için)
@@ -61,7 +68,6 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       import('../api/product-categories').then(({ productCategoriesApi }) => {
         productCategoriesApi.getAll()
           .then(cats => {
-            console.log('📦 Kategoriler yüklendi:', cats);
             setCategoryObjects(cats);
           })
           .catch(console.error);
@@ -89,9 +95,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       optionSet.add(product.category.trim());
     }
     
-    const sorted = Array.from(optionSet).sort((a, b) => a.localeCompare(b, 'tr-TR'));
-    console.log('📋 Kategori seçenekleri:', sorted);
-    return sorted;
+    return Array.from(optionSet).sort((a, b) => a.localeCompare(b, 'tr-TR'));
   }, [categories, categoryObjects, product]);
 
   // Kategori görüntü ismini (etiketi) aktif dile göre çevir.
@@ -104,7 +108,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
     if (name === 'Ürünler') return t('products.mainCategories.products');
     // "Genel" için dosyalarda ayrı bir anahtar yok; diğer sayfalarda İngilizce arayüzde "General" olarak gösterim bekleniyorsa manuel haritalama yap.
     if (name === 'Genel') {
-      const lang = (typeof window !== 'undefined' ? (window as any).i18next?.language : 'tr') || 'tr';
+      const lang = (typeof window !== 'undefined' ? window.i18next?.language : 'tr') || 'tr';
       switch (lang.split('-')[0]) {
         case 'en': return 'General';
         case 'de': return 'Allgemein';
@@ -190,14 +194,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
     const categoryObj = categoryObjects?.find(c => c.name === selectedCategory);
     const categoryTaxRate = categoryObj?.taxRate ?? 18; // Kategori KDV'si veya varsayılan %18
 
-    console.log('💾 Ürün kaydediliyor:', {
-      selectedCategory,
-      categoryObj,
-      categoryTaxRate,
-      categoryObjects: categoryObjects?.map(c => ({ name: c.name, taxRate: c.taxRate }))
-    });
-
-    const nextProduct: any = {
+    const nextProduct: Partial<Product> = {
       name: formState.name.trim(),
       sku: formState.sku.trim(),
       category: selectedCategory,
@@ -211,19 +208,11 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       taxRate: categoryTaxRate, // Kategorinin KDV oranını ürüne ata
     };
 
-    console.log('📦 Kaydedilecek ürün:', {
-      name: nextProduct.name,
-      category: nextProduct.category,
-      taxRate: nextProduct.taxRate,
-      categoryTaxRateOverride: nextProduct.categoryTaxRateOverride
-    });
-
     // Özel KDV oranı varsa ekle (kategorinin KDV'sini override eder)
     if (formState.hasCustomTaxRate && formState.categoryTaxRateOverride) {
       const taxRateOverride = Number(formState.categoryTaxRateOverride);
       if (!isNaN(taxRateOverride) && taxRateOverride >= 0 && taxRateOverride <= 100) {
         nextProduct.categoryTaxRateOverride = taxRateOverride;
-        console.log('✏️ Özel KDV oranı eklendi:', taxRateOverride);
       }
     }
     

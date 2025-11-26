@@ -2,18 +2,28 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, Repository, FindOptionsWhere } from 'typeorm';
+import type { DeepPartial } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 import { Sale, SaleStatus } from '../sales/entities/sale.entity';
 import { Product } from '../products/entities/product.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
+import {
+  CreateInvoiceDto,
+  UpdateInvoiceDto,
+  InvoiceLineItemInput,
+  InvoiceStatistics,
+} from './dto/invoice.dto';
 
 @Injectable()
 export class InvoicesService {
+  private readonly logger = new Logger(InvoicesService.name);
+
   constructor(
     @InjectRepository(Invoice)
     private invoicesRepository: Repository<Invoice>,
@@ -27,9 +37,24 @@ export class InvoicesService {
     private categoriesRepository: Repository<ProductCategory>,
   ) {}
 
+  private logStockUpdateFailure(
+    event: string,
+    error: unknown,
+    level: 'warn' | 'error' = 'warn',
+  ) {
+    const message = `${event}: ${error instanceof Error ? error.message : String(error)}`;
+    const stack = error instanceof Error ? error.stack : undefined;
+    if (level === 'error') {
+      this.logger.error(message, stack);
+      return;
+    }
+    this.logger.warn(message);
+    if (stack) this.logger.debug(stack);
+  }
+
   private async resolveTaxRate(
     tenantId: string,
-    item: any,
+    item: InvoiceLineItemInput,
   ): Promise<number> {
     // 1) Satırda açıkça taxRate varsa onu kullan (satır bazlı override)
     if (
@@ -37,7 +62,7 @@ export class InvoicesService {
       Object.prototype.hasOwnProperty.call(item, 'taxRate') &&
       item.taxRate !== undefined &&
       item.taxRate !== null &&
-      item.taxRate !== ''
+      `${item.taxRate}`.trim() !== ''
     ) {
       const v = Number(item.taxRate);
       if (Number.isFinite(v) && v >= 0) return v;
@@ -71,7 +96,8 @@ export class InvoicesService {
               });
               if (parent) {
                 const parentRate = Number(parent.taxRate);
-                if (Number.isFinite(parentRate) && parentRate >= 0) return parentRate;
+                if (Number.isFinite(parentRate) && parentRate >= 0)
+                  return parentRate;
               }
             }
           }
@@ -88,7 +114,10 @@ export class InvoicesService {
     return 18;
   }
 
-  async create(tenantId: string, createInvoiceDto: any): Promise<Invoice> {
+  async create(
+    tenantId: string,
+    createInvoiceDto: CreateInvoiceDto,
+  ): Promise<Invoice> {
     // Plan limiti: Aylık fatura sayısı kontrolü
     const tenant = await this.tenantRepository.findOne({
       where: { id: tenantId },
@@ -152,7 +181,10 @@ export class InvoicesService {
     }
 
     // Calculate total from line items - Her ürün kendi KDV oranıyla
-    const items = createInvoiceDto.lineItems || createInvoiceDto.items || [];
+    const rawItems = createInvoiceDto.lineItems ?? createInvoiceDto.items ?? [];
+    const items: InvoiceLineItemInput[] = Array.isArray(rawItems)
+      ? rawItems
+      : [];
 
     console.log('📊 Backend: Fatura KDV hesaplaması başlıyor:', {
       itemCount: items.length,
@@ -193,7 +225,7 @@ export class InvoicesService {
       total,
     });
 
-    const invoice = this.invoicesRepository.create({
+    const payload: DeepPartial<Invoice> = {
       ...createInvoiceDto,
       tenantId,
       invoiceNumber,
@@ -202,10 +234,10 @@ export class InvoicesService {
       taxAmount,
       discountAmount,
       total,
-    });
-
-    const saved = (await this.invoicesRepository.save(invoice)) as any;
-    const savedId = Array.isArray(saved) ? saved[0].id : saved.id;
+    };
+    const invoice = this.invoicesRepository.create(payload);
+    const saved: Invoice = await this.invoicesRepository.save(invoice);
+    const savedId = saved.id;
 
     // Load with customer relation
     const result = await this.invoicesRepository.findOne({
@@ -219,7 +251,7 @@ export class InvoicesService {
 
     // Eğer saleId verildiyse satışla ilişkilendir ve satış durumunu güncelle
     try {
-      const saleId = createInvoiceDto.saleId as string | undefined;
+      const saleId = createInvoiceDto.saleId ?? undefined;
       if (saleId) {
         const sale = await this.salesRepository.findOne({
           where: { id: saleId, tenantId },
@@ -230,9 +262,9 @@ export class InvoicesService {
           await this.salesRepository.save(sale);
         }
       }
-    } catch (e) {
+    } catch (error) {
       // Sessizce logla; fatura oluşturma başarıyla tamamlandı
-      console.warn('Invoice linked sale update failed:', e);
+      this.logStockUpdateFailure('invoice.linkedSale', error);
     }
 
     return result;
@@ -249,9 +281,9 @@ export class InvoicesService {
   async findOne(
     tenantId: string,
     id: string,
-    includeVoided: boolean = false,
+    includeVoided = false,
   ): Promise<Invoice> {
-    const whereCondition: any = { id, tenantId };
+    const whereCondition: FindOptionsWhere<Invoice> = { id, tenantId };
     if (!includeVoided) {
       whereCondition.isVoided = false;
     }
@@ -271,14 +303,20 @@ export class InvoicesService {
   async update(
     tenantId: string,
     id: string,
-    updateInvoiceDto: any,
+    updateInvoiceDto: UpdateInvoiceDto,
   ): Promise<Invoice> {
     const invoice = await this.findOne(tenantId, id);
-    const wasRefund = String(invoice.type || '').toLowerCase() === 'refund' || String(invoice.type || '').toLowerCase() === 'return';
+    const wasRefund =
+      String(invoice.type || '').toLowerCase() === 'refund' ||
+      String(invoice.type || '').toLowerCase() === 'return';
 
     // Recalculate if items are updated
     if (updateInvoiceDto.lineItems || updateInvoiceDto.items) {
-      const items = updateInvoiceDto.lineItems || updateInvoiceDto.items || [];
+      const rawItems =
+        updateInvoiceDto.lineItems ?? updateInvoiceDto.items ?? [];
+      const items: InvoiceLineItemInput[] = Array.isArray(rawItems)
+        ? rawItems
+        : [];
 
       // Her ürün için KDV hesapla (Fiyatlar KDV HARİÇ)
       let subtotal = 0; // KDV HARİÇ toplam
@@ -309,34 +347,51 @@ export class InvoicesService {
     await this.invoicesRepository.save(invoice);
 
     // İade faturası yapıldığında: stok geri ekle + satış iptal et
-    const isNowRefund = String(invoice.type || '').toLowerCase() === 'refund' || String(invoice.type || '').toLowerCase() === 'return';
+    const isNowRefund =
+      String(invoice.type || '').toLowerCase() === 'refund' ||
+      String(invoice.type || '').toLowerCase() === 'return';
     if (!wasRefund && isNowRefund) {
       try {
         // Stok geri ekle
-        const lineItems = Array.isArray(invoice.items) ? invoice.items : [];
+        const lineItems: InvoiceLineItemInput[] = Array.isArray(invoice.items)
+          ? invoice.items
+          : [];
         for (const it of lineItems) {
           const pid = it?.productId ? String(it.productId) : '';
           const qty = Number(it?.quantity) || 0;
           if (!pid) continue;
           try {
-            const product = await this.productsRepository.findOne({ where: { id: pid, tenantId } });
+            const product = await this.productsRepository.findOne({
+              where: { id: pid, tenantId },
+            });
             if (!product) continue;
             // İade faturasında miktar negatif olabilir; stoğu her durumda artırmalıyız
             const delta = qty < 0 ? Math.abs(qty) : qty;
             product.stock = Number(product.stock || 0) + delta;
             await this.productsRepository.save(product);
-          } catch {}
+          } catch (error) {
+            this.logStockUpdateFailure(
+              'invoices.refund.productAdjustFailed',
+              error,
+            );
+          }
         }
         // Satış iptal et
         if (invoice.saleId) {
-          const sale = await this.salesRepository.findOne({ where: { id: invoice.saleId, tenantId } });
+          const sale = await this.salesRepository.findOne({
+            where: { id: invoice.saleId, tenantId },
+          });
           if (sale) {
-            sale.status = 'refunded' as any;
+            sale.status = SaleStatus.REFUNDED;
             await this.salesRepository.save(sale);
           }
         }
-      } catch (e) {
-        console.warn('Refund stock/sale update error:', e);
+      } catch (error) {
+        this.logStockUpdateFailure(
+          'invoices.refund.stockFlowFailed',
+          error,
+          'error',
+        );
       }
     }
 
@@ -371,30 +426,45 @@ export class InvoicesService {
     // Void işleminde: stok geri ekle/azalt (kalem miktarının işaretine göre) + satış iptal et
     try {
       // Stok geri ekle
-      const lineItems = Array.isArray(invoice.items) ? invoice.items : [];
+      const lineItems: InvoiceLineItemInput[] = Array.isArray(invoice.items)
+        ? invoice.items
+        : [];
       for (const it of lineItems) {
         const pid = it?.productId ? String(it.productId) : '';
         const qty = Number(it?.quantity) || 0;
         if (!pid) continue;
         try {
-          const product = await this.productsRepository.findOne({ where: { id: pid, tenantId } });
+          const product = await this.productsRepository.findOne({
+            where: { id: pid, tenantId },
+          });
           if (!product) continue;
           // Normal satış faturası (qty>0) void: stok artar
           // İade faturası (qty<0) void: stok azalır (eklenen geri alınır)
           product.stock = Number(product.stock || 0) + qty;
           await this.productsRepository.save(product);
-        } catch {}
+        } catch (error) {
+          this.logStockUpdateFailure(
+            'invoices.void.productAdjustFailed',
+            error,
+          );
+        }
       }
       // Satış iptal et
       if (invoice.saleId) {
-        const sale = await this.salesRepository.findOne({ where: { id: invoice.saleId, tenantId } });
+        const sale = await this.salesRepository.findOne({
+          where: { id: invoice.saleId, tenantId },
+        });
         if (sale) {
-          sale.status = 'cancelled' as any;
+          sale.status = 'cancelled' as unknown as SaleStatus;
           await this.salesRepository.save(sale);
         }
       }
-    } catch (e) {
-      console.warn('Void stock/sale update error:', e);
+    } catch (error) {
+      this.logStockUpdateFailure(
+        'invoices.void.stockFlowFailed',
+        error,
+        'error',
+      );
     }
 
     return invoice;
@@ -425,7 +495,7 @@ export class InvoicesService {
     return this.invoicesRepository.save(invoice);
   }
 
-  async getStatistics(tenantId: string) {
+  async getStatistics(tenantId: string): Promise<InvoiceStatistics> {
     const invoices = await this.findAll(tenantId);
 
     const total = invoices.reduce((sum, inv) => sum + Number(inv.total), 0);

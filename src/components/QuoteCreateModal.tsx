@@ -3,30 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { Search, Plus, Trash2, Check } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import type { Customer, Product } from '../types';
+import type { CreateQuoteDto, QuoteItemDto } from '../api/quotes';
+import { logger } from '../utils/logger';
+import { readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
 import StockWarningModal from './StockWarningModal';
 import ConfirmModal from './ConfirmModal';
 import RichTextEditor from './RichTextEditor';
 
-type CurrencyCode = 'TRY' | 'USD' | 'EUR' | 'GBP';
+type CurrencyCode = CreateQuoteDto['currency'];
 
-export type QuoteCreateLine = {
-  id: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-  productId?: string;
-  unit?: string;
-};
+export type QuoteCreateLine = QuoteItemDto & { id: string };
 
-export interface QuoteCreatePayload {
+export interface QuoteCreatePayload extends Pick<CreateQuoteDto, 'issueDate' | 'validUntil' | 'currency' | 'total' | 'scopeOfWorkHtml'> {
   customer: Customer;
-  issueDate: string;
-  validUntil: string;
-  currency: CurrencyCode;
   items: QuoteCreateLine[];
-  total: number;
-  scopeOfWorkHtml?: string;
 }
 
 interface QuoteCreateModalProps {
@@ -39,6 +29,109 @@ interface QuoteCreateModalProps {
   onOpenTemplatesManager?: () => void;
   enableTemplates?: boolean;
 }
+
+type StoredTemplate = { id: string; name: string; html: string };
+
+type OrgProfile = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+};
+
+type ClientProfile = {
+  company?: string;
+  name?: string;
+  email?: string;
+  address?: string;
+};
+
+type TemplatePayload = {
+  quote: { date: string; validUntil: string; total: number; currency: CurrencyCode };
+  org: OrgProfile;
+  client: ClientProfile;
+};
+
+const pickFirstFinite = (...values: Array<number | undefined | null>): number | undefined => {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return undefined;
+};
+
+const parseTemplatesFromStorage = (raw: string | null): StoredTemplate[] => {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null;
+        const candidate = entry as Record<string, unknown>;
+        const id = typeof candidate.id === 'string' ? candidate.id : undefined;
+        const name = typeof candidate.name === 'string' ? candidate.name : undefined;
+        const html = typeof candidate.html === 'string' ? candidate.html : undefined;
+        if (!id || !name || !html) return null;
+        return { id, name, html } as StoredTemplate;
+      })
+      .filter((tpl): tpl is StoredTemplate => Boolean(tpl));
+  } catch (error) {
+    logger.warn('[QuoteCreateModal] Failed to parse quote templates', error);
+    return [];
+  }
+};
+
+const readOrgProfileFromStorage = (): OrgProfile => {
+  try {
+    const tenantId = readLegacyTenantId();
+    const baseKey = tenantId ? `companyProfile_${tenantId}` : 'companyProfile';
+    const raw = safeLocalStorage.getItem(baseKey)
+      || safeLocalStorage.getItem(`${baseKey}_plain`)
+      || safeLocalStorage.getItem('company');
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      name: typeof parsed.name === 'string' ? parsed.name : undefined,
+      email: typeof parsed.email === 'string' ? parsed.email : undefined,
+      phone: typeof parsed.phone === 'string' ? parsed.phone : undefined,
+      address: typeof parsed.address === 'string' ? parsed.address : undefined,
+    };
+  } catch (error) {
+    logger.warn('[QuoteCreateModal] Failed to load organization profile', error);
+    return {};
+  }
+};
+
+const buildClientProfile = (customer: Customer | null): ClientProfile => {
+  if (!customer) return {};
+  return {
+    company: customer.company,
+    name: customer.name,
+    email: customer.email,
+    address: customer.address,
+  };
+};
+
+const buildTemplatePayload = (
+  customer: Customer | null,
+  issueDate: string,
+  validUntil: string,
+  total: number,
+  currency: CurrencyCode,
+): TemplatePayload => ({
+  quote: { date: issueDate, validUntil, total, currency },
+  org: readOrgProfileFromStorage(),
+  client: buildClientProfile(customer),
+});
+
+const resolveUnitPrice = (product: Product, fallback: number): number => pickFirstFinite(product.unitPrice, product.price, fallback) ?? 0;
+
+const resolveStockValue = (product?: Product): number | undefined => {
+  if (!product) return undefined;
+  return pickFirstFinite(product.stock, product.stockQuantity);
+};
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000);
 const iso = (d: Date) => d.toISOString().slice(0,10);
@@ -55,11 +148,12 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
   const [activeProductDropdown, setActiveProductDropdown] = useState<string | null>(null);
   const [scopeHtml, setScopeHtml] = useState<string>('');
   const scopeRef = React.useRef<HTMLDivElement>(null);
   const [scopeDirty, setScopeDirty] = useState(false);
-  const [templates, setTemplates] = useState<Array<{ id: string; name: string; html: string }>>([]);
+  const [templates, setTemplates] = useState<StoredTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [stockWarning, setStockWarning] = useState<{ itemId: string; product: Product; requested: number; available: number } | null>(null);
 
@@ -105,11 +199,14 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
   React.useEffect(() => {
     if (!isOpen) return;
     try {
-      const tid = (localStorage.getItem('tenantId') || '') || undefined;
-      const raw = localStorage.getItem(tid ? `quote_templates_${tid}` : 'quote_templates');
-      const arr = raw ? JSON.parse(raw) as Array<any> : [];
-      setTemplates(arr.map(x => ({ id: x.id, name: x.name, html: x.html })));
-    } catch { setTemplates([]); }
+      const tenantId = readLegacyTenantId();
+      const key = tenantId ? `quote_templates_${tenantId}` : 'quote_templates';
+      const raw = safeLocalStorage.getItem(key);
+      setTemplates(parseTemplatesFromStorage(raw));
+    } catch (error) {
+      logger.warn('[QuoteCreateModal] Failed to read templates from storage', error);
+      setTemplates([]);
+    }
   }, [isOpen]);
 
   // (Opsiyonel) Açılışta farklı bir odak davranışı gerekirse burada ele alınır
@@ -118,31 +215,15 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
     if (!selectedTemplateId) return;
     const tpl = templates.find(t => t.id === selectedTemplateId);
     if (!tpl) return;
-    // Org bilgilerini localStorage'dan al (pdfGenerator ile benzer yaklaşım)
-    let org: { name?: string; email?: string; phone?: string; address?: string } = {};
     try {
-      const tid = (localStorage.getItem('tenantId') || '').toString();
-      const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
-      const raw = localStorage.getItem(baseKey) || localStorage.getItem(`${baseKey}_plain`) || localStorage.getItem('company') || '';
-      if (raw) {
-        const c = JSON.parse(raw);
-        org = { name: c.name, email: c.email, phone: c.phone, address: c.address };
-      }
-    } catch {}
-    const client: { company?: string; name?: string; email?: string; address?: string } = selectedCustomer ? ({
-      company: selectedCustomer.company,
-      name: selectedCustomer.name,
-      email: selectedCustomer.email,
-      address: (selectedCustomer as any).address,
-    }) : {};
-    // Token doldurma
-    const { fillTemplate } = await import('../utils/quoteTemplates');
-    const filled = fillTemplate(tpl.html, {
-      quote: { date: form.issueDate, validUntil: form.validUntil, total: itemsTotal, currency: form.currency },
-      org, client,
-    });
-    setScopeHtml(filled);
-    setScopeDirty(false);
+      const { fillTemplate } = await import('../utils/quoteTemplates');
+      const payload = buildTemplatePayload(selectedCustomer, form.issueDate, form.validUntil, itemsTotal, form.currency);
+      const filled = fillTemplate(tpl.html, payload);
+      setScopeHtml(filled);
+      setScopeDirty(false);
+    } catch (error) {
+      logger.warn('[QuoteCreateModal] Failed to apply template', error);
+    }
   };
 
   // Şablon seçiliyse ve kullanıcı kapsam içeriğini manüel değiştirmediyse otomatik doldurmayı güncel tut
@@ -154,30 +235,15 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
       if (scopeDirty) return;
       const tpl = templates.find(t => t.id === selectedTemplateId);
       if (!tpl) return;
-      let org: { name?: string; email?: string; phone?: string; address?: string } = {};
       try {
-        const tid = (localStorage.getItem('tenantId') || '').toString();
-        const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
-        const raw = localStorage.getItem(baseKey) || localStorage.getItem(`${baseKey}_plain`) || localStorage.getItem('company') || '';
-        if (raw) {
-          const c = JSON.parse(raw);
-          org = { name: c.name, email: c.email, phone: c.phone, address: c.address };
-        }
-      } catch {}
-      const client: { company?: string; name?: string; email?: string; address?: string } = selectedCustomer ? ({
-        company: selectedCustomer.company,
-        name: selectedCustomer.name,
-        email: selectedCustomer.email,
-        address: (selectedCustomer as any).address,
-      }) : {};
-      const { fillTemplate } = await import('../utils/quoteTemplates');
-      const filled = fillTemplate(tpl.html, {
-        quote: { date: form.issueDate, validUntil: form.validUntil, total: itemsTotal, currency: form.currency },
-        org, client,
-      });
-      setScopeHtml(filled);
+        const { fillTemplate } = await import('../utils/quoteTemplates');
+        const payload = buildTemplatePayload(selectedCustomer, form.issueDate, form.validUntil, itemsTotal, form.currency);
+        const filled = fillTemplate(tpl.html, payload);
+        setScopeHtml(filled);
+      } catch (error) {
+        logger.warn('[QuoteCreateModal] Failed to refresh template preview', error);
+      }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateId, selectedCustomer, form.issueDate, form.validUntil, itemsTotal, form.currency, isOpen, enableTemplates]);
 
   // Onay modalı için state (hook'ları her zaman koşulsuz çağır)
@@ -200,21 +266,21 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
     setItems(prev => prev.map(it => {
       if (it.id !== itemId) return it;
       const quantity = it.quantity > 0 ? it.quantity : 1;
-      const unitPrice = Number((product as any).unitPrice ?? (product as any).price ?? it.unitPrice ?? 0);
+      const unitPrice = resolveUnitPrice(product, it.unitPrice);
       return {
         ...it,
         productId: String(product.id),
         description: product.name,
-        unit: (product as any).unit,
+        unit: product.unit,
         unitPrice,
         quantity,
         total: quantity * unitPrice,
       };
     }));
     setActiveProductDropdown(null);
-    const available = Number((product as any).stock ?? (product as any).stockQuantity ?? NaN);
     const requested = items.find(i => i.id === itemId)?.quantity || 1;
-    if (Number.isFinite(available) && requested > available) {
+    const available = resolveStockValue(product);
+    if (typeof available === 'number' && requested > available) {
       setStockWarning({ itemId, product, requested, available });
     }
   };
@@ -224,18 +290,20 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
     if (items.length === 0 || items.every(it => !it.description || (Number(it.total) || 0) <= 0)) return;
     // Stok kontrolü (kaydetmeden önce)
     for (const it of items) {
-      const id = (it as any).productId;
-      let prod: Product | undefined = undefined;
-      if (id) prod = products.find(p => String(p.id) === String(id));
+      const productId = it.productId;
+      let prod: Product | undefined;
+      if (productId) {
+        prod = products.find(p => String(p.id) === String(productId));
+      }
       if (!prod && it.description) {
         const nameLc = String(it.description).trim().toLowerCase();
         prod = products.find(p => String(p.name || '').trim().toLowerCase() === nameLc)
           || products.find(p => String(p.name || '').toLowerCase().includes(nameLc));
       }
       if (prod) {
-        const available = Number((prod as any).stock ?? (prod as any).stockQuantity ?? NaN);
+        const available = resolveStockValue(prod);
         const requested = Number(it.quantity) || 0;
-        if (Number.isFinite(available) && requested > available) {
+        if (typeof available === 'number' && requested > available) {
           setStockWarning({ itemId: String(it.id), product: prod, requested, available });
           return; // Uyarıyı göster ve kaydı durdur
         }
@@ -410,8 +478,8 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
                                   >
                                     <div className="font-semibold text-gray-900 mb-0.5">{p.name}</div>
                                     <div className="flex items-center justify-between text-xs text-gray-600">
-                                      {(p as any).sku && <span className="px-1.5 py-0.5 bg-gray-100 rounded">SKU: {(p as any).sku}</span>}
-                                      <span className="font-medium text-green-600">{((p as any).unitPrice ?? (p as any).price ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                                      {p.sku && <span className="px-1.5 py-0.5 bg-gray-100 rounded">SKU: {p.sku}</span>}
+                                      <span className="font-medium text-green-600">{resolveUnitPrice(p, 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
                                     </div>
                                   </button>
                                 ))}
@@ -433,8 +501,8 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
                               if (current?.productId) {
                                 const p = products.find(pr => String(pr.id) === String(current.productId));
                                 if (p) {
-                                  const available = Number((p as any).stock ?? (p as any).stockQuantity ?? NaN);
-                                  if (Number.isFinite(available) && q > available) {
+                                  const available = resolveStockValue(p);
+                                  if (typeof available === 'number' && q > available) {
                                     setStockWarning({ itemId: it.id, product: p, requested: q, available });
                                   }
                                 }

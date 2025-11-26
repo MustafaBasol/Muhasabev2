@@ -1,6 +1,19 @@
 import apiClient from './client';
 import { logger } from '../utils/logger';
 
+type BillingApiError = {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+};
+
+const asBillingError = (error: unknown): BillingApiError =>
+  (typeof error === 'object' && error !== null ? (error as BillingApiError) : {});
+
 export type BillingInterval = 'month' | 'year';
 export type BillingPlan = 'professional' | 'enterprise' | 'pro' | 'business';
 
@@ -106,13 +119,14 @@ export async function createPortalSession(tenantId: string, returnUrl: string): 
   try {
     const res = await apiClient.get(`/billing/${tenantId}/portal`, { params: { returnUrl } });
     return res.data;
-  } catch (e: any) {
-    const msg = e?.response?.data?.message || e?.message || 'Portal hatası';
+  } catch (error: unknown) {
+    const details = asBillingError(error);
+    const msg = details.response?.data?.message || details.message || 'Portal hatası';
     // Bu test-mode yapılandırma hatasını kullanıcıya net gösterelim
     if (String(msg).includes('test mode default configuration has not been created')) {
       throw new Error('Portal oturumu oluşturulamadı: No configuration provided and your test mode default configuration has not been created. Stripe Dashboard > Billing > Portal > Settings sayfasından test mode için varsayılan yapılandırmayı kaydetmeniz gerekir.');
     }
-    throw e;
+    throw error;
   }
 }
 
@@ -135,14 +149,14 @@ export async function chargeAddonNow(tenantId: string, additional: number): Prom
   try {
     const res = await apiClient.post(`/billing/${tenantId}/addon/charge`, { additional });
     return res.data as AddonImmediateChargeResponse;
-  } catch (e: any) {
-    const status = e?.response?.status;
+  } catch (error: unknown) {
+    const status = asBillingError(error).response?.status;
     if (status === 404) {
       // Path param route bulunamadıysa alternatif body tabanlı rotayı dene
       const alt = await apiClient.post('/billing/addon/charge', { tenantId, additional });
       return alt.data as AddonImmediateChargeResponse;
     }
-    throw e;
+    throw error;
   }
 }
 
@@ -207,10 +221,11 @@ export async function debugUpgrade(tenantId: string) {
     });
     logger.info('Checkout session oluşturuldu:', session.id);
     window.location.href = session.url; // redirect
-  } catch (e: any) {
-    logger.error('Upgrade hata:', e?.message || e);
+  } catch (error: unknown) {
+    const msg = asBillingError(error).response?.data?.message || (error as Error)?.message || 'Bilinmeyen hata';
+    logger.error('Upgrade hata:', msg);
     window.dispatchEvent(
-      new CustomEvent('showToast', { detail: { message: 'Upgrade başarısız: ' + (e?.message || 'Bilinmeyen hata'), tone: 'error' } })
+      new CustomEvent('showToast', { detail: { message: 'Upgrade başarısız: ' + msg, tone: 'error' } })
     );
   }
 }

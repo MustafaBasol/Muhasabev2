@@ -1,5 +1,26 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
+type UserRow = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+type IdRow = { id: string };
+
+const rowsToArray = <T>(rows: unknown): T[] =>
+  Array.isArray(rows) ? (rows as T[]) : [];
+
+const firstRow = <T>(rows: unknown): T | null => {
+  if (Array.isArray(rows) && rows.length > 0) {
+    return rows[0] as T;
+  }
+  return null;
+};
+
+const hasAnyRow = (rows: unknown): boolean =>
+  Array.isArray(rows) && rows.length > 0;
+
 export class AddMultiTenantSupport1698854400000 implements MigrationInterface {
   name = 'AddMultiTenantSupport1698854400000';
 
@@ -90,22 +111,26 @@ export class AddMultiTenantSupport1698854400000 implements MigrationInterface {
     `);
 
     // Create default organizations for existing users and set currentOrgId
-    const users = await queryRunner.query(
+    const usersRaw: unknown = await queryRunner.query(
       `SELECT id, "firstName", "lastName" FROM users`,
     );
+    const users = rowsToArray<UserRow>(usersRaw);
 
     for (const user of users) {
       // Create organization if missing
-      const orgName = `${user.firstName} ${user.lastName}'s Organization`;
-      const existingOrg = await queryRunner.query(
+      const orgName =
+        `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() ||
+        `${user.id}'s Organization`;
+      const existingOrgRaw: unknown = await queryRunner.query(
         `SELECT id FROM organizations WHERE name = $1 LIMIT 1`,
         [orgName],
       );
       let orgId: string;
-      if (existingOrg && existingOrg.length > 0) {
-        orgId = existingOrg[0].id;
+      const existingOrg = firstRow<IdRow>(existingOrgRaw);
+      if (existingOrg?.id) {
+        orgId = existingOrg.id;
       } else {
-        const orgResult = await queryRunner.query(
+        const orgResultRaw: unknown = await queryRunner.query(
           `
           INSERT INTO organizations (name, plan) 
           VALUES ($1, 'STARTER') 
@@ -113,15 +138,19 @@ export class AddMultiTenantSupport1698854400000 implements MigrationInterface {
         `,
           [orgName],
         );
-        orgId = orgResult[0].id;
+        const insertedOrg = firstRow<IdRow>(orgResultRaw);
+        if (!insertedOrg?.id) {
+          throw new Error('Failed to create organization during migration');
+        }
+        orgId = insertedOrg.id;
       }
 
       // Create organization member with OWNER role if missing
-      const memberExists = await queryRunner.query(
+      const memberExistsRaw: unknown = await queryRunner.query(
         `SELECT 1 FROM organization_members WHERE "organizationId"=$1 AND "userId"=$2 LIMIT 1`,
         [orgId, user.id],
       );
-      if (!memberExists || memberExists.length === 0) {
+      if (!hasAnyRow(memberExistsRaw)) {
         await queryRunner.query(
           `
           INSERT INTO organization_members ("organizationId", "userId", role)

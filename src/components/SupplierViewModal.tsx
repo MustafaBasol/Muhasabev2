@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Edit, Mail, Phone, MapPin, Building2, User, Calendar, Tag } from 'lucide-react';
+import { safeLocalStorage } from '../utils/localStorageSafe';
 
 interface Supplier {
   id: string;
@@ -31,16 +32,13 @@ export default function SupplierViewModal({
   onCreateExpense,
   onViewHistory
 }: SupplierViewModalProps) {
+  const { i18n } = useTranslation();
   if (!isOpen || !supplier) {
     return null;
   }
-
-  const { t, i18n } = useTranslation();
   const getActiveLang = () => {
-    try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
+    const stored = safeLocalStorage.getItem('i18nextLng');
+    if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
     const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
     return cand.slice(0,2).toLowerCase();
   };

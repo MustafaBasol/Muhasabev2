@@ -2,18 +2,20 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus, Eye, Edit, Trash2, FileText, Calendar, Check, X, FileDown, Copy } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
-import QuoteViewModal, { type Quote as QuoteModel, type QuoteStatus } from './QuoteViewModal';
+import QuoteViewModal, { type Quote as QuoteModel } from './QuoteViewModal';
 import QuoteEditModal from './QuoteEditModal';
 import QuoteCreateModal, { type QuoteCreatePayload } from './QuoteCreateModal';
 import QuoteTemplatesManager from './QuoteTemplatesManager';
 import ConfirmModal from './ConfirmModal';
 import type { Customer, Product } from '../types';
 import * as quotesApi from '../api/quotes';
+import type { CreateQuoteDto, QuoteItemDto, QuoteStatus, QuoteRevision, Quote as QuoteApiModel, UpdateQuoteDto } from '../api/quotes';
 import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
 import { useAuth } from '../contexts/AuthContext';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
 // preset etiketleri i18n'den alınır
 
 interface QuotesPageProps {
@@ -22,66 +24,114 @@ interface QuotesPageProps {
   products?: Product[];
 }
 
-interface QuoteItem {
-  id: string;
-  publicId?: string;
-  quoteNumber: string;
-  customerName: string;
-  customerId?: string;
-  issueDate: string;
-  validUntil?: string;
-  currency: 'TRY' | 'USD' | 'EUR' | 'GBP';
-  total: number;
-  status: QuoteStatus;
-  version?: number;
-  // İşin kapsamı (zengin metin HTML)
-  scopeOfWorkHtml?: string;
-  items?: Array<{
-    id: string;
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-    productId?: string;
-    unit?: string;
-  }>;
-  revisions?: Array<{
-    version: number;
-    issueDate: string;
-    validUntil?: string;
-    status: QuoteStatus;
-    total: number;
-    items?: QuoteItem['items'];
-    snapshotAt: string; // ISO
-  }>;
+type QuoteLineItem = QuoteItemDto & { id: string };
+
+type QuoteApiMetadata = {
+  customerName?: string;
   convertedToSale?: boolean;
-  createdAt?: string; // ISO
-  updatedAt?: string; // ISO
+  createdByName?: string;
+  updatedByName?: string;
+  customer?: { name?: string | null } | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type QuoteListItem = QuoteApiModel & {
+  customerName: string;
+  convertedToSale?: boolean;
+  createdByName?: string;
+  updatedByName?: string;
+  items?: QuoteLineItem[];
+  revisions?: QuoteRevision[];
+};
+
+type StatusFilterValue = 'all' | QuoteStatus;
+type SortField = 'quoteNumber' | 'customer' | 'date' | 'currency' | 'total' | 'status';
+type SortDirection = 'asc' | 'desc';
+
+type QuoteApiRecord = QuoteApiModel & QuoteApiMetadata & {
+  issueDate: string | Date;
+  validUntil?: string | Date | null;
+  total: number | string;
+};
+
+interface QuotesListViewState {
+  searchTerm: string;
+  statusFilter: StatusFilterValue;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: SortField;
+  sortDir?: SortDirection;
+  pageSize?: number;
 }
 
+const randomId = () => (crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+
+const mapLineItemFromApi = (item: QuoteItemDto): QuoteLineItem => ({
+  id: item.id ?? randomId(),
+  description: item.description,
+  quantity: item.quantity,
+  unitPrice: item.unitPrice,
+  total: item.total,
+  productId: item.productId,
+  unit: item.unit,
+});
+
+const mapLineItemToDto = (item: QuoteLineItem): QuoteItemDto => ({
+  id: item.id,
+  description: item.description,
+  quantity: item.quantity,
+  unitPrice: item.unitPrice,
+  total: item.total,
+  productId: item.productId,
+  unit: item.unit,
+});
+
+const mapQuoteFromApi = (quote: QuoteApiRecord): QuoteListItem => ({
+  id: String(quote.id),
+  publicId: quote.publicId,
+  quoteNumber: quote.quoteNumber,
+  customerName: quote.customer?.name || quote.customerName || '',
+  customerId: quote.customerId,
+  issueDate: String(quote.issueDate).slice(0, 10),
+  validUntil: quote.validUntil ? String(quote.validUntil).slice(0, 10) : undefined,
+  currency: quote.currency,
+  total: Number(quote.total) || 0,
+  status: normalizeStatusKey(String(quote.status)) as QuoteStatus,
+  version: quote.version || 1,
+  scopeOfWorkHtml: quote.scopeOfWorkHtml || '',
+  items: Array.isArray(quote.items) ? quote.items.map(mapLineItemFromApi) : [],
+  revisions: Array.isArray(quote.revisions) ? quote.revisions : [],
+  convertedToSale: quote.convertedToSale,
+  createdAt: quote.createdAt || quote.created_at || undefined,
+  updatedAt: quote.updatedAt || quote.updated_at || undefined,
+  createdByName: quote.createdByName,
+  updatedByName: quote.updatedByName,
+});
+
 const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { formatCurrency, currency: defaultCurrency } = useCurrency();
   const { tenant, user: authUser } = useAuth();
-  const planRaw = String((tenant as any)?.subscriptionPlan || '').toLowerCase();
+  const planRaw = String(tenant?.subscriptionPlan || '').toLowerCase();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | QuoteStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'quoteNumber' | 'customer' | 'date' | 'currency' | 'total' | 'status'>('date');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState<SortField>('date');
+  const [sortDir, setSortDir] = useState<SortDirection>('desc');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [selectedQuote, setSelectedQuote] = useState<QuoteItem | null>(null);
+  const [selectedQuote, setSelectedQuote] = useState<QuoteListItem | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [reviseTarget, setReviseTarget] = useState<QuoteItem | null>(null);
-  const [duplicateTarget, setDuplicateTarget] = useState<QuoteItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<QuoteItem | null>(null);
+  const [reviseTarget, setReviseTarget] = useState<QuoteListItem | QuoteModel | null>(null);
+  const [duplicateTarget, setDuplicateTarget] = useState<QuoteListItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<QuoteListItem | null>(null);
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('quotes_pageSize') : null;
+    const saved = safeLocalStorage.getItem('quotes_pageSize');
     const n = saved ? Number(saved) : 20;
     return [20, 50, 100].includes(n) ? n : 20;
   });
@@ -91,82 +141,59 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const [editingField, setEditingField] = useState<'status' | 'issueDate' | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
 
-  // Sadece 'draft' ve 'sent' için güvenli fallback sözlüğü
-  const getActiveLang = () => {
-    try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
-    const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
-    return cand.slice(0,2).toLowerCase();
-  };
-  const lang = getActiveLang();
-  const L = {
-    draft: { tr:'Taslak', en:'Draft', fr:'Brouillon', de:'Entwurf' }[lang as 'tr'|'en'|'fr'|'de'] || 'Draft',
-    sent: { tr:'Gönderildi', en:'Sent', fr:'Envoyé', de:'Gesendet' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sent',
-  } as const;
-
   // Default kaydedilmiş görünümü uygula
-  const { getDefault } = useSavedListViews<{ searchTerm: string; statusFilter: typeof statusFilter; startDate?: string; endDate?: string; sortBy?: typeof sortBy; sortDir?: typeof sortDir; pageSize?: number }>({ listType: 'quotes' });
+  const { getDefault } = useSavedListViews<QuotesListViewState>({ listType: 'quotes' });
   useEffect(() => {
-    const def = getDefault();
-    if (def && def.state) {
-      try {
-        setSearchTerm(def.state.searchTerm ?? '');
-        setStatusFilter((def.state.statusFilter as any) ?? 'all');
-        setStartDate(def.state.startDate ?? '');
-        setEndDate(def.state.endDate ?? '');
-        if (def.state.sortBy) setSortBy(def.state.sortBy as any);
-        if (def.state.sortDir) setSortDir(def.state.sortDir as any);
-        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
-      } catch {}
+    try {
+      const def = getDefault();
+      if (!def?.state) return;
+      const state = def.state;
+      setSearchTerm(state.searchTerm ?? '');
+      setStatusFilter(state.statusFilter ?? 'all');
+      setStartDate(state.startDate ?? '');
+      setEndDate(state.endDate ?? '');
+      if (state.sortBy) setSortBy(state.sortBy);
+      if (state.sortDir) setSortDir(state.sortDir);
+      if (state.pageSize && [20, 50, 100].includes(state.pageSize)) {
+        setPageSize(state.pageSize);
+        safeLocalStorage.setItem('quotes_pageSize', String(state.pageSize));
+      }
+    } catch {
+      // Saved view state could not be loaded; fall back to defaults
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [getDefault]);
 
   // Backend verileri
   const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000);
   const iso = (d: Date) => d.toISOString().slice(0,10);
-  const [quotes, setQuotes] = useState<QuoteItem[]>([]);
+  const [quotes, setQuotes] = useState<QuoteListItem[]>([]);
   const [isLoadingQuotes, setIsLoadingQuotes] = useState<boolean>(true);
 
-  React.useEffect(() => {
+  useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const fetchQuotes = async () => {
       try {
         setIsLoadingQuotes(true);
         const data = await quotesApi.getQuotes();
         if (cancelled) return;
-        const mapped = (Array.isArray(data) ? data : []).map((q: any) => ({
-          id: String(q.id),
-          publicId: q.publicId,
-          quoteNumber: q.quoteNumber,
-          customerName: q.customer?.name || q.customerName || '',
-          customerId: q.customerId,
-          issueDate: String(q.issueDate).slice(0,10),
-          validUntil: q.validUntil ? String(q.validUntil).slice(0,10) : undefined,
-          currency: q.currency,
-          total: Number(q.total) || 0,
-          status: normalizeStatusKey(String(q.status)) as QuoteStatus,
-          version: q.version || 1,
-          scopeOfWorkHtml: q.scopeOfWorkHtml || '',
-          items: Array.isArray(q.items) ? q.items.map((it: any) => ({ id: it.id || `${Math.random()}`, description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })) : [],
-          revisions: Array.isArray(q.revisions) ? q.revisions : [],
-          convertedToSale: false,
-          createdAt: q.createdAt || q.created_at || undefined,
-          updatedAt: q.updatedAt || q.updated_at || undefined,
-          createdByName: q.createdByName,
-          updatedByName: q.updatedByName,
-        } as QuoteItem));
+        const mapped = Array.isArray(data)
+          ? (data as QuoteApiRecord[]).map(mapQuoteFromApi)
+          : [];
         setQuotes(mapped);
       } catch (e) {
         console.error('Quotes yüklenemedi:', e);
         setQuotes([]);
       } finally {
-        setIsLoadingQuotes(false);
+        if (!cancelled) {
+          setIsLoadingQuotes(false);
+        }
       }
-    })();
-    return () => { cancelled = true; };
+    };
+
+    fetchQuotes();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -201,7 +228,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             return (new Date(a.issueDate).getTime() - new Date(b.issueDate).getTime()) * dir;
         }
       });
-  }, [quotes, searchTerm, statusFilter, sortBy, sortDir]);
+  }, [quotes, searchTerm, statusFilter, sortBy, sortDir, startDate, endDate]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -214,9 +241,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('quotes_pageSize', String(size));
-    }
+    safeLocalStorage.setItem('quotes_pageSize', String(size));
     setPage(1);
   };
 
@@ -238,7 +263,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
 
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('tr-TR');
   // Sistem para birimini kullanır; teklif özelinde override destekler
-  const formatAmount = (amount: number, currencyCode: QuoteItem['currency']) => formatCurrency(amount, currencyCode);
+  const formatAmount = (amount: number, currencyCode: QuoteListItem['currency']) => formatCurrency(amount, currencyCode);
 
   const statusBadge = (status: QuoteStatus) => {
     const key = normalizeStatusKey(String(status));
@@ -262,6 +287,13 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   const openTemplates = () => setShowTemplates(true);
   const closeTemplates = () => setShowTemplates(false);
 
+  const getCurrentUserName = () => {
+    if (!authUser) return '';
+    const full = [authUser.firstName, authUser.lastName].filter(Boolean).join(' ').trim();
+    if (full) return full;
+    return (authUser as { name?: string }).name ?? '';
+  };
+
   // Dashboard Hızlı İşlemlerden tetiklemek için global event dinle
   React.useEffect(() => {
     const handler = () => {
@@ -284,12 +316,12 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
     setDeleteTarget(target);
   };
 
-  const openView = (item: QuoteItem) => {
+  const openView = (item: QuoteListItem) => {
     setSelectedQuote(item);
     setShowViewModal(true);
   };
 
-  const openEdit = (item: QuoteItem) => {
+  const openEdit = (item: QuoteListItem) => {
     setSelectedQuote(item);
     setShowEditModal(true);
   };
@@ -301,7 +333,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
 
   const handleRevise = (q: QuoteModel) => {
     // Önce onay iste
-    setReviseTarget(q as any);
+    setReviseTarget(q);
   };
 
   React.useEffect(() => {
@@ -312,7 +344,6 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
       : q);
     // UI tarafında yalnızca görünüm için güncelleme (persist backend'e ayrık yapılır)
     setQuotes(updated);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Local persistence kaldırıldı – backend tek kaynak
@@ -320,7 +351,6 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   // Senkronizasyon: Başka bir sekmede/public sayfasında durum değişirse listeyi güncelle
   // Storage senkronu kaldırıldı – backend tek kaynak
 
-  // Inline edit helpers
   const startInlineEdit = (quoteId: string, field: 'status' | 'issueDate', current: string) => {
     const q = quotes.find(q => q.id === quoteId);
     if (q?.status === 'accepted') return; // kilitli
@@ -335,21 +365,29 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
     setTempValue('');
   };
 
-  const saveInlineEdit = async (quote: QuoteItem) => {
+  const saveInlineEdit = async (quote: QuoteListItem) => {
     if (!editingField) return;
     try {
       if (editingField === 'status') {
         const nextStatus = tempValue as QuoteStatus;
-        const updated = await quotesApi.updateQuote(String(quote.id), { status: nextStatus });
+        const updated = await quotesApi.updateQuote(String(quote.id), { status: nextStatus } as UpdateQuoteDto);
         const ns = normalizeStatusKey(String(updated.status)) as QuoteStatus;
         setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: ns } : q));
-        setSelectedQuote(prev => (prev && prev.id === quote.id) ? { ...(prev as any), status: ns } : prev);
+        setSelectedQuote(prev => {
+          if (!prev || prev.id !== quote.id) return prev;
+          return { ...prev, status: ns };
+        });
       }
       if (editingField === 'issueDate') {
         const nextDate = tempValue;
-        const updated = await quotesApi.updateQuote(String(quote.id), { issueDate: nextDate } as any);
-        setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, issueDate: String(updated.issueDate).slice(0,10) } : q));
-        setSelectedQuote(prev => (prev && prev.id === quote.id) ? { ...(prev as any), issueDate: String(updated.issueDate).slice(0,10) } : prev);
+        const payload: UpdateQuoteDto = { issueDate: nextDate };
+        const updated = await quotesApi.updateQuote(String(quote.id), payload);
+        const normalizedDate = String(updated.issueDate).slice(0,10);
+        setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, issueDate: normalizedDate } : q));
+        setSelectedQuote(prev => {
+          if (!prev || prev.id !== quote.id) return prev;
+          return { ...prev, issueDate: normalizedDate };
+        });
       }
     } finally {
       setEditingQuoteId(null);
@@ -361,7 +399,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
   // Quotes değiştiğinde dashboard'un kullandığı local cache'i güncelle
   React.useEffect(() => {
     try {
-      const tid = (localStorage.getItem('tenantId') || '') as string;
+      const tid = (readLegacyTenantId() || '') as string;
       const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
       const slim = quotes.map(q => ({
         id: q.id,
@@ -379,9 +417,13 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
         createdAt: q.createdAt,
         updatedAt: q.updatedAt,
       }));
-      localStorage.setItem(key, JSON.stringify(slim));
-      try { window.dispatchEvent(new Event('quotes-cache-updated')); } catch {}
-    } catch {}
+      safeLocalStorage.setItem(key, JSON.stringify(slim));
+      try { window.dispatchEvent(new Event('quotes-cache-updated')); } catch {
+        // Some environments (tests/SSR) might not support window events; safe to ignore
+      }
+    } catch {
+      // Local cache persistence failed (likely storage quota) — continue without cache sync
+    }
   }, [quotes]);
 
   return (
@@ -391,7 +433,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
         <ConfirmModal
           isOpen={true}
           title={t('common.confirm', { defaultValue: 'Onay' })}
-          message={t('quotes.duplicateConfirm')}
+          message={t('quotes.duplicateConfirm', { defaultValue: 'Yinele işlemine devam edilsin mi?' })}
           confirmText={t('common.yes', { defaultValue: 'Evet' })}
           cancelText={t('common.no', { defaultValue: 'Hayır' })}
           onCancel={() => setDuplicateTarget(null)}
@@ -400,34 +442,19 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             if (!src) return;
             // Backend yeni bir teklif üretsin
             try {
-              const created = await quotesApi.createQuote({
-                customerId: (src as any).customerId,
+              const payload: CreateQuoteDto = {
+                customerId: src.customerId,
                 customerName: src.customerName,
-                issueDate: new Date().toISOString().slice(0,10),
+                issueDate: iso(new Date()),
                 validUntil: src.validUntil,
-                currency: src.currency as any,
+                currency: src.currency,
                 total: src.total,
                 status: 'draft',
-                items: (src.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })),
-                scopeOfWorkHtml: (src as any).scopeOfWorkHtml || '',
-              });
-              const mapped: QuoteItem = {
-                id: created.id,
-                publicId: created.publicId,
-                quoteNumber: created.quoteNumber,
-                customerName: created.customer?.name || created.customerName || src.customerName,
-                customerId: created.customerId,
-                issueDate: String(created.issueDate).slice(0,10),
-                validUntil: created.validUntil ? String(created.validUntil).slice(0,10) : undefined,
-                currency: created.currency,
-                total: Number(created.total) || 0,
-                status: normalizeStatusKey(String(created.status)) as QuoteStatus,
-                version: created.version || 1,
-                scopeOfWorkHtml: created.scopeOfWorkHtml || '',
-                items: Array.isArray(created.items) ? created.items : [],
-                createdAt: created.createdAt || new Date().toISOString(),
-                updatedAt: created.updatedAt || new Date().toISOString(),
+                items: (src.items || []).map(mapLineItemToDto),
+                scopeOfWorkHtml: src.scopeOfWorkHtml || '',
               };
+              const created = await quotesApi.createQuote(payload) as QuoteApiRecord;
+              const mapped = mapQuoteFromApi(created);
               setQuotes(prev => [mapped, ...prev]);
             } catch (e) {
               console.error('Duplicate quote failed:', e);
@@ -460,15 +487,16 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
               total: target.total,
               items: target.items ? target.items.map(it => ({ ...it })) : undefined,
               snapshotAt: new Date().toISOString(),
-            } as NonNullable<QuoteItem['revisions']>[number];
+            } as NonNullable<QuoteListItem['revisions']>[number];
             try {
-              const updated = await quotesApi.updateQuote(String(target.id), {
+              const updatePayload: UpdateQuoteDto = {
                 status: 'draft',
                 issueDate: nextIssue,
                 validUntil: nextValid,
                 version: (target.version || 1) + 1,
                 revisions: [...(target.revisions || []), snapshot],
-              } as any);
+              };
+              const updated = await quotesApi.updateQuote(String(target.id), updatePayload);
               setQuotes(prev => prev.map(item => item.id === target.id ? {
                 ...item,
                 status: normalizeStatusKey(String(updated.status)) as QuoteStatus,
@@ -478,13 +506,16 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                 revisions: Array.isArray(updated.revisions) ? updated.revisions : item.revisions,
                 updatedAt: updated.updatedAt || item.updatedAt,
               } : item));
-              setSelectedQuote(prev => prev && prev.id === target.id ? ({
-                ...(prev as any),
-                status: 'draft',
-                issueDate: nextIssue,
-                validUntil: nextValid,
-                version: (target.version || 1) + 1,
-              }) : prev);
+              setSelectedQuote(prev => {
+                if (!prev || prev.id !== target.id) return prev;
+                return {
+                  ...prev,
+                  status: 'draft',
+                  issueDate: nextIssue,
+                  validUntil: nextValid,
+                  version: (target.version || 1) + 1,
+                };
+              });
             } catch (e) {
               console.error('Revise failed:', e);
             }
@@ -535,7 +566,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           </div>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilterValue)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="all">{t('quotes.filterAll')}</option>
@@ -566,15 +597,15 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             <SavedViewsBar
               listType="quotes"
               getState={() => ({ searchTerm, statusFilter, startDate, endDate, sortBy, sortDir, pageSize })}
-              applyState={(s) => {
-                const st = s || {} as any;
-                setSearchTerm(st.searchTerm ?? '');
-                setStatusFilter((st.statusFilter as any) ?? 'all');
-                setStartDate(st.startDate ?? '');
-                setEndDate(st.endDate ?? '');
-                if (st.sortBy) setSortBy(st.sortBy);
-                if (st.sortDir) setSortDir(st.sortDir);
-                if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+              applyState={(state) => {
+                if (!state) return;
+                setSearchTerm(state.searchTerm ?? '');
+                setStatusFilter(state.statusFilter ?? 'all');
+                setStartDate(state.startDate ?? '');
+                setEndDate(state.endDate ?? '');
+                if (state.sortBy) setSortBy(state.sortBy);
+                if (state.sortDir) setSortDir(state.sortDir);
+                if (state.pageSize && [20,50,100].includes(state.pageSize)) handlePageSizeChange(state.pageSize);
               }}
               presets={[
                 { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
@@ -583,9 +614,9 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                   const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
                   setStartDate(start); setEndDate(end);
                 }},
-                { id: 'accepted', label: t('quotes.statusLabels.accepted'), apply: () => setStatusFilter('accepted') as any },
-                { id: 'declined', label: t('quotes.statusLabels.declined'), apply: () => setStatusFilter('declined') as any },
-                { id: 'expired', label: t('quotes.statusLabels.expired'), apply: () => setStatusFilter('expired') as any },
+                { id: 'accepted', label: t('quotes.statusLabels.accepted'), apply: () => setStatusFilter('accepted') },
+                { id: 'declined', label: t('quotes.statusLabels.declined'), apply: () => setStatusFilter('declined') },
+                { id: 'expired', label: t('quotes.statusLabels.expired'), apply: () => setStatusFilter('expired') },
               ]}
             />
           </div>
@@ -720,7 +751,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {(item as any).createdByName || '—'}
+                        {item.createdByName || '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {editingQuoteId === item.id && editingField === 'issueDate' ? (
@@ -764,14 +795,14 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                                 id: item.id,
                                 quoteNumber: item.quoteNumber,
                                 customerName: item.customerName,
-                                customerId: (item as any).customerId,
+                                customerId: item.customerId,
                                 issueDate: item.issueDate,
                                 validUntil: item.validUntil,
-                                status: item.status as any,
-                                currency: item.currency as any,
+                                status: item.status,
+                                currency: item.currency,
                                 total: item.total,
                                 items: (item.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
-                                scopeOfWorkHtml: (item as any).scopeOfWorkHtml || ''
+                                scopeOfWorkHtml: item.scopeOfWorkHtml || ''
                               }, { filename: item.quoteNumber });
                             }}
                             className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
@@ -826,14 +857,14 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
                                 id: item.id,
                                 quoteNumber: item.quoteNumber,
                                 customerName: item.customerName,
-                                customerId: (item as any).customerId,
+                                customerId: item.customerId,
                                 issueDate: item.issueDate,
                                 validUntil: item.validUntil,
-                                status: item.status as any,
-                                currency: item.currency as any,
+                                status: item.status,
+                                currency: item.currency,
                                 total: item.total,
                                 items: (item.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })),
-                                scopeOfWorkHtml: (item as any).scopeOfWorkHtml || ''
+                                scopeOfWorkHtml: item.scopeOfWorkHtml || ''
                               }, { filename: item.quoteNumber });
                             }}
                             className="px-2 py-1 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 text-xs"
@@ -895,7 +926,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
           onClose={closeCreate}
           customers={customers}
           products={products}
-          defaultCurrency={defaultCurrency as any}
+          defaultCurrency={defaultCurrency}
           onOpenTemplatesManager={openTemplates}
           enableTemplates={['professional','pro','enterprise','business'].includes(planRaw)}
           
@@ -903,39 +934,31 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
             try {
               const cidRaw = String(payload.customer.id ?? '').trim();
               const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cidRaw);
-              const created = await quotesApi.createQuote({
+              const createPayload: CreateQuoteDto = {
                 customerId: isUuid ? cidRaw : undefined,
                 customerName: payload.customer.name,
                 issueDate: payload.issueDate,
                 validUntil: payload.validUntil,
-                currency: payload.currency as any,
+                currency: payload.currency,
                 total: payload.total,
-                items: payload.items.map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })),
+                items: payload.items.map(it => ({
+                  id: it.id,
+                  description: it.description,
+                  quantity: it.quantity,
+                  unitPrice: it.unitPrice,
+                  total: it.total,
+                  productId: it.productId,
+                  unit: it.unit,
+                })),
                 scopeOfWorkHtml: payload.scopeOfWorkHtml || '',
-              });
-              const currentUserName = (() => {
-                const full = `${(authUser as any)?.firstName || ''} ${(authUser as any)?.lastName || ''}`.trim();
-                if (full) return full;
-                return (authUser as any)?.name || '';
-              })();
-              const next: QuoteItem = {
-                id: created.id,
-                publicId: created.publicId,
-                quoteNumber: created.quoteNumber,
-                customerName: created.customer?.name || created.customerName || payload.customer.name,
-                customerId: created.customerId,
-                issueDate: String(created.issueDate).slice(0,10),
-                validUntil: created.validUntil ? String(created.validUntil).slice(0,10) : undefined,
-                currency: created.currency,
-                total: Number(created.total) || 0,
-                status: created.status,
-                version: created.version || 1,
-                scopeOfWorkHtml: created.scopeOfWorkHtml || '',
-                items: Array.isArray(created.items) ? created.items : payload.items,
-                createdAt: created.createdAt || new Date().toISOString(),
-                updatedAt: created.updatedAt || new Date().toISOString(),
-                createdByName: (created as any)?.createdByName || currentUserName,
-                updatedByName: (created as any)?.updatedByName || currentUserName,
+              };
+              const created = await quotesApi.createQuote(createPayload) as QuoteApiRecord;
+              const mapped = mapQuoteFromApi(created);
+              const currentUserName = getCurrentUserName();
+              const next: QuoteListItem = {
+                ...mapped,
+                createdByName: mapped.createdByName || currentUserName,
+                updatedByName: mapped.updatedByName || currentUserName,
               };
               setQuotes(prev => [next, ...prev]);
             } catch (e) {
@@ -983,15 +1006,26 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
         quote={selectedQuote as QuoteModel}
         onEdit={(q) => {
           closeView();
-          setTimeout(() => openEdit(q as QuoteItem), 100);
+          setTimeout(() => openEdit(q as QuoteListItem), 100);
         }}
         onChangeStatus={async (q, status) => {
           try {
-            const updated = await quotesApi.updateQuote(String(q.id), { status });
+            const payload: UpdateQuoteDto = { status };
+            const updated = await quotesApi.updateQuote(String(q.id), payload);
             const ns = normalizeStatusKey(String(updated.status)) as QuoteStatus;
-            setQuotes(prev => prev.map(item => item.id === q.id ? { ...item, status: ns } : item));
-            setSelectedQuote(prev => (prev && prev.id === q.id) ? { ...(prev as any), status: ns } : prev);
-            setQuotes(prev => prev.map(item => item.id === q.id ? { ...item, updatedAt: updated.updatedAt || item.updatedAt } : item));
+            setQuotes(prev => prev.map(item => item.id === q.id ? {
+              ...item,
+              status: ns,
+              updatedAt: updated.updatedAt || item.updatedAt,
+            } : item));
+            setSelectedQuote(prev => {
+              if (!prev || prev.id !== q.id) return prev;
+              return {
+                ...prev,
+                status: ns,
+                updatedAt: updated.updatedAt || prev.updatedAt,
+              };
+            });
           } catch (e) {
             console.error('Quote status update failed:', e);
           }
@@ -1004,46 +1038,29 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
         quote={selectedQuote as QuoteModel}
         onSave={async (updated) => {
           try {
-            const saved = await quotesApi.updateQuote(String(updated.id), {
-              customerId: (updated as any).customerId,
+            const updatePayload: UpdateQuoteDto = {
+              customerId: updated.customerId,
               customerName: updated.customerName,
               issueDate: updated.issueDate,
               validUntil: updated.validUntil,
-              currency: updated.currency as any,
+              currency: updated.currency as QuoteListItem['currency'],
               total: updated.total,
-              items: (updated.items || []).map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total, productId: it.productId, unit: it.unit })),
-              scopeOfWorkHtml: (updated as any).scopeOfWorkHtml || '',
+              items: (updated.items || []).map(it => ({
+                id: it.id,
+                description: it.description,
+                quantity: it.quantity,
+                unitPrice: it.unitPrice,
+                total: it.total,
+                productId: it.productId,
+                unit: it.unit,
+              })),
+              scopeOfWorkHtml: updated.scopeOfWorkHtml || '',
               status: updated.status,
-            } as any);
-            setQuotes(prev => prev.map(q => q.id === saved.id ? {
-              ...q,
-              publicId: saved.publicId || q.publicId,
-              customerName: saved.customer?.name || saved.customerName || updated.customerName,
-              customerId: saved.customerId,
-              issueDate: String(saved.issueDate).slice(0,10),
-              validUntil: saved.validUntil ? String(saved.validUntil).slice(0,10) : undefined,
-              currency: saved.currency,
-              total: Number(saved.total) || 0,
-              status: normalizeStatusKey(String(saved.status)) as QuoteStatus,
-              version: saved.version || q.version,
-              scopeOfWorkHtml: saved.scopeOfWorkHtml || '',
-              items: Array.isArray(saved.items) ? saved.items : q.items,
-              updatedAt: saved.updatedAt || q.updatedAt,
-            } : q));
-            setSelectedQuote(prev => prev && prev.id === saved.id ? ({
-              ...(prev as any),
-              customerName: saved.customer?.name || saved.customerName || updated.customerName,
-              customerId: saved.customerId,
-              issueDate: String(saved.issueDate).slice(0,10),
-              validUntil: saved.validUntil ? String(saved.validUntil).slice(0,10) : undefined,
-              currency: saved.currency,
-              total: Number(saved.total) || 0,
-              status: normalizeStatusKey(String(saved.status)) as QuoteStatus,
-              version: saved.version || (prev as any).version,
-              scopeOfWorkHtml: saved.scopeOfWorkHtml || '',
-              items: Array.isArray(saved.items) ? saved.items : (prev as any).items,
-              updatedAt: saved.updatedAt || (prev as any).updatedAt,
-            }) : prev);
+            };
+            const saved = await quotesApi.updateQuote(String(updated.id), updatePayload) as QuoteApiRecord;
+            const normalized = mapQuoteFromApi(saved);
+            setQuotes(prev => prev.map(q => q.id === normalized.id ? normalized : q));
+            setSelectedQuote(prev => (prev && prev.id === normalized.id) ? normalized : prev);
           } catch (e) {
             console.error('Quote update failed:', e);
           }

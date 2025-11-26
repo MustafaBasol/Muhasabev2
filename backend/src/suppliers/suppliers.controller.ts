@@ -14,6 +14,7 @@ import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
+import type { CurrentUser } from '../common/decorators/user.decorator';
 import { Audit } from '../audit/audit.interceptor';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 
@@ -29,20 +30,20 @@ export class SuppliersController {
   @Audit('Supplier', AuditAction.CREATE)
   async create(
     @Body() createSupplierDto: CreateSupplierDto,
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
     return this.suppliersService.create(createSupplierDto, user.tenantId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all suppliers for tenant' })
-  async findAll(@User() user: any) {
+  async findAll(@User() user: CurrentUser) {
     return this.suppliersService.findAll(user.tenantId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get supplier by id' })
-  async findOne(@Param('id') id: string, @User() user: any) {
+  async findOne(@Param('id') id: string, @User() user: CurrentUser) {
     return this.suppliersService.findOne(id, user.tenantId);
   }
 
@@ -52,7 +53,7 @@ export class SuppliersController {
   async update(
     @Param('id') id: string,
     @Body() updateSupplierDto: UpdateSupplierDto,
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
     return this.suppliersService.update(id, updateSupplierDto, user.tenantId);
   }
@@ -60,7 +61,7 @@ export class SuppliersController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete supplier' })
   @Audit('Supplier', AuditAction.DELETE)
-  async remove(@Param('id') id: string, @User() user: any) {
+  async remove(@Param('id') id: string, @User() user: CurrentUser) {
     return this.suppliersService.remove(id, user.tenantId);
   }
 }

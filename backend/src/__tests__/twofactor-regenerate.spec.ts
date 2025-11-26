@@ -7,24 +7,51 @@ import { SecurityService } from '../common/security.service';
 import { TwoFactorService } from '../common/two-factor.service';
 import { AuditService } from '../audit/audit.service';
 
+interface MockUserEntity {
+  id: string;
+  email: string;
+  tenantId: string;
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
+  backupCodes?: string[];
+}
+
 class MockUserRepo {
-  private store: any[] = [];
-  findOne(opts: any) {
+  private store: MockUserEntity[] = [];
+
+  findOne(opts: {
+    where: { id: string };
+  }): Promise<MockUserEntity | undefined> {
     return Promise.resolve(this.store.find((u) => u.id === opts.where.id));
   }
-  update(id: string, data: any) {
+
+  update(id: string, data: Partial<MockUserEntity>): Promise<void> {
     const idx = this.store.findIndex((u) => u.id === id);
     if (idx >= 0) {
       this.store[idx] = { ...this.store[idx], ...data };
     }
     return Promise.resolve();
   }
-  count() { return Promise.resolve(this.store.length); }
-  create(data: any) { return data; }
-  save(data: any) { this.store.push(data); return Promise.resolve(data); }
+
+  count(): Promise<number> {
+    return Promise.resolve(this.store.length);
+  }
+
+  create(data: MockUserEntity): MockUserEntity {
+    return data;
+  }
+
+  save(data: MockUserEntity): Promise<MockUserEntity> {
+    this.store.push(data);
+    return Promise.resolve(data);
+  }
 }
 
-class MockTenantRepo { findOne() { return Promise.resolve({ id: 't1' }); } }
+class MockTenantRepo {
+  findOne() {
+    return Promise.resolve({ id: 't1' });
+  }
+}
 
 describe('UsersService regenerateTwoFactorBackupCodes', () => {
   let service: UsersService;
@@ -68,11 +95,20 @@ describe('UsersService regenerateTwoFactorBackupCodes', () => {
   });
 
   it('throws if user not found', async () => {
-    await expect(service.regenerateTwoFactorBackupCodes('missing')).rejects.toThrow('User not found');
+    await expect(
+      service.regenerateTwoFactorBackupCodes('missing'),
+    ).rejects.toThrow('User not found');
   });
 
   it('throws if 2FA not enabled', async () => {
-    await userRepo.save({ id: 'u2', email: 'no2fa@example.com', tenantId: 't1', twoFactorEnabled: false });
-    await expect(service.regenerateTwoFactorBackupCodes('u2')).rejects.toThrow('2FA is not enabled for this user');
+    await userRepo.save({
+      id: 'u2',
+      email: 'no2fa@example.com',
+      tenantId: 't1',
+      twoFactorEnabled: false,
+    });
+    await expect(service.regenerateTwoFactorBackupCodes('u2')).rejects.toThrow(
+      '2FA is not enabled for this user',
+    );
   });
 });

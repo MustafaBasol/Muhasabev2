@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { ThrottlerModule, ThrottlerGuard, ThrottlerException } from '@nestjs/throttler';
+import {
+  ThrottlerModule,
+  ThrottlerGuard,
+  ThrottlerException,
+} from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
 // AuthService'i taklit ediyoruz (mock), çünkü sadece controller'ın davranışını test etmek istiyoruz.
@@ -80,7 +84,9 @@ describe('AuthController (Rate Limiting)', () => {
       }
 
       // Limiti aşan bir sonraki isteğin ThrottlerException fırlatmasını bekliyoruz.
-      await expect(controller.refresh(userPayload)).rejects.toThrow(ThrottlerException);
+      await expect(controller.refresh(userPayload)).rejects.toThrow(
+        ThrottlerException,
+      );
 
       // AuthService'in refresh metodunun fazladan çağrılmadığını doğruluyoruz (guard engelledi).
       expect(mockAuthService.refresh).toHaveBeenCalledTimes(TEST_RATE_LIMIT);

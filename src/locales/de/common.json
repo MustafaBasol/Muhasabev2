@@ -816,6 +816,16 @@
     "captchaRequired": "Bitte schließen Sie die Menschlichkeitsprüfung ab.",
     "captchaPrompt": "Bitte schließen Sie die Menschlichkeitsprüfung ab, bevor Sie fortfahren.",
     "captchaVerificationFailed": "Die Menschlichkeitsprüfung konnte nicht bestätigt werden. Bitte versuchen Sie es erneut.",
+      "verifyRequiredTitle": "E-Mail-Bestätigung erforderlich",
+      "verifyRequiredBody": "Wir haben einen Bestätigungslink an {{email}} gesendet. Bestätige deine Adresse, um fortzufahren.",
+      "verifyRequiredHint": "Ohne bestätigte E-Mail bleiben alle Aktionen im System gesperrt.",
+      "verifyRequiredAction": "Bestätigungsstatus öffnen",
+      "verifyRequiredLogout": "Abmelden",
+      "verifyYourEmail": "Bestätigen Sie Ihre E-Mail",
+      "verifySentTo": "Wir haben einen Bestätigungslink gesendet an:",
+      "verifySent": "Wir haben einen Bestätigungslink an Ihre E-Mail-Adresse gesendet.",
+      "resend": "Erneut senden",
+      "resendCooldown": "Aus Sicherheitsgründen gilt eine Wartezeit von 60 Sekunden",
     "securityVerificationRequired": "Sicherheitsüberprüfung erforderlich. Bitte schließen Sie die Verifizierung ab.",
     "emailNotVerified": "E-Mail noch nicht verifiziert. Bitte bestätigen Sie Ihre E-Mail, bevor Sie sich anmelden.",
     "verificationEmailSent": "Bestätigungs-E-Mail gesendet. Bitte prüfen Sie Ihr Postfach.",
@@ -1545,7 +1555,8 @@
     "descriptionPlaceholder": "Ausgabenbeschreibung...",
     "totalExpense": "Gesamtausgabe",
     "receiptUrl": "Beleg/Rechnung URL",
-    "receiptUrlHelper": "Sie können einen Link zu Beleg- oder Rechnungsbild/PDF hinzufügen"
+    "receiptUrlHelper": "Sie können einen Link zu Beleg- oder Rechnungsbild/PDF hinzufügen",
+    "exportCsv": "Als CSV exportieren"
   },
   "customers": {
     "title": "Kunden",
@@ -1737,6 +1748,10 @@
     "invoiceWillBeDownloaded": "Wenn eine Rechnung erstellt wird, wird sie automatisch im PDF-Format heruntergeladen.",
     "confirmInvoiceCreation": "Rechnung erstellen?",
     "invoiceWillOpen": "Die Rechnung wird nach der Erstellung im Anzeigefenster geöffnet.",
+    "recordOnlySale": "Nur Verkauf erfassen",
+    "recordSaleWithInvoice": "Verkauf mit Rechnung",
+    "confirmInvoiceAction": "Ja, erstellen",
+    "creatingInvoice": "Wird erstellt...",
     "selectExistingSale": "Vorhandenen Verkauf Auswählen",
     "selectSaleForInvoice": "Verkauf für Rechnung auswählen",
     "searchSalesPlaceholder": "Nach Verkaufsnummer, Kunde oder Produkt suchen...",
@@ -2664,6 +2679,39 @@
       "updateRole": {
         "success": "Mitgliedsrolle aktualisiert",
         "error": "Mitgliedsrolle konnte nicht aktualisiert werden"
+      }
+    },
+    "join": {
+      "title": "Organisation beitreten",
+      "subtitle": "Du wurdest eingeladen, {{orgName}} beizutreten",
+      "invitedBy": "Eingeladen von {{name}}",
+      "role": "Rolle: {{role}}",
+      "accept": "Einladung annehmen",
+      "decline": "Ablehnen",
+      "expired": {
+        "title": "Einladung abgelaufen",
+        "subtitle": "Dieser Einladungslink ist abgelaufen",
+        "action": "Neue Einladung anfordern"
+      },
+      "invalid": {
+        "title": "Ungültige Einladung",
+        "subtitle": "Dieser Einladungslink ist ungültig",
+        "action": "Zur Startseite"
+      },
+      "success": {
+        "title": "Willkommen!",
+        "subtitle": "Du bist {{orgName}} erfolgreich beigetreten",
+        "action": "Zum Dashboard"
+      },
+      "error": {
+        "title": "Fehler",
+        "subtitle": "Beim Annehmen der Einladung ist ein Fehler aufgetreten",
+        "tryAgain": "Erneut versuchen"
+      },
+      "alreadyMember": {
+        "title": "Bereits Mitglied",
+        "subtitle": "Du bist bereits Mitglied dieser Organisation",
+        "action": "Zum Dashboard"
       }
     }
   },

@@ -27,6 +27,33 @@ import {
   AcceptInviteDto,
 } from './dto/member.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
+
+const extractHeaderValue = (value?: string | string[]): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  return Array.isArray(value) ? value[0] : value;
+};
+
+const resolveRequestOrigin = (req: AuthenticatedRequest): string | undefined => {
+  if (!req?.headers) {
+    return undefined;
+  }
+  const directOrigin = extractHeaderValue(req.headers.origin as any);
+  if (directOrigin) {
+    return directOrigin;
+  }
+  const proto =
+    extractHeaderValue(req.headers['x-forwarded-proto'] as any) || req.protocol;
+  const host =
+    extractHeaderValue(req.headers['x-forwarded-host'] as any) ||
+    extractHeaderValue(req.headers.host as any);
+  if (proto && host) {
+    return `${proto}://${host}`;
+  }
+  return undefined;
+};
 
 @ApiTags('organizations')
 @ApiBearerAuth()
@@ -41,7 +68,10 @@ export class OrganizationsController {
     status: HttpStatus.CREATED,
     description: 'Organization created successfully',
   })
-  create(@Body() createOrganizationDto: CreateOrganizationDto, @Request() req) {
+  create(
+    @Body() createOrganizationDto: CreateOrganizationDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.organizationsService.create(createOrganizationDto, req.user.id);
   }
 
@@ -51,7 +81,7 @@ export class OrganizationsController {
     status: HttpStatus.OK,
     description: 'List of user organizations',
   })
-  findAll(@Request() req) {
+  findAll(@Request() req: AuthenticatedRequest) {
     return this.organizationsService.getUserOrganizations(req.user.id);
   }
 
@@ -62,7 +92,7 @@ export class OrganizationsController {
     status: HttpStatus.NOT_FOUND,
     description: 'Organization not found',
   })
-  findOne(@Param('id') id: string, @Request() req) {
+  findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.organizationsService.findOne(id, req.user.id);
   }
 
@@ -79,7 +109,7 @@ export class OrganizationsController {
   update(
     @Param('id') id: string,
     @Body() updateOrganizationDto: UpdateOrganizationDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.organizationsService.update(
       id,
@@ -98,7 +128,7 @@ export class OrganizationsController {
     status: HttpStatus.FORBIDDEN,
     description: 'Only owners can delete organizations',
   })
-  remove(@Param('id') id: string, @Request() req) {
+  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.organizationsService.remove(id, req.user.id);
   }
 
@@ -115,9 +145,14 @@ export class OrganizationsController {
   inviteUser(
     @Param('id') id: string,
     @Body() inviteUserDto: InviteUserDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.organizationsService.inviteUser(id, inviteUserDto, req.user.id);
+    return this.organizationsService.inviteUser(
+      id,
+      inviteUserDto,
+      req.user.id,
+      resolveRequestOrigin(req),
+    );
   }
 
   @Post('accept-invite')
@@ -130,7 +165,10 @@ export class OrganizationsController {
     status: HttpStatus.NOT_FOUND,
     description: 'Invalid or expired invitation',
   })
-  acceptInvite(@Body() acceptInviteDto: AcceptInviteDto, @Request() req) {
+  acceptInvite(
+    @Body() acceptInviteDto: AcceptInviteDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.organizationsService.acceptInvite(
       acceptInviteDto.token,
       req.user.id,
@@ -138,9 +176,17 @@ export class OrganizationsController {
   }
 
   @Get('invites/validate/:token')
-  @ApiOperation({ summary: 'Validate invitation token and return invite details' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Invite details returned' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Invalid invite token' })
+  @ApiOperation({
+    summary: 'Validate invitation token and return invite details',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Invite details returned',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Invalid invite token',
+  })
   validateInvite(@Param('token') token: string) {
     // Note: Guard requires auth; we do not enforce email match here.
     return this.organizationsService.validateInvite(token);
@@ -152,7 +198,7 @@ export class OrganizationsController {
     status: HttpStatus.OK,
     description: 'List of organization members',
   })
-  getMembers(@Param('id') id: string, @Request() req) {
+  getMembers(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.organizationsService.getMembers(id, req.user.id);
   }
 
@@ -170,7 +216,7 @@ export class OrganizationsController {
     @Param('id') id: string,
     @Param('memberId') memberId: string,
     @Body() updateMemberRoleDto: UpdateMemberRoleDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.organizationsService.updateMemberRole(
       id,
@@ -193,7 +239,7 @@ export class OrganizationsController {
   removeMember(
     @Param('id') id: string,
     @Param('memberId') memberId: string,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.organizationsService.removeMember(id, memberId, req.user.id);
   }
@@ -208,7 +254,10 @@ export class OrganizationsController {
     status: HttpStatus.FORBIDDEN,
     description: 'Insufficient permissions',
   })
-  getPendingInvites(@Param('id') id: string, @Request() req) {
+  getPendingInvites(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.organizationsService.getPendingInvites(id, req.user.id);
   }
 
@@ -220,7 +269,10 @@ export class OrganizationsController {
       'Membership statistics including current/max members and plan limits',
   })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Access denied' })
-  getMembershipStats(@Param('id') id: string, @Request() req) {
+  getMembershipStats(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.organizationsService.getMembershipStats(id, req.user.id);
   }
 
@@ -241,7 +293,7 @@ export class OrganizationsController {
   cancelInvite(
     @Param('id') id: string,
     @Param('inviteId') inviteId: string,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.organizationsService.cancelInvite(id, inviteId, req.user.id);
   }
@@ -263,8 +315,13 @@ export class OrganizationsController {
   resendInvite(
     @Param('id') id: string,
     @Param('inviteId') inviteId: string,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.organizationsService.resendInvite(id, inviteId, req.user.id);
+    return this.organizationsService.resendInvite(
+      id,
+      inviteId,
+      req.user.id,
+      resolveRequestOrigin(req),
+    );
   }
 }

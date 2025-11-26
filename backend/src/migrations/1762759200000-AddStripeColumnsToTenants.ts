@@ -1,15 +1,31 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
+const toColumnNameSet = (rows: unknown): Set<string> => {
+  const names = new Set<string>();
+  if (!Array.isArray(rows)) {
+    return names;
+  }
+  for (const row of rows) {
+    if (row && typeof row === 'object' && 'column_name' in row) {
+      const value = (row as { column_name?: string }).column_name;
+      if (typeof value === 'string') {
+        names.add(value);
+      }
+    }
+  }
+  return names;
+};
+
 export class AddStripeColumnsToTenants1762759200000
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Idempotent: kolon var mı kontrol et, yoksa ekle. Prod ortamında yeniden
     // deploy / kısmi migrate senaryolarında migration çakışmasını engeller.
-    const existing = await queryRunner.query(
+    const existing: unknown = await queryRunner.query(
       `SELECT column_name FROM information_schema.columns WHERE table_name = 'tenants'`,
     );
-    const cols = new Set(existing.map((r: any) => r.column_name));
+    const cols = toColumnNameSet(existing);
 
     const toAdd: TableColumn[] = [];
     if (!cols.has('stripeCustomerId')) {
@@ -50,10 +66,10 @@ export class AddStripeColumnsToTenants1762759200000
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Down migration: Kolon varsa düşür. (Idempotent)
-    const existing = await queryRunner.query(
+    const existing: unknown = await queryRunner.query(
       `SELECT column_name FROM information_schema.columns WHERE table_name = 'tenants'`,
     );
-    const cols = new Set(existing.map((r: any) => r.column_name));
+    const cols = toColumnNameSet(existing);
     if (cols.has('billingInterval')) {
       await queryRunner.dropColumn('tenants', 'billingInterval');
     }

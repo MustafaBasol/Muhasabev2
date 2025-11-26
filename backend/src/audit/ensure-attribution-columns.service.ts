@@ -2,16 +2,14 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 @Injectable()
-export class EnsureAttributionColumnsService
-  implements OnApplicationBootstrap
-{
+export class EnsureAttributionColumnsService implements OnApplicationBootstrap {
   private readonly logger = new Logger(EnsureAttributionColumnsService.name);
 
   constructor(private readonly dataSource: DataSource) {}
 
   async onApplicationBootstrap() {
     try {
-      const type = (this.dataSource.options as any)?.type;
+      const { type } = this.dataSource.options;
       if (type !== 'postgres') {
         // SQLite veya diğer tiplerde bu fix'e gerek yok
         return;
@@ -101,7 +99,7 @@ export class EnsureAttributionColumnsService
       this.logger.log('Attribution columns ensured on core tables.');
     } catch (e) {
       await qr.rollbackTransaction();
-      this.logger.error('Failed ensuring attribution columns', e as any);
+      this.logger.error('Failed ensuring attribution columns', e);
       throw e;
     } finally {
       await qr.release();

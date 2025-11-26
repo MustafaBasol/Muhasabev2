@@ -28,26 +28,84 @@ export interface CreateQuoteDto {
 export interface UpdateQuoteDto extends Partial<CreateQuoteDto> {
   status?: QuoteStatus;
   version?: number;
-  revisions?: any[];
+  revisions?: QuoteRevision[];
 }
 
-export const getQuotes = async (): Promise<any[]> => {
-  const res = await apiClient.get('/quotes');
+export interface QuoteRevision {
+  version: number;
+  issueDate: string;
+  validUntil?: string;
+  status: QuoteStatus;
+  total: number;
+  items?: QuoteItemDto[];
+  snapshotAt: string;
+}
+
+export interface Quote extends CreateQuoteDto {
+  id: string;
+  quoteNumber: string;
+  status: QuoteStatus;
+  publicId?: string;
+  version?: number;
+  revisions?: QuoteRevision[];
+  createdAt?: string;
+  updatedAt?: string;
+  items?: QuoteItemDto[];
+}
+
+export interface TenantPublicProfile {
+  name?: string;
+  address?: string;
+  country?: string;
+  logoDataUrl?: string;
+  iban?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  taxNumber?: string;
+  taxOffice?: string;
+  mersisNumber?: string;
+  kepAddress?: string;
+  siretNumber?: string;
+  sirenNumber?: string;
+  apeCode?: string;
+  tvaNumber?: string;
+  rcsNumber?: string;
+  steuernummer?: string;
+  umsatzsteuerID?: string;
+  handelsregisternummer?: string;
+  geschaeftsfuehrer?: string;
+  einNumber?: string;
+  taxId?: string;
+  businessLicenseNumber?: string;
+  stateOfIncorporation?: string;
+  registrationNumber?: string;
+  vatNumberGeneric?: string;
+  taxIdGeneric?: string;
+  stateOrRegion?: string;
+}
+
+export interface QuotePublic extends Quote {
+  tenantPublicProfile?: TenantPublicProfile;
+}
+
+export const getQuotes = async (): Promise<Quote[]> => {
+  const res = await apiClient.get<Quote[]>('/quotes');
   return res.data;
 };
 
-export const getQuote = async (id: string): Promise<any> => {
-  const res = await apiClient.get(`/quotes/${id}`);
+export const getQuote = async (id: string): Promise<Quote> => {
+  const res = await apiClient.get<Quote>(`/quotes/${id}`);
   return res.data;
 };
 
-export const createQuote = async (data: CreateQuoteDto): Promise<any> => {
-  const res = await apiClient.post('/quotes', data);
+export const createQuote = async (data: CreateQuoteDto): Promise<Quote> => {
+  const res = await apiClient.post<Quote>('/quotes', data);
   return res.data;
 };
 
-export const updateQuote = async (id: string, data: UpdateQuoteDto): Promise<any> => {
-  const res = await apiClient.patch(`/quotes/${id}`, data);
+export const updateQuote = async (id: string, data: UpdateQuoteDto): Promise<Quote> => {
+  const res = await apiClient.patch<Quote>(`/quotes/${id}`, data);
   return res.data;
 };
 
@@ -56,22 +114,22 @@ export const deleteQuote = async (id: string): Promise<void> => {
 };
 
 // Public endpoints via publicId
-export const getPublicQuote = async (publicId: string): Promise<any> => {
-  const res = await apiClient.get(`/public/quotes/${publicId}`);
+export const getPublicQuote = async (publicId: string): Promise<QuotePublic> => {
+  const res = await apiClient.get<QuotePublic>(`/public/quotes/${publicId}`);
   return res.data;
 };
 
-export const markViewedPublic = async (publicId: string): Promise<any> => {
-  const res = await apiClient.post(`/public/quotes/${publicId}/viewed`, {});
+export const markViewedPublic = async (publicId: string): Promise<QuotePublic> => {
+  const res = await apiClient.post<QuotePublic>(`/public/quotes/${publicId}/viewed`, {});
   return res.data;
 };
 
-export const acceptPublic = async (publicId: string): Promise<any> => {
-  const res = await apiClient.post(`/public/quotes/${publicId}/accept`, {});
+export const acceptPublic = async (publicId: string): Promise<QuotePublic> => {
+  const res = await apiClient.post<QuotePublic>(`/public/quotes/${publicId}/accept`, {});
   return res.data;
 };
 
-export const declinePublic = async (publicId: string): Promise<any> => {
-  const res = await apiClient.post(`/public/quotes/${publicId}/decline`, {});
+export const declinePublic = async (publicId: string): Promise<QuotePublic> => {
+  const res = await apiClient.post<QuotePublic>(`/public/quotes/${publicId}/decline`, {});
   return res.data;
 };

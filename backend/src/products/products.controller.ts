@@ -14,6 +14,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
+import type { CurrentUser } from '../common/decorators/user.decorator';
 import { Audit } from '../audit/audit.interceptor';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 
@@ -27,25 +28,28 @@ export class ProductsController {
   @Post()
   @ApiOperation({ summary: 'Create product' })
   @Audit('Product', AuditAction.CREATE)
-  async create(@Body() createProductDto: CreateProductDto, @User() user: any) {
+  async create(
+    @Body() createProductDto: CreateProductDto,
+    @User() user: CurrentUser,
+  ) {
     return this.productsService.create(createProductDto, user.tenantId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all products for tenant' })
-  async findAll(@User() user: any) {
+  async findAll(@User() user: CurrentUser) {
     return this.productsService.findAll(user.tenantId);
   }
 
   @Get('low-stock')
   @ApiOperation({ summary: 'Get products with low stock' })
-  async findLowStock(@User() user: any) {
+  async findLowStock(@User() user: CurrentUser) {
     return this.productsService.findLowStock(user.tenantId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get product by id' })
-  async findOne(@Param('id') id: string, @User() user: any) {
+  async findOne(@Param('id') id: string, @User() user: CurrentUser) {
     return this.productsService.findOne(id, user.tenantId);
   }
 
@@ -55,7 +59,7 @@ export class ProductsController {
   async update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
     return this.productsService.update(id, updateProductDto, user.tenantId);
   }
@@ -63,7 +67,7 @@ export class ProductsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete product' })
   @Audit('Product', AuditAction.DELETE)
-  async remove(@Param('id') id: string, @User() user: any) {
+  async remove(@Param('id') id: string, @User() user: CurrentUser) {
     return this.productsService.remove(id, user.tenantId);
   }
 }

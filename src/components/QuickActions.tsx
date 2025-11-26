@@ -21,10 +21,10 @@ interface QuickActionsProps {
   onViewSuppliers: () => void;
   onViewBanks: () => void;
   onViewProducts: () => void;
-  customers?: any[];
-  suppliers?: any[];
-  banks?: any[];
-  products?: any[];
+  customers?: ReadonlyArray<unknown>;
+  suppliers?: ReadonlyArray<unknown>;
+  banks?: ReadonlyArray<unknown>;
+  products?: ReadonlyArray<unknown>;
 }
 
 export default function QuickActions({
@@ -123,7 +123,9 @@ export default function QuickActions({
       accent: 'text-amber-500',
       onClick: onViewProducts,
     },
-  ];  return (
+  ];
+
+  return (
     <div className="space-y-6">
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <h3 className="mb-4 text-lg font-semibold text-gray-900">{t('dashboard.quickActions')}</h3>

@@ -17,7 +17,7 @@ class TestAuthGuard {
     // Tek bir sabit tenant ID kullanıyoruz
     req.user = {
       id: 'test-user',
-      tenantId: 'test-tenant',
+      tenantId: '11111111-1111-1111-1111-111111111111',
       role: 'TENANT_ADMIN',
     };
     return true;
@@ -42,7 +42,7 @@ describe('Billing endpoints (e2e)', () => {
     dataSource = app.get(DataSource);
     const repo = dataSource.getRepository(Tenant);
     await repo.insert({
-      id: 'test-tenant',
+      id: '11111111-1111-1111-1111-111111111111',
       name: 'TestCo',
       slug: 'testco',
       subscriptionPlan: SubscriptionPlan.FREE,
@@ -59,7 +59,7 @@ describe('Billing endpoints (e2e)', () => {
 
   it('GET /billing/:tenantId/invoices returns empty invoices list for new tenant', async () => {
     const res = await request(app.getHttpServer()).get(
-      '/billing/test-tenant/invoices',
+      '/billing/11111111-1111-1111-1111-111111111111/invoices',
     );
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('invoices');
@@ -69,7 +69,7 @@ describe('Billing endpoints (e2e)', () => {
 
   it('GET /billing/:tenantId/history returns success and events array', async () => {
     const res = await request(app.getHttpServer()).get(
-      '/billing/test-tenant/history',
+      '/billing/11111111-1111-1111-1111-111111111111/history',
     );
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);

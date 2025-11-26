@@ -1,124 +1,190 @@
-import React, { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { X, Receipt, Calendar, Building2, Tag } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { resolveStatusLabel } from '../utils/status';
 import { useTranslation } from 'react-i18next';
+import type { Expense as ExpenseModel } from '../api/expenses';
+import { ExpenseStatus } from '../api/expenses';
 
-interface Expense {
+type SupplierOption = {
   id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+};
+
+type ExpenseFormState = {
   expenseNumber: string;
   description: string;
-  supplierId?: string;
-  supplier?: {
-    id: string;
-    name: string;
-  };
+  supplierInput: string;
+  supplierId: string;
+  amount: string;
+  category: string;
+  status: ExpenseStatus;
+  expenseDate: string;
+  dueDate: string;
+  receiptUrl: string;
+  notes: string;
+};
+
+type ExpenseFormPayload = {
+  id?: string;
+  expenseNumber?: string;
+  description: string;
   amount: number;
   category: string;
-  status: 'pending' | 'approved' | 'paid' | 'rejected';
+  status: ExpenseStatus;
   expenseDate: string;
+  date?: string;
+  supplierId?: string | null;
   dueDate?: string;
   receiptUrl?: string;
-  notes?: string;
-}
+  notes: string;
+};
 
 interface ExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (expense: Expense) => void;
-  expense?: Expense | null;
-  suppliers?: Array<{
-    id: string;
-    name: string;
-    email?: string;
-    phone?: string;
-  }>;
+  onSave: (expense: ExpenseFormPayload) => void;
+  expense?: ExpenseModel | null;
+  suppliers?: SupplierOption[];
   supplierInfo?: {
     name: string;
     category?: string;
   } | null;
 }
 
-const categories = [
-  { label: 'Diğer', value: 'other' },
-  { label: 'Ekipman', value: 'equipment' },
-  { label: 'Faturalar', value: 'utilities' },
-  { label: 'Kira', value: 'rent' },
-  { label: 'Maaşlar', value: 'salaries' },
-  { label: 'Malzemeler', value: 'supplies' },
-  { label: 'Pazarlama', value: 'marketing' },
-  { label: 'Seyahat', value: 'travel' },
-  { label: 'Sigorta', value: 'insurance' },
-  { label: 'Vergiler', value: 'taxes' },
+const categoryOptions = [
+  { fallbackLabel: 'Diğer', value: 'other' },
+  { fallbackLabel: 'Ekipman', value: 'equipment' },
+  { fallbackLabel: 'Faturalar', value: 'utilities' },
+  { fallbackLabel: 'Kira', value: 'rent' },
+  { fallbackLabel: 'Maaşlar', value: 'salaries' },
+  { fallbackLabel: 'Malzemeler', value: 'supplies' },
+  { fallbackLabel: 'Pazarlama', value: 'marketing' },
+  { fallbackLabel: 'Seyahat', value: 'travel' },
+  { fallbackLabel: 'Sigorta', value: 'insurance' },
+  { fallbackLabel: 'Vergiler', value: 'taxes' },
+] as const;
+
+const statusOptions: ExpenseStatus[] = [
+  ExpenseStatus.PENDING,
+  ExpenseStatus.APPROVED,
+  ExpenseStatus.PAID,
+  ExpenseStatus.REJECTED,
 ];
+
+const getTodayIso = () => new Date().toISOString().split('T')[0];
+
+const generateExpenseNumber = () => `EXP-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`;
+
+const ensureDateString = (value?: string | Date) => {
+  if (!value) return getTodayIso();
+  if (value instanceof Date) {
+    return value.toISOString().split('T')[0];
+  }
+  return value;
+};
+
+const buildFormState = (
+  existing?: ExpenseModel | null,
+  supplierPref?: ExpenseModalProps['supplierInfo']
+): ExpenseFormState => {
+  if (!existing) {
+    return {
+      expenseNumber: generateExpenseNumber(),
+      description: '',
+      supplierInput: supplierPref?.name || '',
+      supplierId: '',
+      amount: '0',
+      category: supplierPref?.category || 'other',
+      status: ExpenseStatus.PENDING,
+      expenseDate: getTodayIso(),
+      dueDate: '',
+      receiptUrl: '',
+      notes: ''
+    };
+  }
+
+  const supplier = typeof existing.supplier === 'string'
+    ? { id: existing.supplierId, name: existing.supplier || '' }
+    : existing.supplier;
+
+  return {
+    expenseNumber: existing.expenseNumber || generateExpenseNumber(),
+    description: existing.description || '',
+    supplierInput: supplier?.name || '',
+    supplierId: existing.supplierId || supplier?.id || '',
+    amount: existing.amount ? String(existing.amount) : '0',
+    category: existing.category || 'other',
+    status: existing.status || ExpenseStatus.PENDING,
+    expenseDate: ensureDateString(existing.expenseDate || existing.date),
+    dueDate: existing.dueDate || '',
+    receiptUrl: existing.receiptUrl || '',
+    notes: existing.notes || ''
+  };
+};
+
+const parseAmountInput = (value: string) => {
+  if (!value) return Number.NaN;
+  const normalized = value.replace(',', '.');
+  const parsed = Number.parseFloat(normalized);
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+};
 
 export default function ExpenseModal({ isOpen, onClose, onSave, expense, suppliers = [], supplierInfo }: ExpenseModalProps) {
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
 
-  const getCategoryLabel = (category: string): string => {
-    return t(`expenseCategories.${category}`) || category;
-  };
-  
-  const [expenseData, setExpenseData] = useState({
-    expenseNumber: expense?.expenseNumber || `EXP-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
-    description: expense?.description || '',
-    supplier: expense?.supplier?.name || expense?.supplierId || supplierInfo?.name || '',
-    supplierId: expense?.supplierId || '',
-    amount: String(expense?.amount || 0),
-    category: expense?.category || supplierInfo?.category || 'other',
-    status: expense?.status || 'pending',
-    expenseDate: expense?.expenseDate || new Date().toISOString().split('T')[0],
-    dueDate: expense?.dueDate || '',
-    receiptUrl: expense?.receiptUrl || '',
-    notes: expense?.notes || ''
-  });
-
+  const [expenseData, setExpenseData] = useState<ExpenseFormState>(() => buildFormState(expense, supplierInfo));
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
-  const [filteredSuppliers, setFilteredSuppliers] = useState(suppliers);
+  const [filteredSuppliers, setFilteredSuppliers] = useState<SupplierOption[]>(suppliers);
 
-  // Reset form when modal opens for new expense
-  React.useEffect(() => {
-    if (isOpen && !expense) {
-      // New expense - reset form
-      setExpenseData({
-        expenseNumber: `EXP-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
-        description: '',
-        supplier: supplierInfo?.name || '',
-        supplierId: '',
-        amount: "0",
-        category: supplierInfo?.category || 'other',
-        status: 'pending',
-        expenseDate: new Date().toISOString().split('T')[0],
-        dueDate: '',
-        receiptUrl: '',
-        notes: ''
-      });
-    } else if (isOpen && expense) {
-      // Editing existing expense - load data
-      setExpenseData({
-        expenseNumber: expense.expenseNumber,
-        description: expense.description,
-        supplier: expense.supplier?.name || '',
-        supplierId: expense.supplier?.id || '',
-        amount: String(expense.amount),
-        category: expense.category,
-        status: expense.status,
-        expenseDate: expense.expenseDate,
-        dueDate: expense.dueDate || '',
-        receiptUrl: expense.receiptUrl || '',
-        notes: expense.notes || ''
-      });
+  const categorySelectOptions = useMemo(() => (
+    categoryOptions.map(({ value, fallbackLabel }) => ({
+      value,
+      label: t(`expenseCategories.${value}`) || fallbackLabel,
+    }))
+  ), [t]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setExpenseData(buildFormState(expense, supplierInfo));
     }
   }, [isOpen, expense, supplierInfo]);
 
+  useEffect(() => {
+    setFilteredSuppliers(suppliers);
+  }, [suppliers]);
+
+  const handleSupplierInputChange = (value: string) => {
+    setExpenseData(prev => ({ ...prev, supplierInput: value, supplierId: '' }));
+    const normalized = value.trim().toLowerCase();
+    if (normalized.length < 2) {
+      setShowSupplierDropdown(false);
+      setFilteredSuppliers(suppliers);
+      return;
+    }
+
+    const filtered = suppliers.filter((supplier) => {
+      const lowerName = supplier.name.toLowerCase();
+      const lowerEmail = supplier.email ? supplier.email.toLowerCase() : '';
+      const lowerPhone = supplier.phone ? supplier.phone.toLowerCase() : '';
+      return lowerName.includes(normalized) || lowerEmail.includes(normalized) || lowerPhone.includes(normalized);
+    });
+    setFilteredSuppliers(filtered);
+    setShowSupplierDropdown(filtered.length > 0);
+  };
+
   const handleSave = () => {
     // Validation
-    if (!expenseData.description?.trim()) {
+    const trimmedDescription = expenseData.description.trim();
+    if (!trimmedDescription) {
       alert(t('validation.descriptionRequired') || 'Lütfen açıklama girin');
       return;
     }
-    if (!expenseData.amount || Number(expenseData.amount) <= 0) {
+    const parsedAmount = parseAmountInput(expenseData.amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       alert(t('validation.amountRequired') || 'Lütfen geçerli bir tutar girin');
       return;
     }
@@ -127,24 +193,33 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
       return;
     }
     
-    const newExpense: any = {
-      description: expenseData.description.trim(),
-      amount: Number(expenseData.amount),
+    const resolvedDate = expenseData.expenseDate || getTodayIso();
+    const normalizedSupplierId = expenseData.supplierId.trim();
+
+    const payload: ExpenseFormPayload = {
+      id: expense?.id,
+      expenseNumber: expenseData.expenseNumber.trim() || undefined,
+      description: trimmedDescription,
+      amount: parsedAmount,
       category: expenseData.category,
-      expenseDate: expenseData.expenseDate || new Date().toISOString().split('T')[0],
-      supplierId: expenseData.supplierId && expenseData.supplierId.trim() ? expenseData.supplierId : null,
-      status: expenseData.status || 'pending',
-      notes: expenseData.notes?.trim() || '',
+      status: expenseData.status,
+      expenseDate: resolvedDate,
+      date: resolvedDate,
+      supplierId: normalizedSupplierId ? normalizedSupplierId : null,
+      dueDate: expenseData.dueDate || undefined,
+      receiptUrl: expenseData.receiptUrl.trim() || undefined,
+      notes: expenseData.notes.trim(),
     };
-    
-    // Only include ID if editing
-    if (expense?.id) {
-      newExpense.id = expense.id;
-    }
-    
-    onSave(newExpense);
+
+    onSave(payload);
     onClose();
   };
+
+  const previewAmount = (() => {
+    const parsed = parseAmountInput(expenseData.amount);
+    return Number.isFinite(parsed) ? parsed : 0;
+  })();
+  const isSaveDisabled = !expenseData.description.trim() || !expenseData.amount.trim();
 
   if (!isOpen) return null;
 
@@ -182,7 +257,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               <input
                 type="text"
                 value={expenseData.expenseNumber}
-                onChange={(e) => setExpenseData({...expenseData, expenseNumber: e.target.value})}
+                onChange={(e) => setExpenseData(prev => ({ ...prev, expenseNumber: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
@@ -193,12 +268,12 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               </label>
               <select
                 value={expenseData.category}
-                onChange={(e) => setExpenseData({...expenseData, category: e.target.value})}
+                onChange={(e) => setExpenseData(prev => ({ ...prev, category: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
               >
-                {categories.map(cat => (
-                  <option key={cat.value} value={cat.value}>{getCategoryLabel(cat.value)}</option>
+                {categorySelectOptions.map(cat => (
+                  <option key={cat.value} value={cat.value}>{cat.label}</option>
                 ))}
               </select>
             </div>
@@ -212,7 +287,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <input
               type="text"
               value={expenseData.description}
-              onChange={(e) => setExpenseData({...expenseData, description: e.target.value})}
+              onChange={(e) => setExpenseData(prev => ({ ...prev, description: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               placeholder={t('expenses.descriptionPlaceholder') || 'Gider açıklaması...'}
               required
@@ -229,25 +304,10 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               <div className="relative">
                 <input
                   type="text"
-                  value={expenseData.supplier}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setExpenseData({...expenseData, supplier: value, supplierId: ''});
-                    
-                    // Filter suppliers
-                    if (value.length >= 2) {
-                      const filtered = suppliers?.filter(s => 
-                        s.name.toLowerCase().includes(value.toLowerCase()) ||
-                        s.email?.toLowerCase().includes(value.toLowerCase())
-                      );
-                      setFilteredSuppliers(filtered || []);
-                      setShowSupplierDropdown(true);
-                    } else {
-                      setShowSupplierDropdown(false);
-                    }
-                  }}
+                  value={expenseData.supplierInput}
+                  onChange={(e) => handleSupplierInputChange(e.target.value)}
                   onFocus={() => {
-                    if (expenseData.supplier.length >= 2) {
+                    if (expenseData.supplierInput.length >= 2 && filteredSuppliers.length > 0) {
                       setShowSupplierDropdown(true);
                     }
                   }}
@@ -259,11 +319,11 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
                   placeholder={t('expenses.supplierPlaceholder') || 'Tedarikçi adı yazın...'}
                 />
                 {/* Clear supplier button */}
-                {expenseData.supplier && (
+                {expenseData.supplierInput && (
                   <button
                     type="button"
                     onClick={() => {
-                      setExpenseData({...expenseData, supplier: '', supplierId: ''});
+                      setExpenseData(prev => ({ ...prev, supplierInput: '', supplierId: '' }));
                       setShowSupplierDropdown(false);
                     }}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
@@ -280,11 +340,11 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
                     <div
                       key={supplier.id}
                       onClick={() => {
-                        setExpenseData({
-                          ...expenseData,
-                          supplier: supplier.name,
+                        setExpenseData(prev => ({
+                          ...prev,
+                          supplierInput: supplier.name,
                           supplierId: supplier.id
-                        });
+                        }));
                         setShowSupplierDropdown(false);
                       }}
                       className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
@@ -308,7 +368,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               <input
                 type="number"
                 value={expenseData.amount}
-                onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})}
+                onChange={(e) => setExpenseData(prev => ({ ...prev, amount: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 placeholder="0.00"
                 min="0"
@@ -328,7 +388,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               <input
                 type="date"
                 value={expenseData.expenseDate}
-                onChange={(e) => setExpenseData({...expenseData, expenseDate: e.target.value})}
+                onChange={(e) => setExpenseData(prev => ({ ...prev, expenseDate: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 lang={i18n.language}
                 required
@@ -341,7 +401,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               <input
                 type="date"
                 value={expenseData.dueDate}
-                onChange={(e) => setExpenseData({...expenseData, dueDate: e.target.value})}
+                onChange={(e) => setExpenseData(prev => ({ ...prev, dueDate: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 lang={i18n.language}
               />
@@ -352,13 +412,14 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
               </label>
               <select
                 value={expenseData.status}
-                onChange={(e) => setExpenseData({...expenseData, status: e.target.value as any})}
+                onChange={(e) => setExpenseData(prev => ({ ...prev, status: e.target.value as ExpenseStatus }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               >
-                <option value="pending">{resolveStatusLabel(t,'pending')}</option>
-                <option value="approved">{resolveStatusLabel(t,'approved')}</option>
-                <option value="paid">{resolveStatusLabel(t,'paid')}</option>
-                <option value="rejected">{resolveStatusLabel(t,'rejected')}</option>
+                {statusOptions.map(status => (
+                  <option key={status} value={status}>
+                    {resolveStatusLabel(t, status)}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -371,7 +432,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <input
               type="url"
               value={expenseData.receiptUrl}
-              onChange={(e) => setExpenseData({...expenseData, receiptUrl: e.target.value})}
+              onChange={(e) => setExpenseData(prev => ({ ...prev, receiptUrl: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               placeholder="https://example.com/receipt.pdf"
             />
@@ -385,7 +446,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <div className="flex justify-between items-center">
               <span className="text-red-800 font-medium">{t('expenses.totalExpense') || 'Toplam Gider'}:</span>
               <span className="text-xl font-bold text-red-600">
-                {formatCurrency(Number(expenseData.amount) || 0)}
+                {formatCurrency(previewAmount)}
               </span>
             </div>
           </div>
@@ -401,7 +462,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
           </button>
           <button
             onClick={handleSave}
-            disabled={!expenseData.description || !expenseData.amount}
+            disabled={isSaveDisabled}
             className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {expense ? (t('common.update') || 'Güncelle') : (t('expenses.addExpense') || 'Gider Ekle')}

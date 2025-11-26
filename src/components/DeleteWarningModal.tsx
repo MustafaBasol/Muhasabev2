@@ -1,8 +1,14 @@
 import { X, AlertTriangle } from 'lucide-react';
 
-interface RelatedItem {
-  id: string;
-  [key: string]: any;
+export interface DeleteWarningRelatedItem {
+  id: string | number;
+  invoiceNumber?: string;
+  expenseNumber?: string;
+  description?: string;
+  status?: string;
+  total?: string | number;
+  amount?: string | number;
+  [key: string]: unknown;
 }
 
 interface DeleteWarningModalProps {
@@ -10,7 +16,7 @@ interface DeleteWarningModalProps {
   onClose: () => void;
   title: string;
   message: string;
-  relatedItems: RelatedItem[];
+  relatedItems: DeleteWarningRelatedItem[];
   itemType: 'invoice' | 'expense';
 }
 
@@ -24,24 +30,24 @@ export default function DeleteWarningModal({
 }: DeleteWarningModalProps) {
   if (!isOpen) return null;
 
-  const renderInvoiceItem = (item: any) => (
+  const renderInvoiceItem = (item: DeleteWarningRelatedItem) => (
     <div key={item.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
       <div>
-        <span className="font-medium text-gray-900">{item.invoiceNumber}</span>
+        <span className="font-medium text-gray-900">{item.invoiceNumber ?? item.id}</span>
         <span className="ml-3 text-sm text-gray-600">
-          {item.total} TL - {item.status}
+          {item.total ?? '—'} TL - {item.status ?? 'pending'}
         </span>
       </div>
     </div>
   );
 
-  const renderExpenseItem = (item: any) => (
+  const renderExpenseItem = (item: DeleteWarningRelatedItem) => (
     <div key={item.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
       <div>
-        <span className="font-medium text-gray-900">{item.expenseNumber}</span>
-        <span className="ml-3 text-sm text-gray-600">{item.description}</span>
+        <span className="font-medium text-gray-900">{item.expenseNumber ?? item.id}</span>
+        <span className="ml-3 text-sm text-gray-600">{item.description ?? ''}</span>
       </div>
-      <span className="text-sm font-medium text-gray-900">{item.amount} TL</span>
+      <span className="text-sm font-medium text-gray-900">{item.amount ?? '—'} TL</span>
     </div>
   );
 

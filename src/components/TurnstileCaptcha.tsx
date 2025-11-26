@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 
+const isCodespaceHost = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname || '';
+  return host.endsWith('.github.dev') || host.endsWith('.githubpreview.dev') || host.includes('.app.github.dev');
+};
+
 interface TurnstileCaptchaProps {
   onToken: (token: string | null) => void;
   className?: string;
@@ -13,6 +19,8 @@ interface TurnstileCaptchaProps {
 export function TurnstileCaptcha({ onToken, className, disabled, invisible }: TurnstileCaptchaProps) {
   const siteKey = (import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '';
   const isDev = Boolean((import.meta as any).env?.DEV);
+  const codespace = isCodespaceHost();
+  const skipVerification = !siteKey || codespace;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -23,14 +31,17 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
 
   // Fail-open davranışı: site key yoksa token'ı null yerine özel bir sentinel ile iletelim.
   useEffect(() => {
+    if (!skipVerification) return;
     if (!siteKey) {
       console.warn('[TurnstileCaptcha] VITE_TURNSTILE_SITE_KEY tanımlı değil; doğrulama atlanacak.');
-      onToken('TURNSTILE_SKIPPED');
+    } else if (codespace) {
+      console.warn('[TurnstileCaptcha] GitHub Codespace ortamı algılandı; Cloudflare domain kısıtı nedeniyle doğrulama atlandı.');
     }
-  }, [siteKey, onToken]);
+    onToken('TURNSTILE_SKIPPED');
+  }, [skipVerification, siteKey, codespace, onToken]);
 
   useEffect(() => {
-    if (!siteKey) return; // Fail-open: script yükleme gereksiz
+    if (skipVerification) return; // Fail-open: script yükleme gereksiz
     if (loadedScript) return;
     const existing = document.querySelector('script[data-turnstile-script]');
     if (existing) {
@@ -45,10 +56,10 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
     script.onload = () => setLoadedScript(true);
     script.onerror = () => setScriptError('Turnstile script yüklenemedi');
     document.head.appendChild(script);
-  }, [siteKey, loadedScript]);
+  }, [siteKey, loadedScript, skipVerification]);
 
   useEffect(() => {
-    if (!siteKey || hardFailed) return;
+    if (skipVerification || hardFailed) return;
     if (!loadedScript) return;
     if (!containerRef.current) return;
     if (!(window as any).turnstile) {
@@ -61,10 +72,10 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
       return () => clearInterval(interval);
     }
     setReady(true);
-  }, [siteKey, loadedScript, hardFailed]);
+  }, [siteKey, loadedScript, hardFailed, skipVerification]);
 
   useEffect(() => {
-    if (!ready || hardFailed) return;
+    if (!ready || hardFailed || skipVerification) return;
     if (!containerRef.current) return;
     if (!siteKey) return;
     const turnstile = (window as any).turnstile;
@@ -105,7 +116,7 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
         onToken(null);
       }
     });
-  }, [ready, siteKey, invisible, onToken, hardFailed, isDev]);
+  }, [ready, siteKey, invisible, onToken, hardFailed, isDev, skipVerification]);
 
   useEffect(() => {
     if (!hardFailed) return;
@@ -125,7 +136,7 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
 
   return (
     <div className={className}>
-      {siteKey && !hardFailed ? (
+      {siteKey && !hardFailed && !skipVerification ? (
         <>
           {!loadedScript && !scriptError && (
             <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -142,7 +153,9 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
             ? (isDev
                 ? 'Captcha geliştirici modunda başarısız oldu, doğrulama atlandı.'
                 : 'Captcha şu anda yüklenemiyor. Lütfen sayfayı yenileyin veya destekle iletişime geçin.')
-            : 'Captcha dev ortamda atlandı (site key yok)'}
+            : (codespace
+                ? 'GitHub Codespace ortamında doğrulama atlandı; üretimde Turnstile aktif olacak.'
+                : 'Captcha dev ortamda atlandı (site key yok)')}
         </div>
       )}
     </div>

@@ -1,7 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class FixUniqueSaleNumberIndex1762115300001 implements MigrationInterface {
-  name = 'FixUniqueSaleNumberIndex1762115300001'
+export class FixUniqueSaleNumberIndex1762115300001
+  implements MigrationInterface
+{
+  name = 'FixUniqueSaleNumberIndex1762115300001';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Postgres'te daha önce TableIndex ile oluşturulmuş UNIQUE index'i düşür
@@ -27,17 +29,17 @@ export class FixUniqueSaleNumberIndex1762115300001 implements MigrationInterface
 
     // Yeni bileşik tekil index (tenantId, saleNumber)
     await queryRunner.query(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_sales_tenant_saleNumber_idx" ON "sales" ("tenantId", "saleNumber");`
+      `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_sales_tenant_saleNumber_idx" ON "sales" ("tenantId", "saleNumber");`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Bileşik tekil index'i kaldır, eski tekil index'i (sadece saleNumber) geri yükleme
     await queryRunner.query(
-      `DROP INDEX IF EXISTS "UQ_sales_tenant_saleNumber_idx";`
+      `DROP INDEX IF EXISTS "UQ_sales_tenant_saleNumber_idx";`,
     );
     await queryRunner.query(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_sales_saleNumber" ON "sales" ("saleNumber");`
+      `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_sales_saleNumber" ON "sales" ("saleNumber");`,
     );
   }
 }

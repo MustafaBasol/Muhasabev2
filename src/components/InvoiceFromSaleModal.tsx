@@ -1,35 +1,91 @@
-import React, { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, FileText, Calendar, User, Package, Loader2 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { getProducts, type Product } from '../api/products';
 import StockWarningModal from './StockWarningModal';
 import { productCategoriesApi } from '../api/product-categories';
+import { readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
+import type { Invoice, Sale } from '../types';
+import { logger } from '../utils/logger';
+import { toNumberSafe } from '../utils/sortAndSearch';
 
-interface Sale {
-  id: string;
-  saleNumber?: string;
+type SaleItemWithMeta = Sale['items'] extends Array<infer T>
+  ? T & { description?: string; taxRate?: number }
+  : {
+      productId?: string;
+      productName?: string;
+      description?: string;
+      quantity?: number;
+      unitPrice?: number;
+      taxRate?: number;
+      total?: number;
+    };
+
+type InvoiceLineItemDraft = {
+  productId?: string | number;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate?: number;
+  total: number;
+};
+
+export type InvoiceDraftPayload = {
+  saleId: string;
+  customerId?: string;
+  issueDate: string;
+  dueDate: string;
+  status: Invoice['status'];
+  notes: string;
   customerName: string;
   customerEmail?: string;
-  productName: string;
-  quantity?: number;
-  unitPrice?: number;
-  amount: number;
-  // Backend'ten gelen alanlar (varsa)
-  subtotal?: number; // KDV hariç toplam
-  taxAmount?: number; // KDV tutarı
-  total?: number; // KDV dahil toplam
-  productId?: string;
-  items?: Array<{ productId?: string; productName?: string; description?: string; quantity?: number; unitPrice?: number; taxRate?: number; total?: number }>; // satış kalemleri
-  date: string;
-  paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
-  notes?: string;
-}
+  type: 'product' | 'service';
+  items: InvoiceLineItemDraft[];
+  lineItems: InvoiceLineItemDraft[];
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  discountAmount?: number;
+};
+
+type InvoiceFormState = {
+  dueDate: string;
+  status: Invoice['status'];
+  notes: string;
+};
+
+type PricingSnapshot = {
+  lineItems: InvoiceLineItemDraft[];
+  subtotal: number;
+  tax: number;
+  total: number;
+};
+
+type StockWarningState = {
+  product: Product;
+  requested: number;
+  available: number;
+};
+
+type CategoryMeta = {
+  id?: string;
+  name?: string;
+  parentId?: string | null;
+  taxRate?: number;
+};
+
+const parseTaxRate = (value: unknown): number | undefined => {
+  if (value === null || typeof value === 'undefined') return undefined;
+  if (typeof value === 'string' && value.trim() === '') return undefined;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : undefined;
+};
 
 interface InvoiceFromSaleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (invoiceData: any) => void;
+  onSave: (invoiceData: InvoiceDraftPayload) => void;
   sale: Sale | null;
 }
 
@@ -40,14 +96,26 @@ export default function InvoiceFromSaleModal({
   sale
 }: InvoiceFromSaleModalProps) {
   const { formatCurrency } = useCurrency();
-  const { t } = useTranslation();
-  const [productsCache, setProductsCache] = React.useState<Product[] | null>(null);
-  const [categoriesCache, setCategoriesCache] = React.useState<Array<{ name: string; taxRate: number }> | null>(null);
-  const [loadingMeta, setLoadingMeta] = React.useState(false);
-  const [stockWarning, setStockWarning] = React.useState<{ product: Product; requested: number; available: number } | null>(null);
+  const { t, i18n } = useTranslation();
+  const [productsCache, setProductsCache] = useState<Product[] | null>(null);
+  const [categoriesCache, setCategoriesCache] = useState<CategoryMeta[] | null>(null);
+  const [loadingMeta, setLoadingMeta] = useState(false);
+  const [stockWarning, setStockWarning] = useState<StockWarningState | null>(null);
+  const [invoiceData, setInvoiceData] = useState<InvoiceFormState>({
+    dueDate: '',
+    status: 'draft',
+    notes: '',
+  });
+
+  const fallbackLocale = typeof window !== 'undefined' && window.navigator?.language
+    ? window.navigator.language
+    : 'tr-TR';
+  const locale = useMemo(() => {
+    return safeLocalStorage.getItem('language') || i18n.language || fallbackLocale;
+  }, [i18n.language, fallbackLocale]);
 
   // Modal açıldığında ürün ve kategori verilerini hafızaya al (localStorage'a güvenme)
-  React.useEffect(() => {
+  useEffect(() => {
     let cancelled = false;
     async function loadMeta() {
       if (!isOpen) return;
@@ -55,84 +123,125 @@ export default function InvoiceFromSaleModal({
       try {
         const [prods, cats] = await Promise.allSettled([
           getProducts(),
-          productCategoriesApi.getAll().then((x) => x.map((c) => ({ name: c.name, taxRate: Number(c.taxRate) }))),
+          productCategoriesApi.getAll().then((collection) =>
+            collection.map((c) => ({
+              id: c.id,
+              name: c.name,
+              parentId: c.parentId ?? null,
+              taxRate: parseTaxRate(c.taxRate),
+            }))
+          ),
         ]);
         if (cancelled) return;
         if (prods.status === 'fulfilled') setProductsCache(prods.value || []);
         if (cats.status === 'fulfilled') setCategoriesCache(cats.value || []);
-      } catch {}
+      } catch (error) {
+        logger.warn('invoiceFromSale.metaLoad.failed', error);
+      }
       finally {
         if (!cancelled) setLoadingMeta(false);
       }
     }
+
     loadMeta();
     return () => { cancelled = true; };
   }, [isOpen]);
   
   // Ürün KDV oranını çöz (önce bellek cache'i, sonra localStorage; kategori ismi ile eşleşme)
-  const resolveProductTaxRate = React.useCallback((productId?: string, fallback?: number, productNameHint?: string) => {
-    try {
-      // 1) Bellek cache (API'den)
-      if (Array.isArray(productsCache) && productsCache.length) {
-        let p = productsCache.find((x) => String(x.id) === String(productId));
-        if (!p && productNameHint) {
-          const nameLc = String(productNameHint).trim().toLowerCase();
-          p = productsCache.find((x) => String(x.name || '').trim().toLowerCase() === nameLc)
-            || productsCache.find((x) => String(x.name || '').toLowerCase().includes(nameLc));
-        }
-        if (p) {
-          const override = p.categoryTaxRateOverride;
-          if (override !== undefined && override !== null && Number.isFinite(Number(override))) return Number(override);
-          // Kategori verisi
-          if (p.category && Array.isArray(categoriesCache)) {
-            const cat = categoriesCache.find((c) => String(c.name).toLowerCase() === String(p.category).toLowerCase());
-            if (cat && Number.isFinite(Number(cat.taxRate))) return Number(cat.taxRate);
-          }
-          if (p.taxRate !== undefined && p.taxRate !== null && Number.isFinite(Number(p.taxRate))) return Number(p.taxRate);
+  const resolveCategoryTaxRate = useCallback((categoryRef?: string | number | null) => {
+    if (!categoryRef || !Array.isArray(categoriesCache) || !categoriesCache.length) return undefined;
+
+    const findCategory = (ref?: string | number | null): CategoryMeta | undefined => {
+      if (!ref) return undefined;
+      const refStr = String(ref).trim();
+      if (!refStr) return undefined;
+
+      const byId = categoriesCache.find((cat) => cat.id && String(cat.id) === refStr);
+      if (byId) return byId;
+
+      const normalized = refStr.toLowerCase();
+      let byName = categoriesCache.find((cat) => (cat.name || '').toLowerCase() === normalized);
+      if (byName) return byName;
+
+      if (refStr.includes('>')) {
+        const lastSegment = refStr.split('>').pop()?.trim().toLowerCase();
+        if (lastSegment) {
+          byName = categoriesCache.find((cat) => (cat.name || '').toLowerCase() === lastSegment);
+          if (byName) return byName;
         }
       }
 
-      // 2) localStorage fallback (mevcut davranış)
-      const tid = (localStorage.getItem('tenantId') || '') as string;
-      const key = tid ? `products_cache_${tid}` : 'products_cache';
-      const raw = localStorage.getItem(key);
+      return undefined;
+    };
+
+    const visited = new Set<string>();
+    let cursor = findCategory(categoryRef);
+    while (cursor) {
+      const rate = parseTaxRate(cursor.taxRate);
+      if (typeof rate === 'number') return rate;
+      const parentKey = cursor.parentId;
+      if (!parentKey || visited.has(parentKey)) break;
+      visited.add(parentKey);
+      cursor = findCategory(parentKey);
+    }
+    return undefined;
+  }, [categoriesCache]);
+
+  const resolveProductTaxRate = useCallback((productId?: string | number, fallback?: number, productNameHint?: string) => {
+    try {
+      const findProductMatch = <T extends { id?: string | number; name?: string; category?: string; taxRate?: number; categoryTaxRateOverride?: number }>(collection: T[] | null | undefined) => {
+        if (!Array.isArray(collection) || !collection.length) return undefined;
+        let product = collection.find((x) => String(x.id) === String(productId));
+        if (!product && productNameHint) {
+          const nameLc = String(productNameHint).trim().toLowerCase();
+          product = collection.find((x) => String(x.name || '').trim().toLowerCase() === nameLc)
+            || collection.find((x) => String(x.name || '').toLowerCase().includes(nameLc));
+        }
+        return product;
+      };
+
+      const pickProductRate = (product?: { category?: string; taxRate?: number; categoryTaxRateOverride?: number }) => {
+        if (!product) return undefined;
+        const override = parseTaxRate(product.categoryTaxRateOverride);
+        if (typeof override === 'number') return override;
+        const productSpecific = parseTaxRate(product.taxRate);
+        if (typeof productSpecific === 'number') return productSpecific;
+        return resolveCategoryTaxRate(product.category);
+      };
+
+      const productMatch = findProductMatch(productsCache);
+      const inventoryRate = pickProductRate(productMatch);
+      if (typeof inventoryRate === 'number') return inventoryRate;
+
+      const tenantId = readLegacyTenantId();
+      const key = tenantId ? `products_cache_${tenantId}` : 'products_cache';
+      const raw = safeLocalStorage.getItem(key);
       if (raw) {
-        const arr = JSON.parse(raw);
-        if (Array.isArray(arr)) {
-          let p = arr.find((x: any) => String(x.id) === String(productId));
-          if (!p && productNameHint) {
-            const nameLc = String(productNameHint).trim().toLowerCase();
-            p = arr.find((x: any) => String(x.name || '').trim().toLowerCase() === nameLc);
-            if (!p) {
-              p = arr.find((x: any) => String(x.name || '').toLowerCase().includes(nameLc));
-            }
-          }
-          if (p) {
-            // Kategori override > kategori oranı > ürün.taxRate
-            const override = p.categoryTaxRateOverride;
-            if (override !== undefined && override !== null && Number.isFinite(Number(override))) return Number(override);
-            if (p.category && Array.isArray(categoriesCache)) {
-              const cat = categoriesCache.find((c) => String(c.name).toLowerCase() === String(p.category).toLowerCase());
-              if (cat && Number.isFinite(Number(cat.taxRate))) return Number(cat.taxRate);
-            }
-            const v = Number(p.taxRate);
-            if (Number.isFinite(v) && v >= 0) return v;
-          }
+        try {
+          const parsed = JSON.parse(raw) as Array<{
+            id?: string | number;
+            name?: string;
+            category?: string;
+            taxRate?: number;
+            categoryTaxRateOverride?: number;
+          }>;
+          const legacyMatch = findProductMatch(parsed);
+          const legacyRate = pickProductRate(legacyMatch);
+          if (typeof legacyRate === 'number') return legacyRate;
+        } catch (error) {
+          logger.warn('invoiceFromSale.productsCache.parseFailed', error);
         }
       }
-    } catch {}
-    const fb = Number(fallback);
-    return Number.isFinite(fb) && fb >= 0 ? fb : 18;
-  }, [productsCache, categoriesCache]);
-  
-  const [invoiceData, setInvoiceData] = useState({
-    dueDate: '',
-    status: 'draft' as 'draft' | 'sent' | 'paid' | 'overdue',
-    notes: ''
-  });
+    } catch (error) {
+      logger.warn('invoiceFromSale.resolveTaxRate.error', { productId, error });
+    }
+    const fallbackRate = parseTaxRate(fallback);
+    if (typeof fallbackRate === 'number') return fallbackRate;
+    return 18;
+  }, [productsCache, resolveCategoryTaxRate]);
 
   // Reset form when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen && sale) {
       // Vade tarihi 30 gün sonra varsayılan
       const dueDate = new Date();
@@ -146,162 +255,154 @@ export default function InvoiceFromSaleModal({
     }
   }, [isOpen, sale]);
 
+  const pricingDetails = useMemo<PricingSnapshot>(() => {
+    if (!sale) {
+      return { lineItems: [], subtotal: 0, tax: 0, total: 0 };
+    }
+
+    const saleItems: SaleItemWithMeta[] = Array.isArray(sale.items) ? sale.items : [];
+    const quantityFallback = Math.max(1, toNumberSafe(sale.quantity) || 1);
+    let unitPriceExcl = toNumberSafe(sale.unitPrice);
+
+    if (unitPriceExcl <= 0 && quantityFallback > 0) {
+      const subtotalGuess = toNumberSafe(sale.subtotal);
+      if (subtotalGuess > 0) {
+        unitPriceExcl = subtotalGuess / quantityFallback;
+      } else {
+        const grossAmount = toNumberSafe(sale.amount);
+        if (grossAmount > 0) {
+          unitPriceExcl = (grossAmount / 1.18) / quantityFallback;
+        }
+      }
+    }
+
+    const fallbackDescription = sale.productName || t('products.name', 'Product');
+    const normalizedLineItems: InvoiceLineItemDraft[] = (saleItems.length > 0
+      ? saleItems
+      : [{
+          productId: sale.productId,
+          productName: fallbackDescription,
+          quantity: quantityFallback,
+          unitPrice: unitPriceExcl,
+          description: fallbackDescription,
+        }]
+    ).map((item) => {
+      const quantity = Math.max(1, toNumberSafe(item.quantity) || quantityFallback);
+      const normalizedUnitPrice = toNumberSafe(item.unitPrice);
+      const unitPrice = normalizedUnitPrice > 0 ? normalizedUnitPrice : unitPriceExcl;
+      const description = item.productName || item.description || fallbackDescription;
+      const explicitTax = Number.isFinite(item.taxRate) ? Number(item.taxRate) : undefined;
+      const resolvedRate = resolveProductTaxRate(item.productId ?? sale.productId, explicitTax, description);
+      const total = quantity * unitPrice;
+      return {
+        productId: item.productId ?? sale.productId,
+        description,
+        quantity,
+        unitPrice,
+        taxRate: Number.isFinite(resolvedRate) && resolvedRate >= 0 ? resolvedRate : undefined,
+        total,
+      };
+    });
+
+    const subtotal = normalizedLineItems.reduce((sum, item) => sum + item.total, 0);
+    const tax = normalizedLineItems.reduce((sum, item) => {
+      const rate = item.taxRate ?? resolveProductTaxRate(item.productId ?? sale.productId, undefined, item.description);
+      return sum + item.total * ((Number.isFinite(rate) ? Number(rate) : 0) / 100);
+    }, 0);
+    const total = subtotal + tax;
+
+    return {
+      lineItems: normalizedLineItems,
+      subtotal,
+      tax,
+      total,
+    };
+  }, [sale, resolveProductTaxRate, t]);
+
   const handleSave = () => {
     if (!sale) return;
-    
+
     if (!invoiceData.dueDate) {
-      alert(t('validation.dueDateRequired'));
+      window.alert(t('validation.dueDateRequired'));
       return;
     }
 
-    // Satıştan fatura verisini hazırla
-    const qty = Number(sale.quantity || 1);
-    // Unit price KDV HARIÇ olmalı; yoksa amount/subtotal üzerinden tahmin et
-    let unitPriceExcl = Number(sale.unitPrice || 0);
-    if (!Number.isFinite(unitPriceExcl) || unitPriceExcl <= 0) {
-      const subtotalGuess = Number((sale as any).subtotal ?? 0);
-      if (Number.isFinite(subtotalGuess) && subtotalGuess > 0 && qty > 0) {
-        unitPriceExcl = subtotalGuess / qty;
-      } else if (Number.isFinite(sale.amount) && qty > 0) {
-        // Varsayılan oran bilinmiyorsa %18 varsayımıyla yaklaşıkla (son çare, backend yine hesaplayacak)
-        unitPriceExcl = (sale.amount / 1.18) / qty;
-      }
+    if (!pricingDetails.lineItems.length) {
+      logger.warn('invoiceFromSale.noLineItems', { saleId: sale.id });
+      window.alert(t('invoices.noLineItemsError', { defaultValue: 'Faturaya aktarılacak satır bulunamadı.' }));
+      return;
     }
 
-    // Items listesi varsa her bir kalemi KDV hariç şekilde geçir; yoksa tek satır oluştur
-    const originalItems: any[] = Array.isArray((sale as any).items) ? (sale as any).items : [];
-    const lineItems = (originalItems.length > 0)
-      ? originalItems.map((it) => {
-          const q = Number(it.quantity) || 1;
-          const up = Number(it.unitPrice) || unitPriceExcl;
-          const tx = resolveProductTaxRate(String(it.productId || (sale as any).productId), undefined, it.productName || it.description || sale.productName);
-          return {
-            productId: it.productId ?? sale.productId,
-            description: it.productName || it.description || sale.productName,
-            quantity: q,
-            unitPrice: up,
-            taxRate: Number.isFinite(tx) && tx >= 0 ? tx : undefined,
-            total: q * up,
-          };
-        })
-      : [{
-          productId: (sale as any).productId,
-          description: sale.productName,
-          quantity: qty,
-          unitPrice: unitPriceExcl,
-          total: qty * unitPriceExcl,
-          taxRate: resolveProductTaxRate((sale as any).productId, Number((originalItems[0]||{} as any).taxRate), sale.productName),
-        }];
-
-    // Preview subtotal (KDV hariç)
-    const previewSubtotal = (() => {
-      const explicit = Number((sale as any).subtotal);
-      if (Number.isFinite(explicit) && explicit > 0) return explicit;
-      return lineItems.reduce((sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0);
-    })();
-    // Preview tax: her kalemi ürün KDV oranıyla hesapla (sale.taxAmount'ı kullanma)
-    const previewTax = lineItems.reduce((sum, li) => {
-      const q = Number(li.quantity) || 0;
-      const up = Number(li.unitPrice) || 0;
-      const rate = Number((li as any).taxRate);
-      const r = Number.isFinite(rate) && rate >= 0 ? rate : resolveProductTaxRate(String(li.productId));
-      return sum + q * up * (r / 100);
-    }, 0);
-    const previewTotal = previewSubtotal + previewTax;
-
-    // Stok kontrolü: ürün cache'inden doğrula
     try {
-      const prods = Array.isArray(productsCache) ? productsCache : [];
-      for (const li of lineItems) {
-        let p: Product | undefined = undefined;
-        if (li.productId) p = prods.find(x => String(x.id) === String(li.productId));
-        if (!p && li.description) {
-          const nameLc = String(li.description).trim().toLowerCase();
-          p = prods.find(x => String(x.name || '').trim().toLowerCase() === nameLc)
-            || prods.find(x => String(x.name || '').toLowerCase().includes(nameLc));
+      const inventory = Array.isArray(productsCache) ? productsCache : [];
+      for (const item of pricingDetails.lineItems) {
+        let product = inventory.find((p) => String(p.id) === String(item.productId));
+        if (!product && item.description) {
+          const nameLc = item.description.toLowerCase();
+          product = inventory.find((p) => String(p.name || '').trim().toLowerCase() === nameLc)
+            || inventory.find((p) => String(p.name || '').toLowerCase().includes(nameLc));
         }
-        if (p) {
-          const available = Number((p as any).stock ?? (p as any).stockQuantity ?? NaN);
-          const requested = Number(li.quantity) || 0;
-          if (Number.isFinite(available) && requested > available) {
-            setStockWarning({ product: p, requested, available });
-            return; // Uyarıyı göster, kaydetmeyi durdur
+        if (product) {
+          const available = toNumberSafe((product as Partial<Product>).stock ?? (product as Partial<Product>).stockQuantity);
+          const requested = item.quantity;
+          if (available > 0 && requested > available) {
+            logger.info('invoiceFromSale.stockWarning', {
+              saleId: sale.id,
+              productId: product.id,
+              requested,
+              available,
+            });
+            setStockWarning({ product, requested, available });
+            return;
           }
         }
       }
-    } catch {}
+    } catch (error) {
+      logger.warn('invoiceFromSale.stockCheck.error', error);
+    }
 
-    const newInvoice = {
+    const normalizedLineItems = pricingDetails.lineItems.map((item) => ({ ...item }));
+    const discountAmount = Math.max(0, toNumberSafe(sale.discountAmount));
+    const payload: InvoiceDraftPayload = {
       saleId: sale.id,
       issueDate: new Date().toISOString().split('T')[0],
       dueDate: invoiceData.dueDate,
       status: invoiceData.status,
       notes: invoiceData.notes.trim(),
-      // Satış verisinden alınacak bilgiler
       customerName: sale.customerName,
-      customerEmail: sale.customerEmail || '',
+      customerEmail: sale.customerEmail,
       type: 'service',
-      items: lineItems.map(li => ({
-        productId: li.productId,
-        description: li.description,
-        quantity: li.quantity,
-        unitPrice: li.unitPrice,
-        taxRate: li.taxRate, // varsa explicit gönder
-      })),
-      lineItems: lineItems.map(li => ({
-        productId: li.productId,
-        description: li.description,
-        quantity: li.quantity,
-        unitPrice: li.unitPrice,
-        taxRate: li.taxRate,
-      })),
-      subtotal: previewSubtotal,
-      taxAmount: previewTax,
-      total: previewTotal || previewSubtotal + previewTax,
+      items: normalizedLineItems,
+      lineItems: normalizedLineItems,
+      subtotal: pricingDetails.subtotal,
+      taxAmount: pricingDetails.tax,
+      total: pricingDetails.total,
+      discountAmount,
     };
 
-    onSave(newInvoice);
-    onClose();
+    logger.info('invoiceFromSale.save.request', {
+      saleId: sale.id,
+      lineItemCount: normalizedLineItems.length,
+      subtotal: pricingDetails.subtotal,
+    });
+
+    try {
+      onSave(payload);
+      logger.info('invoiceFromSale.save.success', { saleId: sale.id });
+      onClose();
+    } catch (error) {
+      logger.error('invoiceFromSale.save.failed', error);
+    }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
-  };
+  const formatDate = useCallback((value?: string | number | Date | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(locale);
+  }, [locale]);
 
   if (!isOpen || !sale) return null;
-
-  // --- ÖNİZLEME HESAPLARI (render sırasında gösterim için) ---
-  const qtyPreview = Number(sale.quantity || 1);
-  let unitPriceExclPreview = Number(sale.unitPrice || 0);
-  if (!Number.isFinite(unitPriceExclPreview) || unitPriceExclPreview <= 0) {
-    const subPrev = Number((sale as any).subtotal ?? 0);
-    if (Number.isFinite(subPrev) && subPrev > 0 && qtyPreview > 0) {
-      unitPriceExclPreview = subPrev / qtyPreview;
-    } else if (Number.isFinite(sale.amount) && qtyPreview > 0) {
-      unitPriceExclPreview = (sale.amount / 1.18) / qtyPreview; // son çare varsayım
-    }
-  }
-  const originalPreviewItems: any[] = Array.isArray((sale as any).items) ? (sale as any).items : [];
-  const previewLineItems = (originalPreviewItems.length > 0)
-    ? originalPreviewItems.map((it) => {
-        const q = Number(it.quantity) || 1;
-        const up = Number(it.unitPrice) || unitPriceExclPreview;
-        const tx = resolveProductTaxRate(String(it.productId || (sale as any).productId), undefined, it.productName || it.description || sale.productName);
-        return { q, up, txRate: Number.isFinite(tx) && tx >= 0 ? tx : undefined };
-      })
-    : [{ q: qtyPreview, up: unitPriceExclPreview, txRate: resolveProductTaxRate((sale as any).productId, Number((originalPreviewItems[0]||{} as any).taxRate), sale.productName) }];
-
-  const previewSubtotalUi = (() => {
-    const explicit = Number((sale as any).subtotal);
-    if (Number.isFinite(explicit) && explicit > 0) return explicit;
-    return previewLineItems.reduce((sum, li) => sum + li.q * li.up, 0);
-  })();
-  const previewTaxUi = previewLineItems.reduce((sum, li) => {
-    const eff = Number(li.txRate);
-    const rate = Number.isFinite(eff) && eff >= 0 ? eff : resolveProductTaxRate(String((sale as any)?.productId), undefined, (sale as any)?.productName);
-    return sum + (li.q * li.up) * ((Number(rate) || 18) / 100);
-  }, 0);
-  const previewTotalUi = previewSubtotalUi + previewTaxUi;
 
   return (
     <>
@@ -352,13 +453,13 @@ export default function InvoiceFromSaleModal({
               
               <div className="flex items-center text-sm">
                 <span className="text-gray-600">{t('invoices.amountExclTax', { defaultValue: 'Tutar (KDV Hariç)' })}:</span>
-                <span className="ml-2 font-bold text-green-600" title={`Orijinal satış tutarı (KDV dahil olabilir): ${formatCurrency(sale.amount)}`}>
+                <span className="ml-2 font-bold text-green-600" title={`Orijinal satış tutarı (KDV dahil olabilir): ${formatCurrency(toNumberSafe(sale.amount))}`}>
                   {loadingMeta ? (
                     <span className="inline-flex items-center text-gray-500">
                       <Loader2 className="w-4 h-4 animate-spin mr-1" /> —
                     </span>
                   ) : (
-                    formatCurrency(previewSubtotalUi)
+                    formatCurrency(pricingDetails.subtotal)
                   )}
                 </span>
               </div>
@@ -384,7 +485,7 @@ export default function InvoiceFromSaleModal({
                 <input
                   type="date"
                   value={invoiceData.dueDate}
-                  onChange={(e) => setInvoiceData({...invoiceData, dueDate: e.target.value})}
+                  onChange={(e) => setInvoiceData((prev) => ({ ...prev, dueDate: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
@@ -396,12 +497,12 @@ export default function InvoiceFromSaleModal({
                 </label>
                 <select
                   value={invoiceData.status}
-                  onChange={(e) => setInvoiceData({...invoiceData, status: e.target.value as any})}
+                  onChange={(e) => setInvoiceData((prev) => ({ ...prev, status: e.target.value as Invoice['status'] }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="draft">{t('pdf.invoice.statusLabels.draft', 'Taslak')}</option>
-                  <option value="sent">{t('pdf.invoice.statusLabels.sent', 'Gönderildi')}</option>
-                  <option value="paid">{t('pdf.invoice.statusLabels.paid', 'Ödendi')}</option>
+                  <option value="draft">{t('status.draft', { defaultValue: 'Taslak' })}</option>
+                  <option value="sent">{t('status.sent', { defaultValue: 'Gönderildi' })}</option>
+                  <option value="paid">{t('status.paid', { defaultValue: 'Ödendi' })}</option>
                 </select>
               </div>
             </div>
@@ -412,7 +513,7 @@ export default function InvoiceFromSaleModal({
               </label>
               <textarea
                 value={invoiceData.notes}
-                onChange={(e) => setInvoiceData({...invoiceData, notes: e.target.value})}
+                onChange={(e) => setInvoiceData((prev) => ({ ...prev, notes: e.target.value }))}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder={t('invoices.notesPlaceholder', { defaultValue: 'Fatura ile ilgili notlar...' })}
@@ -425,7 +526,7 @@ export default function InvoiceFromSaleModal({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>{t('invoice.subtotal')}</span>
-                  <span>{formatCurrency(previewSubtotalUi)}</span>
+                    <span>{formatCurrency(pricingDetails.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>{t('invoice.vat')}</span>
@@ -435,13 +536,13 @@ export default function InvoiceFromSaleModal({
                         <Loader2 className="w-4 h-4 animate-spin mr-1" /> —
                       </span>
                     ) : (
-                      formatCurrency(previewTaxUi)
+                        formatCurrency(pricingDetails.tax)
                     )}
                   </span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t border-blue-300 pt-2">
                   <span>{t('invoice.grandTotal')}</span>
-                  <span>{formatCurrency(previewSubtotalUi + previewTaxUi)}</span>
+                    <span>{formatCurrency(pricingDetails.total)}</span>
                 </div>
               </div>
             </div>

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddTokenVersionToUsers1762810000000
-  implements MigrationInterface
-{
+export class AddTokenVersionToUsers1762810000000 implements MigrationInterface {
   name = 'AddTokenVersionToUsers1762810000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -12,8 +10,6 @@ export class AddTokenVersionToUsers1762810000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "users" DROP COLUMN "tokenVersion"`,
-    );
+    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "tokenVersion"`);
   }
 }

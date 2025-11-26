@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   FiscalPeriodsService,
@@ -16,14 +17,13 @@ import {
 } from './fiscal-periods.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
-import type { Request } from 'express';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 
-interface AuthenticatedRequest extends Request {
-  user: {
-    userId: string;
-    tenantId: string;
-  };
-}
+type FiscalPeriodBody = {
+  name: string;
+  startDate: string | number | Date;
+  endDate: string | number | Date;
+};
 
 @Controller('fiscal-periods')
 @UseGuards(JwtAuthGuard, TenantGuard)
@@ -31,13 +31,8 @@ export class FiscalPeriodsController {
   constructor(private readonly fiscalPeriodsService: FiscalPeriodsService) {}
 
   @Post()
-  create(@Body() body: any, @Req() req: AuthenticatedRequest) {
-    // Frontend sends startDate/endDate, but service expects periodStart/periodEnd
-    const createDto: CreateFiscalPeriodDto = {
-      name: body.name,
-      periodStart: new Date(body.startDate),
-      periodEnd: new Date(body.endDate),
-    };
+  create(@Body() body: FiscalPeriodBody, @Req() req: AuthenticatedRequest) {
+    const createDto = this.mapToFiscalPeriodDto(body);
     return this.fiscalPeriodsService.create(createDto, req.user.tenantId);
   }
 
@@ -54,15 +49,10 @@ export class FiscalPeriodsController {
   @Patch(':id')
   update(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: FiscalPeriodBody,
     @Req() req: AuthenticatedRequest,
   ) {
-    // Frontend sends startDate/endDate, but service expects periodStart/periodEnd
-    const updateDto = {
-      name: body.name,
-      periodStart: new Date(body.startDate),
-      periodEnd: new Date(body.endDate),
-    };
+    const updateDto = this.mapToFiscalPeriodDto(body);
     return this.fiscalPeriodsService.update(id, updateDto, req.user.tenantId);
   }
 
@@ -76,7 +66,7 @@ export class FiscalPeriodsController {
       id,
       lockDto,
       req.user.tenantId,
-      req.user.userId,
+      req.user.id,
     );
   }
 
@@ -88,5 +78,24 @@ export class FiscalPeriodsController {
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.fiscalPeriodsService.remove(id, req.user.tenantId);
+  }
+
+  private mapToFiscalPeriodDto(body: FiscalPeriodBody): CreateFiscalPeriodDto {
+    if (!body?.name) {
+      throw new BadRequestException('name is required');
+    }
+    return {
+      name: body.name,
+      periodStart: this.parseDate(body.startDate, 'startDate'),
+      periodEnd: this.parseDate(body.endDate, 'endDate'),
+    };
+  }
+
+  private parseDate(value: string | number | Date, field: string): Date {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException(`${field} must be a valid date`);
+    }
+    return date;
   }
 }

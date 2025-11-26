@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsEmail, IsEnum } from 'class-validator';
 import { Role } from '../../common/enums/organization.enum';
 
 export class InviteUserDto {

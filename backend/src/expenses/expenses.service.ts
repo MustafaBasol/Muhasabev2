@@ -4,7 +4,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, Repository, FindOptionsWhere } from 'typeorm';
+import type { DeepPartial } from 'typeorm';
 import {
   Expense,
   ExpenseStatus,
@@ -12,6 +13,11 @@ import {
 } from './entities/expense.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
+import {
+  CreateExpenseDto,
+  UpdateExpenseDto,
+  ExpenseStatistics,
+} from './dto/expense.dto';
 
 @Injectable()
 export class ExpensesService {
@@ -22,7 +28,10 @@ export class ExpensesService {
     private tenantRepository: Repository<Tenant>,
   ) {}
 
-  async create(tenantId: string, createExpenseDto: any) {
+  async create(
+    tenantId: string,
+    createExpenseDto: CreateExpenseDto,
+  ): Promise<Expense> {
     // Plan limiti: Aylık gider kaydı sayısı kontrolü
     const tenant = await this.tenantRepository.findOne({
       where: { id: tenantId },
@@ -57,17 +66,20 @@ export class ExpensesService {
       `EXP-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
 
     // Map 'date' to 'expenseDate' for entity compatibility
+    const { date, amount, ...restDto } = createExpenseDto;
     const expenseDate =
-      createExpenseDto.expenseDate ||
-      createExpenseDto.date ||
+      restDto.expenseDate ||
+      date ||
       new Date().toISOString().split('T')[0];
-
-    const expense = this.expensesRepository.create({
-      ...createExpenseDto,
+    const normalizedAmount = Number(amount ?? 0);
+    const payload: DeepPartial<Expense> = {
+      ...restDto,
       tenantId,
       expenseNumber,
       expenseDate,
-    });
+      amount: normalizedAmount,
+    };
+    const expense = this.expensesRepository.create(payload);
     return this.expensesRepository.save(expense);
   }
 
@@ -82,9 +94,9 @@ export class ExpensesService {
   async findOne(
     tenantId: string,
     id: string,
-    includeVoided: boolean = false,
+    includeVoided = false,
   ): Promise<Expense> {
-    const whereCondition: any = { id, tenantId };
+    const whereCondition: FindOptionsWhere<Expense> = { id, tenantId };
     if (!includeVoided) {
       whereCondition.isVoided = false;
     }
@@ -104,7 +116,7 @@ export class ExpensesService {
   async update(
     tenantId: string,
     id: string,
-    updateExpenseDto: any,
+    updateExpenseDto: UpdateExpenseDto,
   ): Promise<Expense> {
     console.log('ExpensesService.update called with:', {
       tenantId,
@@ -113,10 +125,15 @@ export class ExpensesService {
     });
 
     try {
+      const expense = await this.findOne(tenantId, id);
       // Map 'date' to 'expenseDate' for entity compatibility
       if (updateExpenseDto.date && !updateExpenseDto.expenseDate) {
         updateExpenseDto.expenseDate = updateExpenseDto.date;
         delete updateExpenseDto.date;
+      }
+
+      if (typeof updateExpenseDto.amount !== 'undefined') {
+        updateExpenseDto.amount = Number(updateExpenseDto.amount);
       }
 
       console.log(
@@ -124,21 +141,11 @@ export class ExpensesService {
         JSON.stringify(updateExpenseDto),
       );
 
-      // Use query builder for more precise updates, especially for relations
-      const result = await this.expensesRepository
-        .createQueryBuilder()
-        .update(Expense)
-        .set(updateExpenseDto)
-        .where('id = :id AND tenantId = :tenantId', { id, tenantId })
-        .execute();
+      Object.assign(expense, updateExpenseDto);
+      const savedExpense = await this.expensesRepository.save(expense);
+      console.log('Updated expense found:', JSON.stringify(savedExpense));
 
-      console.log('Update query result:', result);
-
-      // Reload with relations to get accurate data
-      const updatedExpense = await this.findOne(tenantId, id);
-      console.log('Updated expense found:', JSON.stringify(updatedExpense));
-
-      return updatedExpense;
+      return savedExpense;
     } catch (error) {
       console.error('Error in ExpensesService.update:', error);
       throw error;
@@ -195,7 +202,7 @@ export class ExpensesService {
     return this.expensesRepository.save(expense);
   }
 
-  async getStatistics(tenantId: string) {
+  async getStatistics(tenantId: string): Promise<ExpenseStatistics> {
     const expenses = await this.findAll(tenantId);
 
     const total = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);

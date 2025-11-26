@@ -3,6 +3,21 @@ import { Search, Plus, Edit, Trash2, CreditCard, Building2, Eye, DollarSign } fr
 import { formatCurrency as formatCurrencyUtil, type Currency } from '../utils/currencyFormatter';
 import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+
+const BANK_PAGE_SIZES = [20, 50, 100] as const;
+const isValidBankPageSize = (value: number): value is (typeof BANK_PAGE_SIZES)[number] =>
+  BANK_PAGE_SIZES.includes(value as (typeof BANK_PAGE_SIZES)[number]);
+
+const getSavedBankPageSize = (): number => {
+  try {
+    const saved = safeLocalStorage.getItem('banks_pageSize');
+    const parsed = saved ? Number(saved) : BANK_PAGE_SIZES[0];
+    return isValidBankPageSize(parsed) ? parsed : BANK_PAGE_SIZES[0];
+  } catch {
+    return BANK_PAGE_SIZES[0];
+  }
+};
 
 interface Bank {
   id: string;
@@ -36,11 +51,7 @@ export default function BankList({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('banks_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [pageSize, setPageSize] = useState<number>(() => getSavedBankPageSize());
 
   const filteredBanks = useMemo(() => bankAccounts.filter(bank => {
     const matchesSearch = 
@@ -66,9 +77,7 @@ export default function BankList({
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('banks_pageSize', String(size));
-    }
+    safeLocalStorage.setItem('banks_pageSize', String(size));
     setPage(1);
   };
 

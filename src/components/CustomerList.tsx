@@ -14,18 +14,15 @@ import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import { logger } from '../utils/logger';
+import type { Customer as CustomerModel } from '../types';
 // preset etiketleri i18n'den alınır
 
-export interface Customer {
+export type Customer = Partial<CustomerModel> & {
   id?: string | number;
-  name?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  taxNumber?: string;
-  company?: string;
   createdAt?: string;
-}
+};
 
 interface CustomerListProps {
   customers?: Customer[];
@@ -38,7 +35,26 @@ interface CustomerListProps {
   selectionMode?: boolean;
 }
 
+type CustomerListViewState = {
+  searchTerm: string;
+  hasEmailOnly?: boolean;
+  hasPhoneOnly?: boolean;
+  hasCompanyOnly?: boolean;
+  startDate?: string;
+  endDate?: string;
+  pageSize?: number;
+};
+
 const toSafeLower = (value?: string) => (value || '').toLowerCase();
+const CUSTOMER_PAGE_SIZES = [20, 50, 100] as const;
+const isValidCustomerPageSize = (value: number): value is (typeof CUSTOMER_PAGE_SIZES)[number] =>
+  CUSTOMER_PAGE_SIZES.includes(value as (typeof CUSTOMER_PAGE_SIZES)[number]);
+
+const getSavedCustomerPageSize = (): number => {
+  const saved = safeLocalStorage.getItem('customers_pageSize');
+  const parsed = saved ? Number(saved) : CUSTOMER_PAGE_SIZES[0];
+  return isValidCustomerPageSize(parsed) ? parsed : CUSTOMER_PAGE_SIZES[0];
+};
 
 export default function CustomerList({
   customers,
@@ -52,10 +68,8 @@ export default function CustomerList({
 }: CustomerListProps) {
   const { t, i18n } = useTranslation();
   const getActiveLang = () => {
-    try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
+    const stored = safeLocalStorage.getItem('i18nextLng');
+    if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
     const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
     return cand.slice(0,2).toLowerCase();
   };
@@ -77,14 +91,10 @@ export default function CustomerList({
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('customers_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [pageSize, setPageSize] = useState<number>(() => getSavedCustomerPageSize());
 
   // Default kaydedilmiş görünüm uygula
-  const { getDefault } = useSavedListViews<{ searchTerm: string; hasEmailOnly?: boolean; hasPhoneOnly?: boolean; hasCompanyOnly?: boolean; startDate?: string; endDate?: string; pageSize?: number }>({ listType: 'customers' });
+  const { getDefault } = useSavedListViews<CustomerListViewState>({ listType: 'customers' });
   useEffect(() => {
     const def = getDefault();
     if (def && def.state) {
@@ -95,10 +105,13 @@ export default function CustomerList({
         setHasCompanyOnly(Boolean(def.state.hasCompanyOnly));
         setStartDate(def.state.startDate ?? '');
         setEndDate(def.state.endDate ?? '');
-        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) handlePageSizeChange(def.state.pageSize);
-      } catch {}
+        if (def.state.pageSize && isValidCustomerPageSize(def.state.pageSize)) {
+          handlePageSizeChange(def.state.pageSize);
+        }
+      } catch (error) {
+        logger.warn('Failed to apply default customer saved view', error);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const safeCustomers = useMemo(
@@ -134,10 +147,9 @@ export default function CustomerList({
   }, [searchTerm, hasEmailOnly, hasPhoneOnly, hasCompanyOnly, startDate, endDate]);
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('customers_pageSize', String(size));
-    }
+    const nextSize = isValidCustomerPageSize(size) ? size : CUSTOMER_PAGE_SIZES[0];
+    setPageSize(nextSize);
+    safeLocalStorage.setItem('customers_pageSize', String(nextSize));
     setPage(1);
   };
 
@@ -158,19 +170,24 @@ export default function CustomerList({
   };
 
   const downloadTemplate = () => {
-    // Create comprehensive CSV template with proper formatting
-    const csvContent = [
-      // Headers with required field indicators (* means required)
-      'Name,Email,Phone,Address,Company,TaxNumber',
-      // Sample data rows with realistic examples
-      'John Doe,john.doe@email.com,+1-555-123-4567,123 Main Street New York NY USA,Tech Solutions Inc,123456789',
-      'Jane Smith,jane.smith@company.com,+1-555-987-6543,456 Oak Avenue Los Angeles CA USA,Marketing Pro LLC,987654321',
-      'Michael Johnson,m.johnson@business.org,+1-555-456-7890,789 Pine Road Chicago IL USA,Johnson & Associates,456789123'
-    ].join('\n');
+    if (typeof document === 'undefined') {
+      logger.debug('CustomerList: download skipped (no document)');
+      return;
+    }
+    try {
+      const csvContent = [
+        'Name,Email,Phone,Address,Company,TaxNumber',
+        'John Doe,john.doe@email.com,+1-555-123-4567,123 Main Street New York NY USA,Tech Solutions Inc,123456789',
+        'Jane Smith,jane.smith@company.com,+1-555-987-6543,456 Oak Avenue Los Angeles CA USA,Marketing Pro LLC,987654321',
+        'Michael Johnson,m.johnson@business.org,+1-555-456-7890,789 Pine Road Chicago IL USA,Johnson & Associates,456789123'
+      ].join('\n');
 
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) {
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      if (link.download === undefined) {
+        logger.warn('CustomerList: download attribute unsupported');
+        return;
+      }
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
       link.setAttribute('download', 'customer_import_template.csv');
@@ -179,6 +196,8 @@ export default function CustomerList({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+    } catch (error) {
+      logger.error('CustomerList: template download failed', error);
     }
   };
 
@@ -273,14 +292,16 @@ export default function CustomerList({
             listType="customers"
             getState={() => ({ searchTerm, hasEmailOnly, hasPhoneOnly, hasCompanyOnly, startDate, endDate, pageSize })}
             applyState={(s) => {
-              const st = s || {} as any;
+              const st: Partial<CustomerListViewState> = s ?? {};
               setSearchTerm(st.searchTerm ?? '');
               setHasEmailOnly(Boolean(st.hasEmailOnly));
               setHasPhoneOnly(Boolean(st.hasPhoneOnly));
               setHasCompanyOnly(Boolean(st.hasCompanyOnly));
               setStartDate(st.startDate ?? '');
               setEndDate(st.endDate ?? '');
-              if (st.pageSize && [20,50,100].includes(st.pageSize)) handlePageSizeChange(st.pageSize);
+              if (st.pageSize && isValidCustomerPageSize(st.pageSize)) {
+                handlePageSizeChange(st.pageSize);
+              }
             }}
             presets={[
               { id:'with-email', label:t('presets.withEmail'), apply:()=>{ setHasEmailOnly(true); setHasPhoneOnly(false); setHasCompanyOnly(false); }},

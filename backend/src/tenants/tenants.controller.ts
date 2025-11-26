@@ -3,107 +3,154 @@ import {
   Get,
   Patch,
   Body,
-  Param,
   UseGuards,
-  Request,
-  Post,
+  BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { BadRequestException } from '@nestjs/common';
 import { UserRole } from '../users/entities/user.entity';
 import { TenantsService } from './tenants.service';
 import { SubscriptionPlan } from './entities/tenant.entity';
 import type { UpdateTenantDto } from './tenants.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
+import type { CurrentUser } from '../common/decorators/user.decorator';
+
+const TENANT_UPDATE_KEYS = [
+  'companyName',
+  'email',
+  'phone',
+  'address',
+  'taxNumber',
+  'website',
+  'taxOffice',
+  'mersisNumber',
+  'kepAddress',
+  'siretNumber',
+  'sirenNumber',
+  'apeCode',
+  'tvaNumber',
+  'rcsNumber',
+  'steuernummer',
+  'umsatzsteuerID',
+  'handelsregisternummer',
+  'geschaeftsfuehrer',
+  'einNumber',
+  'taxId',
+  'businessLicenseNumber',
+  'stateOfIncorporation',
+  'name',
+  'settings',
+] as const;
+
+type TenantUpdateKey = (typeof TENANT_UPDATE_KEYS)[number];
+type SanitizedTenantUpdate = Partial<Pick<UpdateTenantDto, TenantUpdateKey>>;
+
+type TenantHistoryEvent =
+  | {
+      type: 'plan.current';
+      plan: SubscriptionPlan | null;
+      at: Date | null;
+      users: number | null;
+    }
+  | { type: 'plan.renewal_due'; at: Date | null }
+  | { type: 'cancel.at_period_end'; at: Date | null };
+
+const LOGO_CHARACTER_LIMIT = 5_000_000;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const extractLogoDataUrl = (
+  settings?: Record<string, unknown>,
+): string | null => {
+  if (!isRecord(settings)) return null;
+  const brandRaw = settings.brand;
+  if (!isRecord(brandRaw)) return null;
+  const logo = brandRaw.logoDataUrl;
+  return typeof logo === 'string' ? logo : null;
+};
 
 @ApiTags('tenants')
 @Controller('tenants')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class TenantsController {
+  private readonly logger = new Logger(TenantsController.name);
+
   constructor(private readonly tenantsService: TenantsService) {}
 
   @Get('my-tenant')
   @ApiOperation({ summary: "Get current user's tenant" })
-  async getMyTenant(@User() user: any) {
-    return this.tenantsService.findOne(user.tenantId);
+  async getMyTenant(@User() user: CurrentUser) {
+    const tenantId = this.ensureTenantId(user);
+    return this.tenantsService.findOne(tenantId);
   }
 
   @Patch('my-tenant')
   @ApiOperation({ summary: "Update current user's tenant" })
   async updateMyTenant(
     @Body() updateTenantDto: UpdateTenantDto,
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
+    const tenantId = this.ensureTenantId(user);
     // Yalnızca TENANT sahibi (tenant_admin) şirket adını/kimliğini değiştirebilir
     const isOwner = user?.role === UserRole.TENANT_ADMIN;
 
     // Sahip değilse, kimlik alanlarını sessizce düşür (403 yerine görsel deneyim)
     // Yalnız güvenli alanları topla ve undefined değerleri ayıkla
-    const allowedKeys: (keyof UpdateTenantDto)[] = [
-      'companyName',
-      'email',
-      'phone',
-      'address',
-      'taxNumber',
-      'website',
-      'taxOffice',
-      'mersisNumber',
-      'kepAddress',
-      'siretNumber',
-      'sirenNumber',
-      'apeCode',
-      'tvaNumber',
-      'rcsNumber',
-      'steuernummer',
-      'umsatzsteuerID',
-      'handelsregisternummer',
-      'geschaeftsfuehrer',
-      'einNumber',
-      'taxId',
-      'businessLicenseNumber',
-      'stateOfIncorporation',
-      'name',
-      'settings',
-    ];
+    const sanitize = (dto: UpdateTenantDto): SanitizedTenantUpdate => {
+      const sanitized = Object.fromEntries(
+        TENANT_UPDATE_KEYS.flatMap((key) => {
+          const value = dto[key];
+          return typeof value === 'undefined' ? [] : ([[key, value]] as const);
+        }),
+      ) as SanitizedTenantUpdate;
 
-    const sanitize = (dto: UpdateTenantDto): any => {
-      const out: any = {};
-      for (const k of allowedKeys) {
-        const v = (dto as any)[k];
-        if (typeof v !== 'undefined') {
-          out[k] = v;
+      if ('settings' in sanitized) {
+        if (!isRecord(sanitized.settings)) {
+          delete sanitized.settings;
+        } else {
+          try {
+            sanitized.settings = JSON.parse(
+              JSON.stringify(sanitized.settings),
+            ) as Record<string, unknown>;
+          } catch (error) {
+            this.logger.warn(
+              `TenantsController sanitize settings failed: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+            delete sanitized.settings;
+          }
         }
       }
-      // settings.brand içindeki undefined değerleri de temizle
-      if (out.settings && typeof out.settings === 'object') {
-        try {
-          out.settings = JSON.parse(JSON.stringify(out.settings));
-        } catch {}
-      }
-      // Logo boyutu için güvenli bir üst sınır uygula (yaklaşık 5MB karakter limit)
-      const logo = out?.settings?.brand?.logoDataUrl;
-      if (logo && typeof logo === 'string' && logo.length > 5_000_000) {
+
+      const logoDataUrl = extractLogoDataUrl(sanitized.settings);
+      if (
+        typeof logoDataUrl === 'string' &&
+        logoDataUrl.length > LOGO_CHARACTER_LIMIT
+      ) {
         throw new BadRequestException(
           'Logo çok büyük. Lütfen 5MB altında bir logo yükleyin.',
         );
       }
-      return out;
+
+      return sanitized;
     };
 
     if (!isOwner && updateTenantDto) {
-      const clone: any = sanitize(updateTenantDto);
+      const clone = sanitize(updateTenantDto);
       if (Object.prototype.hasOwnProperty.call(clone, 'name')) {
         delete clone.name;
       }
       if (Object.prototype.hasOwnProperty.call(clone, 'companyName')) {
         delete clone.companyName;
       }
-      return this.tenantsService.update(user.tenantId, clone);
+      return this.tenantsService.update(tenantId, clone);
     }
 
-    return this.tenantsService.update(user.tenantId, sanitize(updateTenantDto));
+    return this.tenantsService.update(tenantId, sanitize(updateTenantDto));
   }
 
   // === Subscription management for tenant owners (mocked integration) ===
@@ -120,16 +167,16 @@ export class TenantsController {
       cancel?: boolean;
       cancelAtPeriodEnd?: boolean; // dönem sonunda iptal et
     },
-    @User() user: any,
+    @User() user: CurrentUser,
   ) {
-    const isOwner = user?.role === UserRole.TENANT_ADMIN;
+    const tenantId = this.ensureTenantId(user);
+    const isOwner = user.role === UserRole.TENANT_ADMIN;
     if (!isOwner) {
       throw new BadRequestException(
         'Only tenant owners can manage subscription',
       );
     }
 
-    const tenantId = user.tenantId;
     let updated = await this.tenantsService.findOne(tenantId);
 
     // Dönem sonunda iptal isteği (yalnızca aktif abonelikler için anlamlı)
@@ -185,16 +232,17 @@ export class TenantsController {
 
   @Get('my-tenant/subscription/history')
   @ApiOperation({ summary: 'Get mock subscription history' })
-  async getMySubscriptionHistory(@User() user: any) {
-    const tenant = await this.tenantsService.findOne(user.tenantId);
+  async getMySubscriptionHistory(@User() user: CurrentUser) {
+    const tenantId = this.ensureTenantId(user);
+    const tenant = await this.tenantsService.findOne(tenantId);
     // Basit mock event listesi
-    const events: any[] = [];
+    const events: TenantHistoryEvent[] = [];
     if (tenant.subscriptionPlan) {
       events.push({
         type: 'plan.current',
         plan: tenant.subscriptionPlan,
-        at: tenant.updatedAt,
-        users: tenant.maxUsers,
+        at: tenant.updatedAt ?? null,
+        users: tenant.maxUsers ?? null,
       });
     }
     if (tenant.subscriptionExpiresAt) {
@@ -204,8 +252,18 @@ export class TenantsController {
       });
     }
     if (tenant.cancelAtPeriodEnd) {
-      events.push({ type: 'cancel.at_period_end', at: tenant.updatedAt });
+      events.push({
+        type: 'cancel.at_period_end',
+        at: tenant.updatedAt ?? null,
+      });
     }
     return { success: true, events };
+  }
+
+  private ensureTenantId(user: CurrentUser): string {
+    if (!user || !user.tenantId) {
+      throw new BadRequestException('Tenant bilgisi bulunamadı.');
+    }
+    return String(user.tenantId);
   }
 }

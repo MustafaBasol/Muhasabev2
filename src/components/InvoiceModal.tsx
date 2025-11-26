@@ -2,51 +2,197 @@
 import { X, Plus, Trash2, Calculator, Search, Check, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { resolveStatusLabel } from '../utils/status';
-import type { Product, ProductCategory } from '../types';
+import type {
+  Customer,
+  Invoice as InvoiceRecord,
+  InvoiceItem as InvoiceItemType,
+  Product,
+  ProductCategory,
+} from '../types';
 import { productCategoriesApi } from '../api/product-categories';
 import StockWarningModal from './StockWarningModal';
+import { logger } from '../utils/logger';
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  address?: string;
-  company?: string;
-  taxNumber?: string;
-}
+type InvoiceStatus = InvoiceRecord['status'] | 'cancelled';
+type InvoiceKind = 'product' | 'return';
 
-interface InvoiceItem {
+type InvoiceLineItem = InvoiceItemType & {
   id: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-  productId?: string;
   unit?: string;
-  taxRate?: number; // KDV oranı
-}
+};
+
+type RawInvoiceItem = (InvoiceItemType & { unit?: string }) | InvoiceLineItem;
+
+type InvoiceLike = Partial<InvoiceRecord> & {
+  customer?: Customer;
+  items?: InvoiceLineItem[];
+  originalInvoiceId?: string | number;
+  refundedInvoiceId?: string | number;
+  _isReturnInvoice?: boolean;
+  type?: InvoiceKind;
+  customerId?: string | number;
+};
+
+type InvoicePayload = {
+  id?: string;
+  createdAt?: string;
+  originalInvoiceId?: string;
+  type: InvoiceKind;
+  invoiceNumber: string;
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  customerAddress: string;
+  issueDate: string;
+  dueDate: string;
+  items: InvoiceLineItem[];
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  notes: string;
+  status: InvoiceStatus;
+};
 
 interface InvoiceModalProps {
   onClose: () => void;
-  onSave: (invoice: any) => void;
-  invoice?: any;
+  onSave: (invoice: InvoicePayload) => Promise<unknown> | void;
+  invoice?: InvoiceLike | null;
   customers?: Customer[];
   products?: Product[];
-  invoices?: any[]; // mevcut faturalar (iade için seçim)
+  invoices?: InvoiceLike[];
 }
 
-const defaultItems: InvoiceItem[] = [
-  { id: '1', description: '', quantity: 1, unitPrice: 0, total: 0 },
-];
+interface InvoiceFormState {
+  invoiceNumber: string;
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  customerAddress: string;
+  issueDate: string;
+  dueDate: string;
+  notes: string;
+  status: InvoiceStatus;
+  type: InvoiceKind;
+  originalInvoiceId: string;
+}
+
+interface StockWarningState {
+  itemId: string;
+  product: Product;
+  requested: number;
+  available: number;
+}
+
+const createEmptyItem = (seed?: number): InvoiceLineItem => ({
+  id: `item-${Date.now()}-${seed ?? Math.random().toString(36).slice(2, 6)}`,
+  description: '',
+  quantity: 1,
+  unitPrice: 0,
+  total: 0,
+});
+
+const createDefaultItems = (): InvoiceLineItem[] => [createEmptyItem()];
+
+const INVOICE_NUMBER_PREFIX = 'INV';
+
+const buildTempInvoiceNumber = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${INVOICE_NUMBER_PREFIX}-${year}-${month}-XXX`;
+};
+
+const toStringId = (value?: string | number | null) => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return String(value);
+};
+
+const isReturnInvoiceRecord = (record?: InvoiceLike | null): boolean => {
+  if (!record) {
+    return false;
+  }
+  return record._isReturnInvoice === true || String(record.type || '') === 'return';
+};
+
+const resolveLinkedOriginalId = (record?: InvoiceLike | null) => {
+  if (!record) {
+    return '';
+  }
+  return toStringId(record.originalInvoiceId ?? record.refundedInvoiceId ?? '');
+};
+
+const normalizeInvoiceItems = (rawItems?: RawInvoiceItem[]): InvoiceLineItem[] => {
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    return createDefaultItems();
+  }
+
+  return rawItems.map((item, index) => {
+    const quantity = Number(item.quantity) || 1;
+    const unitPrice = Number(item.unitPrice) || 0;
+    const computedTotal = Number.isFinite(Number(item.total)) ? Number(item.total) : quantity * unitPrice;
+    const hasProductId = item.productId !== undefined && item.productId !== null;
+    return {
+      ...item,
+      id: item.id ? String(item.id) : `${index + 1}`,
+      description: item.description || item.productName || '',
+      quantity,
+      unitPrice,
+      total: computedTotal,
+      productId: hasProductId ? toStringId(item.productId) : undefined,
+      unit: item.unit,
+      taxRate: Number.isFinite(Number(item.taxRate)) ? Number(item.taxRate) : 18,
+    };
+  });
+};
+
+const mapReturnItemsFromOriginal = (original?: InvoiceLike | null): InvoiceLineItem[] => {
+  if (!original) {
+    return createDefaultItems();
+  }
+  const normalized = normalizeInvoiceItems(original.items);
+  if (!normalized.length) {
+    return createDefaultItems();
+  }
+  return normalized.map((item, index) => {
+    const positiveQuantity = Math.abs(Number(item.quantity) || 0) || 1;
+    const unitPrice = Number(item.unitPrice) || 0;
+    const quantity = -positiveQuantity;
+    return {
+      ...item,
+      id: `ret-${Date.now()}-${index}`,
+      quantity,
+      total: quantity * unitPrice,
+    };
+  });
+};
+
+const getAvailableStock = (product?: Product): number | null => {
+  if (!product) {
+    return null;
+  }
+  const candidates: Array<number | undefined> = [product.stock, (product as Partial<Product>).stockQuantity];
+  for (const value of candidates) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+  }
+  return null;
+};
+
+const isPromiseLike = (value: unknown): value is Promise<unknown> => {
+  return Boolean(value) && typeof (value as Promise<unknown>).then === 'function';
+};
 
 export default function InvoiceModal({ onClose, onSave, invoice, customers = [], products = [], invoices = [] }: InvoiceModalProps) {
   const { t, i18n } = useTranslation();
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
-  
-  const [invoiceData, setInvoiceData] = useState({
-    invoiceNumber: '',
+
+  const [invoiceData, setInvoiceData] = useState<InvoiceFormState>(() => ({
+    invoiceNumber: buildTempInvoiceNumber(),
     customerId: '',
     customerName: '',
     customerEmail: '',
@@ -55,41 +201,47 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     notes: '',
     status: 'draft',
-    type: 'product', // 'product' veya 'return'
+    type: 'product',
     originalInvoiceId: '',
-  });
+  }));
 
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [activeProductDropdown, setActiveProductDropdown] = useState<string | null>(null);
-  const [items, setItems] = useState<InvoiceItem[]>(defaultItems);
+  const [items, setItems] = useState<InvoiceLineItem[]>(() => createDefaultItems());
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [stockWarning, setStockWarning] = useState<{ itemId: string; product: Product; requested: number; available: number } | null>(null);
+  const [stockWarning, setStockWarning] = useState<StockWarningState | null>(null);
 
   React.useEffect(() => {
-    // Kategori listesini bir kez yükle (KDV çözmek için)
+    let isActive = true;
     (async () => {
       try {
         const cats = await productCategoriesApi.getAll();
-        setCategories(Array.isArray(cats) ? cats : []);
-      } catch {
-        setCategories([]);
+        if (isActive) {
+          setCategories(Array.isArray(cats) ? cats : []);
+        }
+      } catch (error) {
+        if (isActive) {
+          setCategories([]);
+          logger.warn('InvoiceModal: category load failed', error);
+        }
       } finally {
-        setCategoriesLoaded(true);
+        if (isActive) {
+          setCategoriesLoaded(true);
+        }
       }
     })();
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
+  React.useEffect(() => {
     if (!invoice) {
-      // Geçici fatura numarası - Backend gerçek numarayı oluşturacak
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const tempNumber = `INV-${year}-${month}-XXX`;
-      
       setInvoiceData({
-        invoiceNumber: tempNumber,
+        invoiceNumber: buildTempInvoiceNumber(),
         customerId: '',
         customerName: '',
         customerEmail: '',
@@ -101,7 +253,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         type: 'product',
         originalInvoiceId: '',
       });
-      setItems(defaultItems);
+      setItems(createDefaultItems());
       setCustomerSearch('');
       setSelectedCustomer(null);
       setShowCustomerDropdown(false);
@@ -110,19 +262,11 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       return;
     }
 
-  // İade faturası bayrağını kontrol et
-  const isReturnInvoice = (invoice as any)._isReturnInvoice === true || String(invoice?.type || '') === 'return';
-  const linkedOriginalId = (invoice as any).originalInvoiceId || (invoice as any).refundedInvoiceId || '';
-
-    // Düzenleme modunda backend'den gelen numarayı kullan
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const tempNumber = `INV-${year}-${month}-XXX`;
-    
+    const isReturn = isReturnInvoiceRecord(invoice);
+    const linkedOriginalId = resolveLinkedOriginalId(invoice);
     setInvoiceData({
-      invoiceNumber: invoice.invoiceNumber || tempNumber,
-      customerId: invoice.customerId || '',
+      invoiceNumber: invoice.invoiceNumber || buildTempInvoiceNumber(),
+      customerId: toStringId(invoice.customerId),
       customerName: invoice.customer?.name || invoice.customerName || '',
       customerEmail: invoice.customer?.email || invoice.customerEmail || '',
       customerAddress: invoice.customer?.address || invoice.customerAddress || '',
@@ -130,54 +274,30 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       dueDate: invoice.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       notes: invoice.notes || '',
       status: invoice.status || 'draft',
-      type: isReturnInvoice ? 'return' : (invoice.type || 'product'),
-      originalInvoiceId: linkedOriginalId || '',
+      type: isReturn ? 'return' : (invoice.type as InvoiceKind) || 'product',
+      originalInvoiceId: linkedOriginalId,
     });
 
-    const normalisedItems: InvoiceItem[] = (invoice.items || defaultItems).map((item: InvoiceItem, index: number) => {
-      const quantity = Number(item.quantity) || 1;
-      const unitPrice = Number(item.unitPrice) || 0;
-      const total = Number(item.total) || quantity * unitPrice;
-      return {
-        id: item.id || `${index + 1}`,
-        description: item.description || '',
-        quantity,
-        unitPrice,
-        total,
-        productId: item.productId,
-        unit: item.unit,
-      };
-    });
-
-    setItems(normalisedItems.length ? normalisedItems : defaultItems);
+    const normalizedItems = normalizeInvoiceItems(invoice.items);
+    setItems(normalizedItems.length ? normalizedItems : createDefaultItems());
     setCustomerSearch(invoice.customer?.name || invoice.customerName || '');
-    
-    // Set selected customer if available
-    if (invoice.customer) {
-      setSelectedCustomer(invoice.customer as Customer);
-    } else {
-      setSelectedCustomer(null);
-    }
-    
+    setSelectedCustomer(invoice.customer ?? null);
     setShowCustomerDropdown(false);
     setActiveProductDropdown(null);
     setValidationError(null);
 
-    // Auto-select and auto-load when editing a return invoice linked to an original
-    if (isReturnInvoice && linkedOriginalId) {
-      const original = invoices.find(inv => String(inv.id) === String(linkedOriginalId));
+    if (isReturn && linkedOriginalId) {
+      const original = invoices.find(inv => toStringId(inv.id) === linkedOriginalId);
       if (original) {
-        // Fill customer info from original if not already set
         setInvoiceData(prev => ({
           ...prev,
-          originalInvoiceId: String(linkedOriginalId),
-          customerId: prev.customerId || original.customerId || '',
+          originalInvoiceId: linkedOriginalId,
+          customerId: prev.customerId || toStringId(original.customerId),
           customerName: prev.customerName || original.customer?.name || original.customerName || '',
           customerEmail: prev.customerEmail || original.customer?.email || original.customerEmail || '',
           customerAddress: prev.customerAddress || original.customer?.address || original.customerAddress || '',
         }));
 
-        // Reflect selection in UI inputs
         if (original.customer) {
           setSelectedCustomer(original.customer);
           setCustomerSearch(original.customer.name || '');
@@ -185,34 +305,17 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
           setCustomerSearch(original.customerName);
         }
 
-        // If current items look empty or default-like, prefill negative items from original
         const hasMeaningfulItems = Array.isArray(invoice.items) && invoice.items.length > 0;
         if (!hasMeaningfulItems) {
-          const mapped = (original.items || []).map((it: any, idx: number) => ({
-            id: `ret-${Date.now()}-${idx}`,
-            description: it.description || it.productName || '',
-            quantity: -(Number(it.quantity) || 1),
-            unitPrice: Number(it.unitPrice) || 0,
-            total: -(Number(it.quantity) || 1) * (Number(it.unitPrice) || 0),
-            productId: it.productId,
-            unit: it.unit || undefined,
-            taxRate: Number(it.taxRate ?? 18),
-          }));
-          setItems(mapped.length ? mapped : defaultItems);
+          const mapped = mapReturnItemsFromOriginal(original);
+          setItems(mapped.length ? mapped : createDefaultItems());
         }
       }
     }
-  }, [invoice]);
+  }, [invoice, invoices]);
 
   const addItem = () => {
-    const newItem: InvoiceItem = {
-      id: Date.now().toString(),
-      description: '',
-      quantity: 1,
-      unitPrice: 0,
-      total: 0,
-    };
-    setItems(prev => [...prev, newItem]);
+    setItems(prev => [...prev, createEmptyItem(prev.length + 1)]);
   };
 
   const removeItem = (id: string) => {
@@ -220,34 +323,35 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     setActiveProductDropdown(prev => (prev === id ? null : prev));
   };
 
-  const updateItem = (id: string, field: keyof InvoiceItem, value: string | number) => {
-    setItems(prev =>
-      prev.map(item => {
+  const updateItem = (id: string, field: keyof InvoiceLineItem, value: string | number) => {
+    setItems(prev => {
+      const next = prev.map(item => {
         if (item.id !== id) {
           return item;
         }
-        const updated: InvoiceItem = { ...item, [field]: value } as InvoiceItem;
+        const updated: InvoiceLineItem = { ...item, [field]: value } as InvoiceLineItem;
         if (field === 'quantity' || field === 'unitPrice') {
           const quantity = Number(field === 'quantity' ? value : updated.quantity) || 0;
           const unitPrice = Number(field === 'unitPrice' ? value : updated.unitPrice) || 0;
           updated.total = quantity * unitPrice;
         }
         return updated;
-      })
-    );
-    if (field === 'quantity') {
-      const target = items.find(i => i.id === id);
-      if (target?.productId) {
-        const product = products.find(p => String(p.id) === String(target.productId));
-        if (product) {
-          const available = Number((product as any).stock ?? (product as any).stockQuantity ?? NaN);
+      });
+
+      if (field === 'quantity') {
+        const target = next.find(i => i.id === id);
+        if (target?.productId) {
+          const product = products.find(p => toStringId(p.id) === toStringId(target.productId));
+          const available = getAvailableStock(product);
           const requested = Number(value) || 0;
-          if (Number.isFinite(available) && requested > available) {
+          if (product && available !== null && requested > available) {
             setStockWarning({ itemId: id, product, requested, available });
           }
         }
       }
-    }
+
+      return next;
+    });
   };
 
   // Real-time özet hesaplama - Her ürün kendi KDV oranıyla
@@ -316,11 +420,12 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   };
 
   const handleSelectProduct = (itemId: string, product: Product) => {
-    console.log('🔍 Seçilen ürün:', {
+    logger.debug('InvoiceModal: product selected', {
+      productId: product.id,
       name: product.name,
       taxRate: product.taxRate,
       categoryTaxRateOverride: product.categoryTaxRateOverride,
-      category: product.category
+      category: product.category,
     });
     // KDV öncelik sırası: ürün override -> alt kategori -> ana kategori -> ürün.taxRate -> 18
     const resolveEffectiveTax = (): number => {
@@ -353,9 +458,9 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       return 18;
     };
     const effectiveRate = resolveEffectiveTax();
-    const available = Number((product as any).stock ?? (product as any).stockQuantity ?? NaN);
-    setItems(prev =>
-      prev.map(item => {
+    const available = getAvailableStock(product);
+    setItems(prev => {
+      const next = prev.map(item => {
         if (item.id !== itemId) {
           return item;
         }
@@ -370,53 +475,52 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
           unit: product.unit,
           quantity,
           total: quantity * unitPrice,
-          taxRate, // KDV oranını item'a ekle
+          taxRate,
         };
-      })
-    );
-    setActiveProductDropdown(null);
-    if (Number.isFinite(available)) {
-      const requested = items.find(i => i.id === itemId)?.quantity || 1;
-      if (requested > available) {
-        setStockWarning({ itemId, product, requested, available });
+      });
+
+      if (available !== null) {
+        const target = next.find(i => i.id === itemId);
+        if (target && target.quantity > available) {
+          setStockWarning({ itemId, product, requested: target.quantity, available });
+        }
       }
-    }
+
+      return next;
+    });
+    setActiveProductDropdown(null);
   };
 
   const handleSave = async () => {
     if (isSaving) return;
-    console.log('🔍 InvoiceModal handleSave - Validation başlıyor:', {
+    logger.debug('InvoiceModal: starting validation', {
       customerId: invoiceData.customerId,
       customerName: invoiceData.customerName,
       selectedCustomer: selectedCustomer?.name,
-      customerSearch: customerSearch
     });
 
-    // Stok yeterliliği kontrolü (kaydetmeden önce son kontrol)
     for (const it of items) {
-      const pid = (it as any).productId;
-      let prod: Product | undefined = undefined;
-      if (pid) prod = products.find(p => String(p.id) === String(pid));
+      const pid = toStringId(it.productId);
+      let prod = pid ? products.find(p => toStringId(p.id) === pid) : undefined;
       if (!prod && it.description) {
         const nameLc = String(it.description).trim().toLowerCase();
         prod = products.find(p => String(p.name || '').trim().toLowerCase() === nameLc)
           || products.find(p => String(p.name || '').toLowerCase().includes(nameLc));
       }
       if (prod) {
-        const available = Number((prod as any).stock ?? (prod as any).stockQuantity ?? NaN);
+        const available = getAvailableStock(prod);
         const requested = Number(it.quantity) || 0;
-        if (Number.isFinite(available) && requested > available) {
+        if (available !== null && requested > available) {
           setStockWarning({ itemId: String(it.id), product: prod, requested, available });
-          return; // Uyarıyı göster ve kaydetmeyi durdur
+          return;
         }
       }
     }
 
-    // Validation
     if (!invoiceData.customerId) {
-      console.error('❌ customerId validation failed:', {
+      logger.error('InvoiceModal: customerId validation failed', {
         customerId: invoiceData.customerId,
-        selectedCustomer: selectedCustomer
+        selectedCustomer,
       });
       setValidationError('Lütfen müşteri seçin');
       return;
@@ -425,94 +529,91 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       setValidationError('İade faturası oluşturmak için iade edilecek faturayı seçmelisiniz');
       return;
     }
-    if (items.length === 0) {
+    if (!items.length) {
       setValidationError('Lütfen en az bir ürün ekleyin');
       return;
     }
-    // İade faturaları için negatif miktar kabul et
     if (items.some(item => !item.description || item.unitPrice <= 0)) {
       setValidationError('Lütfen tüm ürün bilgilerini eksiksiz doldurun');
       return;
     }
-    
-    // İade faturaları için kalemleri negatifle (miktar negatif olmalı)
+
     const normalizedItems = (invoiceData.type === 'return')
       ? items.map(it => {
-          const q = Number(it.quantity) || 0;
+          const quantity = Number(it.quantity) || 0;
           const unitPrice = Number(it.unitPrice) || 0;
-          const negQ = q > 0 ? -q : q; // pozitif girilmişse negatife çevir
-          const lineTotal = negQ * unitPrice; // KDV HARİÇ
-          return { ...it, quantity: negQ, total: lineTotal };
+          const negQuantity = quantity > 0 ? -quantity : quantity;
+          return { ...it, quantity: negQuantity, total: negQuantity * unitPrice };
         })
       : items.map(it => {
-          const q = Number(it.quantity) || 0;
+          const quantity = Number(it.quantity) || 0;
           const unitPrice = Number(it.unitPrice) || 0;
-          return { ...it, total: q * unitPrice };
+          return { ...it, total: quantity * unitPrice };
         });
 
-    // Her ürün kendi KDV oranıyla: item.total KDV HARİÇ kabul edilir
-    let subtotal = 0; // KDV HARİÇ
-    let taxAmount = 0; // KDV
+    let subtotal = 0;
+    let taxAmount = 0;
     normalizedItems.forEach(item => {
-      const itemTotal = Number(item.total) || 0; // KDV HARİÇ
+      const itemTotal = Number(item.total) || 0;
       const itemTaxRate = Number(item.taxRate ?? 18) / 100;
-      const itemTax = itemTotal * itemTaxRate; // işaret korunur
+      taxAmount += itemTotal * itemTaxRate;
       subtotal += itemTotal;
-      taxAmount += itemTax;
     });
-    const total = subtotal + taxAmount; // KDV DAHİL
-    
-    const newInvoice: any = {
+    const total = subtotal + taxAmount;
+
+    const newInvoice: InvoicePayload = {
       invoiceNumber: invoiceData.invoiceNumber,
       customerId: invoiceData.customerId,
       customerName: invoiceData.customerName,
       customerEmail: invoiceData.customerEmail,
       customerAddress: invoiceData.customerAddress,
       issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
-      dueDate: invoiceData.dueDate || new Date().toISOString().split('T')[0],
+      dueDate: invoiceData.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       items: normalizedItems,
       subtotal,
       taxAmount,
       total,
       notes: invoiceData.notes || '',
       status: invoiceData.status || 'draft',
-      type: invoiceData.type || 'product',
+      type: invoiceData.type,
       originalInvoiceId: invoiceData.originalInvoiceId || undefined,
     };
-    
-    // Only include ID if editing
+
     if (invoice?.id) {
-      newInvoice.id = invoice.id;
-      newInvoice.createdAt = invoice.createdAt;
+      newInvoice.id = toStringId(invoice.id);
+      if (invoice.createdAt) {
+        newInvoice.createdAt = invoice.createdAt;
+      }
     }
-    // Yeni fatura akışından iade seçilip bir orijinal fatura belirlenmişse,
-    // yeni kayıt oluşturmak yerine orijinal faturayı güncelle
+
     if (!newInvoice.id && newInvoice.type === 'return' && newInvoice.originalInvoiceId) {
-      newInvoice.id = String(newInvoice.originalInvoiceId);
+      newInvoice.id = newInvoice.originalInvoiceId;
     }
-    
-    console.log('💾 InvoiceModal - onSave\'e gönderilecek veri:', {
+
+    logger.debug('InvoiceModal: submitting invoice payload', {
       customerId: newInvoice.customerId,
       customerName: newInvoice.customerName,
-      customerEmail: newInvoice.customerEmail,
       itemCount: newInvoice.items.length,
-      total: newInvoice.total
+      total: newInvoice.total,
     });
-    // Kaydetme işlemini anında başlat ve modalı hemen kapat (kullanıcı beklemesin)
+
     try {
       setIsSaving(true);
       const maybePromise = onSave(newInvoice);
-      if (maybePromise && typeof (maybePromise as any).then === 'function') {
-        (maybePromise as Promise<any>)
-          .catch(() => {})
+      if (isPromiseLike(maybePromise)) {
+        maybePromise
+          .catch(error => {
+            logger.error('InvoiceModal: save failed', error);
+          })
           .finally(() => setIsSaving(false));
       } else {
         setIsSaving(false);
       }
-    } catch {
+    } catch (error) {
       setIsSaving(false);
+      logger.error('InvoiceModal: save threw synchronously', error);
     }
-    // Modalı hemen kapat – başarı/toast App seviyesinde gösterilecek
+
     onClose();
   };
 
@@ -560,13 +661,13 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
               <select
                 value={invoiceData.type}
                 onChange={e => {
-                  const nextType = e.target.value;
+                  const nextType = e.target.value as InvoiceKind;
                   setInvoiceData(prev => ({ ...prev, type: nextType }));
                   if (nextType === 'return') {
                     // Eğer mevcut bir fatura düzenleniyorsa, onu otomatik orijinal olarak seç
-                    const candidateId = invoice?.id ? String(invoice.id) : '';
+                    const candidateId = invoice?.id ? toStringId(invoice.id) : '';
                     if (candidateId) {
-                      const original = invoices.find(inv => String(inv.id) === candidateId);
+                      const original = invoices.find(inv => toStringId(inv.id) === candidateId);
                       if (original) {
                         // Müşteri ve orijinal fatura alanlarını doldur
                         setInvoiceData(prev => ({
@@ -587,17 +688,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                         // Eğer satırlar boşsa otomatik negatif kalemleri yükle
                         const isEmptyItems = items.length === 0 || (items.length === 1 && !items[0].description && (Number(items[0].total) || 0) === 0);
                         if (isEmptyItems) {
-                          const mapped = (original.items || []).map((it: any, idx: number) => ({
-                            id: `ret-${Date.now()}-${idx}`,
-                            description: it.description || it.productName || '',
-                            quantity: -(Number(it.quantity) || 1),
-                            unitPrice: Number(it.unitPrice) || 0,
-                            total: -(Number(it.quantity) || 1) * (Number(it.unitPrice) || 0),
-                            productId: it.productId,
-                            unit: it.unit || undefined,
-                            taxRate: Number(it.taxRate ?? 18),
-                          }));
-                          setItems(mapped.length ? mapped : defaultItems);
+                          const mapped = mapReturnItemsFromOriginal(original);
+                          setItems(mapped.length ? mapped : createDefaultItems());
                         }
                       }
                     }
@@ -625,7 +717,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                   const id = e.target.value;
                   
                   // Eğer bir fatura seçildiyse onun bilgilerini al
-                  const original = invoices.find(inv => String(inv.id) === String(id));
+                  const original = invoices.find(inv => toStringId(inv.id) === id);
                   if (original) {
                     // Müşteri bilgilerini de doldur
                     setInvoiceData(prev => ({
@@ -647,17 +739,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                     }
                     
                     // Kalemleri negatif olarak ekle
-                    const mapped = (original.items || []).map((it: any, idx: number) => ({
-                      id: `ret-${Date.now()}-${idx}`,
-                      description: it.description || it.productName || '',
-                      quantity: -(Number(it.quantity) || 1),
-                      unitPrice: Number(it.unitPrice) || 0,
-                      total: -(Number(it.quantity) || 1) * (Number(it.unitPrice) || 0),
-                      productId: it.productId,
-                      unit: it.unit || undefined,
-                      taxRate: Number(it.taxRate ?? 18),
-                    }));
-                    setItems(mapped.length ? mapped : defaultItems);
+                    const mapped = mapReturnItemsFromOriginal(original);
+                    setItems(mapped.length ? mapped : createDefaultItems());
                   } else {
                     // Seçim temizlendiyse bilgileri sıfırla
                     setInvoiceData(prev => ({ ...prev, originalInvoiceId: id }));
@@ -699,7 +782,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('invoices.status')}</label>
               <select
                 value={invoiceData.status}
-                onChange={(event) => setInvoiceData({ ...invoiceData, status: event.target.value })}
+                onChange={(event) => setInvoiceData({ ...invoiceData, status: event.target.value as InvoiceStatus })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="draft">{resolveStatusLabel(t, 'draft')}</option>
@@ -830,35 +913,38 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                                     {productMatches.length} ürün bulundu
                                   </span>
                                 </div>
-                                {productMatches.map(product => (
-                                  <button
-                                    key={`${item.id}-${product.id}`}
-                                    type="button"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onClick={() => handleSelectProduct(item.id, product)}
-                                    className="w-full p-4 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                                  >
-                                    <div className="font-semibold text-gray-900 mb-1">{product.name}</div>
-                                    <div className="flex items-center space-x-3 text-xs text-gray-600">
-                                      {product.sku && (
-                                        <span className="px-2 py-0.5 bg-gray-100 rounded">SKU: {product.sku}</span>
-                                      )}
-                                      {product.category && (
-                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">{product.category}</span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center justify-between mt-2 text-sm">
-                                      <span className="font-medium text-green-600">
-                                        {product.unitPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                                      </span>
-                                      <span className="text-gray-500">
-                                        Stok: <span className={(Number((product as any).stockQuantity) > 0) ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                                          {Math.max(0, Number((product as any).stockQuantity ?? (product as any).stock ?? 0))}
+                                {productMatches.map(product => {
+                                  const availableStock = getAvailableStock(product);
+                                  const safeStock = Math.max(0, availableStock ?? 0);
+                                  const stockClass = (availableStock ?? 0) > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium';
+                                  return (
+                                    <button
+                                      key={`${item.id}-${product.id}`}
+                                      type="button"
+                                      onMouseDown={(event) => event.preventDefault()}
+                                      onClick={() => handleSelectProduct(item.id, product)}
+                                      className="w-full p-4 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                                    >
+                                      <div className="font-semibold text-gray-900 mb-1">{product.name}</div>
+                                      <div className="flex items-center space-x-3 text-xs text-gray-600">
+                                        {product.sku && (
+                                          <span className="px-2 py-0.5 bg-gray-100 rounded">SKU: {product.sku}</span>
+                                        )}
+                                        {product.category && (
+                                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">{product.category}</span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center justify-between mt-2 text-sm">
+                                        <span className="font-medium text-green-600">
+                                          {(product.unitPrice ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                                         </span>
-                                      </span>
-                                    </div>
-                                  </button>
-                                ))}
+                                        <span className="text-gray-500">
+                                          Stok: <span className={stockClass}>{safeStock}</span>
+                                        </span>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>

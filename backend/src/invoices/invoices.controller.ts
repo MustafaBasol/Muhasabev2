@@ -16,6 +16,8 @@ import { InvoicesService } from './invoices.service';
 import { InvoiceStatus } from './entities/invoice.entity';
 import { Audit } from '../audit/audit.interceptor';
 import { AuditAction } from '../audit/entities/audit-log.entity';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
+import type { CreateInvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
 
 @ApiTags('invoices')
 @Controller('invoices')
@@ -27,22 +29,25 @@ export class InvoicesController {
   @Post()
   @UseGuards(PeriodLockGuard)
   @Audit('Invoice', AuditAction.CREATE)
-  create(@Req() req: any, @Body() createInvoiceDto: any) {
+  create(
+    @Req() req: AuthenticatedRequest,
+    @Body() createInvoiceDto: CreateInvoiceDto,
+  ) {
     return this.invoicesService.create(req.user.tenantId, createInvoiceDto);
   }
 
   @Get()
-  findAll(@Req() req: any) {
+  findAll(@Req() req: AuthenticatedRequest) {
     return this.invoicesService.findAll(req.user.tenantId);
   }
 
   @Get('statistics')
-  getStatistics(@Req() req: any) {
+  getStatistics(@Req() req: AuthenticatedRequest) {
     return this.invoicesService.getStatistics(req.user.tenantId);
   }
 
   @Get(':id')
-  findOne(@Req() req: any, @Param('id') id: string) {
+  findOne(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.invoicesService.findOne(req.user.tenantId, id);
   }
 
@@ -50,9 +55,9 @@ export class InvoicesController {
   @UseGuards(PeriodLockGuard)
   @Audit('Invoice', AuditAction.UPDATE)
   update(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body() updateInvoiceDto: any,
+    @Body() updateInvoiceDto: UpdateInvoiceDto,
   ) {
     return this.invoicesService.update(req.user.tenantId, id, updateInvoiceDto);
   }
@@ -60,7 +65,7 @@ export class InvoicesController {
   @Patch(':id/status')
   @Audit('Invoice', AuditAction.UPDATE)
   updateStatus(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body('status') status: InvoiceStatus,
   ) {
@@ -70,28 +75,28 @@ export class InvoicesController {
   @Delete(':id')
   @UseGuards(PeriodLockGuard)
   @Audit('Invoice', AuditAction.DELETE)
-  remove(@Req() req: any, @Param('id') id: string) {
+  remove(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.invoicesService.remove(req.user.tenantId, id);
   }
 
   @Patch(':id/void')
   @Audit('Invoice', AuditAction.UPDATE)
   voidInvoice(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body('reason') reason?: string,
   ) {
     return this.invoicesService.voidInvoice(
       req.user.tenantId,
       id,
-      req.user.userId,
+      req.user.id,
       reason,
     );
   }
 
   @Patch(':id/restore')
   @Audit('Invoice', AuditAction.UPDATE)
-  restoreInvoice(@Req() req: any, @Param('id') id: string) {
+  restoreInvoice(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.invoicesService.restoreInvoice(req.user.tenantId, id);
   }
 }

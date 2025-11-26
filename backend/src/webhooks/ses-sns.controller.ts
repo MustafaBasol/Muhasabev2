@@ -1,14 +1,77 @@
 import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import SNSValidator from 'sns-validator';
 import { EmailSuppression } from '../email/entities/email-suppression.entity';
 // sns-validator paketinin default export'u tip bildirimleri olmadığından any olarak ele alınıyor
 
-const SNSValidator = require('sns-validator');
+interface SnsNotificationBase {
+  notificationType?: 'Bounce' | 'Complaint';
+}
+
+interface BounceNotification extends SnsNotificationBase {
+  notificationType: 'Bounce';
+  bounce?: {
+    bouncedRecipients?: Array<{ emailAddress?: string }>;
+  };
+}
+
+interface ComplaintNotification extends SnsNotificationBase {
+  notificationType: 'Complaint';
+  complaint?: {
+    complainedRecipients?: Array<{ emailAddress?: string }>;
+  };
+}
+
+type SnsEnvelope = {
+  Message: string;
+};
+
+type ValidatorCallback = (err: Error | null) => void;
+
+type SnsValidatorLike = {
+  validate: (message: unknown, cb: ValidatorCallback) => void;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const createValidator = (): SnsValidatorLike => {
+  const ValidatorCtor = SNSValidator as { new (): unknown };
+  const instance: unknown = new ValidatorCtor();
+  if (
+    isRecord(instance) &&
+    'validate' in instance &&
+    typeof instance.validate === 'function'
+  ) {
+    return instance as SnsValidatorLike;
+  }
+  throw new Error('SNS validator instance missing validate method');
+};
+
+const isBounceNotification = (
+  message: unknown,
+): message is BounceNotification => {
+  if (!isRecord(message)) {
+    return false;
+  }
+  const typeValue = message.notificationType;
+  return typeof typeValue === 'string' && typeValue === 'Bounce';
+};
+
+const isComplaintNotification = (
+  message: unknown,
+): message is ComplaintNotification => {
+  if (!isRecord(message)) {
+    return false;
+  }
+  const typeValue = message.notificationType;
+  return typeof typeValue === 'string' && typeValue === 'Complaint';
+};
 
 @Controller('webhooks/ses')
 export class SesSnsController {
-  private readonly validator = new SNSValidator();
+  private readonly validator: SnsValidatorLike = createValidator();
   constructor(
     @InjectRepository(EmailSuppression)
     private readonly suppressionRepo: Repository<EmailSuppression>,
@@ -16,7 +79,10 @@ export class SesSnsController {
 
   @Post('sns')
   @HttpCode(200)
-  async handle(@Body() body: any, @Headers() headers: Record<string, string>) {
+  async handle(
+    @Body() body: SnsEnvelope,
+    @Headers() headers: Record<string, string>,
+  ) {
     // Basit paylaşılan gizli anahtar doğrulaması (opsiyonel)
     const shared = process.env.SNS_WEBHOOK_SHARED_SECRET || '';
     const headerSecret =
@@ -34,11 +100,11 @@ export class SesSnsController {
     try {
       await new Promise<void>((resolve, reject) => {
         // validator body olarak SNS zarfını bekler
-        this.validator.validate(body, (err: any) =>
+        this.validator.validate(body, (err: Error | null) =>
           err ? reject(err) : resolve(),
         );
       });
-    } catch (e) {
+    } catch {
       return { ok: false, error: 'invalid-signature' };
     }
 
@@ -49,15 +115,11 @@ export class SesSnsController {
 
     if (type === 'Notification') {
       try {
-        const message =
-          typeof body.Message === 'string'
-            ? JSON.parse(body.Message)
-            : body.Message;
-        const notificationType = message?.notificationType;
+        const message: unknown = JSON.parse(body.Message);
 
-        if (notificationType === 'Bounce') {
-          const recipients: Array<{ emailAddress: string }> =
-            message?.bounce?.bouncedRecipients || [];
+        if (isBounceNotification(message)) {
+          const recipients: Array<{ emailAddress?: string }> =
+            message.bounce?.bouncedRecipients || [];
           for (const r of recipients) {
             const email = (r.emailAddress || '').trim().toLowerCase();
             if (!email) continue;
@@ -69,9 +131,9 @@ export class SesSnsController {
               .orIgnore()
               .execute();
           }
-        } else if (notificationType === 'Complaint') {
-          const recipients: Array<{ emailAddress: string }> =
-            message?.complaint?.complainedRecipients || [];
+        } else if (isComplaintNotification(message)) {
+          const recipients: Array<{ emailAddress?: string }> =
+            message.complaint?.complainedRecipients || [];
           for (const r of recipients) {
             const email = (r.emailAddress || '').trim().toLowerCase();
             if (!email) continue;
@@ -84,7 +146,7 @@ export class SesSnsController {
               .execute();
           }
         }
-      } catch (e) {
+      } catch {
         return { ok: false, error: 'parse-failed' };
       }
       return { ok: true };

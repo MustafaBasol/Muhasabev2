@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
   Tenant,
   SubscriptionPlan,
@@ -53,7 +54,7 @@ export interface UpdateTenantDto {
   taxNumber?: string;
   website?: string;
   // Serbest biçimli ayarlar: marka/logo, varsayılan banka, ülke vb.
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 
   // Türkiye
   taxOffice?: string;
@@ -82,6 +83,8 @@ export interface UpdateTenantDto {
 
 @Injectable()
 export class TenantsService {
+  private readonly logger = new Logger(TenantsService.name);
+
   constructor(
     @InjectRepository(Tenant)
     private tenantsRepository: Repository<Tenant>,
@@ -89,6 +92,13 @@ export class TenantsService {
     private productCategoriesRepository: Repository<ProductCategory>,
     private auditService: AuditService,
   ) {}
+
+  private logAuditFailure(event: string, error: unknown) {
+    const message = `${event}: ${error instanceof Error ? error.message : String(error)}`;
+    const stack = error instanceof Error ? error.stack : undefined;
+    this.logger.warn(message);
+    if (stack) this.logger.debug(stack);
+  }
 
   async findAll(): Promise<Tenant[]> {
     return this.tenantsRepository.find({
@@ -126,7 +136,7 @@ export class TenantsService {
       slug,
       subscriptionPlan: SubscriptionPlan.FREE,
       status: TenantStatus.ACTIVE,
-      subscriptionExpiresAt: null as any, // FREE plan süresiz
+      subscriptionExpiresAt: null, // FREE plan süresiz
       // Starter/Free plan başlangıç kullanıcı limiti 1 olmalı
       maxUsers: 1,
       settings: {},
@@ -143,8 +153,8 @@ export class TenantsService {
     // Save with small retry on unique conflicts (race condition protection)
     let savedTenant: Tenant;
     let attempt = 0;
-    let lastError: any = null;
-    
+    let lastError: unknown;
+
     while (attempt < 3) {
       try {
         savedTenant = await this.tenantsRepository.save(tenant);
@@ -156,14 +166,18 @@ export class TenantsService {
             entity: 'tenant',
             entityId: savedTenant.id,
             action: AuditAction.CREATE,
-            diff: { name: savedTenant.name, plan: savedTenant.subscriptionPlan },
+            diff: {
+              name: savedTenant.name,
+              plan: savedTenant.subscriptionPlan,
+            },
           });
-        } catch {}
+        } catch (error) {
+          this.logAuditFailure('tenants.create.auditFailed', error);
+        }
         return savedTenant;
-      } catch (err: any) {
+      } catch (err: unknown) {
         lastError = err;
-        // Postgres unique violation
-        const code = err?.code || err?.driverError?.code;
+        const code = this.extractDriverCode(err);
         if (code === '23505') {
           // regenerate name/slug and retry once more
           const baseName = createTenantDto.name;
@@ -178,9 +192,36 @@ export class TenantsService {
         throw err;
       }
     }
-    
+
     // Son deneme başarısız oldu
-    throw lastError || new Error('Failed to create tenant after retries');
+    if (lastError instanceof Error) {
+      throw lastError;
+    }
+
+    throw new Error(
+      typeof lastError === 'string'
+        ? lastError
+        : 'Failed to create tenant after retries',
+    );
+  }
+
+  private extractDriverCode(error: unknown): string | undefined {
+    if (!error || typeof error !== 'object') {
+      return undefined;
+    }
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string') {
+      return code;
+    }
+    const driverError = (error as { driverError?: { code?: unknown } })
+      .driverError;
+    if (driverError && typeof driverError === 'object') {
+      const driverCode = (driverError as { code?: unknown }).code;
+      if (typeof driverCode === 'string') {
+        return driverCode;
+      }
+    }
+    return undefined;
   }
 
   private async createDefaultCategories(tenant: Tenant): Promise<void> {
@@ -205,7 +246,10 @@ export class TenantsService {
   }
 
   async update(id: string, updateData: Partial<Tenant>): Promise<Tenant> {
-    await this.tenantsRepository.update(id, updateData);
+    await this.tenantsRepository.update(
+      id,
+      updateData as QueryDeepPartialEntity<Tenant>,
+    );
     return this.findOne(id);
   }
 
@@ -220,7 +264,9 @@ export class TenantsService {
         action: AuditAction.DELETE,
         diff: { name: tenant.name },
       });
-    } catch {}
+    } catch (error) {
+      this.logAuditFailure('tenants.remove.auditFailed', error);
+    }
   }
 
   async updateSubscription(
@@ -269,7 +315,9 @@ export class TenantsService {
           maxUsers: updated.maxUsers,
         },
       });
-    } catch {}
+    } catch (error) {
+      this.logAuditFailure('tenants.updateSubscription.auditFailed', error);
+    }
     return updated;
   }
 

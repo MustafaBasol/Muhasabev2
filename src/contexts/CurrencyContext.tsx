@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { logger } from '../utils/logger';
+import { readTenantScopedValue, safeLocalStorage, writeTenantScopedValue } from '../utils/localStorageSafe';
 
 export type Currency = 'TRY' | 'USD' | 'EUR' | 'GBP';
 
@@ -18,17 +19,34 @@ interface CurrencyProviderProps {
   children: ReactNode;
 }
 
+const STORAGE_KEY = 'currency';
+const DEFAULT_CURRENCY: Currency = 'TRY';
+const CURRENCY_PREF_BASE_KEY = 'currency_preference';
+
+const normalizeCurrency = (value: string | null): Currency => {
+  if (value === 'TRY' || value === 'USD' || value === 'EUR' || value === 'GBP') {
+    return value;
+  }
+  if (value && value.trim()) {
+    logger.warn('[CurrencyContext] Invalid currency in storage, falling back to default', { value });
+  }
+  return DEFAULT_CURRENCY;
+};
+
+const readStoredCurrency = (): Currency => {
+  const scoped = readTenantScopedValue(CURRENCY_PREF_BASE_KEY, { fallbackToBase: true });
+  const saved = scoped ?? safeLocalStorage.getItem(STORAGE_KEY);
+  return normalizeCurrency(saved);
+};
+
 export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) => {
-  // LocalStorage'dan currency tercihini oku, yoksa TRY kullan
-  const [currency, setCurrencyState] = useState<Currency>(() => {
-    const saved = localStorage.getItem('currency');
-    return (saved as Currency) || 'TRY';
-  });
+  // Local storage kullanılabilir değilse bile güvenli fallback sağlayan reader kullan
+  const [currency, setCurrencyState] = useState<Currency>(readStoredCurrency);
 
   // Currency değiştiğinde localStorage'a kaydet
   useEffect(() => {
-    logger.debug('[CurrencyContext] Currency changed, saving to localStorage:', currency);
-    localStorage.setItem('currency', currency);
+    logger.debug('[CurrencyContext] Currency changed, saving to local storage:', currency);
+    writeTenantScopedValue(CURRENCY_PREF_BASE_KEY, currency, { mirrorToBase: true });
   }, [currency]);
 
   const setCurrency = (newCurrency: Currency) => {
@@ -103,7 +121,6 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
 };
 
 // Custom hook to use currency context
-// eslint-disable-next-line react-refresh/only-export-components
 export const useCurrency = (): CurrencyContextType => {
   const context = useContext(CurrencyContext);
   if (!context) {

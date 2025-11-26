@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   TrendingUp, 
@@ -11,204 +11,357 @@ import {
   BarChart3,
   Activity,
   Target,
-  FileText
+  FileText,
+  FileDown
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import * as quotesApi from '../api/quotes';
+import type { Quote, QuoteItemDto } from '../api/quotes';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { logger } from '../utils/logger';
+import { listLocalStorageKeys, readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
+
+type NumericInput = number | string | null | undefined;
+
+interface InvoiceItemLike {
+  description?: string | null;
+  quantity?: NumericInput;
+  unitPrice?: NumericInput;
+  total?: NumericInput;
+}
+
+interface InvoiceLike {
+  id?: string | number | null;
+  customerName?: string | null;
+  customer?: { name?: string | null } | null;
+  status?: unknown;
+  total?: NumericInput;
+  amount?: NumericInput;
+  issueDate?: string | null;
+  date?: string | null;
+  dueDate?: string | null;
+  saleId?: string | number | null;
+  notes?: string | null;
+  items?: InvoiceItemLike[] | null;
+}
+
+interface ExpenseLike {
+  id?: string | number | null;
+  description?: string | null;
+  category?: string | null;
+  supplier?: string | null;
+  status?: unknown;
+  amount?: NumericInput;
+  expenseDate?: string | null;
+  date?: string | null;
+}
+
+interface SaleLike {
+  id?: string | number | null;
+  saleNumber?: string | null;
+  customerName?: string | null;
+  productName?: string | null;
+  status?: unknown;
+  amount?: NumericInput;
+  quantity?: NumericInput;
+  unitPrice?: NumericInput;
+  invoiceId?: string | number | null;
+  date?: string | null;
+  saleDate?: string | null;
+}
+
+type QuoteItemLike = Partial<QuoteItemDto> & {
+  quantity?: NumericInput;
+  unitPrice?: NumericInput;
+  total?: NumericInput;
+};
+
+type QuoteLike = {
+  id: string;
+  quoteNumber?: Quote['quoteNumber'] | null;
+  customerId?: string | number | null;
+  customerName?: Quote['customerName'];
+  issueDate?: Quote['issueDate'];
+  validUntil?: Quote['validUntil'];
+  currency?: Quote['currency'] | string | null;
+  total?: NumericInput;
+  amount?: NumericInput;
+  status?: Quote['status'] | string | null;
+  version?: Quote['version'];
+  scopeOfWorkHtml?: Quote['scopeOfWorkHtml'];
+  items?: QuoteItemLike[];
+  createdAt?: Quote['createdAt'];
+  updatedAt?: Quote['updatedAt'];
+};
+
+type UnknownQuote = QuoteLike | Record<string, unknown>;
+
+const ensureString = (value: unknown, fallback = ''): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return fallback;
+};
+
+const toIsoDateString = (value: unknown): string | undefined => {
+  const candidate = ensureString(value).trim();
+  if (!candidate) return undefined;
+  return candidate.slice(0, 10);
+};
+
+const normalizeQuoteItem = (item: unknown): QuoteItemLike => {
+  if (!item || typeof item !== 'object') return {};
+  const candidate = item as Record<string, unknown>;
+  return {
+    description: ensureString(candidate.description),
+    quantity: candidate.quantity as NumericInput,
+    unitPrice: candidate.unitPrice as NumericInput,
+    total: candidate.total as NumericInput,
+  };
+};
+
+const normalizeQuote = (quote: UnknownQuote, fallbackIndex = 0): QuoteLike => {
+  const source = (quote ?? {}) as Record<string, unknown>;
+  const id = ensureString(source.id, ensureString(source.quoteNumber, `quote-${fallbackIndex}`));
+  return {
+    id,
+    quoteNumber: ensureString(source.quoteNumber),
+    customerId: source.customerId as string | number | null,
+    customerName: ensureString(source.customerName ?? (source.customer as { name?: string })?.name),
+    issueDate: toIsoDateString(source.issueDate),
+    validUntil: toIsoDateString(source.validUntil),
+    currency: ensureString(source.currency),
+    total: source.total as NumericInput,
+    amount: source.amount as NumericInput,
+    status: source.status,
+    version: typeof source.version === 'number' ? source.version : undefined,
+    scopeOfWorkHtml: ensureString(source.scopeOfWorkHtml),
+    items: Array.isArray(source.items) ? source.items.map(normalizeQuoteItem) : [],
+    createdAt: ensureString(source.createdAt ?? source.created_at),
+    updatedAt: ensureString(source.updatedAt ?? source.updated_at),
+  };
+};
+
+const normalizeQuoteArray = (value: unknown): QuoteLike[] => {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry, index) => normalizeQuote(entry as UnknownQuote, index));
+};
+
+const escapeCsvValue = (value: unknown): string => {
+  if (value == null) return '""';
+  const stringValue = String(value);
+  const escaped = stringValue.replace(/"/g, '""');
+  return `"${escaped}"`;
+};
 
 /* __REPORTS_HELPERS__ */
-// numeric
-const toNumber = (v: any): number => {
-  if (typeof v === 'number') return v;
-  if (v == null) return 0;
-  
-  const s = String(v).trim();
-  
-  // Backend'den gelen decimal string formatı: "2000.00" (SQL decimal)
-  // Eğer sadece rakam, nokta ve en fazla bir nokta varsa direkt parse et
-  if (/^\d+\.?\d*$/.test(s)) {
-    const n = parseFloat(s);
-    return isNaN(n) ? 0 : n;
+const toNumber = (value: unknown): number => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value == null) return 0;
+
+  const candidate = String(value).trim();
+
+  if (/^\d+\.?\d*$/.test(candidate)) {
+    const parsed = Number.parseFloat(candidate);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
-  
-  // Türkçe format: "2.000,00" → "2000.00"
-  // Binlik ayracı nokta, ondalık ayracı virgül
-  if (s.includes(',')) {
-    const cleaned = s.replace(/\./g, '').replace(/,/g, '.');
-    const n = parseFloat(cleaned);
-    return isNaN(n) ? 0 : n;
+
+  if (candidate.includes(',')) {
+    const normalized = candidate.replace(/\./g, '').replace(/,/g, '.');
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
-  
-  // Diğer durumlar: boşluk temizle ve parse et
-  const cleaned = s.replace(/\s/g, '');
-  const n = parseFloat(cleaned);
-  return isNaN(n) ? 0 : n;
+
+  const sanitized = candidate.replace(/\s/g, '');
+  const parsed = Number.parseFloat(sanitized);
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
-// date parsing: supports 'yyyy-mm-dd' and 'dd.mm.yyyy'
-const parseMaybeDate = (input: any): Date => {
+const parseMaybeDate = (input: unknown): Date => {
   if (!input) return new Date('1970-01-01');
-  const s = String(input);
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    return new Date(s);
+  const value = String(input).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return new Date(value);
   }
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(s)) {
-    const [dd, mm, yyyy] = s.split('.');
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(value)) {
+    const [dd, mm, yyyy] = value.split('.');
     return new Date(`${yyyy}-${mm}-${dd}`);
   }
-  return new Date(s);
+  return new Date(value);
 };
 
-// status helpers (tr/en, case-insensitive)
-const isPaidLike = (status: any) => {
-  const s = String(status || '').toLowerCase();
-  return s.includes('paid') || s.includes('öden') || s.includes('odendi') || s.includes('ödendi');
-};
-const isCompletedLike = (status: any) => {
-  const s = String(status || '').toLowerCase();
-  return s.includes('completed') || s.includes('tamam');
+const statusToLower = (status: unknown): string => String(status ?? '').toLowerCase();
+
+const isPaidLike = (status: unknown) => {
+  const normalized = statusToLower(status);
+  return normalized.includes('paid') || normalized.includes('öden') || normalized.includes('odendi') || normalized.includes('ödendi');
 };
 
-// amount helpers
-const getInvoiceTotal = (inv: any): number => {
-  if (inv == null) return 0;
-  if (inv.total != null) return toNumber(inv.total);
-  if (inv.amount != null) return toNumber(inv.amount);
-  if (Array.isArray(inv.items)) {
-    return inv.items.reduce((sum: number, it: any) => sum + toNumber(it.quantity) * toNumber(it.unitPrice), 0);
+const isCompletedLike = (status: unknown) => {
+  const normalized = statusToLower(status);
+  return normalized.includes('completed') || normalized.includes('tamam');
+};
+
+const getInvoiceTotal = (invoice: InvoiceLike | null | undefined): number => {
+  if (!invoice) return 0;
+  if (invoice.total != null) return toNumber(invoice.total);
+  if (invoice.amount != null) return toNumber(invoice.amount);
+  if (Array.isArray(invoice.items)) {
+    return invoice.items.reduce((sum, item) => sum + toNumber(item.quantity) * toNumber(item.unitPrice), 0);
   }
   return 0;
 };
-const getExpenseAmount = (exp: any): number => toNumber(exp?.amount);
-const getSaleAmount = (sale: any): number => {
-  if (sale?.amount != null) return toNumber(sale.amount);
-  return toNumber(sale?.quantity) * toNumber(sale?.unitPrice);
+
+const getExpenseAmount = (expense: ExpenseLike | null | undefined): number => toNumber(expense?.amount);
+
+const getSaleAmount = (sale: SaleLike | null | undefined): number => {
+  if (!sale) return 0;
+  if (sale.amount != null) return toNumber(sale.amount);
+  return toNumber(sale.quantity) * toNumber(sale.unitPrice);
 };
 
-// Satış faturalandırılmış mı? (invoiceId, invoice.saleId veya notlarla eşleşme)
-const isSaleInvoiced = (sale: any, allInvoices: any[]): boolean => {
-  try {
-    const sid = String(sale?.id || '');
-    if (!sid) return false;
-    if (sale?.invoiceId) return true;
-    const viaSaleId = allInvoices.some(inv => String((inv as any)?.saleId || '') === sid);
-    if (viaSaleId) return true;
-    const sn = sale?.saleNumber || `SAL-${sid}`;
-    const viaNotes = allInvoices.some(inv => typeof (inv as any)?.notes === 'string' && (inv as any).notes.includes(sn));
-    return !!viaNotes;
-  } catch { return false; }
+const isSaleInvoiced = (sale: SaleLike | null | undefined, allInvoices: InvoiceLike[]): boolean => {
+  if (!sale) return false;
+  const saleId = String(sale.id ?? '');
+  if (!saleId) return false;
+  if (sale.invoiceId) return true;
+
+  const viaSaleId = allInvoices.some((invoice) => String(invoice?.saleId ?? '') === saleId);
+  if (viaSaleId) return true;
+
+  const saleNumber = sale.saleNumber || `SAL-${saleId}`;
+  return allInvoices.some((invoice) => typeof invoice?.notes === 'string' && invoice.notes.includes(saleNumber));
 };
 
-// date getters
-const getInvoiceDate = (inv: any): Date => parseMaybeDate(inv?.issueDate ?? inv?.date);
-const getExpenseDate = (exp: any): Date => parseMaybeDate(exp?.expenseDate ?? exp?.date);
-const getSaleDate = (sale: any): Date => parseMaybeDate(sale?.date ?? sale?.saleDate);
+const getInvoiceDate = (invoice: InvoiceLike | null | undefined): Date =>
+  parseMaybeDate(invoice?.issueDate ?? invoice?.date);
+
+const getExpenseDate = (expense: ExpenseLike | null | undefined): Date =>
+  parseMaybeDate(expense?.expenseDate ?? expense?.date);
+
+const getSaleDate = (sale: SaleLike | null | undefined): Date =>
+  parseMaybeDate(sale?.date ?? sale?.saleDate);
 interface ReportsPageProps {
-  invoices?: any[];
-  expenses?: any[];
-  sales?: any[];
-  customers?: any[];
-  quotes?: any[];
+  invoices?: InvoiceLike[];
+  expenses?: ExpenseLike[];
+  sales?: SaleLike[];
+  customers?: Array<Record<string, unknown>>;
+  quotes?: QuoteLike[];
 }
 
-export default function ReportsPage({ 
-  invoices = [], 
-  expenses = [], 
+const QUOTES_CACHE_EVENT = 'quotes-cache-updated';
+
+const getQuoteDate = (quote: QuoteLike): Date => parseMaybeDate(quote?.issueDate);
+const getQuoteTotal = (quote: QuoteLike): number => toNumber(quote?.total ?? quote?.amount);
+const isOpenQuoteStatus = (status: unknown) => {
+  const normalized = normalizeStatusKey(String(status ?? ''));
+  return normalized === 'draft' || normalized === 'sent' || normalized === 'viewed';
+};
+
+export default function ReportsPage({
+  invoices = [],
+  expenses = [],
   sales = [],
   customers = [],
-  quotes = []
+  quotes = [],
 }: ReportsPageProps) {
-    const getQuoteDate = (q: any): Date => parseMaybeDate(q?.issueDate);
-    const getQuoteTotal = (q: any): number => toNumber((q && (q.total ?? q.amount)) ?? 0);
-    const isOpenQuoteStatus = (status: any) => {
-      const s = normalizeStatusKey(String(status || ''));
-      return s === 'draft' || s === 'sent' || s === 'viewed';
-    };
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const { formatCurrency } = useCurrency();
   const currentDate = new Date(); // Current date for report display
-  
-  // DEBUG: Gider verisi ve toplamı logla
-  console.log('DEBUG expenses (first 5):', expenses.slice(0, 5));
-  
-  // Teklifler: anlık senkronizasyon için localStorage dinleme ile canlı state
-  const [liveQuotes, setLiveQuotes] = useState<any[]>(Array.isArray(quotes) ? quotes : []);
+  const logDebug = (...args: unknown[]) => {
+    if (import.meta.env.DEV) {
+      logger.debug('[ReportsPage]', ...args);
+    }
+  };
+
+  const normalizedQuotes = useMemo(() => normalizeQuoteArray(quotes), [quotes]);
+  const [liveQuotes, setLiveQuotes] = useState<QuoteLike[]>(normalizedQuotes);
+
   useEffect(() => {
-    setLiveQuotes(Array.isArray(quotes) ? quotes : []);
-  }, [quotes]);
+    setLiveQuotes(normalizedQuotes);
+  }, [normalizedQuotes]);
+
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (!e.key) return;
-      if (e.key.includes('quotes_cache')) {
-        try {
-          const next = e.newValue ? JSON.parse(e.newValue) : [];
-          if (Array.isArray(next)) setLiveQuotes(next);
-        } catch {}
+    if (typeof window === 'undefined') return undefined;
+
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || !event.key.includes('quotes_cache')) {
+        return;
+      }
+      try {
+        const parsed = event.newValue ? JSON.parse(event.newValue) : [];
+        const nextQuotes = normalizeQuoteArray(parsed);
+        if (nextQuotes.length) {
+          setLiveQuotes(nextQuotes);
+        }
+      } catch (error) {
+        logger.debug('Failed to parse quotes_cache storage event', error);
       }
     };
+
     const refreshFromLocal = () => {
       try {
-        const keys = Object.keys(localStorage).filter(k => k.includes('quotes_cache'));
-        for (const k of keys) {
-          const raw = localStorage.getItem(k);
+        const keys = listLocalStorageKeys().filter((key) => key.includes('quotes_cache'));
+        for (const key of keys) {
+          const raw = safeLocalStorage.getItem(key);
           const parsed = raw ? JSON.parse(raw) : [];
-          if (Array.isArray(parsed)) { setLiveQuotes(parsed); break; }
+          const nextQuotes = normalizeQuoteArray(parsed);
+          if (nextQuotes.length) {
+            setLiveQuotes(nextQuotes);
+            break;
+          }
         }
-      } catch {}
-    };
-    const onVisible = () => { if (document.visibilityState === 'visible') refreshFromLocal(); };
-    window.addEventListener('storage', onStorage);
-    // @ts-ignore - custom event olabilir
-    window.addEventListener('quotes-cache-updated', refreshFromLocal as any);
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      // @ts-ignore
-      window.removeEventListener('quotes-cache-updated', refreshFromLocal as any);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, []);
-  // Fallback: localStorage henüz yazılmadıysa teklifleri arka uçtan çek ve önbelleğe yaz
-  useEffect(() => {
-    let cancelled = false;
-    const hydrateQuotesIfEmpty = async () => {
-      try {
-        if (Array.isArray(liveQuotes) && liveQuotes.length > 0) return;
-        const data = await quotesApi.getQuotes();
-        if (cancelled) return;
-        const mapped = (Array.isArray(data) ? data : []).map((q: any) => ({
-          id: String(q.id),
-          quoteNumber: q.quoteNumber,
-          customerName: q.customer?.name || q.customerName || '',
-          customerId: q.customerId,
-          issueDate: String(q.issueDate).slice(0,10),
-          validUntil: q.validUntil ? String(q.validUntil).slice(0,10) : undefined,
-          currency: q.currency,
-          total: (q.total != null) ? Number(q.total) || 0 : 0,
-          status: normalizeStatusKey(String(q.status)),
-          version: q.version || 1,
-          scopeOfWorkHtml: q.scopeOfWorkHtml || '',
-          items: Array.isArray(q.items) ? q.items.map((it: any) => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, total: it.total })) : [],
-          createdAt: q.createdAt || q.created_at || undefined,
-          updatedAt: q.updatedAt || q.updated_at || undefined,
-        }));
-        if (mapped.length > 0) {
-          setLiveQuotes(mapped);
-          try {
-            const tid = (localStorage.getItem('tenantId') || '') as string;
-            const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
-            localStorage.setItem(key, JSON.stringify(mapped));
-            try { window.dispatchEvent(new Event('quotes-cache-updated')); } catch {}
-          } catch {}
-        }
-      } catch (e) {
-        console.error('Reports quotes preload failed:', e);
+      } catch (error) {
+        logger.debug('Unable to refresh quotes from localStorage', error);
       }
     };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshFromLocal();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener(QUOTES_CACHE_EVENT, refreshFromLocal as EventListener);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener(QUOTES_CACHE_EVENT, refreshFromLocal as EventListener);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    let cancelled = false;
+
+    const hydrateQuotesIfEmpty = async () => {
+      if (liveQuotes.length > 0) return;
+      try {
+        const data = await quotesApi.getQuotes();
+        if (cancelled) return;
+        const mapped = normalizeQuoteArray(data as unknown);
+        if (!mapped.length) return;
+        setLiveQuotes(mapped);
+        try {
+          const tenantId = readLegacyTenantId() || '';
+          const cacheKey = tenantId ? `quotes_cache_${tenantId}` : 'quotes_cache';
+          safeLocalStorage.setItem(cacheKey, JSON.stringify(mapped));
+          window.dispatchEvent(new Event(QUOTES_CACHE_EVENT));
+        } catch (storageError) {
+          logger.debug('Unable to cache quotes locally', storageError);
+        }
+      } catch (error) {
+        logger.error('Reports quotes preload failed:', error);
+      }
+    };
+
     hydrateQuotesIfEmpty();
-    return () => { cancelled = true; };
-  }, [liveQuotes]);
+    return () => {
+      cancelled = true;
+    };
+  }, [liveQuotes.length]);
   
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
@@ -222,70 +375,76 @@ export default function ReportsPage({
     setCollapsedSections(newCollapsed);
   };
 
-  const getLast6Months = () => {
-    const currentDate = new Date(); // Get current date dynamically each time
-    console.log(`Generating last 6 months from: ${currentDate.toLocaleDateString('tr-TR')}`);
-    
-    const months = [];
+  const last6Months = useMemo(() => {
+    const currentDate = new Date();
+    logDebug('Generating last 6 months starting from', currentDate.toISOString());
+
     const monthNames = [
-      t('months.short.jan'), t('months.short.feb'), t('months.short.mar'),
-      t('months.short.apr'), t('months.short.may'), t('months.short.jun'),
-      t('months.short.jul'), t('months.short.aug'), t('months.short.sep'),
-      t('months.short.oct'), t('months.short.nov'), t('months.short.dec')
+      t('months.short.jan'),
+      t('months.short.feb'),
+      t('months.short.mar'),
+      t('months.short.apr'),
+      t('months.short.may'),
+      t('months.short.jun'),
+      t('months.short.jul'),
+      t('months.short.aug'),
+      t('months.short.sep'),
+      t('months.short.oct'),
+      t('months.short.nov'),
+      t('months.short.dec'),
     ];
-    
-    // Son 6 ayı sondan başa doğru oluştur (en üstte içinde bulunduğumuz ay)
-    for (let i = 0; i < 6; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+
+    const months = [] as Array<{ month: string; monthIndex: number; year: number; income: number; expense: number }>;
+
+    for (let offset = 0; offset < 6; offset += 1) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - offset, 1);
       const monthIndex = date.getMonth();
       const year = date.getFullYear();
-      console.log(`  Month ${i}: ${monthNames[monthIndex]} ${year} (index: ${monthIndex})`);
-      
-      // Get paid invoices for this month
-      const monthInvoices = invoices.filter(invoice => {
-  if (!isPaidLike(invoice.status)) return false;
-  const d = getInvoiceDate(invoice);
-  return d.getMonth() === monthIndex && d.getFullYear() === year;
-});
-      
-      // Get paid expenses for this month
-      const monthExpenses = expenses.filter(expense => {
-  if (!isPaidLike(expense.status)) return false;
-  const d = getExpenseDate(expense);
-  return d.getMonth() === monthIndex && d.getFullYear() === year;
-});
-      
-      // Get completed sales for this month (that haven't been converted to invoices)
-      const monthSales = sales.filter(sale => {
+      logDebug('Evaluating month window', { offset, label: `${monthNames[monthIndex]} ${year}` });
+
+      const monthInvoices = invoices.filter((invoice) => {
+        if (!isPaidLike(invoice.status)) return false;
+        const invoiceDate = getInvoiceDate(invoice);
+        return invoiceDate.getMonth() === monthIndex && invoiceDate.getFullYear() === year;
+      });
+
+      const monthExpenses = expenses.filter((expense) => {
+        if (!isPaidLike(expense.status)) return false;
+        const expenseDate = getExpenseDate(expense);
+        return expenseDate.getMonth() === monthIndex && expenseDate.getFullYear() === year;
+      });
+
+      const monthSales = sales.filter((sale) => {
         if (!isCompletedLike(sale.status)) return false;
         if (isSaleInvoiced(sale, invoices)) return false;
-        const d = getSaleDate(sale);
-        return d.getMonth() === monthIndex && d.getFullYear() === year;
+        const saleDate = getSaleDate(sale);
+        return saleDate.getMonth() === monthIndex && saleDate.getFullYear() === year;
       });
-        
-      
-      // Calculate income from both invoices and direct sales
+
       const invoiceIncome = monthInvoices.reduce((sum, invoice) => sum + getInvoiceTotal(invoice), 0);
-const salesIncome = monthSales.reduce((sum, sale) => sum + getSaleAmount(sale), 0);
-const totalIncome = invoiceIncome + salesIncome;
-      
+      const salesIncome = monthSales.reduce((sum, sale) => sum + getSaleAmount(sale), 0);
+      const totalIncome = invoiceIncome + salesIncome;
       const totalExpense = monthExpenses.reduce((sum, expense) => sum + getExpenseAmount(expense), 0);
-console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, salesIncome=${salesIncome}, totalIncome=${totalIncome}, totalExpense=${totalExpense}`);
-      
-      const monthData = {
+
+      logDebug('Monthly summary', {
+        month: monthNames[monthIndex],
+        invoiceIncome,
+        salesIncome,
+        totalIncome,
+        totalExpense,
+      });
+
+      months.push({
         month: monthNames[monthIndex],
         monthIndex,
         year,
         income: totalIncome,
-        expense: totalExpense
-      };
-      
-      months.push(monthData);
+        expense: totalExpense,
+      });
     }
-    return months;
-  };
 
-  const last6Months = useMemo(() => getLast6Months(), [invoices, expenses, sales, t]);
+    return months;
+  }, [expenses, invoices, sales, t]);
 
   // Calculate metrics
   // Calculate total revenue from paid invoices
@@ -303,16 +462,17 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
   
   const totalRevenue = paidInvoiceRevenue + directSalesRevenue;
   
-  console.log('Revenue calculation:');
-  console.log('- Paid invoice revenue:', paidInvoiceRevenue);
-  console.log('- Direct sales revenue:', directSalesRevenue);
-  console.log('- Total revenue:', totalRevenue);
+  logDebug('Revenue calculation', {
+    paidInvoiceRevenue,
+    directSalesRevenue,
+    totalRevenue,
+  });
 
   const totalExpenses = expenses
   .filter(expense => isPaidLike(expense.status))
     .reduce((sum, expense) => sum + getExpenseAmount(expense), 0);
   
-  console.log('Total expenses (paid only):', totalExpenses);
+  logDebug('Total expenses (paid only)', totalExpenses);
 
   const netProfit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue * 100) : 0;
@@ -329,32 +489,33 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
   // Product sales analysis
   const productSales = useMemo(() => {
-    const productMap = new Map();
-    
-    // Add products from paid invoices
+    type ProductAggregate = { name: string; total: number; count: number };
+    const productMap = new Map<string, ProductAggregate>();
+
     invoices
-      .filter(invoice => isPaidLike(invoice.status))
-      .forEach(invoice => {
-        (invoice.items || []).forEach((item: any) => {
-          const existing = productMap.get(item.description) || { name: item.description, total: 0, count: 0 };
-          existing.total += toNumber(item.total);
+      .filter((invoice) => isPaidLike(invoice.status))
+      .forEach((invoice) => {
+        (invoice.items ?? []).forEach((item) => {
+          const label = item.description || '—';
+          const existing = productMap.get(label) ?? { name: label, total: 0, count: 0 };
+          const lineTotal = item.total != null ? toNumber(item.total) : toNumber(item.quantity) * toNumber(item.unitPrice);
+          existing.total += lineTotal;
           existing.count += 1;
-          productMap.set(item.description, existing);
+          productMap.set(label, existing);
         });
       });
-    
-    // Add direct sales that haven't been converted to invoices
-    sales.forEach(sale => {
-      if (isCompletedLike(sale.status)) {
-        if (!isSaleInvoiced(sale, invoices)) {
-          const existing = productMap.get(sale.productName) || { name: sale.productName, total: 0, count: 0 };
-          existing.total += toNumber(sale.amount);
-          existing.count += 1;
-          productMap.set(sale.productName, existing);
-        }
+
+    sales.forEach((sale) => {
+      if (!isCompletedLike(sale.status) || isSaleInvoiced(sale, invoices)) {
+        return;
       }
+      const label = sale.productName || '—';
+      const existing = productMap.get(label) ?? { name: label, total: 0, count: 0 };
+      existing.total += getSaleAmount(sale);
+      existing.count += 1;
+      productMap.set(label, existing);
     });
-    
+
     return Array.from(productMap.values())
       .sort((a, b) => b.total - a.total)
       .slice(0, 8);
@@ -426,11 +587,83 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
       .slice(0, 8);
   }, [invoices, sales]);
 
-  const formatAmount = (amount: any) => { const n = toNumber(amount); return formatCurrency(n); };
+  const formatAmount = useCallback((amount: unknown) => formatCurrency(toNumber(amount)), [formatCurrency]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
-  };
+  const formatDate = useCallback((value?: string | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(i18n.language, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  }, [i18n.language]);
+
+  const getSupplierDisplay = useCallback((name?: string | null) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) {
+      return t('common:noSupplier', { defaultValue: 'No Supplier' });
+    }
+    return trimmed;
+  }, [t]);
+
+  const getCategoryLabel = useCallback((category?: string | null) => {
+    if (!category) return t('expenses.category', { defaultValue: 'Category' });
+    const translated = t(`expenseCategories.${category}`, { defaultValue: category });
+    return translated || category;
+  }, [t]);
+
+  const handleExportExpenses = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const paidExpenses = expenses.filter((expense) => isPaidLike(expense.status));
+    if (!paidExpenses.length) {
+      logger.info('[ReportsPage] Expense export skipped: no paid expenses');
+      return;
+    }
+
+    try {
+      const headers = [
+        t('expenses.expenseNumber', { defaultValue: 'Expense Number' }),
+        t('common.description', { defaultValue: 'Description' }),
+        t('expenses.supplier', { defaultValue: 'Supplier' }),
+        t('expenses.category', { defaultValue: 'Category' }),
+        t('common.statusLabel', { defaultValue: 'Status' }),
+        t('expenses.expenseDate', { defaultValue: 'Expense Date' }),
+        t('expenses.amount', { defaultValue: 'Amount' }),
+      ];
+
+      const rows = paidExpenses.map((expense, index) => {
+        const status = resolveStatusLabel(t, normalizeStatusKey(expense.status));
+        return [
+          expense.id || expense.expenseDate || `expense-${index}`,
+          expense.description || '',
+          getSupplierDisplay(expense.supplier),
+          getCategoryLabel(expense.category),
+          status,
+          formatDate(expense.expenseDate ?? expense.date),
+          formatAmount(expense.amount),
+        ];
+      });
+
+      const csvContent = [headers, ...rows]
+        .map((row) => row.map(escapeCsvValue).join(','))
+        .join('\r\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `reports_expenses_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      logger.info('[ReportsPage] Expense export completed', { rowCount: paidExpenses.length });
+    } catch (error) {
+      logger.error('[ReportsPage] Expense export failed', error);
+    }
+  }, [expenses, formatAmount, formatDate, getCategoryLabel, getSupplierDisplay, t]);
 
   // Calculate growth rate (comparing last 2 months)
   const currentMonthData = monthlyData[monthlyData.length - 1];
@@ -449,11 +682,12 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
   const totalTransactions = paidInvoicesCount + completedSalesCount;
   const averageSale = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
   
-  console.log('Transaction counts:');
-  console.log('- Paid invoices:', paidInvoicesCount);
-  console.log('- Direct sales:', completedSalesCount);
-  console.log('- Total transactions:', totalTransactions);
-  console.log('- Average sale:', averageSale);
+  logDebug('Transaction counts', {
+    paidInvoicesCount,
+    completedSalesCount,
+    totalTransactions,
+    averageSale,
+  });
 
   // KPI calculations
   const kpiData = [
@@ -719,12 +953,12 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                         const today = new Date(); today.setHours(0,0,0,0);
                         const count = statusKey === 'overdue'
                           ? invoices.filter(inv => {
-                              const due = (inv as any)?.dueDate ? new Date((inv as any).dueDate) : null;
-                              if (!due) return false;
-                              due.setHours(0,0,0,0);
-                              return due.getTime() < today.getTime() && !isPaidLike((inv as any).status);
+                              if (!inv.dueDate) return false;
+                              const due = parseMaybeDate(inv.dueDate);
+                              due.setHours(0, 0, 0, 0);
+                              return due.getTime() < today.getTime() && !isPaidLike(inv.status);
                             }).length
-                          : invoices.filter(inv => normalizeStatusKey(String((inv as any).status)) === statusKey).length;
+                          : invoices.filter(inv => normalizeStatusKey(String(inv.status ?? '')) === statusKey).length;
                         const colors = {
                           paid: 'bg-green-100 text-green-800',
                           sent: 'bg-blue-100 text-blue-800',
@@ -746,7 +980,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                     <h4 className="font-medium text-gray-900 mb-3">{t('reports.expenseStatuses')}</h4>
                     <div className="space-y-2">
                       {(['paid', 'approved', 'draft'] as const).map(statusKey => {
-                        const count = expenses.filter(exp => normalizeStatusKey(String((exp as any).status)) === statusKey).length;
+                        const count = expenses.filter(exp => normalizeStatusKey(String(exp.status ?? '')) === statusKey).length;
                         const colors = {
                           paid: 'bg-green-100 text-green-800',
                           approved: 'bg-blue-100 text-blue-800',
@@ -859,6 +1093,20 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
 
         {!collapsedSections.has('expenses') && (
           <div className="p-6 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-gray-500">
+                {t('reports.expenseExportHint', { defaultValue: 'Includes paid expenses only.' })}
+              </p>
+              <button
+                type="button"
+                onClick={handleExportExpenses}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                <FileDown className="w-4 h-4" />
+                <span>{t('reports.exportExpensesCsv', { defaultValue: 'Export CSV' })}</span>
+              </button>
+            </div>
+
             {/* Expense Categories */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.categoryBasedExpenses')}</h3>
@@ -1069,7 +1317,7 @@ console.log(`Month ${monthNames[monthIndex]}: invoiceIncome=${invoiceIncome}, sa
                 <div>
                   <div className="space-y-2">
                     {(['accepted','declined','expired','viewed','sent','draft'] as const).map(statusKey => {
-                      const count = liveQuotes.filter(q => normalizeStatusKey(String((q as any).status)) === statusKey).length;
+                      const count = liveQuotes.filter(q => normalizeStatusKey(String(q.status ?? '')) === statusKey).length;
                       const colors = {
                         accepted: 'bg-green-100 text-green-800',
                         declined: 'bg-red-100 text-red-800',

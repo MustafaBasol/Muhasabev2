@@ -10,6 +10,7 @@ import {
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Customer } from '../../customers/entities/customer.entity';
 import { User } from '../../users/entities/user.entity';
+import type { InvoiceLineItemInput } from '../dto/invoice.dto';
 
 export enum InvoiceStatus {
   DRAFT = 'draft',
@@ -39,7 +40,7 @@ export class Invoice {
   tenant: Tenant;
 
   @Column({ type: 'uuid', nullable: true })
-  customerId: string;
+  customerId: string | null;
 
   @ManyToOne(() => Customer, { nullable: true })
   @JoinColumn({ name: 'customerId' })
@@ -71,23 +72,23 @@ export class Invoice {
   status: InvoiceStatus;
 
   @Column({ type: 'text', nullable: true })
-  notes: string;
+  notes: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  saleId: string;
+  saleId: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  type: string; // 'product', 'service', 'refund' (iade faturası)
+  type: string | null; // 'product', 'service', 'refund' (iade faturası)
 
   @Column({ type: 'uuid', nullable: true })
-  refundedInvoiceId: string; // İade edilen orijinal fatura ID'si
+  refundedInvoiceId: string | null; // İade edilen orijinal fatura ID'si
 
   @ManyToOne(() => Invoice, { nullable: true })
   @JoinColumn({ name: 'refundedInvoiceId' })
-  refundedInvoice: Invoice; // İade edilen orijinal fatura
+  refundedInvoice: Invoice | null; // İade edilen orijinal fatura
 
   @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
-  items: any[];
+  items: InvoiceLineItemInput[] | null;
 
   // Soft delete columns
   @Column({ name: 'is_voided', type: 'boolean', default: false })

@@ -19,19 +19,19 @@ export class Supplier {
   name: string;
 
   @Column({ nullable: true })
-  email: string;
+  email: string | null;
 
   @Column({ nullable: true })
-  phone: string;
+  phone: string | null;
 
   @Column({ type: 'text', nullable: true })
-  address: string;
+  address: string | null;
 
   @Column({ nullable: true })
-  taxNumber: string;
+  taxNumber: string | null;
 
   @Column({ nullable: true })
-  company: string;
+  company: string | null;
 
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
   balance: number;

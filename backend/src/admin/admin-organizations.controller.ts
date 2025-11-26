@@ -18,6 +18,12 @@ import { Organization } from '../organizations/entities/organization.entity';
 import { OrganizationMember } from '../organizations/entities/organization-member.entity';
 import { Invite } from '../organizations/entities/invite.entity';
 import { OrganizationsService } from '../organizations/organizations.service';
+import {
+  InviteUserDto,
+  UpdateMemberRoleDto,
+} from '../organizations/dto/member.dto';
+import type { AdminHeaderMap } from './utils/admin-token.util';
+import { resolveAdminHeaders } from './utils/admin-token.util';
 
 @Controller('admin/organizations')
 export class AdminOrganizationsController {
@@ -32,8 +38,8 @@ export class AdminOrganizationsController {
     private readonly organizationsService: OrganizationsService,
   ) {}
 
-  private checkAdminAuth(headers: any) {
-    const adminToken = headers['admin-token'];
+  private checkAdminAuth(headers?: AdminHeaderMap) {
+    const { adminToken } = resolveAdminHeaders(headers);
     if (!adminToken) throw new UnauthorizedException('Admin token required');
     if (!this.adminService.isValidAdminToken(adminToken)) {
       throw new UnauthorizedException('Invalid or expired admin token');
@@ -41,13 +47,16 @@ export class AdminOrganizationsController {
   }
 
   @Get()
-  async listOrganizations(@Headers() headers: any) {
+  async listOrganizations(@Headers() headers: AdminHeaderMap) {
     this.checkAdminAuth(headers);
-    return this.orgRepo.find({ order: { createdAt: 'DESC' } as any });
+    return this.orgRepo.find({ order: { createdAt: 'DESC' as const } });
   }
 
   @Get(':orgId/members')
-  async listMembers(@Param('orgId') orgId: string, @Headers() headers: any) {
+  async listMembers(
+    @Param('orgId') orgId: string,
+    @Headers() headers: AdminHeaderMap,
+  ) {
     this.checkAdminAuth(headers);
     return this.memberRepo.find({
       where: { organizationId: orgId },
@@ -56,7 +65,10 @@ export class AdminOrganizationsController {
   }
 
   @Get(':orgId/invites')
-  async listInvites(@Param('orgId') orgId: string, @Headers() headers: any) {
+  async listInvites(
+    @Param('orgId') orgId: string,
+    @Headers() headers: AdminHeaderMap,
+  ) {
     this.checkAdminAuth(headers);
     return this.inviteRepo.find({
       where: { organizationId: orgId },
@@ -68,8 +80,8 @@ export class AdminOrganizationsController {
   async updateMemberRole(
     @Param('orgId') orgId: string,
     @Param('memberId') memberId: string,
-    @Body() body: { role: string },
-    @Headers() headers: any,
+    @Body() body: UpdateMemberRoleDto,
+    @Headers() headers: AdminHeaderMap,
   ) {
     this.checkAdminAuth(headers);
     const member = await this.memberRepo.findOne({
@@ -78,7 +90,7 @@ export class AdminOrganizationsController {
     if (!member) {
       throw new Error('Member not found');
     }
-    (member as any).role = body.role;
+    member.role = body.role;
     return this.memberRepo.save(member);
   }
 
@@ -86,7 +98,7 @@ export class AdminOrganizationsController {
   async removeMember(
     @Param('orgId') orgId: string,
     @Param('memberId') memberId: string,
-    @Headers() headers: any,
+    @Headers() headers: AdminHeaderMap,
   ) {
     this.checkAdminAuth(headers);
     const member = await this.memberRepo.findOne({
@@ -102,8 +114,8 @@ export class AdminOrganizationsController {
   @Post(':orgId/invite')
   async adminCreateInvite(
     @Param('orgId') orgId: string,
-    @Body() body: { email: string; role: string },
-    @Headers() headers: any,
+    @Body() body: InviteUserDto,
+    @Headers() headers: AdminHeaderMap,
   ) {
     this.checkAdminAuth(headers);
     if (!body?.email || !body?.role) {
@@ -115,13 +127,13 @@ export class AdminOrganizationsController {
     // Bir owner veya admin üyeyi davet eden olarak kullan
     const inviter = await this.memberRepo.findOne({
       where: { organizationId: orgId },
-      order: { createdAt: 'ASC' } as any,
+      order: { createdAt: 'ASC' as const },
     });
     if (!inviter) throw new BadRequestException('No inviter member found');
 
     const invite = await this.organizationsService.inviteUser(
       orgId,
-      { email: body.email, role: body.role } as any,
+      { email: body.email, role: body.role },
       inviter.userId,
     );
     return invite;
@@ -131,7 +143,7 @@ export class AdminOrganizationsController {
   async adminResendInvite(
     @Param('orgId') orgId: string,
     @Param('inviteId') inviteId: string,
-    @Headers() headers: any,
+    @Headers() headers: AdminHeaderMap,
   ) {
     this.checkAdminAuth(headers);
     const org = await this.orgRepo.findOne({ where: { id: orgId } });
@@ -139,7 +151,7 @@ export class AdminOrganizationsController {
 
     const inviter = await this.memberRepo.findOne({
       where: { organizationId: orgId },
-      order: { createdAt: 'ASC' } as any,
+      order: { createdAt: 'ASC' as const },
     });
     if (!inviter) throw new BadRequestException('No inviter member found');
 

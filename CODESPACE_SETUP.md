@@ -70,6 +70,34 @@ VITE v7.1.10  ready in XXX ms
 
 ---
 
+## 🧪 Postgres Destekli E2E Testleri
+
+Backend e2e testi artık SQLite yerine gerçek Postgres veritabanı üzerinde koşturulur.
+
+1. `backend/docker-compose.yml` içindeki PostgreSQL servisini çalıştırın:
+   ```bash
+   cd /workspaces/Muhasabev2/backend
+   docker-compose up -d postgres
+   ```
+   > `start-safe.sh` scriptini çalıştırdıysanız bu adım otomatik yapılmış olur.
+
+2. İsteğe bağlı olarak `backend/.env.test` dosyası oluşturup Codespace içindeki Postgres erişim bilgilerini (`TEST_DATABASE_HOST`, `TEST_DATABASE_PORT=5433`, vb.) belirleyin. Dosya yoksa `.env` değerleri kullanılır.
+
+3. E2E testlerini başlatın:
+   ```bash
+   cd /workspaces/Muhasabev2/backend
+   npm run test:e2e
+   ```
+
+`test/run-e2e.sh` scripti aşağıdaki işlemleri otomatik yapar:
+
+- `app_test` veritabanını yeniden oluşturur (varsa bağlantıları düşürür)
+- Tüm TypeORM migration'larını uygular
+- `SeedService` ile başlangıç verilerini yükler
+- Jest e2e testlerini Postgres üzerinde koşturur
+
+Başarılı koşumdan sonra Postgres'te `app_test` şemasında jsonb dahil tüm kolonlar birebir prod şemasıyla eşleşir.
+
 ## ✅ Doğrulama
 
 ### Backend Kontrolü

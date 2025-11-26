@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Settings,
@@ -21,46 +21,247 @@ import {
 } from 'lucide-react';
 import type { CompanyProfile } from '../utils/pdfGenerator';
 import { useAuth } from '../contexts/AuthContext';
+import type { Tenant } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useNotificationPreferences } from '../contexts/NotificationPreferencesContext';
-import { tenantsApi } from '../api/tenants';
+import { tenantsApi, type UpdateTenantDto } from '../api/tenants';
 import { usersApi } from '../api/users';
 import { organizationsApi } from '../api/organizations';
 import {
   cancelSubscriptionAtPeriodEnd as billingCancel,
   createAddonCheckout,
-  createPortalSession,
-  updateSeats as billingUpdateSeats,
   createCheckoutSession,
+  createPortalSession,
   updatePlan,
+  updateSeats as billingUpdateSeats,
 } from '../api/billing';
-import { AuditLogComponent } from './AuditLogComponent';
+import { logger } from '../utils/logger';
+import {
+  getCachedTenantId,
+  getCachedUserId,
+  safeLocalStorage,
+  readNotificationPrefsCache as readNotificationPrefsCacheSafe,
+  writeNotificationPrefsCache,
+  readLegacyAuthToken,
+  writeLegacyAuthToken,
+  readLegacyTenantId,
+  writeLegacyUserProfile,
+} from '../utils/localStorageSafe';
+import InfoModal from './InfoModal';
 import OrganizationMembersPage from './OrganizationMembersPage';
 import FiscalPeriodsPage from './FiscalPeriodsPage';
-import InfoModal from './InfoModal';
+import { AuditLogComponent } from './AuditLogComponent';
+
+type BasicUserProfile = {
+  name: string;
+  email: string;
+  phone?: string;
+  id?: string;
+};
+
+type SettingsImportPayload = {
+  profile?: Partial<BasicUserProfile>;
+  company?: Partial<CompanyProfile>;
+  preferences?: Record<string, unknown>;
+  attachments?: File[];
+};
 
 type BankAccount = {
   id: string;
   bankName: string;
   accountName: string;
   iban: string;
+  currency?: string;
+};
+
+type AllowedPlan = 'free' | 'professional' | 'enterprise';
+
+const PLAN_ALIAS_MAP: Record<string, AllowedPlan> = {
+  free: 'free',
+  starter: 'free',
+  basic: 'free',
+  professional: 'professional',
+  pro: 'professional',
+  enterprise: 'enterprise',
+  business: 'enterprise',
+};
+
+const PLAN_RANK: Record<AllowedPlan, number> = {
+  free: 0,
+  professional: 1,
+  enterprise: 2,
+};
+
+const normalizePlanSlug = (value?: string | null): AllowedPlan | null => {
+  if (!value) return null;
+  return PLAN_ALIAS_MAP[value.trim().toLowerCase()] ?? null;
+};
+
+const getPlanRank = (value?: string | null): number => {
+  const normalized = normalizePlanSlug(value);
+  return normalized ? PLAN_RANK[normalized] : 0;
+};
+
+const mapToPaidPlan = (value?: string | null): Exclude<AllowedPlan, 'free'> | null => {
+  const normalized = normalizePlanSlug(value);
+  if (!normalized || normalized === 'free') return null;
+  return normalized;
+};
+
+const isPaidPlan = (value?: string | null): value is Exclude<AllowedPlan, 'free'> =>
+  mapToPaidPlan(value) !== null;
+
+type BillingInterval = 'month' | 'year';
+
+type BillingHistoryEvent = {
+  type: string;
+  plan?: string | null;
+  users?: string | number | null;
+  at?: string | number | Date | null;
+};
+
+type ExtendedBillingInvoice = {
+  id: string;
+  number?: string | null;
+  created?: string | number | Date | null;
+  total?: number | null;
+  currency?: string | null;
+  status?: string | null;
+  hostedInvoiceUrl?: string | null;
+  pdf?: string | null;
+  zeroTotal?: boolean;
+  reasonHint?: string | null;
+  paid?: boolean | null;
+};
+
+type BillingSuccessEventDetail = {
+  type?: string;
+  plan?: string;
+  seats?: number;
+  ts?: number;
+};
+
+type ApiErrorPayload = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+};
+
+const extractErrorMessage = (error: unknown, fallback = 'Hata'): string => {
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error && typeof error === 'object') {
+    const payload = error as ApiErrorPayload;
+    return payload.response?.data?.message || payload.message || fallback;
+  }
+  return fallback;
+};
+
+const readIdentifier = (source: unknown): string | null => {
+  if (!source) return null;
+  if (typeof source === 'string' && source.trim()) return source.trim();
+  if (typeof source === 'number' && Number.isFinite(source)) return String(source);
+  if (typeof source === 'object') {
+    const carrier = source as { id?: unknown; _id?: unknown };
+    if (typeof carrier.id === 'string' && carrier.id.trim()) return carrier.id.trim();
+    if (typeof carrier._id === 'string' && carrier._id.trim()) return carrier._id.trim();
+    if (typeof carrier._id === 'number' && Number.isFinite(carrier._id)) return String(carrier._id);
+  }
+  return null;
+};
+
+const safeParseJson = <T,>(raw: string | null): T | null => {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    logger.debug('JSON parse failed', { error, rawSnippet: raw.slice(0, 32) });
+    return null;
+  }
+};
+
+const toOrgRole = (value?: string | null): 'OWNER' | 'ADMIN' | 'MEMBER' | null => {
+  const normalized = (value || '').toUpperCase();
+  if (normalized === 'OWNER' || normalized === 'ADMIN' || normalized === 'MEMBER') {
+    return normalized;
+  }
+  return null;
+};
+
+const isInvoiceRecord = (value: unknown): value is ExtendedBillingInvoice =>
+  Boolean(value) && typeof value === 'object' && 'id' in (value as Record<string, unknown>);
+
+const normalizeInvoiceList = (value: unknown): ExtendedBillingInvoice[] => {
+  if (Array.isArray(value)) {
+    return value.filter(isInvoiceRecord);
+  }
+  if (value && typeof value === 'object') {
+    const maybeList = (value as { invoices?: unknown[] }).invoices;
+    if (Array.isArray(maybeList)) {
+      return maybeList.filter(isInvoiceRecord);
+    }
+  }
+  return [];
+};
+
+const isHistoryEvent = (value: unknown): value is BillingHistoryEvent =>
+  Boolean(value) && typeof value === 'object' && 'type' in (value as Record<string, unknown>);
+
+const normalizeHistory = (value: unknown): BillingHistoryEvent[] => {
+  if (Array.isArray(value)) {
+    return value.filter(isHistoryEvent);
+  }
+  return [];
+};
+
+const baseIncludedFor = (planStr: string): number => {
+  const p = String(planStr || '').toLowerCase();
+  if (p === 'professional' || p === 'pro') return 3; // Pro: 3 kullanıcı dahil
+  if (p === 'enterprise' || p === 'business') return 10; // Business: 10 kullanıcı dahil
+  return 1; // Basic/Free
+};
+
+const buildNotificationUserCandidates = (authUser: unknown): string[] => {
+  const ids = new Set<string>();
+  const runtime = readIdentifier(authUser);
+  if (runtime) ids.add(runtime);
+  const cachedLocal = getCachedUserId();
+  if (cachedLocal) ids.add(cachedLocal);
+  ids.add('anon');
+  return Array.from(ids.values());
+};
+
+const safeStorage = {
+  get: (key: string): string | null => safeLocalStorage.getItem(key),
+  set: (key: string, value: string): void => safeLocalStorage.setItem(key, value),
+  remove: (key: string): void => safeLocalStorage.removeItem(key),
+};
+
+const resolveTenantId = (tenant: Tenant | null): string | null => {
+  if (tenant?.id) return tenant.id;
+  const fallback = readLegacyTenantId();
+  return fallback ? fallback : null;
 };
 
 interface SettingsPageProps {
-  user?: { name: string; email: string };
+  user?: BasicUserProfile;
   company?: CompanyProfile;
   bankAccounts?: BankAccount[];
-  onUserUpdate?: (user: any) => void;
+  onUserUpdate?: (user: BasicUserProfile) => void;
   onCompanyUpdate?: (company: CompanyProfile) => void;
   onExportData?: () => void;
-  onImportData?: (payload: any) => void;
+  onImportData?: (payload: SettingsImportPayload) => void;
   language?: 'tr' | 'en' | 'fr' | 'de';
   initialTab?: string;
 }
 
 // === Plan Tab (hooks ayrı bir bileşene taşındı; SettingsPage içinde koşullu çağrı artık hook sırasını bozmaz) ===
 interface PlanTabProps {
-  tenant: any;
+  tenant: Tenant | null;
   currentLanguage: SettingsLanguage;
   text: SettingsTranslations;
 }
@@ -69,20 +270,25 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const { t } = useTranslation('common');
   const { refreshUser } = useAuth();
   const planRaw = String(tenant?.subscriptionPlan || '').toLowerCase();
-  const isFree = planRaw === 'free';
-  const baseIncludedFor = (planStr: string): number => {
-    const p = String(planStr || '').toLowerCase();
-    if (p === 'professional' || p === 'pro') return 3; // Pro: 3 kullanıcı dahil
-    if (p === 'enterprise' || p === 'business') return 10; // Business: 10 kullanıcı dahil
-    return 1; // Basic/Free
+  const normalizedPlanSlug = normalizePlanSlug(planRaw) ?? 'free';
+  const isFree = normalizedPlanSlug === 'free';
+  const resolvedTenantId = resolveTenantId(tenant);
+  const getRequiredTenantId = () => {
+    if (!resolvedTenantId) {
+      throw new Error('Tenant bulunamadı');
+    }
+    return resolvedTenantId;
   };
   const planLabelMap: Record<string, string> = {
     free: 'Starter',
+    starter: 'Starter',
     basic: 'Basic', // legacy
     professional: 'Pro',
+    pro: 'Pro',
     enterprise: 'Business',
+    business: 'Business',
   };
-  const planText = planLabelMap[planRaw] || (planRaw ? planRaw.toUpperCase() : '—');
+  const planText = planLabelMap[planRaw] || planLabelMap[normalizedPlanSlug] || (planRaw ? planRaw.toUpperCase() : '—');
   const periodMap: Record<SettingsLanguage, { month: string; year: string }> = {
     tr: { month: t('common:planTab.monthly'), year: t('common:planTab.yearly') },
     en: { month: t('common:planTab.monthly'), year: t('common:planTab.yearly') },
@@ -90,7 +296,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     de: { month: t('common:planTab.monthly'), year: t('common:planTab.yearly') },
   } as const;
   // Backend tenant nesnesinde varsa billingInterval'ı kullan; yoksa yenileme tarihinden çıkarım yap
-  const intervalRaw = (tenant as any)?.billingInterval as ('month' | 'year' | undefined);
+  const intervalRaw: BillingInterval | undefined = tenant?.billingInterval ?? undefined;
   const inferredInterval = (() => {
     if (intervalRaw) return intervalRaw;
     try {
@@ -101,7 +307,9 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         if (days >= 330) return 'year';
         if (days >= 25) return 'month';
       }
-    } catch {}
+    } catch (error) {
+      logger.warn('Failed to infer billing interval from subscription date', error);
+    }
     return undefined;
   })();
   const effectiveInterval = inferredInterval; // 'month' | 'year' | undefined
@@ -113,12 +321,11 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
 
   // --- Local state ---
   // Yalnız landing'deki 3 plan: Starter(Free), Pro, Business(Enterprise)
-  const allowedPlans = ['free', 'professional', 'enterprise'] as const;
-  const [desiredPlan, setDesiredPlan] = useState<string>(
-    allowedPlans.includes(planRaw as any) ? planRaw : 'free'
-  );
+  const [desiredPlan, setDesiredPlan] = useState<AllowedPlan>(normalizedPlanSlug);
   const [desiredBilling, setDesiredBilling] = useState<'monthly' | 'yearly'>('monthly');
-  const currentMaxUsers = (tenant?.maxUsers as number) || 1;
+  const currentMaxUsers = typeof tenant?.maxUsers === 'number' ? tenant.maxUsers : 1;
+  const baseIncludedUsers = baseIncludedFor(planRaw || 'free');
+  const additionalSeatCapacity = Math.max(0, currentMaxUsers - baseIncludedUsers);
   // Plan değişiminde hedef kullanıcı alanı kaldırıldı; koltuk artışı yalnız add-on akışından yapılır
   // İlave kullanıcı ekleme için bağımsız state (sadece ek sayısı)
   const [additionalUsersToAdd, setAdditionalUsersToAdd] = useState<number>(1);
@@ -128,11 +335,77 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const [planConfirm, setPlanConfirm] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: '', message: '' });
   // Add-on onay modali durumu
   const [addonConfirm, setAddonConfirm] = useState<{ open: boolean; mode: 'now' | 'later'; count: number }>({ open: false, mode: 'now', count: 1 });
+    const notifyBillingSuccess = (detail: BillingSuccessEventDetail & { type: string }) => {
+      try {
+        window.dispatchEvent(new CustomEvent('billingSuccess', { detail: { ...detail, ts: Date.now() } }));
+      } catch (error) {
+        logger.debug('billingSuccess event dispatch failed', error);
+      }
+    };
+
+    const processAddonConfirmation = async (mode: 'now' | 'later', seats: number) => {
+      setPlanMessage('');
+      if (seats <= 0) {
+        setPlanMessage(currentLanguage === 'tr' ? 'Ek kullanıcı >= 1 olmalı' : 'Seat count must be at least 1.');
+        return;
+      }
+      try {
+        setBusy(true);
+        const tenantId = getRequiredTenantId();
+        if (mode === 'now') {
+          const { chargeAddonNow, listInvoices } = await import('../api/billing');
+          const resp = await chargeAddonNow(tenantId, seats);
+          if (!resp?.success) {
+            setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
+            return;
+          }
+          const currency = (resp.currency || '').toUpperCase();
+          const amountMinor = typeof resp.amountPaid === 'number' && resp.amountPaid > 0
+            ? resp.amountPaid
+            : (typeof resp.amountDue === 'number' && resp.amountDue > 0 ? resp.amountDue : null);
+          const amountText = amountMinor ? ` (${(amountMinor / 100).toFixed(2)} ${currency})` : '';
+          setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar tahsil edildi.' : 'Additional users charged.') + amountText);
+          setAdditionalUsersToAdd(1);
+          await refreshUser();
+          try {
+            const res = await listInvoices(tenantId);
+            setInvoices(normalizeInvoiceList(res?.invoices));
+          } catch (error) {
+            logger.warn('Invoice refresh after addon charge failed', error);
+          }
+          notifyBillingSuccess({ type: 'addon', seats });
+        } else {
+          const resp = await createAddonCheckout(tenantId, seats, '', '');
+          if (!resp?.success) {
+            setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
+            return;
+          }
+          const prorationMsg = (() => {
+            const currency = (resp.upcomingCurrency || '').toUpperCase();
+            if (typeof resp.upcomingProrationTotal === 'number') {
+              const amount = (resp.upcomingProrationTotal / 100).toFixed(2);
+              return currentLanguage === 'tr'
+                ? ` (Bu dönem için ek proration: ${amount} ${currency} — bir sonraki faturaya eklenecek)`
+                : ` (Proration for this period: ${amount} ${currency} — will be added to the next invoice)`;
+            }
+            return '';
+          })();
+          setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar eklendi.' : 'Additional users added.') + prorationMsg);
+          setAdditionalUsersToAdd(1);
+          await refreshUser();
+          notifyBillingSuccess({ type: 'addon', seats });
+        }
+      } catch (error) {
+        setPlanMessage(extractErrorMessage(error, currentLanguage === 'tr' ? 'Hata' : 'Error'));
+      } finally {
+        setBusy(false);
+      }
+    };
   // Ödeme sonucu modali
   const [paymentResult, setPaymentResult] = useState<{ open: boolean; title: string; message: string; tone: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', tone: 'info' });
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<BillingHistoryEvent[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<ExtendedBillingInvoice[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
   const [invoiceSearch, setInvoiceSearch] = useState<string>('');
@@ -141,159 +414,189 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   // Organizasyondaki aktif üye sayısını göstermek için (sadece görsel amaçlı)
   const [seatsInUse, setSeatsInUse] = useState<number | null>(null);
 
-  const getFilteredInvoices = () => {
-    // Her durumda dizi döndür: API yanıtı bozuk veya henüz gelmemişse []
-    const base: any[] = Array.isArray(invoices)
-      ? invoices
-      : (invoices && Array.isArray((invoices as any).invoices)
-          ? (invoices as any).invoices
-          : []);
+  const getFilteredInvoices = (): ExtendedBillingInvoice[] => {
     try {
-    return base.filter((inv: any) => {
-      const status = String(inv.status || '').toLowerCase();
-      if (invoiceStatusFilter === 'paid' && status !== 'paid') return false;
-      if (invoiceStatusFilter === 'open' && !['open', 'draft'].includes(status)) return false;
-      if (invoiceStatusFilter === 'unpaid' && !['unpaid', 'void', 'uncollectible'].includes(status)) return false;
-      if (invoiceStatusFilter === 'nonzero' && (typeof inv.total === 'number' && inv.total === 0)) return false;
-      if (invoiceStatusFilter === 'all') {
-        // pass
-      }
-      if (invoiceSearch) {
-        const needle = invoiceSearch.toLowerCase();
-        const hay = (inv.number || inv.id || '').toLowerCase() + ' ' + (inv.currency || '').toLowerCase();
-        if (!hay.includes(needle)) return false;
-      }
-      if (invoiceDateFrom) {
-        const fromTs = new Date(invoiceDateFrom + 'T00:00:00Z').getTime();
-        const invTs = inv.created ? new Date(inv.created).getTime() : 0;
-        if (invTs < fromTs) return false;
-      }
-      if (invoiceDateTo) {
-        const toTs = new Date(invoiceDateTo + 'T23:59:59Z').getTime();
-        const invTs = inv.created ? new Date(inv.created).getTime() : 0;
-        if (invTs > toTs) return false;
-      }
-      return true;
-    });
-    } catch {
+      return invoices.filter(inv => {
+        const isZeroAmount = Boolean(inv.zeroTotal) || (typeof inv.total === 'number' && inv.total === 0);
+        if (isZeroAmount) return false;
+        const status = String(inv.status || '').toLowerCase();
+        if (invoiceStatusFilter === 'paid' && status !== 'paid') return false;
+        if (invoiceStatusFilter === 'open' && !['open', 'draft'].includes(status)) return false;
+        if (invoiceStatusFilter === 'unpaid' && !['unpaid', 'void', 'uncollectible'].includes(status)) return false;
+        if (invoiceStatusFilter === 'nonzero' && typeof inv.total === 'number' && inv.total === 0) return false;
+        if (invoiceSearch) {
+          const needle = invoiceSearch.toLowerCase();
+          const hay = `${(inv.number || inv.id || '').toLowerCase()} ${(inv.currency || '').toLowerCase()}`;
+          if (!hay.includes(needle)) return false;
+        }
+        if (invoiceDateFrom) {
+          const fromTs = new Date(`${invoiceDateFrom}T00:00:00Z`).getTime();
+          const invTs = inv.created ? new Date(inv.created).getTime() : 0;
+          if (invTs < fromTs) return false;
+        }
+        if (invoiceDateTo) {
+          const toTs = new Date(`${invoiceDateTo}T23:59:59Z`).getTime();
+          const invTs = inv.created ? new Date(inv.created).getTime() : 0;
+          if (invTs > toTs) return false;
+        }
+        return true;
+      });
+    } catch (error) {
+      logger.warn('Invoice filtering failed', error);
       return [];
     }
   };
   // Ücretli planlarda tüm iptaller dönem sonunda gerçekleşir; kullanıcıya seçenek sunmuyoruz
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState<boolean>(!!tenant?.cancelAtPeriodEnd);
 
+  const renewalDate = tenant?.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt) : null;
+  const renewalStr = renewalDate ? renewalDate.toLocaleDateString() : '—';
+  const renewalLabel = cancelAtPeriodEnd
+    ? t('common:planTab.currentPlan.cancellationDate')
+    : t('common:planTab.currentPlan.renewalDate');
+
   // Sync desired plan if tenant changes
   useEffect(() => {
-    // Eğer mevcut plan dropdown'da yoksa varsayılan 'free' seçilsin
-    setDesiredPlan(allowedPlans.includes(planRaw as any) ? planRaw : 'free');
-  // Kullanıcı hedef alanı kaldırıldığı için burada ayrı bir senkron gerekmiyor
+    // Eğer mevcut plan alias'ı dropdown'da yoksa varsayılan 'free' seçilsin
+    setDesiredPlan(normalizePlanSlug(planRaw) ?? 'free');
+    // Kullanıcı hedef alanı kaldırıldığı için burada ayrı bir senkron gerekmiyor
     setCancelAtPeriodEnd(!!tenant?.cancelAtPeriodEnd);
   }, [planRaw, tenant?.maxUsers, tenant?.cancelAtPeriodEnd]);
 
   // Mount'ta tenant bilgisini tazele (AuthContext üzerinden)
   useEffect(() => {
-    refreshUser().catch(() => {});
-  }, []);
+    refreshUser().catch(error => logger.warn('Initial tenant refresh failed', error));
+  }, [refreshUser]);
 
   // Eğer ücretli planda maxUsers, planın baz dahil kullanıcı sayısından az görünüyorsa otomatik Stripe senkronu tetikle
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+    const syncSeatsIfNeeded = async () => {
       try {
-        if (!['professional', 'enterprise'].includes(planRaw)) return;
+        if (!isPaidPlan(planRaw)) return;
         const base = baseIncludedFor(planRaw);
-        const current = (tenant?.maxUsers as number) || 0;
+        const current = typeof tenant?.maxUsers === 'number' ? tenant.maxUsers : 0;
         if (current > 0 && current < base) {
-          const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+          const tenantId = resolvedTenantId;
           if (!tenantId) return;
           const { syncSubscription } = await import('../api/billing');
           await syncSubscription(tenantId);
-          await refreshUser();
+          if (!cancelled) {
+            await refreshUser();
+          }
         }
-      } catch {}
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planRaw, tenant?.maxUsers]);
+      } catch (error) {
+        logger.warn('Automatic subscription sync failed', error);
+      }
+    };
+    syncSeatsIfNeeded();
+    return () => {
+      cancelled = true;
+    };
+  }, [planRaw, tenant?.maxUsers, resolvedTenantId, refreshUser]);
 
   // Checkout başarı dönüşünde manuel Stripe senkronu tetikle
   useEffect(() => {
     const url = new URL(window.location.href);
     const success = url.searchParams.get('plan') === 'success' || url.searchParams.get('upgrade') === 'success';
     if (!success) return;
-    (async () => {
-      try {
-        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-        if (!tenantId) return;
+
+    const syncAfterCheckout = async () => {
+        try {
+          const tenantId = resolvedTenantId;
+          if (!tenantId) return;
         const { syncSubscription } = await import('../api/billing');
-        const desiredMetaRaw = localStorage.getItem('pending_billing_payment');
-        let desiredPlanForPolling: string | null = null;
-        if (desiredMetaRaw) {
-          try { desiredPlanForPolling = (JSON.parse(desiredMetaRaw) as any)?.plan || null; } catch {}
-        }
-        // Yeni yöntem: upgrade-status endpoint; daha az yük ve net state
+        const desiredMeta = safeParseJson<{ plan?: string }>(safeStorage.get('pending_billing_payment'));
+        const desiredPlanForPolling = desiredMeta?.plan ? desiredMeta.plan.toLowerCase() : null;
+
         let attempts = 0;
-        const maxAttempts = 6; // toplam ~1+2+4+8+16+32 sn (progressive) ancak erken kırılır
-        const fetchStatus = async () => {
-          const resp = await fetch(`/api/billing/${tenantId}/upgrade-status`, { credentials: 'include' });
-          if (!resp.ok) return null;
-          try { return await resp.json(); } catch { return null; }
+        const maxAttempts = 6;
+        const fetchStatus = async (): Promise<{ subscriptionPlan?: string } | null> => {
+          try {
+            const resp = await fetch(`/api/billing/${tenantId}/upgrade-status`, { credentials: 'include' });
+            if (!resp.ok) return null;
+            return (await resp.json()) as { subscriptionPlan?: string };
+          } catch (error) {
+            logger.warn('Upgrade status polling failed', error);
+            return null;
+          }
         };
-        let statusData: any = null;
+
         while (attempts < maxAttempts) {
-          statusData = await fetchStatus();
+          const statusData = await fetchStatus();
           const planLower = String(statusData?.subscriptionPlan || '').toLowerCase();
           if (desiredPlanForPolling) {
-            if (planLower === desiredPlanForPolling || planLower.includes(desiredPlanForPolling)) break;
-          } else if (['professional','enterprise','pro','business'].includes(planLower)) {
+            if (planLower === desiredPlanForPolling || planLower.includes(desiredPlanForPolling)) {
+              break;
+            }
+          } else if (isPaidPlan(planLower)) {
             break;
           }
-          attempts++;
-          const delayMs = Math.min(Math.pow(2, attempts - 1) * 1000, 12000); // üst sınır 12sn
-          await new Promise(r => setTimeout(r, delayMs));
+          attempts += 1;
+          const delayMs = Math.min(2 ** (attempts - 1) * 1000, 12000);
+          await new Promise(res => setTimeout(res, delayMs));
         }
-        // Son durumda yine profil sync (tek sefer) yap
-        try { await syncSubscription(tenantId); } catch {}
-        try { await refreshUser(); } catch {}
+
+        try {
+          await syncSubscription(tenantId);
+        } catch (error) {
+          logger.warn('Sync subscription after checkout failed', error);
+        }
+        try {
+          await refreshUser();
+        } catch (error) {
+          logger.warn('refreshUser after checkout failed', error);
+        }
+
         const okMsg = t('billing.subscriptionUpdated');
         setPlanMessage(okMsg);
         setPaymentResult({ open: true, title: t('billing.payment.successTitle'), message: okMsg, tone: 'success' });
-        // Başarılı upgrade sonrası kullanıcı gerçek ücretli faturayı hemen görsün diye varsayılan filtreyi ücretli faturalarla sınırla
-        try { setInvoiceStatusFilter('nonzero'); } catch {}
-        // URL'yi temizle
+        setInvoiceStatusFilter('nonzero');
+        safeStorage.remove('pending_billing_payment');
+      } catch (error) {
+        logger.warn('Checkout success handler failed', error);
+        setPlanMessage(extractErrorMessage(error, 'Hata'));
+      } finally {
         url.searchParams.delete('plan');
         url.searchParams.delete('upgrade');
         window.history.replaceState({}, document.title, url.pathname + url.search);
-      } catch {}
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      }
+    };
 
-  // Organizasyon üyelik istatistiklerini isteğe bağlı çek (yalnızca gösterim için)
+    void syncAfterCheckout();
+  }, [resolvedTenantId, refreshUser, t]);
+
+  // Organizasyondaki aktif üye sayısını getir (görsel amaçlı)
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
       try {
-        const orgApi = await import('../api/organizations');
-        const orgs = await orgApi.organizationsApi.getAll().catch(() => []);
-        const org = Array.isArray(orgs) && orgs.length > 0 ? orgs[0] : null;
-        if (!org) return;
-        const stats = await orgApi.organizationsApi.getMembershipStats(org.id).catch(() => null);
-        if (!cancelled && stats) {
-          setSeatsInUse(stats.currentMembers ?? null);
+        if (!tenant?.id) return;
+        const orgs = await organizationsApi.getAll();
+        if (!orgs?.length) return;
+        const orgId = orgs[0]?.id;
+        if (!orgId) return;
+        const stats = await organizationsApi.getMembershipStats(orgId);
+        if (!cancelled) {
+          setSeatsInUse(typeof stats?.currentMembers === 'number' ? stats.currentMembers : null);
         }
-      } catch {}
+      } catch (error) {
+        logger.warn('Organization membership stats fetch failed', error);
+        if (!cancelled) setSeatsInUse(null);
+      }
     };
-    run();
+    void run();
     return () => { cancelled = true; };
   }, [tenant?.id]);
 
   // Hızlı 1 koltuk azaltma (varsa)
   const removeOneSeat = async () => {
+    setBusy(true);
+    setPlanMessage('');
     try {
-      setBusy(true); setPlanMessage('');
-      const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-      if (!tenantId) throw new Error('Tenant bulunamadı');
+      const tenantId = getRequiredTenantId();
       const base = baseIncludedFor(planRaw);
-      const currentMax = (tenant?.maxUsers as number) || base;
+      const currentMax = typeof tenant?.maxUsers === 'number' ? tenant.maxUsers : base;
       const currentAddon = Math.max(0, currentMax - base);
       if (currentAddon <= 0) {
         setPlanMessage(currentLanguage === 'tr' ? 'Azaltılabilecek ilave koltuk yok.' : 'No extra seats to remove.');
@@ -303,9 +606,11 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       await billingUpdateSeats(tenantId, nextAddon);
       setPlanMessage(currentLanguage === 'tr' ? 'Koltuk azaltıldı.' : 'Seat removed.');
       await refreshUser();
-    } catch (e:any) {
-      setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
-    } finally { setBusy(false); }
+    } catch (error) {
+      setPlanMessage(extractErrorMessage(error, 'Hata'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   // Checkout iptal/basarisiz dönüşü
@@ -318,22 +623,22 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     url.searchParams.delete('plan');
     url.searchParams.delete('upgrade');
     window.history.replaceState({}, document.title, url.pathname + url.search);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [t]);
 
   // Add-on ödeme dönüşü: seats'i finalize et ve senkronize et
   useEffect(() => {
     const url = new URL(window.location.href);
     const addonSuccess = url.searchParams.get('addon') === 'success';
     if (!addonSuccess) return;
-    (async () => {
-      try {
-        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-        if (!tenantId) return;
-        const stored = localStorage.getItem('pending_addon_new_total');
+
+      const finalizeAddon = async () => {
+        try {
+          const tenantId = resolvedTenantId;
+          if (!tenantId) return;
+        const stored = safeStorage.get('pending_addon_new_total');
         if (stored) {
-          const qty = parseInt(stored, 10);
-          if (!isNaN(qty) && qty >= 0) {
+          const qty = Number.parseInt(stored, 10);
+          if (Number.isFinite(qty) && qty >= 0) {
             await billingUpdateSeats(tenantId, qty);
           }
         } else {
@@ -344,15 +649,17 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         const okMsg = t('billing.addonAdded');
         setPlanMessage(okMsg);
         setPaymentResult({ open: true, title: t('billing.payment.successTitle'), message: okMsg, tone: 'success' });
-      } catch {}
-      finally {
-        localStorage.removeItem('pending_addon_new_total');
+      } catch (error) {
+        logger.warn('Addon success handler failed', error);
+      } finally {
+        safeStorage.remove('pending_addon_new_total');
         url.searchParams.delete('addon');
         window.history.replaceState({}, document.title, url.pathname + url.search);
       }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    };
+
+      void finalizeAddon();
+    }, [resolvedTenantId, refreshUser, t]);
 
   // Portal dönüşünde (manage billing sonrası) manuel sync tetikle
   useEffect(() => {
@@ -361,20 +668,23 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     if (!fromPortal) return;
     (async () => {
       try {
-        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        const tenantId = resolvedTenantId;
         if (!tenantId) return;
         const { syncSubscription } = await import('../api/billing');
         const res = await syncSubscription(tenantId);
         await refreshUser();
-        if (typeof (res as any)?.cancelAtPeriodEnd === 'boolean') {
+        if (typeof res?.cancelAtPeriodEnd === 'boolean') {
           const cancelDateStr = (() => {
-            const s = (res as any)?.subscriptionExpiresAt;
+            const s = res?.subscriptionExpiresAt;
             if (s) {
-              try { return new Date(s).toLocaleDateString(); } catch { return renewalStr; }
+              try { return new Date(s).toLocaleDateString(); } catch (error) {
+                logger.warn('Subscription expiry parse failed', error);
+                return renewalStr;
+              }
             }
             return renewalStr;
           })();
-          if ((res as any).cancelAtPeriodEnd) {
+          if (res.cancelAtPeriodEnd) {
             setPlanMessage(t('billing.portal.cancelAtPeriodEnd', { date: cancelDateStr }));
           } else {
             setPlanMessage(t('billing.portal.activeApplied'));
@@ -382,36 +692,38 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         } else {
           setPlanMessage(t('billing.portal.synced'));
         }
-      } catch {}
+      } catch (error) {
+        logger.warn('Portal return sync failed', error);
+      }
       finally {
-        localStorage.removeItem('pending_portal_sync');
+        safeStorage.remove('pending_portal_sync');
         url.searchParams.delete('portal');
         window.history.replaceState({}, document.title, url.pathname + url.search);
       }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [resolvedTenantId, refreshUser, t, renewalStr]);
 
   // Portal dönüş anahtarı localStorage'da kalmışsa (parametre gelmese de) fokus/ilk yüklemede senkronize et
   useEffect(() => {
-    const handler = async () => {
+      const handler = async () => {
       try {
-        const pending = localStorage.getItem('pending_portal_sync');
+        const pending = safeStorage.get('pending_portal_sync');
         if (!pending) return;
-        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+          const tenantId = resolvedTenantId;
         if (!tenantId) return;
         const { syncSubscription } = await import('../api/billing');
         await syncSubscription(tenantId);
         await refreshUser();
-        localStorage.removeItem('pending_portal_sync');
-      } catch {}
+        safeStorage.remove('pending_portal_sync');
+      } catch (error) {
+        logger.warn('Portal focus sync failed', error);
+      }
     };
-    handler();
-    const onFocus = () => handler();
+    void handler();
+    const onFocus = () => { void handler(); };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [resolvedTenantId, refreshUser]);
 
   // Fetch mock history
   useEffect(() => {
@@ -419,57 +731,63 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     const fetchHistory = async () => {
       setLoadingHistory(true);
       try {
-        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        const tenantId = resolvedTenantId;
         if (!tenantId) return;
         const { listHistory } = await import('../api/billing');
         const data = await listHistory(tenantId);
-        const events = data?.events || [
-          { type: 'plan.current', plan: tenant?.subscriptionPlan, at: tenant?.updatedAt, users: tenant?.maxUsers },
-        ];
-        if (mounted) setHistory(events);
-      } catch {
+        const apiEvents = normalizeHistory(data?.events);
+        const fallbackEvents: BillingHistoryEvent[] = [{
+          type: 'plan.current',
+          plan: tenant?.subscriptionPlan ?? null,
+          at: tenant?.updatedAt ?? null,
+          users: tenant?.maxUsers ?? null,
+        }];
+        if (mounted) {
+          setHistory(apiEvents.length > 0 ? apiEvents : fallbackEvents);
+        }
+      } catch (error) {
+        logger.warn('Billing history fetch failed', error);
         if (mounted) setHistory([]);
       } finally {
         if (mounted) setLoadingHistory(false);
       }
     };
-    fetchHistory();
+    void fetchHistory();
     return () => { mounted = false; };
-  }, [tenant?.subscriptionPlan, tenant?.updatedAt]);
+  }, [resolvedTenantId, tenant?.subscriptionPlan, tenant?.updatedAt, tenant?.maxUsers]);
 
   // Faturaları çek
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      try {
-        setLoadingInvoices(true);
-        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
+        try {
+          setLoadingInvoices(true);
+          const tenantId = resolvedTenantId;
         if (!tenantId) return;
         const res = await import('../api/billing').then(m => m.listInvoices(tenantId));
-        if (!cancelled) setInvoices(res?.invoices || []);
-      } catch (e) {
+        if (!cancelled) setInvoices(normalizeInvoiceList(res?.invoices));
+      } catch (error) {
+        logger.warn('Invoice fetch failed', error);
         if (!cancelled) setInvoices([]);
       } finally {
         if (!cancelled) setLoadingInvoices(false);
       }
     };
-    run();
+    void run();
     return () => { cancelled = true; };
-  }, [tenant?.id, tenant?.subscriptionPlan]);
+  }, [resolvedTenantId, tenant?.subscriptionPlan]);
 
   const saveSubscription = async () => {
-    setBusy(true); setPlanMessage('');
+    setBusy(true);
+    setPlanMessage('');
     try {
-      const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-      if (!tenantId) throw new Error('Tenant bulunamadı');
+      const tenantId = getRequiredTenantId();
+      const desired = desiredPlan;
+      const currentlyPaid = isPaidPlan(planRaw);
+      const desiredPaid = desired !== 'free';
+      const interval: BillingInterval = desiredBilling === 'yearly' ? 'year' : 'month';
+      const seatAddon = 0;
 
-      const desired = String(desiredPlan || '').toLowerCase();
-      const currentlyPaid = ['professional', 'enterprise', 'pro', 'business'].includes(planRaw);
-      const desiredPaid = ['professional', 'enterprise', 'pro', 'business'].includes(desired);
-      const interval: 'month' | 'year' = desiredBilling === 'yearly' ? 'year' : 'month';
-  // Seat güncellemesi UI'dan kaldırıldığı için (Hedef Kullanıcı Sayısı) burada kullanılmıyor
-
-      // 1) Free/Basic hedefi: aktif abonelik varsa dönem sonunda iptal et
       if (!desiredPaid) {
         if (currentlyPaid) {
           await billingCancel(tenantId);
@@ -482,134 +800,116 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         return;
       }
 
-      // 2) Plan/interval karşılaştırması: aynı plan mı? aynı interval mi?
-      const normalizedCurrentPlan = ((): string => {
-        if (planRaw === 'pro') return 'professional';
-        if (planRaw === 'business') return 'enterprise';
-        return planRaw;
-      })();
-      const samePlan = normalizedCurrentPlan === desired;
-      const sameInterval = ((effectiveInterval || 'month') === interval);
-      // Hedef kullanıcı alanı kaldırıldığı için plan değişiminde ek koltuk belirlenmez
-      const seatAddon = 0;
-
-      // 3) Eğer plan aynı ama interval değişiyorsa: yeni checkout yerine yerinde güncelle (proration uygula)
-      if (samePlan && !sameInterval) {
-        const idem = 'planupd:' + tenantId + ':' + desired + ':' + interval + ':' + seatAddon + ':' + new Date().toISOString().slice(0,10);
-        const resp = await updatePlan(tenantId, { plan: desired as any, interval, seats: seatAddon, chargeNow: true, interactive: true, idempotencyKey: idem });
-        if (resp?.success) {
-          if (resp.invoiceError) {
-            const dictIE = {
-              tr: 'Plan güncellendi ancak fatura oluşturulamadı: ',
-              en: 'Plan updated but invoice failed: ',
-              fr: 'Le plan a été mis à jour mais la facture a échoué : ',
-              de: 'Plan aktualisiert, aber Rechnung fehlgeschlagen: ',
-            } as const;
-            setPlanMessage((dictIE[currentLanguage] || dictIE.tr) + resp.invoiceError);
-            await refreshUser();
-            return;
-          }
-          if (resp.invoiceSkipped) {
-            const dictIS = {
-              tr: 'Plan dönemi güncellendi (ek ücret yok).',
-              en: 'Billing interval updated (no additional charge).',
-              fr: 'Période de facturation mise à jour (aucun frais supplémentaire).',
-              de: 'Abrechnungszeitraum aktualisiert (keine Zusatzkosten).',
-            } as const;
-            setPlanMessage(dictIS[currentLanguage] || dictIS.tr);
-            await refreshUser();
-            return;
-          }
-          if (resp.hostedInvoiceUrl) {
-            try {
-              localStorage.setItem(
-                'pending_billing_payment',
-                JSON.stringify({
-                  type: 'plan-interval',
-                  plan: desired,
-                  interval,
-                  seats: seatAddon,
-                  ts: Date.now(),
-                })
-              );
-            } catch {}
-            setPlanMessage(t('billing.redirecting'));
-            window.location.href = resp.hostedInvoiceUrl;
-            return;
-          }
-          setPlanMessage(t('billing.interval.updated'));
-          await refreshUser();
-          return;
-        }
+      const normalizedCurrentPlan = mapToPaidPlan(planRaw) ?? planRaw;
+      const desiredPaidSlug = mapToPaidPlan(desired);
+      if (!desiredPaidSlug) {
+        setPlanMessage(currentLanguage === 'tr' ? 'Geçersiz hedef plan.' : 'Invalid target plan.');
+        return;
       }
+      const samePlan = normalizedCurrentPlan === desiredPaidSlug;
+      const sameInterval = (effectiveInterval || 'month') === interval;
 
-      // 4) Plan değişimi: Checkout oluştur ve yönlendir
-      // Eğer zaten ücretli bir planda isek ve yine ücretli başka bir plana geçiyorsak
-      // yeni Checkout yerine yerinde güncelle (proration). Free -> Paid ilk kez ise Checkout.
-      if (currentlyPaid && desiredPaid) {
-        const idem = 'planchg:' + tenantId + ':' + desired + ':' + interval + ':' + new Date().toISOString().slice(0,10);
-        const resp = await updatePlan(tenantId, { plan: desired as any, interval, seats: seatAddon, chargeNow: true, interactive: true, idempotencyKey: idem });
-        if (resp?.success) {
-          if (resp.invoiceError) {
-            setPlanMessage((currentLanguage === 'tr' ? 'Plan güncellendi ancak fatura başarısız: ' : 'Plan updated but invoice failed: ') + resp.invoiceError);
-            await refreshUser();
-            return;
-          }
-          if (resp.invoiceSkipped) {
-            setPlanMessage(currentLanguage === 'tr' ? 'Plan güncellendi (ek ücret yok).' : 'Plan updated (no additional charge).');
-            await refreshUser();
-            return;
-          }
-          if (resp.hostedInvoiceUrl) {
-            try {
-              localStorage.setItem('pending_billing_payment', JSON.stringify({ type: 'plan-change', plan: desired, interval, ts: Date.now() }));
-            } catch {}
-            setPlanMessage(t('billing.redirecting'));
-            window.location.href = resp.hostedInvoiceUrl;
-            return;
-          }
-          setPlanMessage(t('billing.subscriptionUpdated'));
-          await refreshUser();
-          return;
-        } else {
+      const handleUpdatePlanResponse = async (
+        resp: Awaited<ReturnType<typeof updatePlan>>,
+        pendingType: 'plan-change' | 'plan-interval'
+      ) => {
+        if (!resp?.success) {
           setPlanMessage(t('billing.checkout.failed'));
           return;
         }
-      } else {
-        // Free -> Paid ilk satın alma
-        const session = await createCheckoutSession({
-          tenantId,
-          plan: (desired as any),
+        if (resp.invoiceError) {
+          const dict = {
+            tr: 'Plan güncellendi ancak fatura oluşturulamadı: ',
+            en: 'Plan updated but invoice failed: ',
+            fr: 'Le plan a été mis à jour mais la facture a échoué : ',
+            de: 'Plan aktualisiert, aber Rechnung fehlgeschlagen: ',
+          } as const;
+          setPlanMessage((dict[currentLanguage] || dict.tr) + resp.invoiceError);
+          await refreshUser();
+          return;
+        }
+        if (resp.invoiceSkipped) {
+          const dict = {
+            tr: 'Plan güncellendi (ek ücret yok).',
+            en: 'Plan updated (no additional charge).',
+            fr: 'Plan mis à jour (aucun frais supplémentaire).',
+            de: 'Plan aktualisiert (keine Zusatzkosten).',
+          } as const;
+          setPlanMessage(dict[currentLanguage] || dict.tr);
+          await refreshUser();
+          return;
+        }
+        if (resp.hostedInvoiceUrl) {
+          safeStorage.set(
+            'pending_billing_payment',
+            JSON.stringify({ type: pendingType, plan: desiredPaidSlug, interval, seats: seatAddon, ts: Date.now() })
+          );
+          setPlanMessage(t('billing.redirecting'));
+          window.location.href = resp.hostedInvoiceUrl;
+          return;
+        }
+        setPlanMessage(t('billing.subscriptionUpdated'));
+        await refreshUser();
+      };
+
+      if (samePlan && !sameInterval) {
+        const idem = `planupd:${tenantId}:${desiredPaidSlug}:${interval}:${seatAddon}:${new Date().toISOString().slice(0, 10)}`;
+        const resp = await updatePlan(tenantId, {
+          plan: desiredPaidSlug,
           interval,
           seats: seatAddon,
-          successUrl: window.location.origin + '/settings?plan=success',
-          cancelUrl: window.location.origin + '/settings?plan=cancel',
+          chargeNow: true,
+          interactive: true,
+          idempotencyKey: idem,
         });
-        if (session?.url) {
-          // Hedef plan ve interval bilgisini localStorage'a koy (success dönüşünde polling için)
-          try {
-            localStorage.setItem(
-              'pending_billing_payment',
-              JSON.stringify({ type: 'initial-checkout', plan: desired, interval, ts: Date.now() })
-            );
-          } catch {}
-          window.location.href = session.url;
-        } else {
-          setPlanMessage(t('billing.checkout.failed'));
-        }
+        await handleUpdatePlanResponse(resp, 'plan-interval');
+        return;
       }
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Hata';
-      setPlanMessage(msg);
-    } finally { setBusy(false); }
+
+      if (currentlyPaid) {
+        const idem = `planchg:${tenantId}:${desiredPaidSlug}:${interval}:${new Date().toISOString().slice(0, 10)}`;
+        const resp = await updatePlan(tenantId, {
+          plan: desiredPaidSlug,
+          interval,
+          seats: seatAddon,
+          chargeNow: true,
+          interactive: true,
+          idempotencyKey: idem,
+        });
+        await handleUpdatePlanResponse(resp, 'plan-change');
+        return;
+      }
+
+      const session = await createCheckoutSession({
+        tenantId,
+        plan: desiredPaidSlug,
+        interval,
+        seats: seatAddon,
+        successUrl: `${window.location.origin}/settings?plan=success`,
+        cancelUrl: `${window.location.origin}/settings?plan=cancel`,
+      });
+      if (session?.url) {
+        safeStorage.set(
+          'pending_billing_payment',
+          JSON.stringify({ type: 'initial-checkout', plan: desiredPaidSlug, interval, ts: Date.now() })
+        );
+        window.location.href = session.url;
+      } else {
+        setPlanMessage(t('billing.checkout.failed'));
+      }
+    } catch (error) {
+      setPlanMessage(extractErrorMessage(error, 'Hata'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const requestCancelAtPeriodEnd = async () => {
     if (!window.confirm(t('billing.cancelAtPeriodEnd.confirm'))) return;
-    setBusy(true); setPlanMessage('');
+    setBusy(true);
+    setPlanMessage('');
     try {
-      const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-      if (!tenantId) throw new Error('Tenant bulunamadı');
+      const tenantId = getRequiredTenantId();
       const res = await billingCancel(tenantId);
       if (res?.success) {
         setCancelAtPeriodEnd(true);
@@ -617,17 +917,19 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         setTimeout(() => setPlanMessage(''), 3000);
         await refreshUser();
       }
-    } catch (e:any) {
-      setPlanMessage(e?.response?.data?.message || 'İptal hata');
-    } finally { setBusy(false); }
+    } catch (error) {
+      setPlanMessage(extractErrorMessage(error, 'İptal hata'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const resumeCancellation = async () => {
     if (!window.confirm(t('billing.resumeCancellation.confirm'))) return;
-    setBusy(true); setPlanMessage('');
+    setBusy(true);
+    setPlanMessage('');
     try {
-      const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-      if (!tenantId) throw new Error('Tenant bulunamadı');
+      const tenantId = getRequiredTenantId();
       const { resumeSubscription } = await import('../api/billing');
       const res = await resumeSubscription(tenantId);
       if (res?.success) {
@@ -636,16 +938,12 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         setTimeout(() => setPlanMessage(''), 3000);
         await refreshUser();
       }
-    } catch (e:any) {
-      setPlanMessage(e?.response?.data?.message || 'Yeniden başlatma hatası');
-    } finally { setBusy(false); }
+    } catch (error) {
+      setPlanMessage(extractErrorMessage(error, 'Yeniden başlatma hatası'));
+    } finally {
+      setBusy(false);
+    }
   };
-
-  const renewalDate = tenant?.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt) : null;
-  const renewalStr = renewalDate ? renewalDate.toLocaleDateString() : (currentLanguage === 'tr' ? '—' : '—');
-  const renewalLabel = cancelAtPeriodEnd
-    ? t('common:planTab.currentPlan.cancellationDate')
-    : t('common:planTab.currentPlan.renewalDate');
 
   const canModifySeats = ['professional', 'pro', 'enterprise', 'business'].includes(planRaw);
 
@@ -668,11 +966,20 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       };
       const intervalName = (iv: 'month' | 'year') => (iv === 'year' ? t('common:planTab.yearly') : t('common:planTab.monthly'));
 
-      let title = currentLanguage === 'tr' ? 'İşlemi Onaylayın' : currentLanguage === 'fr' ? 'Confirmez l’opération' : currentLanguage === 'de' ? 'Vorgang bestätigen' : 'Confirm Operation';
+      const title = currentLanguage === 'tr' ? 'İşlemi Onaylayın' : currentLanguage === 'fr' ? 'Confirmez l’opération' : currentLanguage === 'de' ? 'Vorgang bestätigen' : 'Confirm Operation';
       let message = '';
 
-      const currentlyPaid = ['professional', 'enterprise', 'pro', 'business'].includes(planRaw);
-      const desiredPaid = ['professional', 'enterprise', 'pro', 'business'].includes(desired);
+      const currentRank = getPlanRank(planRaw);
+      const desiredRank = getPlanRank(desired);
+      const currentlyPaid = currentRank > 0;
+      const desiredPaid = desiredRank > 0;
+      const upgradeWillCharge = currentlyPaid && desiredPaid && desiredRank > currentRank;
+      const upgradeChargeMessages = {
+        tr: 'Bu yükseltme mevcut dönem için fiyat farkını hemen tahsil eder.',
+        en: 'This upgrade will immediately charge the difference for the current period.',
+        fr: "Cette mise à niveau débitera immédiatement la différence pour la période en cours.",
+        de: 'Dieses Upgrade belastet die Preisdifferenz für die laufende Periode sofort.',
+      } as const;
 
       if (!desiredPaid) {
         if (currentlyPaid) {
@@ -710,17 +1017,22 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
             : currentLanguage === 'de'
               ? `Der Plan wechselt von ${planName(normalizedCurrentPlan)} zu ${planName(desired)}, Zeitraum ${intervalName(interval)}. Bestätigen?`
               : `Plan will change from ${planName(normalizedCurrentPlan)} to ${planName(desired)}, interval ${intervalName(interval)}. Do you confirm?`;
+        if (upgradeWillCharge) {
+          const note = upgradeChargeMessages[currentLanguage as keyof typeof upgradeChargeMessages] || upgradeChargeMessages.tr;
+          message = `${message} ${note}`;
+        }
       }
 
       setPlanConfirm({ open: true, title, message });
-    } catch {
-      // fallback: no-op
+    } catch (error) {
+      logger.warn('Plan confirmation fallback triggered', error);
       setPlanConfirm({ open: true, title: 'Confirm', message: 'Proceed with the change?' });
     }
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {/* Başlık */}
       <div className="flex items-center justify-between">
         <div>
@@ -732,18 +1044,19 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
             onClick={async () => {
               try {
                 setBusy(true);
-                const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-                if (!tenantId) throw new Error('Tenant bulunamadı');
+                const tenantId = getRequiredTenantId();
                 const curr = new URL(window.location.href);
                 curr.searchParams.set('portal', 'return');
                 const { url } = await createPortalSession(tenantId, curr.toString());
                 if (url) {
-                  localStorage.setItem('pending_portal_sync', '1');
+                  safeStorage.set('pending_portal_sync', '1');
                   window.location.href = url;
                 }
-              } catch (e: any) {
-                setPlanMessage(e?.response?.data?.message || e?.message || 'Portal hatası');
-              } finally { setBusy(false); }
+              } catch (error) {
+                setPlanMessage(extractErrorMessage(error, 'Portal hatası'));
+              } finally {
+                setBusy(false);
+              }
             }}
             className="px-3 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
           >{t('common:planTab.managePayments')}</button>
@@ -868,8 +1181,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           </div>
 
           {/* Sağ sütun: Azaltma kutusu */}
-          {canModifySeats && (
-            <div className="bg-white border border-gray-200 rounded-md p-4 flex flex-col gap-2">
+          <div className={`bg-white border border-gray-200 rounded-md p-4 flex flex-col gap-2 ${!canModifySeats ? 'opacity-60' : ''}`}>
               {/* Başlık */}
               <div className="text-sm font-semibold text-gray-900 mb-2">
                 {currentLanguage === 'tr'
@@ -890,134 +1202,41 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                   ? 'Im Plan enthaltene Benutzer können nicht reduziert werden; nur zusätzlich erworbene Benutzer können reduziert werden.'
                   : 'Users included in the plan cannot be reduced; only additional purchased users can be reduced.'}
               </div>
+              {!canModifySeats && (
+                <div className="text-[11px] text-gray-500">
+                  {currentLanguage === 'tr'
+                    ? 'Ücretsiz planda kullanıcı azaltma desteklenmiyor.'
+                    : currentLanguage === 'fr'
+                      ? 'La réduction des utilisateurs n’est pas disponible pour cette offre.'
+                      : currentLanguage === 'de'
+                        ? 'Benutzerreduzierung ist in diesem Tarif nicht verfügbar.'
+                        : 'Seat reductions are not available on this plan.'}
+                </div>
+              )}
               {/* Buton en altta */}
               <div className="flex items-start md:justify-start">
                 <button
                   onClick={removeOneSeat}
-                  disabled={busy}
+                  disabled={busy || !canModifySeats || additionalSeatCapacity <= 0}
                   className="w-full md:w-56 px-3 py-2 text-sm rounded-md bg-rose-100 text-rose-800 hover:bg-rose-200 disabled:opacity-50"
                 >{currentLanguage === 'tr' ? '1 kullanıcı azalt' : currentLanguage === 'fr' ? 'Réduire de 1 utilisateur' : currentLanguage === 'de' ? '1 Benutzer reduzieren' : 'Reduce 1 user'}</button>
               </div>
+              {canModifySeats && additionalSeatCapacity <= 0 && (
+                <div className="text-[11px] text-rose-600">
+                  {currentLanguage === 'tr'
+                    ? 'Planınızda ekstra kullanıcı bulunmuyor.'
+                    : currentLanguage === 'fr'
+                      ? "Aucun utilisateur supplémentaire n'est actif."
+                      : currentLanguage === 'de'
+                        ? 'Keine zusätzlichen Benutzer aktiv.'
+                        : 'No additional seats are active.'}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
         {planMessage && <div className="mt-3 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded">{planMessage}</div>}
         <div className="mt-2 text-[11px] text-gray-500">{t('common:planTab.amountsNote')}</div>
-      </div>
-      {/* Plan değişimi onay modali */}
-      <InfoModal
-        isOpen={planConfirm.open}
-        onClose={() => setPlanConfirm(p => ({ ...p, open: false }))}
-        title={planConfirm.title || (currentLanguage === 'tr' ? 'Onay' : 'Confirm')}
-        message={planConfirm.message || ''}
-        confirmLabel={currentLanguage === 'tr' ? 'Onayla' : currentLanguage === 'fr' ? 'Confirmer' : currentLanguage === 'de' ? 'Bestätigen' : 'Confirm'}
-        cancelLabel={currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel'}
-        onConfirm={() => {
-          setPlanConfirm(p => ({ ...p, open: false }));
-          saveSubscription();
-        }}
-        onCancel={() => setPlanConfirm(p => ({ ...p, open: false }))}
-        tone="info"
-      />
-      {/* Add-on onay modali */}
-      <InfoModal
-        isOpen={addonConfirm.open}
-        onClose={() => setAddonConfirm(p => ({ ...p, open: false }))}
-        title={addonConfirm.mode === 'now'
-          ? (currentLanguage === 'tr' ? 'Hemen Tahsil Onayı' : currentLanguage === 'fr' ? "Confirmation d'encaissement" : currentLanguage === 'de' ? 'Sofortige Abbuchung Bestätigen' : 'Immediate Charge Confirmation')
-          : (currentLanguage === 'tr' ? 'Faturalandırma Onayı' : currentLanguage === 'fr' ? 'Confirmation de facturation' : currentLanguage === 'de' ? 'Rechnungsstellung Bestätigen' : 'Invoice Confirmation')}
-        message={((): string => {
-          const count = addonConfirm.count;
-          const unitPrice = 5; // €5 per additional user per month
-          const total = (count * unitPrice).toFixed(2);
-          if (addonConfirm.mode === 'now') {
-            return currentLanguage === 'tr'
-              ? `${count} ilave kullanıcı için hemen ${total} € tahsil edilecek. Onaylıyor musunuz?`
-              : currentLanguage === 'fr'
-              ? `Encaisser maintenant ${total} € pour ${count} utilisateur(s) supplémentaire(s). Confirmez-vous ?`
-              : currentLanguage === 'de'
-              ? `${count} zusätzliche(r) Benutzer wird/werden jetzt mit ${total} € belastet. Bestätigen?`
-              : `Charge ${total} € now for ${count} additional user(s). Do you confirm?`;
-          }
-          return currentLanguage === 'tr'
-            ? `${count} ilave kullanıcı eklenecek ve dönem sonunda faturalandırılacak. Onaylıyor musunuz?`
-            : currentLanguage === 'fr'
-            ? `${count} utilisateur(s) supplémentaire(s) sera/seront ajouté(s) et facturé(s) à la fin de la période. Confirmez-vous ?`
-            : currentLanguage === 'de'
-            ? `${count} zusätzliche(r) Benutzer wird/werden hinzugefügt und am Periodenende abgerechnet. Bestätigen?`
-            : `${count} additional user(s) will be added and invoiced at period end. Do you confirm?`;
-        })()}
-        confirmLabel={currentLanguage === 'tr' ? 'Onayla' : currentLanguage === 'fr' ? 'Confirmer' : currentLanguage === 'de' ? 'Bestätigen' : 'Confirm'}
-        cancelLabel={currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel'}
-        onConfirm={() => {
-          const mode = addonConfirm.mode;
-          setAddonConfirm(p => ({ ...p, open: false }));
-          if (mode === 'now') {
-            (async () => {
-              try {
-                setBusy(true);
-                const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-                if (!tenantId) throw new Error('Tenant bulunamadı');
-                if (additionalUsersToAdd <= 0) throw new Error('Ek kullanıcı >= 1 olmalı');
-                const { chargeAddonNow, listInvoices } = await import('../api/billing');
-                const toAdd = additionalUsersToAdd;
-                const resp = await chargeAddonNow(tenantId, toAdd);
-                if (resp?.success) {
-                  const cur = String(resp?.currency || '').toUpperCase();
-                  const minor = (typeof resp.amountPaid === 'number' && resp.amountPaid > 0)
-                    ? resp.amountPaid
-                    : (typeof (resp as any).amountDue === 'number' && (resp as any).amountDue > 0)
-                      ? (resp as any).amountDue
-                      : (typeof (resp as any).total === 'number' ? (resp as any).total : 0);
-                  const amt = minor > 0 ? (minor/100).toFixed(2) + ' ' + cur : '';
-                  setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar tahsil edildi.' : 'Additional users charged.') + (amt ? ` (${amt})` : ''));
-                  setAdditionalUsersToAdd(1);
-                  await refreshUser();
-                  try { const res = await listInvoices(tenantId); setInvoices(res?.invoices || []); } catch {}
-                  try { window.dispatchEvent(new CustomEvent('billingSuccess', { detail: { type: 'addon', seats: toAdd, ts: Date.now() } })); } catch {}
-                } else {
-                  setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
-                }
-              } catch (e:any) {
-                setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
-              } finally { setBusy(false); }
-            })();
-          } else {
-            (async () => {
-              try {
-                setBusy(true);
-                const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-                if (!tenantId) throw new Error('Tenant bulunamadı');
-                if (additionalUsersToAdd <= 0) throw new Error('Ek kullanıcı >= 1 olmalı');
-                const toAdd = additionalUsersToAdd;
-                const resp = await createAddonCheckout(tenantId, toAdd, '', '');
-                if (resp?.success) {
-                  const prorationMsg = ((): string => {
-                    const cur = String(resp?.upcomingCurrency || '').toUpperCase();
-                    if (typeof resp?.upcomingProrationTotal === 'number') {
-                      return currentLanguage === 'tr'
-                        ? ` (Bu dönem için ek proration: ${(resp.upcomingProrationTotal/100).toFixed(2)} ${cur} — bir sonraki faturaya eklenecek)`
-                        : ` (Proration for this period: ${(resp.upcomingProrationTotal/100).toFixed(2)} ${cur} — will be added to the next invoice)`;
-                    }
-                    return '';
-                  })();
-                  setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar eklendi.' : 'Additional users added.') + prorationMsg);
-                  setAdditionalUsersToAdd(1);
-                  await refreshUser();
-                  try { window.dispatchEvent(new CustomEvent('billingSuccess', { detail: { type: 'addon', seats: toAdd, ts: Date.now() } })); } catch {}
-                } else {
-                  setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
-                }
-              } catch (e:any) {
-                setPlanMessage(e?.response?.data?.message || e?.message || 'Hata');
-              } finally { setBusy(false); }
-            })();
-          }
-        }}
-        onCancel={() => setAddonConfirm(p => ({ ...p, open: false }))}
-        tone="info"
-      />
-
       {/* İptal Seçenekleri */}
       {!isFree && (
         <div className="border border-red-300 rounded-lg p-4 bg-red-50 space-y-3">
@@ -1038,16 +1257,6 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           )}
         </div>
       )}
-
-      {/* Ödeme sonucu modali */}
-      <InfoModal
-        isOpen={paymentResult.open}
-        onClose={() => setPaymentResult(p => ({ ...p, open: false }))}
-        title={paymentResult.title}
-        message={paymentResult.message}
-        confirmLabel={currentLanguage === 'tr' ? 'Tamam' : currentLanguage === 'fr' ? 'OK' : currentLanguage === 'de' ? 'OK' : 'OK'}
-        tone={paymentResult.tone}
-      />
 
       {/* Geçmiş / History */}
       <div className="border border-gray-200 rounded-lg p-4 bg-white">
@@ -1184,10 +1393,17 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                 <label className="text-[10px] font-medium text-gray-600">&nbsp;</label>
                 <button
                   onClick={() => {
-                    // CSV export
-                    const filteredForCsv = getFilteredInvoices();
-                    const safeCsvList = Array.isArray(filteredForCsv) ? filteredForCsv : [];
-                    const rows = safeCsvList.map((inv: any) => ({
+                    type InvoiceCsvRow = {
+                      id: string;
+                      number?: string | null;
+                      status?: string | null;
+                      currency?: string | null;
+                      total?: string;
+                      created?: string | number | Date | null;
+                      hostedInvoiceUrl?: string | null;
+                      pdf?: string | null;
+                    };
+                    const rows: InvoiceCsvRow[] = getFilteredInvoices().map(inv => ({
                       id: inv.id,
                       number: inv.number,
                       status: inv.status,
@@ -1197,10 +1413,11 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                       hostedInvoiceUrl: inv.hostedInvoiceUrl,
                       pdf: inv.pdf,
                     }));
-                    const header = Object.keys(rows[0] || {
-                      id: '', number: '', status: '', currency: '', total: '', created: '', hostedInvoiceUrl: '', pdf: ''
-                    });
-                    const csv = [header.join(','), ...rows.map((r: any) => header.map(h => String((r as any)[h] ?? '')).join(','))].join('\n');
+                    const header: (keyof InvoiceCsvRow)[] = ['id', 'number', 'status', 'currency', 'total', 'created', 'hostedInvoiceUrl', 'pdf'];
+                    const csv = [
+                      header.join(','),
+                      ...rows.map(row => header.map(key => String(row[key] ?? '')).join(',')),
+                    ].join('\n');
                     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -1228,9 +1445,8 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
               </thead>
               <tbody>
                 {(() => {
-                  const safeList = getFilteredInvoices();
-                  const list = Array.isArray(safeList) ? safeList : [];
-                  return list.map((inv: any) => {
+                  const list = getFilteredInvoices();
+                  return list.map(inv => {
                   const dateStr = inv.created ? new Date(inv.created).toLocaleDateString() : '—';
                   const amount = typeof inv.total === 'number'
                     ? (inv.total / 100).toFixed(2) + ' ' + String(inv.currency || '').toUpperCase()
@@ -1276,6 +1492,69 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         <p className="mt-2 text-[10px] text-gray-400">{t('common:planTab.invoices.footerNote')}</p>
       </div>
     </div>
+    {/* Plan değişimi onay modali */}
+    <InfoModal
+      isOpen={planConfirm.open}
+      onClose={() => setPlanConfirm(p => ({ ...p, open: false }))}
+      title={planConfirm.title || (currentLanguage === 'tr' ? 'Onay' : 'Confirm')}
+      message={planConfirm.message || ''}
+      confirmLabel={currentLanguage === 'tr' ? 'Onayla' : currentLanguage === 'fr' ? 'Confirmer' : currentLanguage === 'de' ? 'Bestätigen' : 'Confirm'}
+      cancelLabel={currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel'}
+      onConfirm={() => {
+        setPlanConfirm(p => ({ ...p, open: false }));
+        saveSubscription();
+      }}
+      onCancel={() => setPlanConfirm(p => ({ ...p, open: false }))}
+      tone="info"
+    />
+    {/* Add-on onay modali */}
+    <InfoModal
+      isOpen={addonConfirm.open}
+      onClose={() => setAddonConfirm(p => ({ ...p, open: false }))}
+      title={addonConfirm.mode === 'now'
+        ? (currentLanguage === 'tr' ? 'Hemen Tahsil Onayı' : currentLanguage === 'fr' ? "Confirmation d'encaissement" : currentLanguage === 'de' ? 'Sofortige Abbuchung Bestätigen' : 'Immediate Charge Confirmation')
+        : (currentLanguage === 'tr' ? 'Faturalandırma Onayı' : currentLanguage === 'fr' ? 'Confirmation de facturation' : currentLanguage === 'de' ? 'Rechnungsstellung Bestätigen' : 'Invoice Confirmation')}
+      message={((): string => {
+        const count = addonConfirm.count;
+        const unitPrice = 5; // €5 per additional user per month
+        const total = (count * unitPrice).toFixed(2);
+        if (addonConfirm.mode === 'now') {
+          return currentLanguage === 'tr'
+            ? `${count} ilave kullanıcı için hemen ${total} € tahsil edilecek. Onaylıyor musunuz?`
+            : currentLanguage === 'fr'
+            ? `Encaisser maintenant ${total} € pour ${count} utilisateur(s) supplémentaire(s). Confirmez-vous ?`
+            : currentLanguage === 'de'
+            ? `${count} zusätzliche(r) Benutzer wird/werden jetzt mit ${total} € belastet. Bestätigen?`
+            : `Charge ${total} € now for ${count} additional user(s). Do you confirm?`;
+        }
+        return currentLanguage === 'tr'
+          ? `${count} ilave kullanıcı eklenecek ve dönem sonunda faturalandırılacak. Onaylıyor musunuz?`
+          : currentLanguage === 'fr'
+            ? `${count} utilisateur(s) supplémentaire(s) sera/seront ajouté(s) et facturé(s) à la fin de la période. Confirmez-vous ?`
+            : currentLanguage === 'de'
+              ? `${count} zusätzliche(r) Benutzer wird/werden hinzugefügt und am Periodenende abgerechnet. Bestätigen?`
+              : `${count} additional user(s) will be added and invoiced at period end. Do you confirm?`;
+      })()}
+      confirmLabel={currentLanguage === 'tr' ? 'Onayla' : currentLanguage === 'fr' ? 'Confirmer' : currentLanguage === 'de' ? 'Bestätigen' : 'Confirm'}
+      cancelLabel={currentLanguage === 'tr' ? 'Vazgeç' : currentLanguage === 'fr' ? 'Annuler' : currentLanguage === 'de' ? 'Abbrechen' : 'Cancel'}
+      onConfirm={() => {
+        const { mode, count } = addonConfirm;
+        setAddonConfirm(p => ({ ...p, open: false }));
+        void processAddonConfirmation(mode, count);
+      }}
+      onCancel={() => setAddonConfirm(p => ({ ...p, open: false }))}
+      tone="info"
+    />
+    {/* Ödeme sonucu modali */}
+    <InfoModal
+      isOpen={paymentResult.open}
+      onClose={() => setPaymentResult(p => ({ ...p, open: false }))}
+      title={paymentResult.title}
+      message={paymentResult.message}
+      confirmLabel={currentLanguage === 'tr' ? 'Tamam' : currentLanguage === 'fr' ? 'OK' : currentLanguage === 'de' ? 'OK' : 'OK'}
+      tone={paymentResult.tone}
+    />
+    </>
   );
 };
 
@@ -1288,6 +1567,9 @@ type LocalCompanyState = Omit<CompanyProfile, 'country'> & {
 
 const SUPPORTED_LANGUAGES = ['tr', 'en', 'fr', 'de'] as const;
 type SettingsLanguage = typeof SUPPORTED_LANGUAGES[number];
+
+const isSupportedLanguage = (value: string): value is SettingsLanguage =>
+  (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
 
 // Bildirim tipi anahtarları sadece istenen kategorilerle sınırlandı
 type NotificationKey =
@@ -2394,16 +2676,14 @@ export default function SettingsPage({
   const i18nLanguage = i18n.language.toLowerCase().substring(0, 2);
   
   // SettingsPage için dil mapping
-  const currentLanguage: SettingsLanguage = 
-    (SUPPORTED_LANGUAGES.includes(i18nLanguage as any)) 
-      ? i18nLanguage as SettingsLanguage 
-      : 'tr'; // default Turkish
+  const currentLanguage: SettingsLanguage = isSupportedLanguage(i18nLanguage) ? i18nLanguage : 'tr';
   
   const text = settingsTranslations[currentLanguage];
   const notificationLabels = text.notifications.labels;
   
   // Auth context - profil güncellemesi için
   const { refreshUser, user: authUser, tenant, logout } = useAuth();
+  const resolvedTenantId = resolveTenantId(tenant);
   // Tenant sahibi/ADMİN kontrolü: farklı sistemlerde rol isimleri değişebiliyor
   const roleNorm = (authUser?.role || '').toUpperCase();
   // Plan sekmesi sadece 'OWNER' benzeri sahiplik rolleri için görünür olmalı.
@@ -2423,22 +2703,26 @@ export default function SettingsPage({
   // Mevcut organizasyondaki (ilk/org) rolü yükle
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const loadOrgRole = async () => {
       try {
-        // Kullanıcı yoksa veya token yoksa atla
-        const token = localStorage.getItem('auth_token');
-        if (!token || !authUser?.id) return;
+        if (!authUser?.id) return;
+        const token = readLegacyAuthToken();
+        if (!token) return;
         const orgs = await organizationsApi.getAll();
-        if (!orgs || orgs.length === 0) return;
-        const orgId = orgs[0].id;
+        if (!orgs?.length) return;
+        const orgId = orgs[0]?.id;
         if (!orgId) return;
         const members = await organizationsApi.getMembers(orgId);
         const me = members.find(m => m.user.id === authUser.id);
-        if (!cancelled) setOrgRole((me?.role as any) || null);
-      } catch {
+        if (!cancelled) {
+          setOrgRole(toOrgRole(me?.role));
+        }
+      } catch (error) {
+        logger.warn('Organization role fetch failed', error);
         if (!cancelled) setOrgRole(null);
       }
-    })();
+    };
+    void loadOrgRole();
     return () => { cancelled = true; };
   }, [authUser?.id]);
 
@@ -2447,24 +2731,19 @@ export default function SettingsPage({
   const [officialLoaded, setOfficialLoaded] = useState<boolean>(false);
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const me = await tenantsApi.getMyTenant();
-        if (!cancelled) {
-          // Resmi şirket adı: kullanıcı ismine otomatik düşmeyelim; companyName yoksa boş kalsın
-          setOfficialCompanyName(me?.companyName ?? '');
-          setOfficialLoaded(true);
-          try {
-            // Tenant başlangıç bilgisi yoksa plan bilgisini local state'te de saklamaya devam edelim (UI için)
-            if (!tenant?.subscriptionPlan && me?.subscriptionPlan) {
-              // no-op: tenant context zaten planı taşıyorsa ayrıca gerek yok; sadece okunacak
-            }
-          } catch {}
+      (async () => {
+        try {
+          const me = await tenantsApi.getMyTenant();
+          if (!cancelled) {
+            // Resmi şirket adı: kullanıcı ismine otomatik düşmeyelim; companyName yoksa boş kalsın
+            setOfficialCompanyName(me?.companyName ?? '');
+            setOfficialLoaded(true);
+          }
+        } catch (error) {
+          logger.debug('Official company name fetch failed', error);
+          if (!cancelled) setOfficialLoaded(true);
         }
-      } catch (e) {
-        if (!cancelled) setOfficialLoaded(true);
-      }
-    })();
+      })();
     return () => { cancelled = true; };
   }, []);
 
@@ -2482,7 +2761,9 @@ export default function SettingsPage({
       try {
         const status = await usersApi.getTwoFactorStatus();
         setTwoFAStatus(status);
-      } catch {}
+      } catch (error) {
+        logger.debug('Initial 2FA status fetch failed', error);
+      }
     })();
   }, []);
 
@@ -2502,8 +2783,8 @@ export default function SettingsPage({
         setTwoFAMode('enable');
         setTwoFAOpen(true);
       }
-    } catch (e: any) {
-      openInfo('2FA', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
+    } catch (error: unknown) {
+      openInfo('2FA', extractErrorMessage(error, 'İşlem başarısız'), 'error');
     } finally {
       setTwoFABusy(false);
     }
@@ -2529,8 +2810,8 @@ export default function SettingsPage({
           'success'
         );
       }
-    } catch (e: any) {
-      openInfo('2FA', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
+    } catch (error: unknown) {
+      openInfo('2FA', extractErrorMessage(error, 'İşlem başarısız'), 'error');
     } finally {
       setTwoFABusy(false);
     }
@@ -2546,7 +2827,9 @@ export default function SettingsPage({
         currentLanguage === 'tr' ? 'Yedek kodlar panoya kopyalandı.' : currentLanguage === 'fr' ? 'Les codes de secours ont été copiés.' : currentLanguage === 'de' ? 'Die Backup-Codes wurden kopiert.' : 'Backup codes copied.',
         'success'
       );
-    } catch {}
+    } catch (error) {
+      logger.warn('Copying 2FA backup codes failed', error);
+    }
   };
 
   // Backup kodlarını indir (txt)
@@ -2580,8 +2863,8 @@ export default function SettingsPage({
         currentLanguage === 'tr' ? 'Yeni yedek kodlar oluşturuldu. Eskileri artık geçersiz.' : currentLanguage === 'fr' ? 'De nouveaux codes de secours ont été générés. Les anciens sont invalides.' : currentLanguage === 'de' ? 'Neue Backup-Codes wurden erstellt. Alte sind ungültig.' : 'New backup codes generated. Old ones are now invalid.',
         'success'
       );
-    } catch (e: any) {
-      openInfo('2FA', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
+    } catch (error: unknown) {
+      openInfo('2FA', extractErrorMessage(error, 'İşlem başarısız'), 'error');
     } finally {
       setTwoFABusy(false);
     }
@@ -2597,110 +2880,85 @@ export default function SettingsPage({
 
   // Hosted invoice dönüşü (fokus veya sayfa açılışı) başarı modalı
   useEffect(() => {
+    type PendingBillingMeta = { plan?: string; type?: string; seats?: number; ts?: number };
     let disposed = false;
-    const handler = async () => {
-      const raw = localStorage.getItem('pending_billing_payment');
+
+    const openInviteModal = (title: string, message: string, inviteLabel: string, closeLabel: string) => {
+      setInfoModal({
+        open: true,
+        title,
+        message,
+        tone: 'success',
+        confirmLabel: inviteLabel,
+        onConfirm: () => {
+          setInfoModal(m => ({ ...m, open: false }));
+          (async () => {
+            try {
+              if (resolvedTenantId) {
+                const { syncSubscription } = await import('../api/billing');
+                await syncSubscription(resolvedTenantId);
+              }
+              await refreshUser();
+            } catch (error) {
+              logger.warn('Invite CTA sync failed', error);
+            }
+            setActiveTab('organization');
+          })();
+        },
+        cancelLabel: closeLabel,
+        onCancel: () => setInfoModal(m => ({ ...m, open: false })),
+      });
+    };
+
+    const handlePendingPayment = async () => {
+      const raw = safeStorage.get('pending_billing_payment');
       if (!raw) return;
       try {
-        const meta = JSON.parse(raw || '{}');
-        const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-        if (!tenantId) return;
+        const meta = safeParseJson<PendingBillingMeta>(raw) || {};
+        if (!resolvedTenantId) return;
         const { syncSubscription, listInvoices } = await import('../api/billing');
-        await syncSubscription(tenantId);
-        const res = await listInvoices(tenantId);
-        const since = typeof meta.ts === 'number' ? (meta.ts - 2 * 60 * 1000) : (Date.now() - 10 * 60 * 1000);
-        const paid = (res?.invoices || []).some((inv: any) => Boolean(inv?.paid) && inv?.created && new Date(inv.created).getTime() >= since);
-  if (paid && !disposed) {
-          const planName = ((): string => {
-            const d = String(meta?.plan || '').toLowerCase();
-            if (d.includes('enterprise') || d.includes('business')) return 'Enterprise';
-            if (d.includes('professional') || d === 'pro') return 'Pro';
-            return 'Plan';
-          })();
-          const lang = currentLanguage || 'tr';
-          const messages = {
-            tr: {
-              title: 'Ödeme Başarılı',
-              basePlan: `İşleminiz başarıyla tamamlandı. Artık ${planName} planın keyfini çıkarabilirsiniz.`,
-              baseGeneric: 'Ödemeniz başarıyla alındı.',
-              extra: (n: number) => ` Ayrıca sisteminize ${n} kullanıcı daha davet edebilirsiniz.`,
-            },
-            en: {
-              title: 'Payment Successful',
-              basePlan: `Your update completed successfully. Enjoy the ${planName} plan!`,
-              baseGeneric: 'Your payment was received successfully.',
-              extra: (n: number) => ` You can now invite ${n} more user${n>1?'s':''} to your system.`,
-            },
-            fr: {
-              title: 'Paiement réussi',
-              basePlan: `Mise à jour terminée avec succès. Profitez du plan ${planName} !`,
-              baseGeneric: 'Votre paiement a été reçu avec succès.',
-              extra: (n: number) => ` Vous pouvez maintenant inviter ${n} utilisateur${n>1?'s':''} supplémentaires.`,
-            },
-            de: {
-              title: 'Zahlung erfolgreich',
-              basePlan: `Aktualisierung erfolgreich. Viel Spaß mit dem ${planName}-Tarif!`,
-              baseGeneric: 'Ihre Zahlung wurde erfolgreich erhalten.',
-              extra: (n: number) => ` Sie können nun ${n} weitere Benutzer einladen.`,
-            },
-          } as const;
-          const dict = messages[lang as 'tr'|'en'|'fr'|'de'] || messages.tr;
-          const baseMsg = meta?.type === 'plan-interval' ? dict.basePlan : dict.baseGeneric;
-          const extraMsg = meta?.seats && meta.seats > 0 ? dict.extra(meta.seats) : '';
-          // Owner ise "Kullanıcı Davet Et" kısa yolu ekle, değilse basit başarı mesajı
-          if (canManageSettings) {
-            const labels = {
-              tr: { invite: 'Kullanıcı Davet Et', close: 'Kapat' },
-              en: { invite: 'Invite Users', close: 'Close' },
-              fr: { invite: 'Inviter des utilisateurs', close: 'Fermer' },
-              de: { invite: 'Benutzer einladen', close: 'Schließen' },
-            } as const;
-            const L = labels[lang as 'tr'|'en'|'fr'|'de'] || labels.tr;
-            setInfoModal({
-              open: true,
-              title: dict.title,
-              message: baseMsg + extraMsg,
-              tone: 'success',
-              confirmLabel: L.invite,
-              onConfirm: () => { 
-                setInfoModal(m => ({ ...m, open: false })); 
-                (async () => { 
-                  try { 
-                    const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-                    if (tenantId) { const { syncSubscription } = await import('../api/billing'); await syncSubscription(tenantId); }
-                    await refreshUser(); 
-                  } catch {}
-                  setActiveTab('organization'); 
-                })();
-              },
-              cancelLabel: L.close,
-              onCancel: () => setInfoModal(m => ({ ...m, open: false })),
-            });
-          } else {
-            openInfo(dict.title, baseMsg + extraMsg, 'success');
-          }
-          try { localStorage.removeItem('pending_billing_payment'); } catch {}
-          await refreshUser();
-        }
-      } catch {}
-    };
-    handler();
-    const onFocus = () => { handler(); };
-    // Add-on başarıları için anlık event dinleyicisi
-    const onBillingSuccess = (ev: Event) => {
-      try {
-        const anyEv = ev as CustomEvent<any>;
-        const meta = anyEv?.detail || {};
-        if (!meta || disposed) return;
-        const lang = currentLanguage || 'tr';
+        await syncSubscription(resolvedTenantId);
+        const res = await listInvoices(resolvedTenantId);
+        const since = typeof meta.ts === 'number' ? meta.ts - 2 * 60 * 1000 : Date.now() - 10 * 60 * 1000;
+        const paid = normalizeInvoiceList(res?.invoices).some(inv => Boolean(inv.paid) && inv.created && new Date(inv.created).getTime() >= since);
+        if (!paid || disposed) return;
+        const planName = (() => {
+          const desired = String(meta?.plan || '').toLowerCase();
+          if (desired.includes('enterprise') || desired.includes('business')) return 'Enterprise';
+          if (desired.includes('professional') || desired === 'pro') return 'Pro';
+          return 'Plan';
+        })();
+        const lang = currentLanguage;
         const messages = {
-          tr: { title: 'İşlem Başarılı', base: 'İşleminiz başarıyla tamamlandı.', extra: (n:number) => ` Ayrıca sisteminize ${n} kullanıcı daha davet edebilirsiniz.` },
-          en: { title: 'Success', base: 'Your operation completed successfully.', extra: (n:number) => ` You can now invite ${n} more user${n>1?'s':''}.` },
-          fr: { title: 'Succès', base: 'Votre opération s’est terminée avec succès.', extra: (n:number) => ` Vous pouvez maintenant inviter ${n} utilisateur${n>1?'s':''} supplémentaires.` },
-          de: { title: 'Erfolg', base: 'Ihr Vorgang wurde erfolgreich abgeschlossen.', extra: (n:number) => ` Sie können nun ${n} weitere Benutzer einladen.` },
+          tr: {
+            title: 'Ödeme Başarılı',
+            basePlan: (plan: string) => `İşleminiz başarıyla tamamlandı. Artık ${plan} planın keyfini çıkarabilirsiniz.`,
+            baseGeneric: 'Ödemeniz başarıyla alındı.',
+            extra: (n: number) => ` Ayrıca sisteminize ${n} kullanıcı daha davet edebilirsiniz.`,
+          },
+          en: {
+            title: 'Payment Successful',
+            basePlan: (plan: string) => `Your update completed successfully. Enjoy the ${plan} plan!`,
+            baseGeneric: 'Your payment was received successfully.',
+            extra: (n: number) => ` You can now invite ${n} more user${n > 1 ? 's' : ''} to your system.`,
+          },
+          fr: {
+            title: 'Paiement réussi',
+            basePlan: (plan: string) => `Mise à jour terminée avec succès. Profitez du plan ${plan} !`,
+            baseGeneric: 'Votre paiement a été reçu avec succès.',
+            extra: (n: number) => ` Vous pouvez maintenant inviter ${n} utilisateur${n > 1 ? 's' : ''} supplémentaires.`,
+          },
+          de: {
+            title: 'Zahlung erfolgreich',
+            basePlan: (plan: string) => `Aktualisierung erfolgreich. Viel Spaß mit dem ${plan}-Tarif!`,
+            baseGeneric: 'Ihre Zahlung wurde erfolgreich erhalten.',
+            extra: (n: number) => ` Sie können nun ${n} weitere Benutzer einladen.`,
+          },
         } as const;
-        const dict = messages[lang as 'tr'|'en'|'fr'|'de'] || messages.tr;
-        const extra = meta?.seats && meta.seats > 0 ? dict.extra(meta.seats) : '';
+        const dict = messages[(lang as 'tr' | 'en' | 'fr' | 'de')] || messages.tr;
+        const baseMsg = meta?.type === 'plan-interval' ? dict.basePlan(planName) : dict.baseGeneric;
+        const extraMsg = meta?.seats && meta.seats > 0 ? dict.extra(meta.seats) : '';
+
         if (canManageSettings) {
           const labels = {
             tr: { invite: 'Kullanıcı Davet Et', close: 'Kapat' },
@@ -2708,46 +2966,72 @@ export default function SettingsPage({
             fr: { invite: 'Inviter des utilisateurs', close: 'Fermer' },
             de: { invite: 'Benutzer einladen', close: 'Schließen' },
           } as const;
-          const L = labels[lang as 'tr'|'en'|'fr'|'de'] || labels.tr;
-          setInfoModal({
-            open: true,
-            title: dict.title,
-            message: dict.base + extra,
-            tone: 'success',
-            confirmLabel: L.invite,
-            onConfirm: () => { 
-              setInfoModal(m => ({ ...m, open: false })); 
-              (async () => { 
-                try { 
-                  const tenantId = String((tenant as any)?.id || localStorage.getItem('tenantId') || '');
-                  if (tenantId) { const { syncSubscription } = await import('../api/billing'); await syncSubscription(tenantId); }
-                  await refreshUser();
-                } catch {}
-                setActiveTab('organization'); 
-              })();
-            },
-            cancelLabel: L.close,
-            onCancel: () => setInfoModal(m => ({ ...m, open: false })),
-          });
+          const L = labels[(lang as 'tr' | 'en' | 'fr' | 'de')] || labels.tr;
+          openInviteModal(dict.title, baseMsg + extraMsg, L.invite, L.close);
+        } else {
+          openInfo(dict.title, baseMsg + extraMsg, 'success');
+        }
+        safeStorage.remove('pending_billing_payment');
+        try {
+          await refreshUser();
+        } catch (error) {
+          logger.warn('Refresh user after payment success failed', error);
+        }
+      } catch (error) {
+        logger.warn('Pending billing handler failed', error);
+      }
+    };
+
+    const onFocus = () => { void handlePendingPayment(); };
+
+    const onBillingSuccess = (event: Event) => {
+      if (disposed) return;
+      try {
+        const detail = (event as CustomEvent<BillingSuccessEventDetail>).detail || {};
+        const lang = currentLanguage;
+        const messages = {
+          tr: { title: 'İşlem Başarılı', base: 'İşleminiz başarıyla tamamlandı.', extra: (n: number) => ` Ayrıca sisteminize ${n} kullanıcı daha davet edebilirsiniz.` },
+          en: { title: 'Success', base: 'Your operation completed successfully.', extra: (n: number) => ` You can now invite ${n} more user${n > 1 ? 's' : ''}.` },
+          fr: { title: 'Succès', base: 'Votre opération s’est terminée avec succès.', extra: (n: number) => ` Vous pouvez maintenant inviter ${n} utilisateur${n > 1 ? 's' : ''} supplémentaires.` },
+          de: { title: 'Erfolg', base: 'Ihr Vorgang wurde erfolgreich abgeschlossen.', extra: (n: number) => ` Sie können nun ${n} weitere Benutzer einladen.` },
+        } as const;
+        const dict = messages[(lang as 'tr' | 'en' | 'fr' | 'de')] || messages.tr;
+        const extra = detail?.seats && detail.seats > 0 ? dict.extra(detail.seats) : '';
+        if (canManageSettings) {
+          const labels = {
+            tr: { invite: 'Kullanıcı Davet Et', close: 'Kapat' },
+            en: { invite: 'Invite Users', close: 'Close' },
+            fr: { invite: 'Inviter des utilisateurs', close: 'Fermer' },
+            de: { invite: 'Benutzer einladen', close: 'Schließen' },
+          } as const;
+          const L = labels[(lang as 'tr' | 'en' | 'fr' | 'de')] || labels.tr;
+          openInviteModal(dict.title, dict.base + extra, L.invite, L.close);
         } else {
           openInfo(dict.title, dict.base + extra, 'success');
         }
-      } catch {}
+      } catch (error) {
+        logger.warn('billingSuccess listener failed', error);
+      }
     };
+
     window.addEventListener('focus', onFocus);
     window.addEventListener('billingSuccess', onBillingSuccess as EventListener);
-    return () => { disposed = true; window.removeEventListener('focus', onFocus); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void handlePendingPayment();
+    return () => {
+      disposed = true;
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('billingSuccess', onBillingSuccess as EventListener);
+    };
+  }, [resolvedTenantId, currentLanguage, canManageSettings, refreshUser]);
   
   // Currency context
   const { currency, setCurrency } = useCurrency();
   
-  console.log('[SettingsPage] Current currency from context:', currency);
+  logger.debug('[SettingsPage] Current currency from context', { currency });
   
   // Debug: currency değişimini izle
   useEffect(() => {
-    console.log('[SettingsPage] Current currency:', currency);
+    logger.debug('[SettingsPage] Current currency changed', { currency });
   }, [currency]);
 
   // Profile
@@ -2863,113 +3147,85 @@ export default function SettingsPage({
     quoteReminders: true,
   } as const;
 
-  // İlk render'da authUser henüz gelmemiş olabilir; localStorage'daki user objesinden ID'yi okumaya çalış.
+  // İlk render'da authUser henüz gelmemiş olabilir; yerel storage içindeki user objesinden ID'yi okumaya çalış.
   const loadInitialNotificationSettings = (): NotificationSettings => {
     try {
-      const tid = (localStorage.getItem('tenantId') || 'default') as string;
-      // localStorage'taki user objesinden id/_id al; yoksa authUser'dan; en sonda 'anon'
-      let localUid = 'anon';
-      try {
-        const userRaw = localStorage.getItem('user');
-        if (userRaw) {
-          const u = JSON.parse(userRaw);
-          localUid = u?.id || u?._id || localUid;
-        }
-      } catch {}
-      const runtimeUid = (authUser as any)?.id || (authUser as any)?._id || localUid;
-      const tryKeys: string[] = [];
-      // Önce mevcut tenant id + runtimeUid
-      tryKeys.push(`notif_prefs:${tid}:${runtimeUid}`);
-      // Sonra mevcut tenant id + localUid (auth henüz hazır değilse)
-      if (runtimeUid !== localUid) tryKeys.push(`notif_prefs:${tid}:${localUid}`);
-      // Ardından default tenant altında aynı kimlikler
-      if (tid !== 'default') {
-        tryKeys.push(`notif_prefs:default:${runtimeUid}`);
-        if (runtimeUid !== localUid) tryKeys.push(`notif_prefs:default:${localUid}`);
+      const tenantId = readLegacyTenantId() || getCachedTenantId();
+      const parsed = readNotificationPrefsCacheSafe<Partial<NotificationSettings>>({
+        tenantIds: [tenantId],
+        userIds: buildNotificationUserCandidates(authUser),
+      });
+      if (parsed && typeof parsed === 'object') {
+        return { ...defaultNotificationSettings, ...parsed };
       }
-      for (const k of tryKeys) {
-        const raw = localStorage.getItem(k);
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === 'object') {
-              return { ...defaultNotificationSettings, ...parsed };
-            }
-          } catch {}
-        }
-      }
-    } catch {}
+    } catch (error) {
+      logger.debug('loadInitialNotificationSettings failed', error);
+    }
     return { ...defaultNotificationSettings };
   };
 
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(loadInitialNotificationSettings);
   const { updatePref } = useNotificationPreferences();
 
+  const persistNotificationSettings = useCallback((settingsObj: NotificationSettings) => {
+    try {
+      const tenantId = readLegacyTenantId() || getCachedTenantId();
+      writeNotificationPrefsCache(settingsObj, {
+        tenantIds: [tenantId],
+        userIds: buildNotificationUserCandidates(authUser),
+      });
+    } catch (error) {
+      logger.warn('Persist notification settings failed', error);
+    }
+  }, [authUser]);
+
   // İlk mount'ta backend'den prefs çek ve state'i güncelle (local cache fallback)
   useEffect(() => {
     (async () => {
       try {
-        const token = localStorage.getItem('auth_token');
+        const token = readLegacyAuthToken();
         if (!token) return; // public modda deneme
         const prefs = await usersApi.getNotificationPreferences();
         if (prefs && typeof prefs === 'object') {
-          const next: NotificationSettings = {
-            invoiceReminders: prefs.invoiceReminders ?? notificationSettings.invoiceReminders,
-            expenseAlerts: prefs.expenseAlerts ?? notificationSettings.expenseAlerts,
-            salesNotifications: prefs.salesNotifications ?? notificationSettings.salesNotifications,
-            lowStockAlerts: prefs.lowStockAlerts ?? notificationSettings.lowStockAlerts,
-            quoteReminders: prefs.quoteReminders ?? notificationSettings.quoteReminders,
-          };
-          setNotificationSettings(next);
-          // local cache'i de senkron tut
-          persistNotificationSettings(next);
+          setNotificationSettings(prev => {
+            const next: NotificationSettings = {
+              invoiceReminders: prefs.invoiceReminders ?? prev.invoiceReminders,
+              expenseAlerts: prefs.expenseAlerts ?? prev.expenseAlerts,
+              salesNotifications: prefs.salesNotifications ?? prev.salesNotifications,
+              lowStockAlerts: prefs.lowStockAlerts ?? prev.lowStockAlerts,
+              quoteReminders: prefs.quoteReminders ?? prev.quoteReminders,
+            };
+            persistNotificationSettings(next);
+            return next;
+          });
         }
-      } catch (e) {
-        // sessiz geç; offline/local cache kullanılacak
+      } catch (error) {
+        logger.debug('Notification preferences fetch failed', error);
       }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [persistNotificationSettings]);
 
   // Auth kullanıcı kimliği kesinleşince tercihi tek seferde yeniden oku (merge yok; tam overwrite)
   useEffect(() => {
     const readPrefsExact = (): NotificationSettings | null => {
       try {
-        const tid = (localStorage.getItem('tenantId') || 'default') as string;
-        const ids: string[] = [];
-        const authId = (authUser as any)?.id || (authUser as any)?._id;
-        if (authId) ids.push(String(authId));
-        try {
-          const userRaw = localStorage.getItem('user');
-          if (userRaw) {
-            const u = JSON.parse(userRaw);
-            const lid = u?.id || u?._id;
-            if (lid && !ids.includes(String(lid))) ids.push(String(lid));
-          }
-        } catch {}
-        if (ids.length === 0) ids.push('anon');
-        const tidCandidates = tid !== 'default' ? [tid, 'default'] : [tid];
-        for (const tCandidate of tidCandidates) {
-          for (const idCandidate of ids) {
-            const key = `notif_prefs:${tCandidate}:${idCandidate}`;
-            const raw = localStorage.getItem(key);
-            if (!raw) continue;
-            try {
-              const parsed = JSON.parse(raw);
-              if (parsed && typeof parsed === 'object') {
-                // Eksik anahtarları default ile doldur ama mevcut state'i zorla değiştirme, sadece storage değerlerini uygula
-                return {
-                  invoiceReminders: parsed.invoiceReminders ?? notificationSettings.invoiceReminders,
-                  expenseAlerts: parsed.expenseAlerts ?? notificationSettings.expenseAlerts,
-                  salesNotifications: parsed.salesNotifications ?? notificationSettings.salesNotifications,
-                  lowStockAlerts: parsed.lowStockAlerts ?? notificationSettings.lowStockAlerts,
-                  quoteReminders: parsed.quoteReminders ?? notificationSettings.quoteReminders,
-                };
-              }
-            } catch {}
-          }
+        const tenantId = readLegacyTenantId() || getCachedTenantId();
+        const parsed = readNotificationPrefsCacheSafe<Partial<NotificationSettings>>({
+          tenantIds: [tenantId],
+          userIds: buildNotificationUserCandidates(authUser),
+        });
+        if (parsed && typeof parsed === 'object') {
+          return {
+            invoiceReminders: parsed.invoiceReminders ?? notificationSettings.invoiceReminders,
+            expenseAlerts: parsed.expenseAlerts ?? notificationSettings.expenseAlerts,
+            salesNotifications: parsed.salesNotifications ?? notificationSettings.salesNotifications,
+            lowStockAlerts: parsed.lowStockAlerts ?? notificationSettings.lowStockAlerts,
+            quoteReminders: parsed.quoteReminders ?? notificationSettings.quoteReminders,
+          };
         }
-      } catch {}
+      } catch (error) {
+        logger.debug('Notification preference lookup failed', error);
+      }
       return null;
     };
     const loaded = readPrefsExact();
@@ -2978,7 +3234,7 @@ export default function SettingsPage({
       const same = (Object.keys(loaded) as (keyof NotificationSettings)[]).every(k => loaded[k] === notificationSettings[k]);
       if (!same) setNotificationSettings(loaded);
     }
-  }, [authUser]);
+  }, [authUser, notificationSettings]);
 
   // System (currency context'ten geliyor, burada tutmuyoruz)
   const [systemSettings, setSystemSettings] = useState({
@@ -3017,7 +3273,6 @@ export default function SettingsPage({
     if (validTabIds.includes(initialTab)) {
       setActiveTab(initialTab);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTab]);
 
   // Aktif sekme mevcut değilse ilk geçerli sekmeye taşı
@@ -3068,50 +3323,21 @@ export default function SettingsPage({
     setUnsavedChanges(true);
   };
 
-  const persistNotificationSettings = (settingsObj: typeof notificationSettings) => {
-    try {
-      const tid = (localStorage.getItem('tenantId') || 'default') as string;
-      // Mümkün olan tüm ID varyasyonlarına yaz (id / _id); böylece sonraki oturumda hangisi gelirse gelsin okunacak
-      const ids: string[] = [];
-      const authId = (authUser as any)?.id || (authUser as any)?._id;
-      if (authId) ids.push(String(authId));
-      try {
-        const userRaw = localStorage.getItem('user');
-        if (userRaw) {
-          const u = JSON.parse(userRaw);
-          const lid = u?.id || u?._id;
-          if (lid) ids.push(String(lid));
-        }
-      } catch {}
-      if (ids.length === 0) ids.push('anon');
-      // Yinelenenleri kaldır
-      const uniqueIds = Array.from(new Set(ids));
-      const tidTargets = new Set<string>([tid]);
-      if (tid !== 'default') tidTargets.add('default'); // tenant henüz yazılmadan önce de erişilebilir olsun
-      tidTargets.forEach(tCandidate => {
-        uniqueIds.forEach(idCandidate => {
-          const key = `notif_prefs:${tCandidate}:${idCandidate}`;
-          try { localStorage.setItem(key, JSON.stringify(settingsObj)); } catch {}
-        });
-      });
-    } catch {}
-  };
-
-  const handleNotificationChange = async (field: string, value: boolean) => {
+  const handleNotificationChange = async (field: keyof NotificationSettings, value: boolean) => {
     setNotificationSettings(prev => ({ ...prev, [field]: value }));
     try {
-      await updatePref(field as any, value);
+      await updatePref(field, value);
       const updatedPrefs = { ...notificationSettings, [field]: value };
       persistNotificationSettings(updatedPrefs);
-    } catch (e) {
-      console.error('Notification preference update failed:', e);
+    } catch (error) {
+      logger.error('Notification preference update failed', error);
     }
   };
 
   const handleSystemChange = (field: string, value: string | boolean) => {
     // Currency değişikliği context'e git
     if (field === 'currency') {
-      console.log('[SettingsPage] handleSystemChange - Setting currency to:', value);
+      logger.info('System currency change requested', { value });
       setCurrency(value as 'TRY' | 'USD' | 'EUR');
     } else {
       setSystemSettings(prev => ({ ...prev, [field]: value }));
@@ -3120,31 +3346,29 @@ export default function SettingsPage({
   };
 
   const handleSave = async () => {
-    console.log('🚀 KAYDET BUTONU BASILDI! profileData:', profileData);
-    console.log('📤 Backend\'e gönderilecek veri:', {
-      name: profileData.name,
-      phone: profileData.phone,
+    logger.info('Settings save triggered', {
+      profile: { name: profileData.name, phone: profileData.phone },
     });
     
     try {
       // ✅ KULLANICI PROFİLİNİ BACKEND'E KAYDET
-      console.log('🔄 usersApi.updateProfile ÇAĞRILIYOR...');
+      logger.debug('Calling usersApi.updateProfile');
       const updatedUser = await usersApi.updateProfile({
         name: profileData.name,
         phone: profileData.phone,
       });
-      console.log('✅ usersApi.updateProfile TAMAMLANDI, response:', updatedUser);
+      logger.info('User profile updated', { userId: updatedUser?.id || updatedUser?._id });
       
-      // ⚠️ KRİTİK: Backend'den dönen updatedUser'ı DOĞRUDAN localStorage'a yaz
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      console.log('✅ localStorage user güncellendi:', updatedUser);
+      // ⚠️ KRİTİK: Backend'den dönen updatedUser'ı yerel cache'e yaz
+      writeLegacyUserProfile(updatedUser);
+      logger.debug('Local user cache updated', { userId: updatedUser?.id || updatedUser?._id });
       
       // AuthContext'i de güncelle
       try {
         await refreshUser();
-        console.log('✅ refreshUser() başarıyla tamamlandı!');
+        logger.debug('Auth context refreshed after profile update');
       } catch (refreshError) {
-        console.error('⚠️ refreshUser() hatası (normal, localStorage güncel):', refreshError);
+        logger.warn('refreshUser failed after profile update (cache already fresh)', refreshError);
       }
       // 🔐 Şifre değişimi alanları doluysa burada işleme al
       const pwCurrent = profileData.currentPassword.trim();
@@ -3176,7 +3400,7 @@ export default function SettingsPage({
           return;
         }
         try {
-          console.log('🔄 usersApi.changePassword çağrılıyor...');
+          logger.debug('Calling usersApi.changePassword');
           const resp = await usersApi.changePassword(pwCurrent, pwNew);
           if (resp?.success) {
             openInfo(
@@ -3198,8 +3422,8 @@ export default function SettingsPage({
             );
             return; // diğer kayıtları sürdürme
           }
-        } catch (e:any) {
-          const msg = e?.response?.data?.message || e?.message || 'Hata';
+        } catch (error: unknown) {
+          const msg = extractErrorMessage(error, 'Hata');
           openInfo(
             currentLanguage === 'tr' ? 'Şifre Değiştirilemedi' : 'Password Change Failed',
             msg,
@@ -3217,11 +3441,11 @@ export default function SettingsPage({
           phone: profileData.phone,
         };
         onUserUpdate(userToUpdate);
-        console.log('✅ onUserUpdate prop çağrıldı');
+        logger.debug('onUserUpdate prop invoked');
       }
       
-      console.log('✅✅✅ PROFİL DEĞİŞİKLİĞİ KALICI OLARAK KAYDEDİLDİ! ✅✅✅');
-      console.log('💾 Database\'de kayıtlı:', updatedUser);
+      logger.info('Profile changes persisted');
+      logger.debug('Persisted user payload', updatedUser);
 
       // Resmi şirket adı değiştiyse ve kullanıcı tenant sahibi ise, backend'e yaz
       try {
@@ -3237,21 +3461,21 @@ export default function SettingsPage({
           }
         }
       } catch (e) {
-        console.error('Resmi şirket adı güncellenemedi:', e);
+        logger.warn('Official company name update failed', e);
         // Kullanıcıya sessiz geçebiliriz; önemli olan engellenmemesi. Dilersen uyarı göster.
       }
 
       // Şirket bilgilerini BACKEND'E kaydet (tenant bazlı)
       let tenantUpdateOk = true;
       try {
-        const brandSettings = {
+        const brandSettings: UpdateTenantDto['settings'] = {
           brand: {
             logoDataUrl: companyData.logoDataUrl || '',
             bankAccountId: companyData.bankAccountId || undefined,
             country: companyData.country || '',
           }
         };
-        const payload: any = {
+        const payload: UpdateTenantDto = {
           // Temel alanlar
           companyName: officialCompanyName || companyData.name || undefined,
           address: companyData.address || undefined,
@@ -3278,7 +3502,7 @@ export default function SettingsPage({
           stateOfIncorporation: companyData.stateOfIncorporation || undefined,
           // Settings blob: logo, default bank, country
           settings: brandSettings,
-        } as any;
+        };
 
         // Şirket sahibi değilse kimlik alanını hiç göndermeyelim
   if (!canManageSettings) {
@@ -3287,7 +3511,7 @@ export default function SettingsPage({
 
         await tenantsApi.updateMyTenant(payload);
       } catch (e) {
-        console.error('Tenant settings update failed', e);
+        logger.error('Tenant settings update failed', e);
         tenantUpdateOk = false;
       }
 
@@ -3303,7 +3527,7 @@ export default function SettingsPage({
           website: companyData.website,
           logoDataUrl: companyData.logoDataUrl,
           bankAccountId: companyData.bankAccountId,
-          country: (companyData.country ? (companyData.country as any) : undefined),
+          country: companyData.country || undefined,
           // Yasal alanlar
           mersisNumber: companyData.mersisNumber,
           kepAddress: companyData.kepAddress,
@@ -3334,7 +3558,7 @@ export default function SettingsPage({
         await usersApi.updateNotificationPreferences(notificationSettings);
         persistNotificationSettings(notificationSettings); // lokal cache
       } catch (e) {
-        console.error('Notification prefs save failed:', e);
+        logger.error('Notification prefs save failed', e);
       }
 
       setUnsavedChanges(false);
@@ -3344,7 +3568,7 @@ export default function SettingsPage({
         setShowSaveError(true);
       }
     } catch (error) {
-      console.error('Ayarlar kaydedilirken hata:', error);
+      logger.error('Settings save failed', error);
       setShowSaveError(true);
     }
   };
@@ -3386,8 +3610,8 @@ export default function SettingsPage({
           <span className="block text-sm font-medium text-gray-700 mb-2">{currentLanguage === 'tr' ? 'Son Giriş' : currentLanguage === 'fr' ? 'Dernière connexion' : currentLanguage === 'de' ? 'Letzte Anmeldung' : 'Last Login'}</span>
           <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700">
             {(() => {
-              try {
-                const at = (authUser as any)?.lastLoginAt as string | undefined;
+                try {
+                  const at = authUser?.lastLoginAt;
                 if (!at) return '—';
                 const d = new Date(at);
                 if (Number.isNaN(d.getTime())) return '—';
@@ -3473,9 +3697,9 @@ export default function SettingsPage({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.countrySelectLabel || 'Ülke'}</label>
-              <select
-                value={companyData.country}
-                onChange={e => handleCompanyChange('country', e.target.value as any)}
+                <select
+                  value={companyData.country}
+                  onChange={e => handleCompanyChange('country', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="TR">{text.company.legalFields.countryOptions?.TR || 'Türkiye'}</option>
@@ -3877,7 +4101,7 @@ export default function SettingsPage({
                 <select
                   value={currency}
                   onChange={e => {
-                    console.log('[SettingsPage] Currency dropdown changed to:', e.target.value);
+                    logger.debug('Currency dropdown changed', { value: e.target.value });
                     handleSystemChange('currency', e.target.value);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -3911,7 +4135,7 @@ export default function SettingsPage({
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">{text.notifications.title}</h3>
         <div className="space-y-4">
-          {Object.entries(notificationSettings).map(([key, value]) => {
+          {(Object.entries(notificationSettings) as [keyof NotificationSettings, boolean][]).map(([key, value]) => {
             const label =
               notificationLabels[key as NotificationKey] ?? key;
 
@@ -3985,7 +4209,9 @@ export default function SettingsPage({
                 try {
                   const el = document.getElementById('audit-logs-section');
                   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                } catch {}
+                } catch (error) {
+                  logger.debug('Audit log scroll failed', error);
+                }
               }}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
             >
@@ -4020,8 +4246,12 @@ export default function SettingsPage({
                     try {
                       const res = await usersApi.terminateAllSessions();
                       if (res?.token) {
-                        localStorage.setItem('auth_token', res.token);
-                        try { await refreshUser(); } catch {}
+                        writeLegacyAuthToken(res.token);
+                        try {
+                          await refreshUser();
+                        } catch (error) {
+                          logger.debug('Refresh after terminating sessions failed', error);
+                        }
                         setInfoModal({
                           open: true,
                           title: currentLanguage === 'tr' ? 'Oturumlar Sonlandırıldı' : currentLanguage === 'fr' ? 'Sessions terminées' : currentLanguage === 'de' ? 'Sitzungen beendet' : 'Sessions terminated',
@@ -4029,15 +4259,19 @@ export default function SettingsPage({
                           tone: 'success',
                           cancelLabel: currentLanguage === 'tr' ? 'Bu cihazdan da çık' : currentLanguage === 'fr' ? 'Se déconnecter ici aussi' : currentLanguage === 'de' ? 'Auch hier abmelden' : 'Sign out here too',
                           onCancel: async () => {
-                            try { await logout(); } catch {}
+                            try {
+                              await logout();
+                            } catch (error) {
+                              logger.debug('Logout after terminating sessions failed', error);
+                            }
                             setInfoModal(m => ({ ...m, open: false }));
                           },
                           confirmLabel: currentLanguage === 'tr' ? 'Tamam' : currentLanguage === 'fr' ? 'OK' : currentLanguage === 'de' ? 'OK' : 'OK',
                           onConfirm: () => setInfoModal(m => ({ ...m, open: false })),
                         });
                       }
-                    } catch (e: any) {
-                      openInfo('Sessions', e?.response?.data?.message || e?.message || 'İşlem başarısız', 'error');
+                      } catch (error: unknown) {
+                        openInfo('Sessions', extractErrorMessage(error, 'İşlem başarısız'), 'error');
                     }
                   },
                   onCancel: () => setInfoModal(m => ({ ...m, open: false })),
@@ -4067,14 +4301,14 @@ export default function SettingsPage({
       try {
         setIsExporting(true);
         
-        const token = localStorage.getItem('auth_token');
-        console.log('Token found:', token ? 'YES' : 'NO');
+        const token = readLegacyAuthToken();
+        logger.debug('Export token presence', { hasToken: Boolean(token) });
         if (!token) {
           openInfo(text.modals.authRequired.title, text.modals.authRequired.message, 'error');
           return;
         }
 
-        console.log('Making export request...');
+        logger.debug('Making export data request');
         const response = await fetch('/api/users/me/export', {
           method: 'GET',
           headers: {
@@ -4082,14 +4316,14 @@ export default function SettingsPage({
           },
         });
 
-        console.log('Response status:', response.status);
+        logger.debug('Export response status', { status: response.status });
         if (!response.ok) {
           if (response.status === 401) {
             openInfo(text.modals.sessionExpired.title, text.modals.sessionExpired.message, 'error');
             return;
           }
           const errorText = await response.text();
-          console.error('Export error:', response.status, errorText);
+          logger.error('Export failed with response error', { status: response.status, errorText });
           throw new Error(`Export failed: ${response.status} - ${errorText}`);
         }
 
@@ -4108,7 +4342,7 @@ export default function SettingsPage({
         // Lokalize edilmemiş; isterseniz modala çevrilebilir
         alert('Data exported successfully!');
       } catch (error) {
-        console.error('Export error:', error);
+        logger.error('Export error', error);
         alert(`Failed to export data: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setIsExporting(false);
@@ -4119,7 +4353,7 @@ export default function SettingsPage({
       try {
         setIsDeletingAccount(true);
         
-        const token = localStorage.getItem('auth_token');
+        const token = readLegacyAuthToken();
         if (!token) {
           openInfo(text.modals.authRequired.title, text.modals.authRequired.message, 'error');
           setIsDeletingAccount(false);
@@ -4147,7 +4381,7 @@ export default function SettingsPage({
         openInfo(text.modals.deleteRequested.title, result?.message || text.modals.deleteRequested.message, 'success');
         setIsDeleteDialogOpen(false);
       } catch (error) {
-        console.error('Account deletion error:', error);
+        logger.error('Account deletion error', error);
         openInfo(text.modals.deleteFailed.title, text.modals.deleteFailed.message, 'error');
       } finally {
         setIsDeletingAccount(false);

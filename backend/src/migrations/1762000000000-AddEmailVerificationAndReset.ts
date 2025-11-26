@@ -29,12 +29,22 @@ export class AddEmailVerificationAndReset1762000000000
       await queryRunner.query(
         `CREATE INDEX IF NOT EXISTS idx_users_emailVerificationToken ON "users" ("emailVerificationToken")`,
       );
-    } catch {}
+    } catch (error) {
+      console.warn(
+        'AddEmailVerificationAndReset migration: email verification token index creation skipped',
+        error,
+      );
+    }
     try {
       await queryRunner.query(
         `CREATE INDEX IF NOT EXISTS idx_users_passwordResetToken ON "users" ("passwordResetToken")`,
       );
-    } catch {}
+    } catch (error) {
+      console.warn(
+        'AddEmailVerificationAndReset migration: password reset token index creation skipped',
+        error,
+      );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

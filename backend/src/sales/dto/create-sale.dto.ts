@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class SaleItemDto {
+export class SaleItemDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsUUID()
@@ -54,12 +54,18 @@ export class CreateSaleDto {
   @IsUUID()
   customerId?: string;
 
-  @ApiProperty({ required: false, description: 'Müşteri adı (ID yoksa otomatik oluşturma için)' })
+  @ApiProperty({
+    required: false,
+    description: 'Müşteri adı (ID yoksa otomatik oluşturma için)',
+  })
   @IsOptional()
   @IsString()
   customerName?: string;
 
-  @ApiProperty({ required: false, description: 'Müşteri e-posta (otomatik oluşturma için opsiyonel)' })
+  @ApiProperty({
+    required: false,
+    description: 'Müşteri e-posta (otomatik oluşturma için opsiyonel)',
+  })
   @IsOptional()
   @IsString()
   customerEmail?: string;

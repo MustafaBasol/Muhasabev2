@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Filter, ChevronLeft, ChevronRight, Clock, Activity } from 'lucide-react';
+import { readLegacyAuthToken } from '../utils/localStorageSafe';
+import { logger } from '../utils/logger';
 
 interface AuditLogEntry {
   id: string;
@@ -13,7 +15,7 @@ interface AuditLogEntry {
   entity: string;
   entityId: string;
   action: 'CREATE' | 'UPDATE' | 'DELETE';
-  diff: Record<string, any>;
+  diff: Record<string, unknown>;
   ip: string;
   userAgent: string;
   createdAt: string;
@@ -58,7 +60,7 @@ export const AuditLogComponent: React.FC = () => {
   useEffect(() => {
     const loadEntities = async () => {
       try {
-        const token = localStorage.getItem('auth_token');
+        const token = readLegacyAuthToken();
         const response = await fetch('/api/audit/entities', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -70,24 +72,19 @@ export const AuditLogComponent: React.FC = () => {
           setEntities(data.entities || []);
         }
       } catch (error) {
-        console.error('Failed to load entities:', error);
+        logger.error('Failed to load audit entities', error);
       }
     };
     
     loadEntities();
   }, []);
 
-  // Load audit logs
-  useEffect(() => {
-    loadAuditLogs();
-  }, [filters]);
-
-  const loadAuditLogs = async () => {
+  const loadAuditLogs = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('auth_token');
+      const token = readLegacyAuthToken();
       if (!token) {
         setError('Authentication required');
         return;
@@ -104,8 +101,8 @@ export const AuditLogComponent: React.FC = () => {
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
 
-      console.log('Making request to:', `/api/audit/logs?${params.toString()}`);
-      console.log('With token:', token ? 'present' : 'missing');
+      logger.debug('Making request to:', `/api/audit/logs?${params.toString()}`);
+      logger.debug('With token:', token ? 'present' : 'missing');
       
       const response = await fetch(`/api/audit/logs?${params.toString()}`, {
         headers: {
@@ -113,11 +110,11 @@ export const AuditLogComponent: React.FC = () => {
         },
       });
 
-      console.log('Response status:', response.status);
+      logger.debug('Audit log response status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
+        logger.error('Audit log error response:', errorText);
         throw new Error(`Failed to load audit logs: ${response.status} - ${errorText}`);
       }
 
@@ -131,7 +128,12 @@ export const AuditLogComponent: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  // Load audit logs whenever filters change
+  useEffect(() => {
+    loadAuditLogs();
+  }, [loadAuditLogs]);
 
   const handleFilterChange = (key: keyof AuditLogFilters, value: string | number) => {
     setFilters(prev => ({
@@ -161,7 +163,7 @@ export const AuditLogComponent: React.FC = () => {
     }
   };
 
-  const renderDiff = (diff: Record<string, any>) => {
+  const renderDiff = (diff: Record<string, unknown>) => {
     if (!diff || Object.keys(diff).length === 0) return null;
     
     return (

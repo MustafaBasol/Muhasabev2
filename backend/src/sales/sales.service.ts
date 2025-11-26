@@ -1,8 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
+import type { DeepPartial } from 'typeorm';
 import { Sale, SaleStatus } from './entities/sale.entity';
-import { CreateSaleDto } from './dto/create-sale.dto';
+import { CreateSaleDto, SaleItemDto } from './dto/create-sale.dto';
 import { UpdateSaleDto } from './dto/update-sale.dto';
 import { Customer } from '../customers/entities/customer.entity';
 import { Product } from '../products/entities/product.entity';
@@ -10,6 +16,8 @@ import { ProductCategory } from '../products/entities/product-category.entity';
 
 @Injectable()
 export class SalesService {
+  private readonly logger = new Logger(SalesService.name);
+
   constructor(
     @InjectRepository(Sale)
     private readonly salesRepository: Repository<Sale>,
@@ -21,14 +29,32 @@ export class SalesService {
     private readonly categoriesRepository: Repository<ProductCategory>,
   ) {}
 
-  private async resolveTaxRate(tenantId: string, item: any): Promise<number> {
+  private logStockOrCustomerFailure(
+    event: string,
+    error: unknown,
+    level: 'warn' | 'error' = 'warn',
+  ) {
+    const message = `${event}: ${error instanceof Error ? error.message : String(error)}`;
+    const stack = error instanceof Error ? error.stack : undefined;
+    if (level === 'error') {
+      this.logger.error(message, stack);
+      return;
+    }
+    this.logger.warn(message);
+    if (stack) this.logger.debug(stack);
+  }
+
+  private async resolveTaxRate(
+    tenantId: string,
+    item: SaleItemDto,
+  ): Promise<number> {
     // 1) Satırda açıkça taxRate varsa onu kullan
     if (
       item != null &&
       Object.prototype.hasOwnProperty.call(item, 'taxRate') &&
       item.taxRate !== undefined &&
       item.taxRate !== null &&
-      item.taxRate !== ''
+      `${item.taxRate}`.trim() !== ''
     ) {
       const v = Number(item.taxRate);
       if (Number.isFinite(v) && v >= 0) return v;
@@ -46,7 +72,7 @@ export class SalesService {
           product.categoryTaxRateOverride !== undefined
         ) {
           const v = Number(product.categoryTaxRateOverride);
-            if (Number.isFinite(v) && v >= 0) return v;
+          if (Number.isFinite(v) && v >= 0) return v;
         }
         // 2b) Kategori (alt kategori) KDV'si
         if (product.category) {
@@ -63,7 +89,8 @@ export class SalesService {
               });
               if (parent) {
                 const parentRate = Number(parent.taxRate);
-                if (Number.isFinite(parentRate) && parentRate >= 0) return parentRate;
+                if (Number.isFinite(parentRate) && parentRate >= 0)
+                  return parentRate;
               }
             }
           }
@@ -116,12 +143,13 @@ export class SalesService {
         return existing; // idempotent dönüş
       }
     }
-    const items = dto.items || [];
+    const items: SaleItemDto[] = Array.isArray(dto.items) ? dto.items : [];
 
     let subtotal = 0;
     let taxAmount = 0;
     for (const item of items) {
-      const itemTotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+      const itemTotal =
+        (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
       const effectiveRate = await this.resolveTaxRate(tenantId, item);
       // Hesaplanan oranı item.taxRate alanına yaz (frontend eksik gönderdiğinde tutarlılık için)
       if (item.taxRate === undefined || item.taxRate === null) {
@@ -142,7 +170,6 @@ export class SalesService {
     let customerId: string | null = dto.customerId ?? null;
     // Otomatik müşteri oluşturma: ID yok ama isim varsa
     if (!customerId && dto.customerName) {
-      const nameLc = dto.customerName.trim().toLowerCase();
       const emailLc = (dto.customerEmail || '').trim().toLowerCase();
       // Aynı tenant içinde isim veya email eşleşmesi
       const existingCustomer = await this.customerRepository.findOne({
@@ -153,27 +180,31 @@ export class SalesService {
       if (existingCustomer) {
         customerId = existingCustomer.id;
       } else {
-        const created = this.customerRepository.create({
+        const customerPayload: DeepPartial<Customer> = {
           tenantId,
           name: dto.customerName,
           email: dto.customerEmail || null,
-          isActive: true,
-        } as any);
+        };
+        const created = this.customerRepository.create(customerPayload);
         try {
-          const savedCustomer = await this.customerRepository.save(created as any);
-          customerId = Array.isArray(savedCustomer) ? savedCustomer[0]?.id : savedCustomer.id;
-        } catch (e: any) {
+          const savedCustomer: Customer =
+            await this.customerRepository.save(created);
+          customerId = savedCustomer.id;
+        } catch (error) {
+          this.logStockOrCustomerFailure(
+            'sales.create.customerSaveFailed',
+            error,
+          );
           // race veya unique çakışması durumunda yumuşak fallback: tekrar ara
           const fallback = await this.customerRepository.findOne({
             where: { tenantId, name: dto.customerName },
           });
-            if (fallback) customerId = fallback.id;
+          if (fallback) customerId = fallback.id;
         }
       }
     }
 
     // save + retry (eşzamanlı çakışmalara karşı dayanıklı)
-    let lastError: any = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       const sale = this.salesRepository.create({
         tenantId,
@@ -196,26 +227,42 @@ export class SalesService {
 
         // Satış kalemlerindeki ürün stoklarını azalt
         try {
-          const saleItems: any[] = Array.isArray(items) ? items : [];
-          for (const it of saleItems) {
+          for (const it of items) {
             const pid = it?.productId ? String(it.productId) : '';
             const qty = Number(it?.quantity) || 0;
             if (!pid || qty <= 0) continue;
             try {
-              const product = await this.productsRepository.findOne({ where: { id: pid, tenantId } });
+              const product = await this.productsRepository.findOne({
+                where: { id: pid, tenantId },
+              });
               if (!product) continue;
               product.stock = Number(product.stock || 0) - qty;
               await this.productsRepository.save(product);
-            } catch {}
+            } catch (error) {
+              this.logStockOrCustomerFailure(
+                'sales.create.productAdjustFailed',
+                error,
+              );
+            }
           }
-        } catch {}
+        } catch (error) {
+          this.logStockOrCustomerFailure(
+            'sales.create.stockAdjustLoopFailed',
+            error,
+            'error',
+          );
+        }
 
         return saved;
-      } catch (err: any) {
-        lastError = err;
+      } catch (err) {
+        const dbCode =
+          typeof err === 'object' && err !== null && 'code' in err
+            ? String((err as { code?: string }).code ?? '')
+            : '';
         const isUniqueViolation =
-          err?.code === '23505' ||
-          (typeof err?.message === 'string' && err.message.includes('UNIQUE constraint failed'));
+          dbCode === '23505' ||
+          (err instanceof Error &&
+            err.message.includes('UNIQUE constraint failed'));
         if (isUniqueViolation) {
           // Yeni numara üret ve tekrar dene
           saleNumber = await this.generateSaleNumber(tenantId, dto.saleDate);
@@ -226,7 +273,7 @@ export class SalesService {
     }
     // 3 denemeden sonra hâlâ çakışıyorsa anlamlı mesaj ver
     throw new BadRequestException(
-      'Bu ay için oluşturulan satış numarası çakışıyor. Lütfen tekrar deneyin.'
+      'Bu ay için oluşturulan satış numarası çakışıyor. Lütfen tekrar deneyin.',
     );
   }
 
@@ -260,7 +307,8 @@ export class SalesService {
       let subtotal = 0;
       let taxAmount = 0;
       for (const item of items) {
-        const itemTotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+        const itemTotal =
+          (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
         const effectiveRate = await this.resolveTaxRate(tenantId, item);
         if (item.taxRate === undefined || item.taxRate === null) {
           item.taxRate = effectiveRate;

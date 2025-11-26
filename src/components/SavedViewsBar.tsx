@@ -90,7 +90,6 @@ export default function SavedViewsBar<State = any>({ listType, title, getState, 
       } catch {}
     }
     setDidAutoApply(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [views]);
 
   const handleSave = () => {

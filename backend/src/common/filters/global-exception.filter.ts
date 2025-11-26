@@ -20,14 +20,20 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let status: number;
     let message: string;
     let error: string;
-    let errorInfo: any;
+    let errorInfo: Record<string, unknown>;
+
+    const requestBody: unknown = request.body;
+    const requestQuery: unknown = request.query;
+    const requestParams: unknown = request.params;
+    const userAgent = this.normalizeHeader(request.headers['user-agent']);
+    const contentType = this.normalizeHeader(request.headers['content-type']);
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const errorResponse = exception.getResponse();
 
       // HttpException response'u object ise tüm alanları koru
-      if (typeof errorResponse === 'object' && errorResponse !== null) {
+      if (this.isRecord(errorResponse)) {
         errorInfo = {
           statusCode: status,
           timestamp: new Date().toISOString(),
@@ -36,7 +42,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           error: exception.name,
           ...errorResponse, // Tüm custom alanları dahil et (message, relatedExpenses, count vs.)
         };
-        message = (errorResponse as any).message || 'Error';
+        message = this.normalizeMessage(errorResponse.message) || 'Error';
       } else {
         message = typeof errorResponse === 'string' ? errorResponse : 'Error';
         errorInfo = {
@@ -64,23 +70,50 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     // Log detailed error information
-    this.logger.error(
-      `HTTP ${status} ${error} - ${message}`,
-      {
-        ...errorInfo,
-        stack: exception instanceof Error ? exception.stack : undefined,
-        body: request.method !== 'GET' ? request.body : undefined,
-        query: request.query,
-        params: request.params,
-        headers: {
-          'user-agent': request.headers['user-agent'],
-          authorization: request.headers.authorization ? '[HIDDEN]' : undefined,
-          'content-type': request.headers['content-type'],
-        },
+    const metadata = {
+      ...errorInfo,
+      stack: exception instanceof Error ? exception.stack : undefined,
+      body: request.method !== 'GET' ? requestBody : undefined,
+      query: requestQuery,
+      params: requestParams,
+      headers: {
+        'user-agent': userAgent,
+        authorization: request.headers.authorization ? '[HIDDEN]' : undefined,
+        'content-type': contentType,
       },
+    };
+
+    this.logger.error(
+      `HTTP ${status} ${error} - ${message} - meta=${JSON.stringify(metadata)}`,
       exception instanceof Error ? exception.stack : undefined,
     );
 
     response.status(status).json(errorInfo);
+  }
+
+  private normalizeHeader(
+    value: string | string[] | undefined,
+  ): string | undefined {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      return value[0];
+    }
+    return undefined;
+  }
+
+  private normalizeMessage(message: unknown): string | undefined {
+    if (typeof message === 'string') {
+      return message;
+    }
+    if (Array.isArray(message)) {
+      return message.join(', ');
+    }
+    return undefined;
+  }
+
+  private isRecord(value: unknown): value is Record<string, any> {
+    return typeof value === 'object' && value !== null;
   }
 }

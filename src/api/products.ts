@@ -54,7 +54,7 @@ export interface UpdateProductDto {
  * Tüm ürünleri listele (tenant-aware)
  */
 export const getProducts = async (): Promise<Product[]> => {
-  const response = await apiClient.get('/products');
+  const response = await apiClient.get<Product[]>('/products');
   return response.data;
 };
 
@@ -62,7 +62,7 @@ export const getProducts = async (): Promise<Product[]> => {
  * Düşük stoklu ürünleri getir
  */
 export const getLowStockProducts = async (): Promise<Product[]> => {
-  const response = await apiClient.get('/products/low-stock');
+  const response = await apiClient.get<Product[]>('/products/low-stock');
   return response.data;
 };
 
@@ -70,7 +70,7 @@ export const getLowStockProducts = async (): Promise<Product[]> => {
  * Tek ürün getir
  */
 export const getProduct = async (id: string): Promise<Product> => {
-  const response = await apiClient.get(`/products/${id}`);
+  const response = await apiClient.get<Product>(`/products/${id}`);
   return response.data;
 };
 
@@ -78,7 +78,7 @@ export const getProduct = async (id: string): Promise<Product> => {
  * Yeni ürün oluştur
  */
 export const createProduct = async (data: CreateProductDto): Promise<Product> => {
-  const response = await apiClient.post('/products', data);
+  const response = await apiClient.post<Product>('/products', data);
   return response.data;
 };
 
@@ -89,7 +89,7 @@ export const updateProduct = async (
   id: string,
   data: UpdateProductDto
 ): Promise<Product> => {
-  const response = await apiClient.patch(`/products/${id}`, data);
+  const response = await apiClient.patch<Product>(`/products/${id}`, data);
   return response.data;
 };
 

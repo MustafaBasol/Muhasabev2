@@ -67,7 +67,7 @@ export interface UpdateInvoiceDto {
  * Tüm faturaları listele
  */
 export const getInvoices = async (): Promise<Invoice[]> => {
-  const response = await apiClient.get('/invoices');
+  const response = await apiClient.get<Invoice[]>('/invoices');
   return response.data;
 };
 
@@ -75,7 +75,7 @@ export const getInvoices = async (): Promise<Invoice[]> => {
  * Tek fatura getir
  */
 export const getInvoice = async (id: string): Promise<Invoice> => {
-  const response = await apiClient.get(`/invoices/${id}`);
+  const response = await apiClient.get<Invoice>(`/invoices/${id}`);
   return response.data;
 };
 
@@ -83,7 +83,7 @@ export const getInvoice = async (id: string): Promise<Invoice> => {
  * Yeni fatura oluştur
  */
 export const createInvoice = async (data: CreateInvoiceDto): Promise<Invoice> => {
-  const response = await apiClient.post('/invoices', data);
+  const response = await apiClient.post<Invoice>('/invoices', data);
   return response.data;
 };
 
@@ -94,7 +94,7 @@ export const updateInvoice = async (
   id: string,
   data: UpdateInvoiceDto
 ): Promise<Invoice> => {
-  const response = await apiClient.patch(`/invoices/${id}`, data);
+  const response = await apiClient.patch<Invoice>(`/invoices/${id}`, data);
   return response.data;
 };
 
@@ -105,7 +105,7 @@ export const updateInvoiceStatus = async (
   id: string,
   status: InvoiceStatus
 ): Promise<Invoice> => {
-  const response = await apiClient.patch(`/invoices/${id}/status`, { status });
+  const response = await apiClient.patch<Invoice>(`/invoices/${id}/status`, { status });
   return response.data;
 };
 
@@ -120,7 +120,7 @@ export const deleteInvoice = async (id: string): Promise<void> => {
  * Fatura iptal et (void)
  */
 export const voidInvoice = async (id: string, reason: string): Promise<Invoice> => {
-  const response = await apiClient.patch(`/invoices/${id}/void`, { reason });
+  const response = await apiClient.patch<Invoice>(`/invoices/${id}/void`, { reason });
   return response.data;
 };
 
@@ -128,6 +128,6 @@ export const voidInvoice = async (id: string, reason: string): Promise<Invoice> 
  * Fatura geri yükle (restore)
  */
 export const restoreInvoice = async (id: string): Promise<Invoice> => {
-  const response = await apiClient.patch(`/invoices/${id}/restore`);
+  const response = await apiClient.patch<Invoice>(`/invoices/${id}/restore`);
   return response.data;
 };

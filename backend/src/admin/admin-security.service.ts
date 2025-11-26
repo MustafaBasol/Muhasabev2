@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AdminConfig } from './entities/admin-config.entity';
@@ -9,7 +13,8 @@ import * as QRCode from 'qrcode';
 @Injectable()
 export class AdminSecurityService {
   constructor(
-    @InjectRepository(AdminConfig) private readonly configRepo: Repository<AdminConfig>,
+    @InjectRepository(AdminConfig)
+    private readonly configRepo: Repository<AdminConfig>,
     private readonly security: SecurityService,
   ) {}
 
@@ -19,7 +24,9 @@ export class AdminSecurityService {
       const username = process.env.ADMIN_USERNAME || 'admin';
       const hash = process.env.ADMIN_PASSWORD_HASH
         ? process.env.ADMIN_PASSWORD_HASH
-        : this.security.hashPasswordSync(process.env.ADMIN_PASSWORD || 'admin123');
+        : this.security.hashPasswordSync(
+            process.env.ADMIN_PASSWORD || 'admin123',
+          );
       const seed: Partial<AdminConfig> = {
         id: 1,
         username,
@@ -42,15 +49,24 @@ export class AdminSecurityService {
     };
   }
 
-  async updateCredentials(currentPassword: string, newUsername?: string, newPassword?: string) {
+  async updateCredentials(
+    currentPassword: string,
+    newUsername?: string,
+    newPassword?: string,
+  ) {
     const cfg = await this.getOrInit();
-    const ok = await this.security.comparePassword(currentPassword, cfg.passwordHash);
+    const ok = await this.security.comparePassword(
+      currentPassword,
+      cfg.passwordHash,
+    );
     if (!ok) throw new UnauthorizedException('Mevcut şifre hatalı');
     if (newUsername && newUsername.trim()) cfg.username = newUsername.trim();
     if (newPassword && newPassword.length >= 8) {
       const score = this.security.evaluatePasswordStrength(newPassword);
       if (score.score < 3) {
-        throw new UnauthorizedException('Yeni şifre zayıf. En az 12 karakter ve karmaşık olmalı.');
+        throw new UnauthorizedException(
+          'Yeni şifre zayıf. En az 12 karakter ve karmaşık olmalı.',
+        );
       }
       cfg.passwordHash = await this.security.hashPassword(newPassword);
     }
@@ -60,7 +76,10 @@ export class AdminSecurityService {
 
   async begin2FASetup() {
     const cfg = await this.getOrInit();
-    const secret = speakeasy.generateSecret({ name: 'Admin Panel', length: 20 });
+    const secret = speakeasy.generateSecret({
+      name: 'Admin Panel',
+      length: 20,
+    });
     // Geçici olarak secret'ı kaydet ve 2FA etkin değil işaretli kalsın
     cfg.twoFactorSecret = secret.base32;
     await this.configRepo.save(cfg);
@@ -71,7 +90,8 @@ export class AdminSecurityService {
 
   async verify2FA(token: string) {
     const cfg = await this.getOrInit();
-    if (!cfg.twoFactorSecret) throw new NotFoundException('2FA kurulumu başlatılmadı');
+    if (!cfg.twoFactorSecret)
+      throw new NotFoundException('2FA kurulumu başlatılmadı');
     const verified = speakeasy.totp.verify({
       secret: cfg.twoFactorSecret,
       encoding: 'base32',
@@ -104,11 +124,18 @@ export class AdminSecurityService {
     if (cfg.twoFactorEnabled) {
       if (!totp) return false;
       // Önce TOTP doğrula
-      const isTotp = speakeasy.totp.verify({ secret: cfg.twoFactorSecret!, encoding: 'base32', token: totp, window: 1 });
+      const isTotp = speakeasy.totp.verify({
+        secret: cfg.twoFactorSecret!,
+        encoding: 'base32',
+        token: totp,
+        window: 1,
+      });
       if (isTotp) return true;
       // TOTP başarısızsa tek kullanımlık kurtarma kodlarını dene
       if (Array.isArray(cfg.recoveryCodes) && cfg.recoveryCodes.length > 0) {
-        const idx = cfg.recoveryCodes.findIndex((c) => c && String(c).trim() === String(totp).trim());
+        const idx = cfg.recoveryCodes.findIndex(
+          (c) => c && String(c).trim() === String(totp).trim(),
+        );
         if (idx >= 0) {
           const next = [...cfg.recoveryCodes];
           next.splice(idx, 1); // tek kullanımlık: kullanılan kodu kaldır

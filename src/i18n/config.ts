@@ -33,10 +33,16 @@ import frAbout from '../locales/fr/about.json';
 function normalizeCommonResource(obj: any) {
   try {
     if (!obj || typeof obj !== 'object') return obj || {};
-    const copy: any = { ...obj };
+    let copy: any = { ...obj };
     // If file mistakenly nests keys under a top-level `common`, hoist them to root
     if (copy.common && typeof copy.common === 'object') {
-      Object.assign(copy, copy.common);
+      const nestedCommon = copy.common;
+      copy = { ...nestedCommon, ...copy };
+      // Merge status dictionaries rather than overriding richer roots
+      if (nestedCommon.status && typeof nestedCommon.status === 'object') {
+        const currentStatus = copy.status && typeof copy.status === 'object' ? copy.status : {};
+        copy.status = { ...nestedCommon.status, ...currentStatus };
+      }
     }
     // If planTab was mistakenly placed under other nodes (e.g., pdf or dpa), hoist it
     if (!copy.planTab) {
@@ -61,6 +67,35 @@ function normalizeCommonResource(obj: any) {
           for (const k of Object.keys(cur)) {
             const v = (cur as any)[k];
             if (v && typeof v === 'object') stack.push(v);
+          }
+        }
+      }
+    }
+    // Bazı TR dosyalarında pdf çevirileri legal altına sıkışmış durumda; köke taşı.
+    if (!copy.pdf || typeof copy.pdf !== 'object') {
+      const legalPdf = copy.legal && typeof copy.legal === 'object' ? (copy.legal as any).pdf : undefined;
+      if (legalPdf && typeof legalPdf === 'object') {
+        copy.pdf = legalPdf;
+        try {
+          delete (copy.legal as any).pdf;
+        } catch {
+          /* no-op */
+        }
+      } else {
+        // Derin aramada ilk pdf dalını bulup hoist et
+        const seen = new WeakSet();
+        const stack: any[] = [copy];
+        while (stack.length && (!copy.pdf || typeof copy.pdf !== 'object')) {
+          const cur = stack.pop();
+          if (!cur || typeof cur !== 'object' || seen.has(cur)) continue;
+          seen.add(cur);
+          if (Object.prototype.hasOwnProperty.call(cur, 'pdf') && typeof cur.pdf === 'object') {
+            copy.pdf = cur.pdf;
+            break;
+          }
+          for (const key of Object.keys(cur)) {
+            const val = (cur as any)[key];
+            if (val && typeof val === 'object') stack.push(val);
           }
         }
       }
@@ -113,7 +148,8 @@ function normalizeCommonResource(obj: any) {
       copy.org.members = obj.org.members;
     }
     return copy;
-  } catch {
+  } catch (error) {
+    console.warn('[i18n] normalizeCommonResource failed, using fallback tree.', error);
     return obj || {};
   }
 }
@@ -121,13 +157,19 @@ function normalizeCommonResource(obj: any) {
 const trCommon = normalizeCommonResource(trCommonRaw as any);
 // Türkçe org.members yoksa ek bundle'dan ekle
 try {
-  if (!trCommon.org || !trCommon.org.members) {
-    if ((trOrgMembers as any)?.org?.members) {
-      trCommon.org = trCommon.org || {};
-      trCommon.org.members = (trOrgMembers as any).org.members;
+  const supplemental = (trOrgMembers as any)?.org;
+  if (supplemental) {
+    trCommon.org = trCommon.org || {};
+    if (!trCommon.org.members && supplemental.members) {
+      trCommon.org.members = supplemental.members;
+    }
+    if (!trCommon.org.join && supplemental.join) {
+      trCommon.org.join = supplemental.join;
     }
   }
-} catch {}
+} catch (error) {
+  console.warn('[i18n] Türkçe org.members merge skipped:', error);
+}
 const enCommon = normalizeCommonResource(enCommonRaw as any);
 const deCommon = normalizeCommonResource(deCommonRaw as any);
 const frCommon = normalizeCommonResource(frCommonRaw as any);
@@ -221,5 +263,4 @@ export default i18n;
 
 // Debug için tarayıcıya i18n referansı ekle
 // (Üretimde kaldırılabilir)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).i18next = i18n;

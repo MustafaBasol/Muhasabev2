@@ -3,18 +3,119 @@ import { X, FileText, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import type { Quote } from '../api/quotes';
+import { logger } from '../utils/logger';
+import { readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
+
+interface InvoiceLike {
+  invoiceNumber?: string;
+  issueDate?: string;
+  total?: number;
+  status?: unknown;
+}
+
+interface SaleLike {
+  id?: string | number;
+  saleNumber?: string;
+  customerName?: string;
+  customerEmail?: string;
+  productName?: string;
+  date?: string;
+  saleDate?: string;
+  createdAt?: string;
+  amount?: number;
+  status?: unknown;
+}
+
+interface CustomerSummary {
+  name: string;
+  email?: string;
+}
 
 interface CustomerHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  customer: { name: string; email?: string } | null;
-  invoices: any[];
-  sales?: any[];
-  onViewInvoice?: (invoice: any) => void;
-  onCreateInvoice?: (customer: any) => void;
-  onViewSale?: (sale: any) => void;
-  onViewQuote?: (quote: any) => void;
+  customer: CustomerSummary | null;
+  invoices: InvoiceLike[];
+  sales?: SaleLike[];
+  onViewInvoice?: (invoice: InvoiceLike) => void;
+  onCreateInvoice?: (customer: CustomerSummary) => void;
+  onViewSale?: (sale: SaleLike) => void;
+  onViewQuote?: (quote: QuoteCacheEntry) => void;
 }
+
+type QuoteCacheEntry = Pick<Quote, 'id' | 'quoteNumber' | 'customerName' | 'issueDate' | 'total' | 'status' | 'version' | 'currency'> & {
+  customerEmail?: string | null;
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === null || proto === Object.prototype;
+};
+
+const ensureString = (value: unknown, fallback = ''): string => (typeof value === 'string' ? value : fallback);
+
+const ensureNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
+const normalizeComparable = (value?: string | null): string => (typeof value === 'string' ? value.trim().toLowerCase() : '');
+
+const sanitizeQuoteEntry = (value: unknown, fallbackId: string): QuoteCacheEntry | null => {
+  if (!isPlainObject(value)) return null;
+  const id = ensureString(value.id).trim() || fallbackId;
+  const quoteNumber = ensureString(value.quoteNumber).trim() || fallbackId;
+  const customerName = ensureString(value.customerName).trim();
+  const issueDate = ensureString(value.issueDate).slice(0, 10) || undefined;
+  const total = ensureNumber(value.total);
+  const version = typeof value.version === 'number' ? value.version : undefined;
+  const status = ensureString(value.status).toLowerCase() as Quote['status'] | undefined;
+  const currency = ensureString(value.currency) || undefined;
+  const customerEmail = ensureString(value.customerEmail) || undefined;
+  return {
+    id,
+    quoteNumber,
+    customerName,
+    issueDate,
+    total,
+    status,
+    version,
+    currency,
+    customerEmail,
+  };
+};
+
+const readCustomerQuotes = (customerName?: string, customerEmail?: string): QuoteCacheEntry[] => {
+  try {
+    const tid = readLegacyTenantId() || '';
+    const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
+    const raw = safeLocalStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const normalizedName = normalizeComparable(customerName);
+    const normalizedEmail = normalizeComparable(customerEmail);
+    return parsed
+      .map((entry, index) => sanitizeQuoteEntry(entry, `quote-${index}`))
+      .filter((quote): quote is QuoteCacheEntry => Boolean(quote))
+      .filter((quote) => {
+        const quoteName = normalizeComparable(quote.customerName);
+        const quoteEmail = normalizeComparable(quote.customerEmail);
+        const matchesName = normalizedName ? quoteName === normalizedName : false;
+        const matchesEmail = normalizedEmail ? quoteEmail === normalizedEmail : false;
+        return matchesName || matchesEmail;
+      });
+  } catch (error) {
+    logger.warn('[CustomerHistoryModal] Failed to read quote cache', error);
+    return [];
+  }
+};
 
 export default function CustomerHistoryModal({ 
   isOpen, 
@@ -29,6 +130,23 @@ export default function CustomerHistoryModal({
 }: CustomerHistoryModalProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
+  const normalizedCustomerName = normalizeComparable(customer?.name);
+  const normalizedCustomerEmail = normalizeComparable(customer?.email);
+  const customerSales = useMemo(() => {
+    if (!sales.length) return [];
+    if (!normalizedCustomerName && !normalizedCustomerEmail) return [];
+    return sales.filter(sale => {
+      const saleName = normalizeComparable(sale.customerName);
+      const saleEmail = normalizeComparable(sale.customerEmail);
+      const matchesName = normalizedCustomerName ? saleName === normalizedCustomerName : false;
+      const matchesEmail = normalizedCustomerEmail ? saleEmail === normalizedCustomerEmail : false;
+      return matchesName || matchesEmail;
+    });
+  }, [sales, normalizedCustomerName, normalizedCustomerEmail]);
+  const customerQuotes = useMemo(
+    () => readCustomerQuotes(customer?.name, customer?.email),
+    [customer?.name, customer?.email]
+  );
   
   const statusLabels = useMemo(() => ({
     paid: `✅ ${resolveStatusLabel(t, 'paid')}`,
@@ -39,31 +157,15 @@ export default function CustomerHistoryModal({
   
   if (!isOpen || !customer) return null;
   
-  // Filter sales for this customer
-  const customerSales = sales.filter(sale => {
-    const nameMatch = sale.customerName === customer.name;
-    const emailMatch = sale.customerEmail === customer.email;
-    return nameMatch || emailMatch;
-  });
-
-  // Quotes: localStorage'dan oku ve müşteriye ait olanları listele
-  let customerQuotes: Array<any> = [];
-  try {
-    const tid = localStorage.getItem('tenantId') || '';
-    const key = tid ? `quotes_cache_${tid}` : 'quotes_cache';
-    const raw = localStorage.getItem(key);
-    const list = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(list)) {
-      customerQuotes = list.filter((q: any) => q?.customerName === customer.name);
-    }
-  } catch {}
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '—';
+    const value = new Date(dateString);
+    return Number.isNaN(value.getTime()) ? '—' : value.toLocaleDateString('tr-TR');
   };
 
-  const formatAmount = (amount: number) => {
-    return formatCurrency(amount);
+  const formatAmount = (amount?: number | null) => {
+    const value = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
+    return formatCurrency(value);
   };
 
   return (
@@ -134,13 +236,13 @@ export default function CustomerHistoryModal({
                         </div>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-3 h-3 mr-1" />
-                          {new Date(q.issueDate).toLocaleDateString('tr-TR')}
+                          {formatDate(q.issueDate)}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-gray-900">
-                        {formatAmount(Number(q.total || 0))}
+                        {formatAmount(q.total)}
                       </div>
                       <div className="text-xs text-gray-500">
                         {(() => {
@@ -174,7 +276,7 @@ export default function CustomerHistoryModal({
                         <p className="text-sm text-gray-600">{sale.productName}</p>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-3 h-3 mr-1" />
-                          {formatDate(sale.date)}
+                          {formatDate(sale.date || sale.saleDate || sale.createdAt)}
                         </div>
                       </div>
                     </div>
@@ -190,7 +292,7 @@ export default function CustomerHistoryModal({
                             pending: `⏳ ${resolveStatusLabel(t, 'pending')}`,
                             cancelled: `❌ ${resolveStatusLabel(t, 'cancelled')}`
                           } as const;
-                          return (map as any)[key] || resolveStatusLabel(t, key);
+                          return key in map ? map[key as keyof typeof map] : resolveStatusLabel(t, key);
                         })()}
                       </div>
                     </div>
@@ -212,7 +314,7 @@ export default function CustomerHistoryModal({
                           className="font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
                           title={t('common.view', { defaultValue: 'Görüntüle' }) as string}
                         >
-                          {invoice.invoiceNumber}
+                          {invoice.invoiceNumber || t('invoices.unnamed', { defaultValue: 'Fatura' })}
                         </button>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-3 h-3 mr-1" />

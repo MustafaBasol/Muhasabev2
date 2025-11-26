@@ -5,10 +5,13 @@ import ExpenseViewModal from './ExpenseViewModal';
 import SaleViewModal from './SaleViewModal';
 import { useCurrency } from '../contexts/CurrencyContext';
 import Pagination from './Pagination';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import type { Sale } from '../types';
+import type { ExpenseRecord, InvoiceRecord } from '../types/records';
 
 // --- Helpers ---
 // Sayısal stringleri güvenli biçimde sayıya çevir ("2000.00", "2.000,00", "2,000.00")
-export const toNumber = (v: any): number => {
+export const toNumber = (v: unknown): number => {
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
   const s = String(v).trim();
@@ -48,23 +51,23 @@ interface LedgerEntry {
   displayCredit?: number;
   balance: number;
   type: 'invoice' | 'expense' | 'sale';
-  originalData: any;
+  originalData: InvoiceRecord | ExpenseRecord | Sale;
 }
 
 interface GeneralLedgerProps {
-  invoices: any[];
-  expenses: any[];
-  sales: any[];
-  onViewInvoice?: (invoice: any) => void;
-  onEditInvoice?: (invoice: any) => void;
-  onViewExpense?: (expense: any) => void;
-  onEditExpense?: (expense: any) => void;
-  onViewSale?: (sale: any) => void;
-  onEditSale?: (sale: any) => void;
+  invoices: InvoiceRecord[];
+  expenses: ExpenseRecord[];
+  sales: Sale[];
+  onViewInvoice?: (invoice: InvoiceRecord) => void;
+  onEditInvoice?: (invoice: InvoiceRecord) => void;
+  onViewExpense?: (expense: ExpenseRecord) => void;
+  onEditExpense?: (expense: ExpenseRecord) => void;
+  onViewSale?: (sale: Sale) => void;
+  onEditSale?: (sale: Sale) => void;
   onViewEntry?: (entry: LedgerEntry) => void;
-  onInvoicesUpdate?: (invoices: any[]) => void;
-  onExpensesUpdate?: (expenses: any[]) => void;
-  onSalesUpdate?: (sales: any[]) => void;
+  onInvoicesUpdate?: (invoices: InvoiceRecord[]) => void;
+  onExpensesUpdate?: (expenses: ExpenseRecord[]) => void;
+  onSalesUpdate?: (sales: Sale[]) => void;
 }
 
 export default function GeneralLedger({
@@ -81,36 +84,41 @@ export default function GeneralLedger({
   const [customerSearch] = useState('');
   const [categoryFilter] = useState('');
   const [typeFilter] = useState('all');
-  const [viewingInvoice, setViewingInvoice] = useState<any>(null);
-  const [viewingExpense, setViewingExpense] = useState<any>(null);
-  const [viewingSale, setViewingSale] = useState<any>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<InvoiceRecord | null>(null);
+  const [viewingExpense, setViewingExpense] = useState<ExpenseRecord | null>(null);
+  const [viewingSale, setViewingSale] = useState<Sale | null>(null);
+  const LEDGER_PAGE_SIZES = [20, 50, 100] as const;
+  const isValidLedgerPageSize = (value: number): value is (typeof LEDGER_PAGE_SIZES)[number] =>
+    LEDGER_PAGE_SIZES.includes(value as (typeof LEDGER_PAGE_SIZES)[number]);
+  const getSavedLedgerPageSize = (): number => {
+    const saved = safeLocalStorage.getItem('ledger_pageSize');
+    const parsed = saved ? Number(saved) : LEDGER_PAGE_SIZES[0];
+    return isValidLedgerPageSize(parsed) ? parsed : LEDGER_PAGE_SIZES[0];
+  };
+
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('ledger_pageSize') : null;
-    const n = saved ? Number(saved) : 20;
-    return [20, 50, 100].includes(n) ? n : 20;
-  });
+  const [pageSize, setPageSize] = useState<number>(() => getSavedLedgerPageSize());
 
   // Convert all transactions to ledger entries
   const entries: LedgerEntry[] = useMemo(() => {
     const entries: LedgerEntry[] = [];
-    const allTransactions: Array<{ date: string; type: 'invoice' | 'expense' | 'sale'; data: any; }> = [];
+    const allTransactions: Array<{ date: string; type: 'invoice' | 'expense' | 'sale'; data: InvoiceRecord | ExpenseRecord | Sale; }> = [];
 
     // Helpers to robustly get amounts
-    const getInvoiceTotal = (inv: any): number => {
+    const getInvoiceTotal = (inv: InvoiceRecord): number => {
       if (inv == null) return 0;
       if (inv.total != null) return toNumber(inv.total);
       if (inv.amount != null) return toNumber(inv.amount);
       if (Array.isArray(inv.items)) {
-        return inv.items.reduce((sum: number, it: any) => sum + toNumber(it.quantity) * toNumber(it.unitPrice), 0);
+        return inv.items.reduce((sum: number, it) => sum + toNumber(it.quantity) * toNumber(it.unitPrice), 0);
       }
       return 0;
     };
-    const getExpenseAmount = (exp: any): number => {
+    const getExpenseAmount = (exp: ExpenseRecord): number => {
       if (exp == null) return 0;
       return toNumber(exp.amount);
     };
-    const getSaleAmount = (sale: any): number => {
+    const getSaleAmount = (sale: Sale): number => {
       if (sale?.amount != null) return toNumber(sale.amount);
       return toNumber(sale?.quantity) * toNumber(sale?.unitPrice);
     };
@@ -259,10 +267,9 @@ export default function GeneralLedger({
   }, [typeFilter, searchTerm, startDate, endDate, customerSearch, categoryFilter]);
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ledger_pageSize', String(size));
-    }
+    const nextSize = isValidLedgerPageSize(size) ? size : LEDGER_PAGE_SIZES[0];
+    setPageSize(nextSize);
+    safeLocalStorage.setItem('ledger_pageSize', String(nextSize));
     setPage(1);
   };
 
@@ -270,7 +277,7 @@ export default function GeneralLedger({
   const formatAmount = (n: number) =>
     formatCurrency(n || 0);
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (type: 'invoice' | 'expense' | 'sale') => {
     if (type === 'invoice') {
       return (
         <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">

@@ -10,6 +10,11 @@ import { TurnstileService } from './turnstile.service';
 @Module({
   imports: [FiscalPeriodsModule, TypeOrmModule.forFeature([Invoice, Expense])],
   providers: [PeriodLockGuard, TurnstileService],
-  exports: [PeriodLockGuard, FiscalPeriodsModule, TypeOrmModule, TurnstileService],
+  exports: [
+    PeriodLockGuard,
+    FiscalPeriodsModule,
+    TypeOrmModule,
+    TurnstileService,
+  ],
 })
 export class CommonModule {}

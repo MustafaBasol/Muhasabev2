@@ -8,25 +8,37 @@ import {
   DollarSign,
   Calendar
 } from 'lucide-react';
-import type { Product } from './ProductList';
+import type { Product } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+
+type ProductWithMeta = Product & {
+  createdByName?: string;
+  updatedByName?: string;
+  updatedAt?: string;
+};
 
 interface ProductViewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  product: Product | null;
-  onEdit?: (product: Product) => void;
+  product: ProductWithMeta | null;
+  onEdit?: (product: ProductWithMeta) => void;
 }
 
 export default function ProductViewModal({ isOpen, onClose, product, onEdit }: ProductViewModalProps) {
   const { formatCurrency } = useCurrency();
-  const { t, i18n } = useTranslation();
-  const getActiveLang = () => {
+  const { i18n } = useTranslation();
+  const getStoredLanguage = (): string | null => {
     try {
-      const stored = localStorage.getItem('i18nextLng');
-      if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
-    } catch {}
+      return safeLocalStorage.getItem('i18nextLng');
+    } catch {
+      return null;
+    }
+  };
+  const getActiveLang = () => {
+    const stored = getStoredLanguage();
+    if (stored && stored.length >= 2) return stored.slice(0,2).toLowerCase();
     const cand = (i18n.resolvedLanguage || i18n.language || 'en') as string;
     return cand.slice(0,2).toLowerCase();
   };
@@ -101,12 +113,12 @@ export default function ProductViewModal({ isOpen, onClose, product, onEdit }: P
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{L.recordInfo}</h3>
             <div className="mt-3 grid gap-4 sm:grid-cols-2 text-xs text-gray-600">
               <div>
-                <div>{L.createdBy}: <span className="font-medium">{(product as any).createdByName || '—'}</span></div>
-                <div>{L.createdAt}: <span className="font-medium">{(product as any).createdAt ? new Date((product as any).createdAt).toLocaleString(toLocale(lang)) : '—'}</span></div>
+                <div>{L.createdBy}: <span className="font-medium">{product.createdByName || '—'}</span></div>
+                <div>{L.createdAt}: <span className="font-medium">{product.createdAt ? new Date(product.createdAt).toLocaleString(toLocale(lang)) : '—'}</span></div>
               </div>
               <div>
-                <div>{L.updatedBy}: <span className="font-medium">{(product as any).updatedByName || '—'}</span></div>
-                <div>{L.updatedAt}: <span className="font-medium">{(product as any).updatedAt ? new Date((product as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span></div>
+                <div>{L.updatedBy}: <span className="font-medium">{product.updatedByName || '—'}</span></div>
+                <div>{L.updatedAt}: <span className="font-medium">{product.updatedAt ? new Date(product.updatedAt).toLocaleString(toLocale(lang)) : '—'}</span></div>
               </div>
             </div>
           </section>

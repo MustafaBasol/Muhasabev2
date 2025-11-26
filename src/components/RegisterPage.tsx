@@ -5,13 +5,15 @@ import { useTranslation } from 'react-i18next';
 import LegalHeader from './LegalHeader';
 import TurnstileCaptcha from './TurnstileCaptcha';
 import { isEmailVerificationRequired } from '../utils/emailVerification';
+import { safeLocalStorage, safeSessionStorage } from '../utils/localStorageSafe';
 
 export default function RegisterPage() {
   const { register, isLoading } = useAuth();
   const { t } = useTranslation();
   const [formData, setFormData] = useState(() => {
-    let prefill = '';
-    try { prefill = sessionStorage.getItem('prefill_email') || localStorage.getItem('prefill_email') || ''; } catch {}
+    const prefill = safeSessionStorage.getItem('prefill_email')
+      || safeLocalStorage.getItem('prefill_email')
+      || '';
     return {
       name: '',
       email: prefill,
@@ -32,20 +34,21 @@ export default function RegisterPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendLoading, setResendLoading] = useState(false);
   const [emailConflict, setEmailConflict] = useState<{ email: string } | null>(null);
+  const hasPendingInviteToken = Boolean(
+    safeSessionStorage.getItem('pending_invite_token') || safeLocalStorage.getItem('pending_invite_token')
+  );
 
   // Mount olduğunda eğer daha önce başlatılmış bir doğrulama süreci varsa banner'ı tekrar göster
   useEffect(() => {
     // Join sayfasından gelen e-posta prefill'i bir kez kullanıldıysa temizle
-    try { sessionStorage.removeItem('prefill_email'); } catch {}
-    try { localStorage.removeItem('prefill_email'); } catch {}
-    try {
-      const pending = sessionStorage.getItem('pending_verification_email');
-      const verificationRequired = isEmailVerificationRequired();
-      if (verificationRequired && pending) {
-        setPendingVerificationEmail(pending);
-        setSuccess('Hesabınız oluşturuldu. Lütfen e-postanızı kontrol edin ve doğrulama bağlantısına tıklayın.');
-      }
-    } catch {}
+    safeSessionStorage.removeItem('prefill_email');
+    safeLocalStorage.removeItem('prefill_email');
+    const pending = safeSessionStorage.getItem('pending_verification_email');
+    const verificationRequired = isEmailVerificationRequired();
+    if (verificationRequired && pending) {
+      setPendingVerificationEmail(pending);
+      setSuccess('Hesabınız oluşturuldu. Lütfen e-postanızı kontrol edin ve doğrulama bağlantısına tıklayın.');
+    }
   }, []);
 
   useEffect(() => {
@@ -253,8 +256,8 @@ export default function RegisterPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  disabled={Boolean(sessionStorage.getItem('pending_invite_token') || localStorage.getItem('pending_invite_token'))}
-                  className={`w-full pl-10 pr-4 py-3 border ${(sessionStorage.getItem('pending_invite_token') || localStorage.getItem('pending_invite_token')) ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'border-gray-300'} rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                  disabled={hasPendingInviteToken}
+                  className={`w-full pl-10 pr-4 py-3 border ${hasPendingInviteToken ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'border-gray-300'} rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                   placeholder={t('auth.emailPlaceholder', 'ornek@email.com')}
                   required
                 />

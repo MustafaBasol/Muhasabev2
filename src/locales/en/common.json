@@ -31,8 +31,9 @@
     "features.vat.desc": "Clear period reports with input/output VAT highlights.",
     "features.fx.title": "Multi-Currency",
     "features.fx.desc": "System currency options: USD, EUR, TRY",
-    "value.title": "Scales from freelancers to SMBs",
-    "security.title": "Security & Compliance",
+  "receiptUrl": "Receipt/Invoice URL",
+  "receiptUrlHelper": "You can add a link to the receipt/invoice image or PDF",
+  "exportCsv": "Export CSV",
     "security.items": "EU hosting (placeholder), encryption in transit and at rest, automated backups.",
     "testimonials.title": "What our users say",
     "pricing.title": "Simple pricing",
@@ -286,6 +287,16 @@
     "captchaRequired": "Please complete the human verification.",
     "captchaPrompt": "Please complete the human verification before continuing.",
     "captchaVerificationFailed": "We couldn't confirm the human verification. Please try again.",
+    "verifyRequiredTitle": "Email verification required",
+    "verifyRequiredBody": "We sent a verification link to {{email}}. Please confirm your address to unlock the workspace.",
+    "verifyRequiredHint": "Access to accounting actions stays locked until the email is verified.",
+    "verifyRequiredAction": "Open verification status",
+    "verifyRequiredLogout": "Sign out",
+    "verifyYourEmail": "Verify your email",
+    "verifySentTo": "Verification link sent to:",
+    "verifySent": "We've sent a verification link to your email address.",
+    "resend": "Resend",
+    "resendCooldown": "For security, a 60 second wait applies",
     "securityVerificationRequired": "Security verification required. Please complete the verification.",
     "emailNotVerified": "Email not verified yet. Please verify your email to continue.",
     "verificationEmailSent": "Verification email sent. Please check your inbox.",
@@ -388,10 +399,25 @@
     "quantity": "Quantity",
     "statusLabel": "Status",
     "status": {
-      "pending": "Pending",
-      "approved": "Approved",
       "paid": "Paid",
-      "rejected": "Rejected"
+      "unpaid": "Unpaid",
+      "pending": "Pending",
+      "overdue": "Overdue",
+      "draft": "Draft",
+      "sent": "Sent",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "active": "Active",
+      "inactive": "Inactive",
+      "viewed": "Viewed",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired",
+      "invoiced": "Invoiced",
+      "created": "Created",
+      "refunded": "Refunded"
     },
     "notes": "Notes"
   },
@@ -1025,6 +1051,7 @@
     "edit": "Edit",
     "download": "Download", 
     "delete": "Delete",
+    "exportCsv": "Export CSV",
     "viewExpense": "View expense",
     "enterExpenseDetails": "Enter expense details",
     "editExpense": "Edit Expense",
@@ -1356,6 +1383,10 @@
     "invoiceWillBeDownloaded": "If an invoice is created, it will be automatically downloaded in PDF format.",
     "confirmInvoiceCreation": "Create invoice?",
     "invoiceWillOpen": "The invoice will open in the viewing window after creation.",
+    "recordOnlySale": "Record Sale Only",
+    "recordSaleWithInvoice": "Record Sale + Invoice",
+    "confirmInvoiceAction": "Yes, Create",
+    "creatingInvoice": "Creating...",
     "selectExistingSale": "Select Existing Sale",
     "selectSaleForInvoice": "Select a sale to create invoice",
     "searchSalesPlaceholder": "Search by sale number, customer or product...",
@@ -2111,6 +2142,39 @@
         "expires": "Expires on {{date}}",
         "resendSuccess": "Invitation resent successfully",
         "cancelSuccess": "Invitation cancelled successfully"
+      }
+    },
+    "join": {
+      "title": "Join Organization",
+      "subtitle": "You have been invited to join {{orgName}}",
+      "invitedBy": "Invited by {{name}}",
+      "role": "Role: {{role}}",
+      "accept": "Accept Invitation",
+      "decline": "Decline",
+      "expired": {
+        "title": "Invitation Expired",
+        "subtitle": "This invitation link has expired",
+        "action": "Request a new invitation"
+      },
+      "invalid": {
+        "title": "Invalid Invitation",
+        "subtitle": "This invitation link is not valid",
+        "action": "Go to homepage"
+      },
+      "success": {
+        "title": "You're In!",
+        "subtitle": "You have successfully joined {{orgName}}",
+        "action": "Go to dashboard"
+      },
+      "error": {
+        "title": "Something Went Wrong",
+        "subtitle": "We couldn't process your invitation",
+        "tryAgain": "Try again"
+      },
+      "alreadyMember": {
+        "title": "Already a Member",
+        "subtitle": "You already belong to this organization",
+        "action": "Open dashboard"
       }
     }
   },

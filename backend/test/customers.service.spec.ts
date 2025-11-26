@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { CustomersService } from '../src/customers/customers.service';
 import { TenantPlanLimitService } from '../src/common/tenant-plan-limits.service';
 

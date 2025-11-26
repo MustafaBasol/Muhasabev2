@@ -14,9 +14,16 @@ export interface SecurityEvent {
   userId?: string;
   ip: string;
   userAgent?: string;
-  details?: any;
+  details?: SecurityEventDetail;
   timestamp: Date;
 }
+
+export type SecurityEventDetail =
+  | Record<string, unknown>
+  | string
+  | number
+  | boolean
+  | Array<unknown>;
 
 @Injectable()
 export class SecurityLoggerService {
@@ -35,12 +42,14 @@ export class SecurityLoggerService {
     this.securityEvents.push(securityEvent);
 
     // Console'a da logla
-    this.logger.warn(`🔒 Security Event: ${event.type}`, {
-      type: event.type,
-      userId: event.userId,
-      ip: event.ip,
-      details: event.details,
-    });
+    this.logger.warn(
+      `🔒 Security Event: ${event.type} - meta=${JSON.stringify({
+        userId: event.userId,
+        ip: event.ip,
+        userAgent: event.userAgent,
+        details: event.details,
+      })}`,
+    );
 
     // Kritik olaylar için özel işlem
     if (['suspicious_activity', 'rate_limit_exceeded'].includes(event.type)) {
@@ -57,7 +66,9 @@ export class SecurityLoggerService {
    * Kritik güvenlik olayları için özel işlem
    */
   private handleCriticalEvent(event: SecurityEvent) {
-    this.logger.error(`🚨 CRITICAL Security Event: ${event.type}`, event);
+    this.logger.error(
+      `🚨 CRITICAL Security Event: ${event.type} - meta=${JSON.stringify(event)}`,
+    );
 
     // Production'da bu olayları harici sisteme gönder
     // - Email notification
@@ -67,7 +78,10 @@ export class SecurityLoggerService {
     if (process.env.NODE_ENV === 'production') {
       // Webhook example
       this.sendSecurityAlert(event).catch((err) =>
-        this.logger.error('Failed to send security alert:', err),
+        this.logger.error(
+          `Failed to send security alert: ${this.safeErrorMessage(err)}`,
+          err instanceof Error ? err.stack : undefined,
+        ),
       );
     }
   }
@@ -112,7 +126,10 @@ export class SecurityLoggerService {
         throw new Error(`Webhook failed: ${response.status}`);
       }
     } catch (error) {
-      this.logger.error('Security webhook failed:', error);
+      this.logger.error(
+        `Security webhook failed: ${this.safeErrorMessage(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
     }
   }
 
@@ -203,5 +220,15 @@ export class SecurityLoggerService {
     });
 
     return report;
+  }
+
+  private safeErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'Unknown error';
   }
 }

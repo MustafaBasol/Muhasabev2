@@ -33,8 +33,14 @@ export class SessionManager {
     this.getToken = getToken;
     this.setToken = setToken;
     this.onLogout = onLogout;
+    const env = (import.meta as ImportMeta & { env?: Record<string, string> }).env;
+    const idleTimeoutMinutes = (() => {
+      const raw = env?.VITE_IDLE_TIMEOUT_MINUTES;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 30;
+    })();
     this.options = {
-      idleTimeoutMinutes: Number((import.meta as any)?.env?.VITE_IDLE_TIMEOUT_MINUTES) || 30,
+      idleTimeoutMinutes,
       refreshBeforeSeconds: 5 * 60, // 5 minutes
       checkIntervalSeconds: 60, // every minute
       ...(options || {}),
@@ -44,11 +50,16 @@ export class SessionManager {
 
   start() {
     if (!this.stopped) return;
+    if (typeof window === 'undefined') {
+      logger.warn('SessionManager start çağrısı tarayıcı dışında yapıldı');
+      return;
+    }
     this.stopped = false;
     this.lastActiveAt = Date.now();
     // Listen a broad set of events as activity
     const events = ['click','keydown','mousemove','scroll','touchstart','visibilitychange','hashchange'];
-    events.forEach(ev => window.addEventListener(ev, this.boundActivityHandler, { passive: true } as any));
+    const listenerOptions: AddEventListenerOptions = { passive: true };
+    events.forEach(ev => window.addEventListener(ev, this.boundActivityHandler, listenerOptions));
     // Periodic check
     this.intervalId = window.setInterval(() => this.tick(), this.options.checkIntervalSeconds * 1000);
     logger.info('🕒 SessionManager started', this.options);
@@ -56,6 +67,7 @@ export class SessionManager {
 
   stop() {
     if (this.stopped) return;
+    if (typeof window === 'undefined') return;
     this.stopped = true;
     const events = ['click','keydown','mousemove','scroll','touchstart','visibilitychange','hashchange'];
     events.forEach(ev => window.removeEventListener(ev, this.boundActivityHandler));
@@ -72,10 +84,17 @@ export class SessionManager {
 
   private decodeJwtExp(token: string | null): number | null {
     if (!token) return null;
+    const decoder =
+      (typeof window !== 'undefined' && window.atob)
+        ? window.atob
+        : typeof globalThis !== 'undefined' && typeof globalThis.atob === 'function'
+          ? globalThis.atob.bind(globalThis)
+          : null;
+    if (!decoder) return null;
     try {
       const parts = token.split('.');
       if (parts.length !== 3) return null;
-      const payload = JSON.parse(atob(parts[1]));
+      const payload = JSON.parse(decoder(parts[1]));
       if (!payload || typeof payload.exp !== 'number') return null;
       return payload.exp * 1000; // ms
     } catch {
@@ -100,6 +119,7 @@ export class SessionManager {
       if (!token) return;
       // Only refresh if tab is visible (avoid background thrash) and there was some recent activity in last 5 min
       const activeRecently = now - this.lastActiveAt < 5 * 60 * 1000;
+      if (typeof document === 'undefined') return;
       if (document.visibilityState === 'hidden' || !activeRecently) return;
 
       const expMs = this.decodeJwtExp(token);
@@ -120,7 +140,7 @@ export class SessionManager {
         }
       }
     } catch (e) {
-      // Swallow errors
+      logger.error('SessionManager tick sırasında hata oluştu', e);
     }
   }
 }

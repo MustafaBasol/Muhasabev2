@@ -3,7 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailSuppression } from '../email/entities/email-suppression.entity';
 import { EmailOutbox } from '../email/entities/email-outbox.entity';
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import {
+  SESClient,
+  SendEmailCommand,
+  SendEmailCommandOutput,
+} from '@aws-sdk/client-ses';
 
 export interface EmailOptions {
   to: string;
@@ -16,13 +20,45 @@ export interface EmailOptions {
     tenantId?: string;
     tokenId?: string; // verification/reset token kaydı
     correlationId?: string; // istek/işlem korelasyon kimliği
-    type?: 'verify' | 'verify-resend' | 'reset' | string;
+    type?: 'verify' | 'verify-resend' | 'reset';
   };
 }
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+
+  private getErrorCode(error: unknown): string {
+    if (typeof error === 'object' && error !== null) {
+      const candidate =
+        (error as { Code?: unknown }).Code ??
+        (error as { code?: unknown }).code;
+      if (typeof candidate === 'string') {
+        return candidate;
+      }
+    }
+    return 'UnknownError';
+  }
+
+  private toError(error: unknown): Error {
+    return error instanceof Error
+      ? error
+      : new Error(this.getErrorMessage(error));
+  }
 
   constructor(
     @InjectRepository(EmailSuppression)
@@ -39,9 +75,18 @@ export class EmailService {
 
     // Başlangıç tanılama logu
     try {
-      const maskedKey = (process.env.AWS_ACCESS_KEY_ID || '').slice(0, 6) + (process.env.AWS_ACCESS_KEY_ID ? '***' : '');
-      this.logger.debug(`[EMAIL INIT] provider=${provider} from=${from} replyTo=${replyTo || 'n/a'} region=${process.env.AWS_REGION || process.env.SES_REGION || 'default'} awsKey=${maskedKey || 'n/a'} confSet=${configurationSet || 'n/a'}`);
-    } catch (_) {}
+      const maskedKey =
+        (process.env.AWS_ACCESS_KEY_ID || '').slice(0, 6) +
+        (process.env.AWS_ACCESS_KEY_ID ? '***' : '');
+      this.logger.debug(
+        `[EMAIL INIT] provider=${provider} from=${from} replyTo=${replyTo || 'n/a'} region=${process.env.AWS_REGION || process.env.SES_REGION || 'default'} awsKey=${maskedKey || 'n/a'} confSet=${configurationSet || 'n/a'}`,
+      );
+    } catch (error: unknown) {
+      this.logger.warn(
+        'EmailService init log serialization failed',
+        this.toError(error),
+      );
+    }
 
     // Suppression kontrolü (lowercase)
     const normalizedTo = options.to.trim().toLowerCase();
@@ -50,9 +95,9 @@ export class EmailService {
       suppressed = await this.suppressionRepo.findOne({
         where: { email: normalizedTo },
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Tablo henüz migration çalıştırılmadığı için yoksa (relation does not exist) gracefully degrade
-      const msg = String(err?.message || '').toLowerCase();
+      const msg = this.getErrorMessage(err).toLowerCase();
       if (
         msg.includes('does not exist') ||
         (msg.includes('relation') && msg.includes('email_suppression'))
@@ -61,7 +106,10 @@ export class EmailService {
           '⚠️ email_suppression tablosu bulunamadı (migration çalıştırılmamış olabilir). Suppression kontrolü devre dışı, gönderim devam ediyor.',
         );
       } else {
-        this.logger.error('Suppression sorgusu beklenmeyen hata verdi:', err);
+        this.logger.error(
+          'Suppression sorgusu beklenmeyen hata verdi:',
+          this.toError(err),
+        );
       }
     }
     if (suppressed) {
@@ -75,9 +123,15 @@ export class EmailService {
     let messageId: string | undefined;
 
     if (provider === 'ses') {
-      const region = process.env.AWS_REGION || process.env.SES_REGION || 'us-east-1';
-      if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-        this.logger.warn('⚠️ MAIL_PROVIDER=ses ancak AWS kimlik bilgileri tanımlı değil; log fallback kullanılacak.');
+      const region =
+        process.env.AWS_REGION || process.env.SES_REGION || 'us-east-1';
+      if (
+        !process.env.AWS_ACCESS_KEY_ID ||
+        !process.env.AWS_SECRET_ACCESS_KEY
+      ) {
+        this.logger.warn(
+          '⚠️ MAIL_PROVIDER=ses ancak AWS kimlik bilgileri tanımlı değil; log fallback kullanılacak.',
+        );
       } else {
         try {
           const ses = new SESClient({ region });
@@ -89,21 +143,38 @@ export class EmailService {
             Message: {
               Subject: { Data: options.subject, Charset: 'UTF-8' },
               Body: {
-                Html: options.html ? { Data: options.html, Charset: 'UTF-8' } : undefined,
-                Text: options.text ? { Data: options.text, Charset: 'UTF-8' } : undefined,
+                Html: options.html
+                  ? { Data: options.html, Charset: 'UTF-8' }
+                  : undefined,
+                Text: options.text
+                  ? { Data: options.text, Charset: 'UTF-8' }
+                  : undefined,
               },
             },
           });
-          const result = await ses.send(command);
-          const msgId = (result as any)?.MessageId || (result as any)?.MessageId?.toString?.();
-          const metaStr = options.meta ? ` meta=${JSON.stringify(options.meta)}` : '';
-          this.logger.log(`📧 [SES EMAIL SENT] to=${options.to} subject="${options.subject}"${metaStr} messageId=${msgId || 'n/a'} region=${region}${replyTo ? ` replyTo=${replyTo}` : ''}${configurationSet ? ` configSet=${configurationSet}` : ''}`);
+          const result: SendEmailCommandOutput = await ses.send(command);
+          const rawMessageId = result?.MessageId;
+          const msgId =
+            typeof rawMessageId === 'string'
+              ? rawMessageId
+              : typeof rawMessageId === 'object' && rawMessageId !== null
+                ? String(rawMessageId)
+                : undefined;
+          const metaStr = options.meta
+            ? ` meta=${JSON.stringify(options.meta)}`
+            : '';
+          this.logger.log(
+            `📧 [SES EMAIL SENT] to=${options.to} subject="${options.subject}"${metaStr} messageId=${msgId || 'n/a'} region=${region}${replyTo ? ` replyTo=${replyTo}` : ''}${configurationSet ? ` configSet=${configurationSet}` : ''}`,
+          );
           success = true;
           messageId = msgId;
-        } catch (err: any) {
-          const code = err?.Code || err?.code || 'UnknownError';
-          const msg = err?.message || String(err);
-          this.logger.error(`❌ [SES SEND FAILED] code=${code} message=${msg} → log fallback`);
+        } catch (err: unknown) {
+          const code = this.getErrorCode(err);
+          const msg = this.getErrorMessage(err);
+          this.logger.error(
+            `❌ [SES SEND FAILED] code=${code} message=${msg} → log fallback`,
+            this.toError(err),
+          );
           // log fallback below
         }
       }
@@ -145,14 +216,14 @@ export class EmailService {
           type: options.meta?.type || null,
         }),
       );
-    } catch (err) {
-      const msg = String(err?.message || '').toLowerCase();
+    } catch (err: unknown) {
+      const msg = this.getErrorMessage(err).toLowerCase();
       if (msg.includes('does not exist') && msg.includes('email_outbox')) {
         this.logger.warn(
           '⚠️ email_outbox tablosu yok (migration henüz çalışmamış). Outbox kayıt atlandı.',
         );
       } else {
-        this.logger.error('EmailOutbox kayıt hatası:', err);
+        this.logger.error('EmailOutbox kayıt hatası:', this.toError(err));
       }
     }
 

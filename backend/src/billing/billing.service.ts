@@ -3,6 +3,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import Stripe from 'stripe';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,8 +16,36 @@ import {
 
 type Interval = 'month' | 'year';
 
+export interface InvoiceSummary {
+  id: string;
+  number: string | null;
+  total: number;
+  currency: string | null;
+  created: string | null;
+}
+
+export type ZeroInvoiceReason = 'PLAN_CHANGE_NO_CHARGE' | 'ZERO_TOTAL';
+
+export interface ZeroInvoiceSummary {
+  id: string;
+  number: string | null;
+  reason: ZeroInvoiceReason;
+  created: string | null;
+}
+
+export interface UpgradeStatusSummary {
+  success: true;
+  subscriptionPlan: SubscriptionPlan | null;
+  billingInterval: string | null;
+  maxUsers: number | null;
+  latestPaidInvoice: InvoiceSummary | null;
+  zeroInvoice: ZeroInvoiceSummary | null;
+  cancelAtPeriodEnd: boolean;
+}
+
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name);
   private stripe: Stripe;
 
   private readonly priceMap = {
@@ -53,14 +82,14 @@ export class BillingService {
   private lastSyncCheck: Map<string, number> = new Map();
 
   /** Upgrade sonrası hızlı durum: plan güncellendi mi, son ücretli fatura nedir, sıfır tutarlı açıklama */
-  async getUpgradeStatus(tenantId: string) {
+  async getUpgradeStatus(tenantId: string): Promise<UpgradeStatusSummary> {
     const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
     if (!tenant) throw new NotFoundException('Tenant not found');
     const plan = tenant.subscriptionPlan || null;
     const interval = tenant.billingInterval || null;
-    const maxUsers = tenant.maxUsers || null;
-    let latestPaid: any = null;
-    let zeroInvoice: any = null;
+    const maxUsers = tenant.maxUsers ?? null;
+    let latestPaid: InvoiceSummary | null = null;
+    let zeroInvoice: ZeroInvoiceSummary | null = null;
     if (tenant.stripeCustomerId) {
       try {
         const invoices = await this.stripe.invoices.list({
@@ -69,29 +98,35 @@ export class BillingService {
           expand: ['data.lines'],
         });
         for (const inv of invoices.data) {
-          const total = inv.total || 0;
-            if (total > 0 && !latestPaid) {
-              latestPaid = {
-                id: inv.id,
-                number: inv.number,
-                total,
-                currency: inv.currency,
-                created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
-              };
-            }
-            if (total === 0 && !zeroInvoice) {
-              const lines = (inv as any)?.lines?.data || [];
-              const onlyProration = lines.length > 0 && lines.every((l: any) => !!l.proration);
-              zeroInvoice = {
-                id: inv.id,
-                number: inv.number,
-                reason: onlyProration ? 'PLAN_CHANGE_NO_CHARGE' : 'ZERO_TOTAL',
-                created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
-              };
-            }
-            if (latestPaid && zeroInvoice) break; // erken çık
+          const total = inv.total ?? 0;
+          if (total > 0 && !latestPaid) {
+            latestPaid = {
+              id: inv.id,
+              number: inv.number,
+              total,
+              currency: inv.currency,
+              created: this.formatStripeDate(inv.created),
+            };
+          }
+          if (total === 0 && !zeroInvoice) {
+            const lines = this.extractInvoiceLines(inv);
+            const onlyProration =
+              lines.length > 0 &&
+              lines.every((line) => Boolean(line.proration));
+            zeroInvoice = {
+              id: inv.id,
+              number: inv.number,
+              reason: onlyProration ? 'PLAN_CHANGE_NO_CHARGE' : 'ZERO_TOTAL',
+              created: this.formatStripeDate(inv.created),
+            };
+          }
+          if (latestPaid && zeroInvoice) break; // erken çık
         }
-      } catch (_) {}
+      } catch (error: unknown) {
+        this.logger.warn(
+          `Stripe invoices fetch failed for tenant ${tenant.id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
     return {
       success: true,
@@ -118,7 +153,7 @@ export class BillingService {
     }
   }
 
-  private isUnlimitedPlan(plan: SubscriptionPlan): boolean {
+  private isUnlimitedPlan(_plan: SubscriptionPlan): boolean {
     return false; // Artık hiçbir plan sınırsız değil; koltuklar baz + addon ile belirlenir
   }
 
@@ -145,6 +180,66 @@ export class BillingService {
     if (plan === SubscriptionPlan.PROFESSIONAL) return 'PRO';
     if (plan === SubscriptionPlan.ENTERPRISE) return 'BUSINESS';
     return null; // FREE/BASIC handled separately or via custom prices later
+  }
+
+  private extractInvoiceLines(
+    invoice: Stripe.Invoice,
+  ): Stripe.InvoiceLineItem[] {
+    if (Array.isArray(invoice.lines?.data)) {
+      return invoice.lines.data;
+    }
+    return [];
+  }
+
+  private formatStripeDate(timestamp?: number | null): string | null {
+    if (typeof timestamp === 'number' && Number.isFinite(timestamp)) {
+      return new Date(timestamp * 1000).toISOString();
+    }
+    return null;
+  }
+
+  private buildIdempotencyOptions(
+    key?: string,
+    suffix = '',
+  ): Stripe.RequestOptions | undefined {
+    if (!key) {
+      return undefined;
+    }
+    return { idempotencyKey: `${key}${suffix}` };
+  }
+
+  private extractInvoiceAmount(invoice: Stripe.Invoice | null): number | null {
+    if (!invoice) {
+      return null;
+    }
+    if (typeof invoice.amount_paid === 'number' && invoice.amount_paid > 0) {
+      return invoice.amount_paid;
+    }
+    if (typeof invoice.amount_due === 'number' && invoice.amount_due > 0) {
+      return invoice.amount_due;
+    }
+    if (typeof invoice.total === 'number' && invoice.total > 0) {
+      return invoice.total;
+    }
+    return invoice.amount_paid ?? invoice.amount_due ?? invoice.total ?? null;
+  }
+
+  private errorMessage(error: unknown, fallback = 'Unexpected error'): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'message' in error &&
+      typeof (error as { message?: unknown }).message === 'string'
+    ) {
+      return (error as { message: string }).message;
+    }
+    return fallback;
   }
 
   async ensureStripeCustomer(
@@ -174,8 +269,10 @@ export class BillingService {
             await this.tenantRepo.save(tenant);
           }
         }
-      } catch (_) {
-        // sessiz geç: email güncellemesi başarısız olsa bile checkout çalışsın
+      } catch (error: unknown) {
+        this.logger.warn(
+          `Stripe customer metadata sync skipped for tenant ${tenant.id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
       return tenant.stripeCustomerId;
     }
@@ -214,9 +311,12 @@ export class BillingService {
       tenant.subscriptionPlan &&
       this.fromPlanEnum(this.toPlanEnum(String(params.plan))) &&
       this.toPlanEnum(String(params.plan)) === tenant.subscriptionPlan &&
-      tenant.billingInterval && tenant.billingInterval !== params.interval
+      tenant.billingInterval &&
+      tenant.billingInterval !== params.interval
     ) {
-      throw new BadRequestException('Interval değişimi için checkout yerine plan-update kullanılmalıdır.');
+      throw new BadRequestException(
+        'Interval değişimi için checkout yerine plan-update kullanılmalıdır.',
+      );
     }
 
     const customerId = await this.ensureStripeCustomer(
@@ -232,11 +332,13 @@ export class BillingService {
     if (
       tenant.stripeSubscriptionId &&
       tenant.subscriptionPlan &&
-      ['PROFESSIONAL', 'ENTERPRISE'].includes(String(tenant.subscriptionPlan)) &&
+      ['PROFESSIONAL', 'ENTERPRISE'].includes(
+        String(tenant.subscriptionPlan),
+      ) &&
       this.toPlanEnum(String(params.plan)) !== tenant.subscriptionPlan
     ) {
       throw new BadRequestException(
-        'Mevcut bir aboneliğiniz var; plan değişimi için /billing/{tenantId}/plan-update kullanılmalıdır.'
+        'Mevcut bir aboneliğiniz var; plan değişimi için /billing/{tenantId}/plan-update kullanılmalıdır.',
       );
     }
     const basePriceId = this.ensurePriceId(
@@ -288,24 +390,48 @@ export class BillingService {
     interactive?: boolean; // true ise invoice send_invoice biçiminde oluşturulur ve otomatik tahsil edilmez (kullanıcı hosted invoice sayfasında öder)
     idempotencyKey?: string;
   }) {
-    const tenant = await this.tenantRepo.findOne({ where: { id: params.tenantId } });
+    const tenant = await this.tenantRepo.findOne({
+      where: { id: params.tenantId },
+    });
     if (!tenant) throw new NotFoundException('Tenant not found');
-    if (!tenant.stripeSubscriptionId) throw new BadRequestException('No active subscription to update');
-    if (!tenant.stripeCustomerId) throw new BadRequestException('No Stripe customer');
+    if (!tenant.stripeSubscriptionId)
+      throw new BadRequestException('No active subscription to update');
+    if (!tenant.stripeCustomerId)
+      throw new BadRequestException('No Stripe customer');
 
     const desiredEnum = this.toPlanEnum(String(params.plan));
     const desiredPlanKey = this.fromPlanEnum(desiredEnum);
-    if (!desiredPlanKey) throw new BadRequestException('Unsupported plan for update');
+    if (!desiredPlanKey)
+      throw new BadRequestException('Unsupported plan for update');
 
-    const basePriceId = this.ensurePriceId(this.priceMap[desiredPlanKey][params.interval], `${desiredPlanKey}.${params.interval}`);
-    const addOnPriceId = this.ensurePriceId(this.priceMap.ADDON_USER[params.interval], `ADDON_USER.${params.interval}`);
+    const basePriceId = this.ensurePriceId(
+      this.priceMap[desiredPlanKey][params.interval],
+      `${desiredPlanKey}.${params.interval}`,
+    );
+    const addOnPriceId = this.ensurePriceId(
+      this.priceMap.ADDON_USER[params.interval],
+      `ADDON_USER.${params.interval}`,
+    );
 
     // Mevcut aboneliği çek
-    const sub = await this.stripe.subscriptions.retrieve(tenant.stripeSubscriptionId, { expand: ['items'] });
-    const addonPriceIds = [this.priceMap.ADDON_USER.month, this.priceMap.ADDON_USER.year].filter(Boolean);
-    const baseItem = sub.items.data.find((it) => !addonPriceIds.includes(it.price.id));
-    let addonItem = sub.items.data.find((it) => addonPriceIds.includes(it.price.id));
-    if (!baseItem) throw new InternalServerErrorException('Base plan item missing on subscription');
+    const sub = await this.stripe.subscriptions.retrieve(
+      tenant.stripeSubscriptionId,
+      { expand: ['items'] },
+    );
+    const addonPriceIds = [
+      this.priceMap.ADDON_USER.month,
+      this.priceMap.ADDON_USER.year,
+    ].filter(Boolean);
+    const baseItem = sub.items.data.find(
+      (it) => !addonPriceIds.includes(it.price.id),
+    );
+    let addonItem = sub.items.data.find((it) =>
+      addonPriceIds.includes(it.price.id),
+    );
+    if (!baseItem)
+      throw new InternalServerErrorException(
+        'Base plan item missing on subscription',
+      );
 
     // ===== Koltuk migrasyonu mantığı =====
     // Amaç: Plan değişiminde (ör. PRO -> BUSINESS) addon qty otomatik yeniden hesaplanmalı.
@@ -336,11 +462,15 @@ export class BillingService {
     }
 
     // items dizisini kur: base item yeni fiyatla, addon varsa uygun fiyat ve quantity ile
-    const updateItems: Array<{ id: string; price?: string; quantity?: number } & any> = [
+    const updateItems: Stripe.SubscriptionUpdateParams.Item[] = [
       { id: baseItem.id, price: basePriceId },
     ];
     if (addonItem) {
-      updateItems.push({ id: addonItem.id, price: addOnPriceId, quantity: nextAddonQty });
+      updateItems.push({
+        id: addonItem.id,
+        price: addOnPriceId,
+        quantity: nextAddonQty,
+      });
     } else {
       // Addon yoksa ve qty > 0 ise oluşturmak için separate call yerine items paramıyla ekleyemiyoruz (id gerekli),
       // bu nedenle önce oluştururuz.
@@ -358,12 +488,12 @@ export class BillingService {
     await this.stripe.subscriptions.update(
       sub.id,
       {
-        items: updateItems as any,
+        items: updateItems,
         billing_cycle_anchor: 'now',
         proration_behavior: 'create_prorations',
         cancel_at_period_end: false,
       },
-      params.idempotencyKey ? { idempotencyKey: params.idempotencyKey + ':sub' } as any : undefined,
+      this.buildIdempotencyOptions(params.idempotencyKey, ':sub'),
     );
 
     // Yerel tenant durumunu güncelle
@@ -379,16 +509,18 @@ export class BillingService {
     await this.tenantRepo.save(tenant);
 
     // Upcoming invoice'ı kontrol et: tutar 0 veya null ise invoice adımını atla
-    let upcoming: Stripe.UpcomingInvoice | null = null;
     let upcomingTotal: number | null = null;
     try {
-      const resp = (await this.stripe.invoices.retrieveUpcoming({
-        customer: tenant.stripeCustomerId!,
+      const resp = await this.stripe.invoices.retrieveUpcoming({
+        customer: tenant.stripeCustomerId,
         subscription: sub.id,
-      })) as Stripe.UpcomingInvoice;
-      upcoming = resp;
-      upcomingTotal = (resp.total as any) ?? null;
-    } catch (_) {}
+      });
+      upcomingTotal = resp.total ?? null;
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Stripe upcoming invoice preview failed for tenant ${tenant.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
     // İsteğe bağlı: proration'ı hemen faturala ve tahsil et (yalnızca toplam > 0 ise)
     let invoiceResult: Stripe.Invoice | null = null;
@@ -403,25 +535,35 @@ export class BillingService {
             {
               customer: tenant.stripeCustomerId,
               subscription: sub.id,
-              collection_method: params.interactive ? 'send_invoice' : 'charge_automatically',
+              collection_method: params.interactive
+                ? 'send_invoice'
+                : 'charge_automatically',
               ...(params.interactive ? { days_until_due: 7 } : {}),
               auto_advance: false,
             },
-            params.idempotencyKey ? { idempotencyKey: params.idempotencyKey + ':inv' } as any : undefined,
+            this.buildIdempotencyOptions(params.idempotencyKey, ':inv'),
           );
-          const finalized = await this.stripe.invoices.finalizeInvoice(invoice.id);
+          const finalized = await this.stripe.invoices.finalizeInvoice(
+            invoice.id,
+          );
           invoiceResult = finalized;
-          if (!params.interactive && (finalized.amount_due || 0) > 0 && finalized.status !== 'paid') {
+          if (
+            !params.interactive &&
+            (finalized.amount_due || 0) > 0 &&
+            finalized.status !== 'paid'
+          ) {
             try {
               invoiceResult = await this.stripe.invoices.pay(finalized.id);
-            } catch (payErr: any) {
-              // ödeme başarısız olabilir; açık fatura olarak döneriz
-              invoiceError = payErr?.message || 'Payment failed';
+            } catch (payErr: unknown) {
+              invoiceError = this.errorMessage(payErr, 'Payment failed');
+              this.logger.warn(
+                `Stripe invoice payment attempt failed for tenant ${tenant.id}: ${invoiceError}`,
+              );
             }
           }
-        } catch (e: any) {
+        } catch (e: unknown) {
           // Sertleştirme: plan güncellendi ama fatura adımı başarısız olabilir; bilgiyi üst katmana taşıyalım
-          invoiceError = e?.message || 'Invoice creation failed';
+          invoiceError = this.errorMessage(e, 'Invoice creation failed');
         }
       }
     }
@@ -436,11 +578,11 @@ export class BillingService {
       invoiceError,
       invoiceId: invoiceResult?.id ?? null,
       invoiceStatus: invoiceResult?.status ?? null,
-      amountDue: (invoiceResult as any)?.amount_due ?? null,
-      amountPaid: (invoiceResult as any)?.amount_paid ?? null,
-      currency: (invoiceResult as any)?.currency ?? null,
-      hostedInvoiceUrl: (invoiceResult as any)?.hosted_invoice_url ?? null,
-      pdf: (invoiceResult as any)?.invoice_pdf ?? null,
+      amountDue: invoiceResult?.amount_due ?? null,
+      amountPaid: invoiceResult?.amount_paid ?? null,
+      currency: invoiceResult?.currency ?? null,
+      hostedInvoiceUrl: invoiceResult?.hosted_invoice_url ?? null,
+      pdf: invoiceResult?.invoice_pdf ?? null,
     };
   }
 
@@ -449,21 +591,40 @@ export class BillingService {
    * Stripe seat artışlarında ayrı bir ödeme ekranı yerine subscription item quantity güncellenir ve
    * ek ücret proration olarak upcoming invoice'a yansır.
    */
-  async addAddonUsersProrated(params: { tenantId: string; additional: number }) {
+  async addAddonUsersProrated(params: {
+    tenantId: string;
+    additional: number;
+  }) {
     const { tenantId, additional } = params;
     const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
     if (!tenant) throw new NotFoundException('Tenant not found');
-    if (!tenant.stripeSubscriptionId) throw new BadRequestException('No active subscription');
-    if (additional <= 0) throw new BadRequestException('Additional users must be > 0');
+    if (!tenant.stripeSubscriptionId)
+      throw new BadRequestException('No active subscription');
+    if (additional <= 0)
+      throw new BadRequestException('Additional users must be > 0');
 
-    const sub = await this.stripe.subscriptions.retrieve(tenant.stripeSubscriptionId, { expand: ['items'] });
-    const addonPriceIds = [this.priceMap.ADDON_USER.month, this.priceMap.ADDON_USER.year].filter(Boolean);
-    let addonItem = sub.items.data.find(it => addonPriceIds.includes(it.price.id));
+    const sub = await this.stripe.subscriptions.retrieve(
+      tenant.stripeSubscriptionId,
+      { expand: ['items'] },
+    );
+    const addonPriceIds = [
+      this.priceMap.ADDON_USER.month,
+      this.priceMap.ADDON_USER.year,
+    ].filter(Boolean);
+    let addonItem = sub.items.data.find((it) =>
+      addonPriceIds.includes(it.price.id),
+    );
 
     // Interval base item üzerinden tespit
-    const baseItem = sub.items.data.find(it => !addonPriceIds.includes(it.price.id));
-    const interval = baseItem?.price?.recurring?.interval === 'year' ? 'year' : 'month';
-    const addOnPriceId = this.ensurePriceId(this.priceMap.ADDON_USER[interval], `ADDON_USER.${interval}`);
+    const baseItem = sub.items.data.find(
+      (it) => !addonPriceIds.includes(it.price.id),
+    );
+    const interval =
+      baseItem?.price?.recurring?.interval === 'year' ? 'year' : 'month';
+    const addOnPriceId = this.ensurePriceId(
+      this.priceMap.ADDON_USER[interval],
+      `ADDON_USER.${interval}`,
+    );
 
     const currentAddonQty = addonItem?.quantity ?? 0;
     const newAddonQty = currentAddonQty + Math.max(0, Math.floor(additional));
@@ -495,33 +656,37 @@ export class BillingService {
     let upcoming: Stripe.UpcomingInvoice | null = null;
     let prorationTotal: number | null = null;
     try {
-      const resp = (await this.stripe.invoices.retrieveUpcoming({
+      const resp = await this.stripe.invoices.retrieveUpcoming({
         customer: tenant.stripeCustomerId!,
-        subscription: tenant.stripeSubscriptionId!,
-        expand: ['lines'] as any,
-      })) as any;
-      upcoming = resp as Stripe.UpcomingInvoice;
-      const lines: Array<any> = resp?.lines?.data || [];
-      const onlyProrations = lines.filter((l) => !!l?.proration);
-      if (onlyProrations.length > 0) {
-        prorationTotal = onlyProrations.reduce(
-          (sum, l) => sum + (typeof l.amount === 'number' ? l.amount : 0),
+        subscription: tenant.stripeSubscriptionId,
+        expand: ['lines'],
+      });
+      upcoming = resp;
+      const lines = resp.lines?.data ?? [];
+      const prorationLines = lines.filter((line) => Boolean(line.proration));
+      if (prorationLines.length > 0) {
+        prorationTotal = prorationLines.reduce(
+          (sum, line) => sum + (line.amount ?? 0),
           0,
         );
       } else {
         prorationTotal = 0;
       }
-    } catch (_) {}
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Stripe upcoming invoice fetch failed while adding addon users for tenant ${tenant.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
     return {
       success: true,
       newAddonQty,
       maxUsers: tenant.maxUsers,
       upcomingProrationTotal: prorationTotal,
-      upcomingCurrency: (upcoming as any)?.currency ?? null,
-      upcomingNextInvoiceTotal: (upcoming as any)?.total ?? null,
-      upcomingPeriodEnd: (upcoming as any)?.period_end
-        ? new Date((upcoming as any).period_end * 1000).toISOString()
+      upcomingCurrency: upcoming?.currency ?? null,
+      upcomingNextInvoiceTotal: upcoming?.total ?? null,
+      upcomingPeriodEnd: upcoming?.period_end
+        ? new Date(upcoming.period_end * 1000).toISOString()
         : null,
     };
   }
@@ -536,8 +701,8 @@ export class BillingService {
         return_url: returnUrl,
       });
       return { url: session.url };
-    } catch (e: any) {
-      const msg = e?.message || 'Stripe Portal session failed';
+    } catch (e: unknown) {
+      const msg = this.errorMessage(e, 'Stripe Portal session failed');
       throw new BadRequestException('Portal oturumu oluşturulamadı: ' + msg);
     }
   }
@@ -555,8 +720,10 @@ export class BillingService {
         const created = await this.ensureStripeCustomer(tenant);
         tenant.stripeCustomerId = created;
         await this.tenantRepo.save(tenant);
-      } catch (_) {
-        // Müşteri oluşturulamazsa yine boş dön (UI nedenleri gösterebilir)
+      } catch (error: unknown) {
+        this.logger.warn(
+          `Stripe customer bootstrap failed during invoice listing for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
         return { invoices: [] };
       }
     }
@@ -573,13 +740,10 @@ export class BillingService {
       let hint: string | null = null;
       if (zero) {
         // İçerikte sadece proration kalemi ve amount=0 ise ekstra vurgula
-        const lines = (inv as any)?.lines?.data || [];
-        const onlyProration = lines.length > 0 && lines.every((l: any) => !!l.proration);
-        if (onlyProration) {
-          hint = 'PLAN_CHANGE_NO_CHARGE';
-        } else {
-          hint = 'ZERO_TOTAL';
-        }
+        const lines = this.extractInvoiceLines(inv);
+        const onlyProration =
+          lines.length > 0 && lines.every((l) => !!l.proration);
+        hint = onlyProration ? 'PLAN_CHANGE_NO_CHARGE' : 'ZERO_TOTAL';
       }
       return {
         id: inv.id,
@@ -589,9 +753,15 @@ export class BillingService {
         total, // minor units
         hostedInvoiceUrl: inv.hosted_invoice_url,
         pdf: inv.invoice_pdf,
-        created: inv.created ? new Date(inv.created * 1000).toISOString() : null,
-        periodStart: inv.period_start ? new Date(inv.period_start * 1000).toISOString() : null,
-        periodEnd: inv.period_end ? new Date(inv.period_end * 1000).toISOString() : null,
+        created: inv.created
+          ? new Date(inv.created * 1000).toISOString()
+          : null,
+        periodStart: inv.period_start
+          ? new Date(inv.period_start * 1000).toISOString()
+          : null,
+        periodEnd: inv.period_end
+          ? new Date(inv.period_end * 1000).toISOString()
+          : null,
         attemptCount: inv.attempt_count,
         paid: inv.paid,
         zeroTotal: zero,
@@ -604,21 +774,41 @@ export class BillingService {
   /**
    * İlave kullanıcıları hemen faturalandır: qty'yi artır, proration oluştur, sonra anında invoice oluşturup tahsil et.
    */
-  async addAddonUsersAndInvoiceNow(params: { tenantId: string; additional: number }) {
+  async addAddonUsersAndInvoiceNow(params: {
+    tenantId: string;
+    additional: number;
+  }) {
     const { tenantId, additional } = params;
     const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
     if (!tenant) throw new NotFoundException('Tenant not found');
-    if (!tenant.stripeSubscriptionId) throw new BadRequestException('No active subscription');
-    if (!tenant.stripeCustomerId) throw new BadRequestException('No Stripe customer');
-    if (additional <= 0) throw new BadRequestException('Additional users must be > 0');
+    if (!tenant.stripeSubscriptionId)
+      throw new BadRequestException('No active subscription');
+    if (!tenant.stripeCustomerId)
+      throw new BadRequestException('No Stripe customer');
+    if (additional <= 0)
+      throw new BadRequestException('Additional users must be > 0');
 
     // 1) Abonelikte add-on miktarını artır (proration oluşsun)
-    const sub = await this.stripe.subscriptions.retrieve(tenant.stripeSubscriptionId, { expand: ['items'] });
-    const addonPriceIds = [this.priceMap.ADDON_USER.month, this.priceMap.ADDON_USER.year].filter(Boolean);
-    let addonItem = sub.items.data.find((it) => addonPriceIds.includes(it.price.id));
-    const baseItem = sub.items.data.find((it) => !addonPriceIds.includes(it.price.id));
-    const interval: Interval = baseItem?.price?.recurring?.interval === 'year' ? 'year' : 'month';
-    const addOnPriceId = this.ensurePriceId(this.priceMap.ADDON_USER[interval], `ADDON_USER.${interval}`);
+    const sub = await this.stripe.subscriptions.retrieve(
+      tenant.stripeSubscriptionId,
+      { expand: ['items'] },
+    );
+    const addonPriceIds = [
+      this.priceMap.ADDON_USER.month,
+      this.priceMap.ADDON_USER.year,
+    ].filter(Boolean);
+    let addonItem = sub.items.data.find((it) =>
+      addonPriceIds.includes(it.price.id),
+    );
+    const baseItem = sub.items.data.find(
+      (it) => !addonPriceIds.includes(it.price.id),
+    );
+    const interval: Interval =
+      baseItem?.price?.recurring?.interval === 'year' ? 'year' : 'month';
+    const addOnPriceId = this.ensurePriceId(
+      this.priceMap.ADDON_USER[interval],
+      `ADDON_USER.${interval}`,
+    );
     const currentAddonQty = addonItem?.quantity ?? 0;
     const newAddonQty = currentAddonQty + Math.max(0, Math.floor(additional));
 
@@ -660,23 +850,19 @@ export class BillingService {
       if ((finalized.amount_due || 0) > 0 && finalized.status !== 'paid') {
         try {
           paid = await this.stripe.invoices.pay(finalized.id);
-        } catch (_) {
-          // Ödeme başarısız olabilir; faturayı açık olarak döndürürüz
+        } catch (error: unknown) {
+          this.logger.warn(
+            `Stripe immediate payment failed for tenant ${tenant.id}: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
       }
-    } catch (e: any) {
-      throw new BadRequestException('Anlık faturalandırma başarısız: ' + (e?.message || e));
+    } catch (e: unknown) {
+      throw new BadRequestException(
+        'Anlık faturalandırma başarısız: ' + this.errorMessage(e),
+      );
     }
 
-    const amountMinor = ((): number | null => {
-      const aPaid = (paid as any)?.amount_paid;
-      const aDue = (paid as any)?.amount_due;
-      const total = (paid as any)?.total;
-      if (typeof aPaid === 'number' && aPaid > 0) return aPaid;
-      if (typeof aDue === 'number' && aDue > 0) return aDue;
-      if (typeof total === 'number' && total > 0) return total;
-      return (typeof aPaid === 'number' ? aPaid : 0);
-    })();
+    const amountMinor = this.extractInvoiceAmount(paid);
 
     return {
       success: true,
@@ -684,11 +870,11 @@ export class BillingService {
       maxUsers: tenant.maxUsers,
       invoiceId: paid?.id ?? null,
       invoiceStatus: paid?.status ?? null,
-      amountDue: (paid as any)?.amount_due ?? null,
+      amountDue: paid?.amount_due ?? null,
       amountPaid: amountMinor,
-      currency: (paid as any)?.currency ?? null,
-      hostedInvoiceUrl: (paid as any)?.hosted_invoice_url ?? null,
-      pdf: (paid as any)?.invoice_pdf ?? null,
+      currency: paid?.currency ?? null,
+      hostedInvoiceUrl: paid?.hosted_invoice_url ?? null,
+      pdf: paid?.invoice_pdf ?? null,
     };
   }
 
@@ -717,17 +903,20 @@ export class BillingService {
       const baseItem = sub.items.data.find(
         (it) => !addonPriceIds.includes(it.price.id),
       );
-      const interval = baseItem?.price?.recurring?.interval === 'year' ? 'year' : 'month';
+      const interval =
+        baseItem?.price?.recurring?.interval === 'year' ? 'year' : 'month';
       const addonPriceId = this.priceMap.ADDON_USER[interval];
       if (!addonPriceId) {
-        throw new InternalServerErrorException('Add-on price id missing for interval ' + interval);
+        throw new InternalServerErrorException(
+          'Add-on price id missing for interval ' + interval,
+        );
       }
-      addonItem = (await this.stripe.subscriptionItems.create({
+      addonItem = await this.stripe.subscriptionItems.create({
         subscription: sub.id,
         price: addonPriceId,
         quantity: nextQty,
         proration_behavior: 'create_prorations',
-      })) as any;
+      });
     } else {
       await this.stripe.subscriptionItems.update(addonItem.id, {
         quantity: nextQty,
@@ -777,17 +966,24 @@ export class BillingService {
     tenant.cancelAtPeriodEnd = false;
     // current_period_end değişmeden kalabilir; yine de güncelleyelim
     if (updated.current_period_end) {
-      tenant.subscriptionExpiresAt = new Date(updated.current_period_end * 1000);
+      tenant.subscriptionExpiresAt = new Date(
+        updated.current_period_end * 1000,
+      );
     }
     await this.tenantRepo.save(tenant);
-    return { success: true, cancelAtPeriodEnd: false, currentPeriodEnd: tenant.subscriptionExpiresAt };
+    return {
+      success: true,
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: tenant.subscriptionExpiresAt,
+    };
   }
 
   // Called from webhook
   async applySubscriptionUpdateFromStripe(subscription: Stripe.Subscription) {
-    const tenantId = (subscription.metadata as any)?.tenantId as
-      | string
-      | undefined;
+    const tenantId =
+      typeof subscription.metadata?.tenantId === 'string'
+        ? subscription.metadata.tenantId
+        : undefined;
     // Fallback: try from customer metadata
     let tenant: Tenant | null = null;
     if (tenantId) {
@@ -879,10 +1075,11 @@ export class BillingService {
       });
     }
     if (tenant.subscriptionExpiresAt) {
-      const at =
+      const expiry =
         tenant.subscriptionExpiresAt instanceof Date
-          ? tenant.subscriptionExpiresAt.toISOString()
-          : new Date(tenant.subscriptionExpiresAt as any).toISOString();
+          ? tenant.subscriptionExpiresAt
+          : new Date(tenant.subscriptionExpiresAt);
+      const at = expiry.toISOString();
       events.push({ type: 'plan.renewal_due', at });
     }
     if (tenant.cancelAtPeriodEnd) {
@@ -948,7 +1145,7 @@ export class BillingService {
     const now = Date.now();
     const prev = this.lastSyncCheck.get(tenantId) || 0;
     if (now - prev < 5000) {
-      return { success: true, updated: false, throttled: true } as any;
+      return { success: true, updated: false, throttled: true };
     }
     this.lastSyncCheck.set(tenantId, now);
 
@@ -1008,7 +1205,10 @@ export class BillingService {
           tenant.stripeSubscriptionId,
           { expand: ['items'] },
         )) as Stripe.Subscription;
-      } catch (_) {
+      } catch (error: unknown) {
+        this.logger.warn(
+          `Stripe subscription retrieve failed for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
         sub = null;
       }
     }
@@ -1056,18 +1256,32 @@ export class BillingService {
       priceId: it.price.id,
       quantity: it.quantity ?? 0,
       interval: it.price?.recurring?.interval ?? null,
-      product: typeof it.price.product === 'string' ? it.price.product : (it.price.product as any)?.id ?? null,
+      product:
+        typeof it.price.product === 'string'
+          ? it.price.product
+          : (it.price.product?.id ?? null),
     }));
-    const baseItem = sub.items.data.find((it) => !addonPriceIds.includes(it.price.id));
-    const addonItem = sub.items.data.find((it) => addonPriceIds.includes(it.price.id));
-    const interval = baseItem?.price?.recurring?.interval === 'year' ? 'year' : 'month';
+    const baseItem = sub.items.data.find(
+      (it) => !addonPriceIds.includes(it.price.id),
+    );
+    const addonItem = sub.items.data.find((it) =>
+      addonPriceIds.includes(it.price.id),
+    );
+    const interval =
+      baseItem?.price?.recurring?.interval === 'year' ? 'year' : 'month';
 
     // Planı base price id üzerinden tahmin et
     const basePriceId = baseItem?.price.id || '';
     let plan = tenant.subscriptionPlan;
-    if (basePriceId === this.priceMap.PRO.month || basePriceId === this.priceMap.PRO.year) {
+    if (
+      basePriceId === this.priceMap.PRO.month ||
+      basePriceId === this.priceMap.PRO.year
+    ) {
       plan = SubscriptionPlan.PROFESSIONAL;
-    } else if (basePriceId === this.priceMap.BUSINESS.month || basePriceId === this.priceMap.BUSINESS.year) {
+    } else if (
+      basePriceId === this.priceMap.BUSINESS.month ||
+      basePriceId === this.priceMap.BUSINESS.year
+    ) {
       plan = SubscriptionPlan.ENTERPRISE;
     }
 

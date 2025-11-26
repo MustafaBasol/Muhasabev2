@@ -85,13 +85,36 @@ describe('TenantPlanLimitService', () => {
 
   it('BUSINESS (ENTERPRISE): kullanıcı 10 ile sınırlı, diğerleri sınırsız', () => {
     // kullanıcı limiti 10
-    expect(TenantPlanLimitService.canAddUser(9, SubscriptionPlan.ENTERPRISE)).toBe(true);
-    expect(TenantPlanLimitService.canAddUser(10, SubscriptionPlan.ENTERPRISE)).toBe(false);
+    expect(
+      TenantPlanLimitService.canAddUser(9, SubscriptionPlan.ENTERPRISE),
+    ).toBe(true);
+    expect(
+      TenantPlanLimitService.canAddUser(10, SubscriptionPlan.ENTERPRISE),
+    ).toBe(false);
     // diğer varlıklar sınırsız
-    expect(TenantPlanLimitService.canAddCustomer(1000, SubscriptionPlan.ENTERPRISE)).toBe(true);
-    expect(TenantPlanLimitService.canAddSupplier(1000, SubscriptionPlan.ENTERPRISE)).toBe(true);
-    expect(TenantPlanLimitService.canAddBankAccount(1000, SubscriptionPlan.ENTERPRISE)).toBe(true);
-    expect(TenantPlanLimitService.canAddInvoiceThisMonth(1000, SubscriptionPlan.ENTERPRISE)).toBe(true);
-    expect(TenantPlanLimitService.canAddExpenseThisMonth(1000, SubscriptionPlan.ENTERPRISE)).toBe(true);
+    expect(
+      TenantPlanLimitService.canAddCustomer(1000, SubscriptionPlan.ENTERPRISE),
+    ).toBe(true);
+    expect(
+      TenantPlanLimitService.canAddSupplier(1000, SubscriptionPlan.ENTERPRISE),
+    ).toBe(true);
+    expect(
+      TenantPlanLimitService.canAddBankAccount(
+        1000,
+        SubscriptionPlan.ENTERPRISE,
+      ),
+    ).toBe(true);
+    expect(
+      TenantPlanLimitService.canAddInvoiceThisMonth(
+        1000,
+        SubscriptionPlan.ENTERPRISE,
+      ),
+    ).toBe(true);
+    expect(
+      TenantPlanLimitService.canAddExpenseThisMonth(
+        1000,
+        SubscriptionPlan.ENTERPRISE,
+      ),
+    ).toBe(true);
   });
 });

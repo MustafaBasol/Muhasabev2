@@ -6,15 +6,41 @@ export class CreateAdminConfigTable1762827000000 implements MigrationInterface {
       new Table({
         name: 'admin_config',
         columns: [
-          { name: 'id', type: 'int', isPrimary: true, isGenerated: true, generationStrategy: 'increment' },
-          { name: 'username', type: 'varchar', length: '100', isNullable: false },
-          { name: 'passwordHash', type: 'varchar', length: '255', isNullable: false },
+          {
+            name: 'id',
+            type: 'int',
+            isPrimary: true,
+            isGenerated: true,
+            generationStrategy: 'increment',
+          },
+          {
+            name: 'username',
+            type: 'varchar',
+            length: '100',
+            isNullable: false,
+          },
+          {
+            name: 'passwordHash',
+            type: 'varchar',
+            length: '255',
+            isNullable: false,
+          },
           { name: 'twoFactorEnabled', type: 'boolean', default: false },
-          { name: 'twoFactorSecret', type: 'varchar', length: '255', isNullable: true },
+          {
+            name: 'twoFactorSecret',
+            type: 'varchar',
+            length: '255',
+            isNullable: true,
+          },
           { name: 'recoveryCodes', type: 'jsonb', isNullable: true },
-          { name: 'updatedAt', type: 'timestamp', default: 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' },
+          {
+            name: 'updatedAt',
+            type: 'timestamp',
+            default: 'CURRENT_TIMESTAMP',
+            onUpdate: 'CURRENT_TIMESTAMP',
+          },
         ],
-      })
+      }),
     );
 
     // Seed default using environment variables if provided
@@ -25,8 +51,9 @@ export class CreateAdminConfigTable1762827000000 implements MigrationInterface {
       [
         username,
         // Precomputed bcrypt(12) hash for 'admin123' if ADMIN_PASSWORD_HASH not provided
-        process.env.ADMIN_PASSWORD_HASH || '$2b$12$ZSFsVBWUKfc8pkr6W35EsuoNCM/rdFX9ojkWeHEf/g9JInCdj4/6.'
-      ]
+        process.env.ADMIN_PASSWORD_HASH ||
+          '$2b$12$ZSFsVBWUKfc8pkr6W35EsuoNCM/rdFX9ojkWeHEf/g9JInCdj4/6.',
+      ],
     );
   }
 

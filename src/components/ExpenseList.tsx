@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
-import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X, Ban, RotateCcw } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Download, Trash2, Receipt, Calendar, Check, X, Ban, RotateCcw, FileDown } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
@@ -10,28 +10,22 @@ import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderExpenses, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
 import { useAuth } from '../contexts/AuthContext';
+import { safeLocalStorage } from '../utils/localStorageSafe';
+import { logger } from '../utils/logger';
+import type { Expense as ExpenseModel, ExpenseStatus } from '../api/expenses';
 
-interface Expense {
-  id: string;
-  expenseNumber: string;
-  description: string;
-  supplier?: {
-    id: string;
-    name: string;
-    email: string;
-    address: string;
-  };
+const escapeCsvValue = (value: unknown): string => {
+  if (value == null) return '""';
+  const stringValue = String(value);
+  const escaped = stringValue.replace(/"/g, '""');
+  return `"${escaped}"`;
+};
+
+type Expense = ExpenseModel & {
   amount: number | string;
-  category: string;
-  status: 'pending' | 'approved' | 'paid' | 'rejected';
   expenseDate: string;
-  notes?: string;
-  receiptUrl?: string;
-  isVoided?: boolean;
-  voidReason?: string;
-  voidedAt?: string;
-  voidedBy?: string;
-}
+  supplier?: ExpenseModel['supplier'] | string;
+};
 
 interface ExpenseListProps {
   expenses: Expense[];
@@ -44,6 +38,38 @@ interface ExpenseListProps {
   onVoidExpense?: (expenseId: string, reason: string) => void;
   onRestoreExpense?: (expenseId: string) => void;
 }
+
+type ExpenseSortField = 'description' | 'supplier' | 'category' | 'amount' | 'status' | 'expenseDate';
+type ExpenseSortState = { by: ExpenseSortField; dir: SortDir };
+
+type ExpenseListViewState = {
+  searchTerm: string;
+  statusFilter: string;
+  categoryFilter: string;
+  startDate?: string;
+  endDate?: string;
+  showVoided?: boolean;
+  sort?: ExpenseSortState;
+  pageSize?: number;
+};
+
+const EXPENSE_PAGE_SIZES = [20, 50, 100] as const;
+const isValidExpensePageSize = (value: number): value is (typeof EXPENSE_PAGE_SIZES)[number] =>
+  EXPENSE_PAGE_SIZES.includes(value as (typeof EXPENSE_PAGE_SIZES)[number]);
+
+const getSavedExpensePageSize = (): number => {
+  const raw = safeLocalStorage.getItem('expenses_pageSize');
+  const parsed = raw ? Number(raw) : EXPENSE_PAGE_SIZES[0];
+  return isValidExpensePageSize(parsed) ? parsed : EXPENSE_PAGE_SIZES[0];
+};
+
+const isExpenseSortState = (value: unknown): value is ExpenseSortState => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<ExpenseSortState>;
+  const fields: ExpenseSortField[] = ['description', 'supplier', 'category', 'amount', 'status', 'expenseDate'];
+  const dirs: SortDir[] = ['asc', 'desc'];
+  return Boolean(candidate.by && candidate.dir && fields.includes(candidate.by) && dirs.includes(candidate.dir));
+};
 
 export default function ExpenseList({ 
   expenses, 
@@ -70,23 +96,16 @@ export default function ExpenseList({
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidingExpense, setVoidingExpense] = useState<Expense | null>(null);
   const [voidReason, setVoidReason] = useState('');
-  const [sort, setSort] = useState<{ by: 'description' | 'supplier' | 'category' | 'amount' | 'status' | 'expenseDate'; dir: SortDir }>({ by: 'expenseDate', dir: 'desc' });
+  const [sort, setSort] = useState<ExpenseSortState>({ by: 'expenseDate', dir: 'desc' });
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
   // Sayfalama
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(() => {
-    const raw = localStorage.getItem('expenses_pageSize');
-    const n = raw ? Number(raw) : 20;
-    return [20,50,100].includes(n) ? n : 20;
-  });
-  useEffect(() => {
-    localStorage.setItem('expenses_pageSize', String(pageSize));
-  }, [pageSize]);
+  const [pageSize, setPageSize] = useState<number>(() => getSavedExpensePageSize());
 
   // Default kaydedilmiş görünüm uygula
-  const { getDefault } = useSavedListViews<{ searchTerm: string; statusFilter: string; categoryFilter: string; startDate?: string; endDate?: string; showVoided?: boolean; sort?: typeof sort; pageSize?: number }>({ listType: 'expenses' });
+  const { getDefault } = useSavedListViews<ExpenseListViewState>({ listType: 'expenses' });
   useEffect(() => {
     const def = getDefault();
     if (def && def.state) {
@@ -97,11 +116,16 @@ export default function ExpenseList({
         setStartDate(def.state.startDate ?? '');
         setEndDate(def.state.endDate ?? '');
         setShowVoided(Boolean(def.state.showVoided));
-        if (def.state.sort && (def.state.sort as any).by && (def.state.sort as any).dir) setSort(def.state.sort as any);
-        if (def.state.pageSize && [20,50,100].includes(def.state.pageSize)) setPageSize(def.state.pageSize);
-      } catch {}
+        if (isExpenseSortState(def.state.sort)) {
+          setSort(def.state.sort);
+        }
+        if (def.state.pageSize && isValidExpensePageSize(def.state.pageSize)) {
+          handlePageSizeChange(def.state.pageSize);
+        }
+      } catch (error) {
+        logger.warn('Failed to hydrate expense saved view', error);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   // Plan kullanım bilgisi: Free/Starter için bu ayki gider sayısı (isVoided hariç)
@@ -111,7 +135,7 @@ export default function ExpenseList({
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    return expenses.filter((exp: any) => {
+    return expenses.filter((exp) => {
       if (exp?.isVoided) return false;
       const created = exp?.createdAt ? new Date(exp.createdAt) : (exp?.expenseDate ? new Date(exp.expenseDate) : null);
       if (!created || Number.isNaN(created.getTime())) return false;
@@ -125,12 +149,12 @@ export default function ExpenseList({
   const categories = ['equipment', 'utilities', 'rent', 'salaries', 'personnel', 'supplies', 'marketing', 'travel', 'insurance', 'taxes', 'other'];
 
   // Kategori çeviri fonksiyonu
-  const getCategoryLabel = (category: string): string => {
+  const getCategoryLabel = useCallback((category: string): string => {
     const raw = t(`expenseCategories.${category}`) || category;
     // Uzun metin taşmasını önlemek için parantez ve içeriğini kaldır
     // Örn: "Services Publics (Électricité, Eau, Gaz, Internet)" -> "Services Publics"
     return String(raw).replace(/\s*\([^)]*\)\s*/g, '').trim();
-  };
+  }, [t]);
 
   const filteredExpenses = useMemo(() => {
     return expenses
@@ -194,6 +218,88 @@ export default function ExpenseList({
     return filteredExpenses.slice(start, start + pageSize);
   }, [filteredExpenses, page, pageSize]);
 
+  const formatDate = useCallback((dateString: string) => {
+    const locale = (i18n?.language || 'en').toString();
+    const parsed = new Date(dateString);
+    if (Number.isNaN(parsed.getTime())) return '—';
+    return parsed.toLocaleDateString(locale);
+  }, [i18n?.language]);
+
+  // Tedarikçi adı güvenli gösterim: placeholder değerleri yerelleştirilmiş etikete çevir
+  const getSupplierDisplay = useCallback((name?: string) => {
+    const n = (name || '').trim();
+    const lang = (i18n.language || 'tr').slice(0,2).toLowerCase();
+    const localizedFallback = lang === 'tr' ? 'Tedarikçi Yok' : lang === 'de' ? 'Kein Lieferant' : lang === 'fr' ? 'Aucun Fournisseur' : 'No Supplier';
+    if (!n) return t('common:noSupplier', { defaultValue: localizedFallback });
+    const normalized = n.toLowerCase();
+    const placeholders = [
+      'nosupplier',
+      'no supplier',
+      'tedarikçi yok',
+      'kein lieferant',
+      'aucun fournisseur'
+    ];
+    if (placeholders.includes(normalized)) return t('common:noSupplier', { defaultValue: localizedFallback });
+    return n;
+  }, [i18n.language, t]);
+
+  const handleExportCsv = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!filteredExpenses.length) {
+      logger.info('Expense CSV export skipped: no rows match current filters');
+      return;
+    }
+
+    try {
+      const headers = [
+        t('expenses.expenseNumber', { defaultValue: 'Expense Number' }),
+        t('common.description', { defaultValue: 'Description' }),
+        t('expenses.supplier', { defaultValue: 'Supplier' }),
+        t('expenses.category', { defaultValue: 'Category' }),
+        t('common.statusLabel', { defaultValue: 'Status' }),
+        t('expenses.expenseDate', { defaultValue: 'Expense Date' }),
+        t('expenses.amount', { defaultValue: 'Amount' }),
+      ];
+
+      const rows = filteredExpenses.map((expense) => {
+        const supplierName = typeof expense.supplier === 'string' ? expense.supplier : expense.supplier?.name;
+        return [
+          expense.expenseNumber || expense.id || '',
+          expense.description || '',
+          getSupplierDisplay(supplierName),
+          getCategoryLabel(expense.category),
+          resolveStatusLabel(t, normalizeStatusKey(expense.status)),
+          formatDate(expense.expenseDate),
+          formatCurrency(toNumberSafe(expense.amount)),
+        ];
+      });
+
+      const csvContent = [headers, ...rows]
+        .map((row) => row.map(escapeCsvValue).join(','))
+        .join('\r\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `expenses_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      logger.info('Expense CSV export completed', { rowCount: filteredExpenses.length });
+    } catch (error) {
+      logger.error('Expense CSV export failed', error);
+    }
+  }, [filteredExpenses, formatCurrency, formatDate, getCategoryLabel, getSupplierDisplay, t]);
+
+  const handlePageSizeChange = (size: number) => {
+    const nextSize = isValidExpensePageSize(size) ? size : EXPENSE_PAGE_SIZES[0];
+    setPageSize(nextSize);
+    safeLocalStorage.setItem('expenses_pageSize', String(nextSize));
+    setPage(1);
+  };
+
   const toggleSort = (column: typeof sort.by) => {
     setSort(prev => {
       if (prev.by === column) {
@@ -236,11 +342,6 @@ export default function ExpenseList({
     );
   };
 
-  const formatDate = (dateString: string) => {
-    const locale = (i18n?.language || 'en').toString();
-    return new Date(dateString).toLocaleDateString(locale);
-  };
-
   const formatAmount = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return formatCurrency(numAmount || 0);
@@ -253,8 +354,8 @@ export default function ExpenseList({
   };
 
   const handleSaveInlineEdit = (expense: Expense) => {
-    if (editingField === 'status') {
-      onUpdateExpense({ ...expense, status: tempValue as any });
+    if (editingField === 'status' && ['pending','approved','paid','rejected'].includes(tempValue)) {
+      onUpdateExpense({ ...expense, status: tempValue as ExpenseStatus });
     }
     setEditingExpense(null);
     setEditingField(null);
@@ -287,24 +388,6 @@ export default function ExpenseList({
     }
   };
 
-  // Tedarikçi adı güvenli gösterim: veri içinde 'noSupplier' vb. placeholder gelirse çeviriye düş
-  const getSupplierDisplay = (name?: string) => {
-    const n = (name || '').trim();
-    const lang = (i18n.language || 'tr').slice(0,2).toLowerCase();
-    const localizedFallback = lang === 'tr' ? 'Tedarikçi Yok' : lang === 'de' ? 'Kein Lieferant' : lang === 'fr' ? 'Aucun Fournisseur' : 'No Supplier';
-    if (!n) return t('common:noSupplier', { defaultValue: localizedFallback });
-    const normalized = n.toLowerCase();
-    const placeholders = [
-      'nosupplier',
-      'no supplier',
-      'tedarikçi yok',
-      'kein lieferant',
-      'aucun fournisseur'
-    ];
-    if (placeholders.includes(normalized)) return t('common:noSupplier', { defaultValue: localizedFallback });
-    return n;
-  };
-
   return (
     <div className="bg-white rounded-xl border border-gray-200">
       {/* Header */}
@@ -316,15 +399,25 @@ export default function ExpenseList({
               {expenses.length} {t('expenses.expensesRegistered')}
             </p>
           </div>
-          <button
-            onClick={onAddExpense}
-            disabled={atLimit}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${atLimit ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}
-            title={atLimit ? 'Starter/Free planda bu ayki gider limiti doldu (5/5)' : undefined}
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('expenses.newExpense')}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              <FileDown className="w-4 h-4" />
+              <span>{t('expenses.exportCsv', { defaultValue: 'CSV Dışa Aktar' })}</span>
+            </button>
+            <button
+              onClick={onAddExpense}
+              disabled={atLimit}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${atLimit ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}
+              title={atLimit ? 'Starter/Free planda bu ayki gider limiti doldu (5/5)' : undefined}
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('expenses.newExpense')}</span>
+            </button>
+          </div>
         </div>
 
         {/* Search and Filter */}
@@ -410,15 +503,15 @@ export default function ExpenseList({
               listType="expenses"
               getState={() => ({ searchTerm, statusFilter, categoryFilter, startDate, endDate, showVoided, sort, pageSize })}
               applyState={(s) => {
-                const st = s || {} as any;
+                const st: Partial<ExpenseListViewState> = s ?? {};
                 setSearchTerm(st.searchTerm ?? '');
                 setStatusFilter(st.statusFilter ?? 'all');
                 setCategoryFilter(st.categoryFilter ?? 'all');
                 setStartDate(st.startDate ?? '');
                 setEndDate(st.endDate ?? '');
                 setShowVoided(Boolean(st.showVoided));
-                if (st.sort && st.sort.by && st.sort.dir) setSort(st.sort);
-                if (st.pageSize && [20,50,100].includes(st.pageSize)) setPageSize(st.pageSize);
+                if (isExpenseSortState(st.sort)) setSort(st.sort);
+                if (st.pageSize && isValidExpensePageSize(st.pageSize)) handlePageSizeChange(st.pageSize);
               }}
               presets={[
                 { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
@@ -537,9 +630,9 @@ export default function ExpenseList({
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {getSupplierDisplay(
-                          typeof (expense as any).supplier === 'string' 
-                            ? String((expense as any).supplier) 
-                            : (expense as any).supplier?.name
+                          typeof expense.supplier === 'string'
+                            ? expense.supplier
+                            : expense.supplier?.name
                         )}
                       </div>
                     </td>
@@ -689,7 +782,7 @@ export default function ExpenseList({
               pageSize={pageSize}
               total={filteredExpenses.length}
               onPageChange={setPage}
-              onPageSizeChange={(s: number) => { setPageSize(s); setPage(1); }}
+              onPageSizeChange={handlePageSizeChange}
             />
           </div>
           </>
