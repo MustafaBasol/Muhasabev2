@@ -2245,7 +2245,38 @@
         "title": "Zaten Üyesiniz",
         "subtitle": "Bu organizasyonun zaten bir üyesisiniz",
         "action": "Panele Git"
-      }
+      },
+      "details": {
+        "organizationLabel": "Organizasyon",
+        "emailLabel": "Davet edilen e-posta",
+        "expiresLabel": "Son geçerlilik",
+        "roleLabel": "Rol"
+      },
+      "passwordFlow": {
+        "title": "Şifre Belirleyin",
+        "description": "{{email}} için hesabınızı oluşturmak üzere bir şifre belirleyin. E-posta doğrulaması gerekmez.",
+        "passwordLabel": "Şifre",
+        "passwordPlaceholder": "En az 6 karakter",
+        "showPassword": "Göster",
+        "hidePassword": "Gizle",
+        "submit": "Hesap Oluştur ve Katıl",
+        "submitting": "Kaydediliyor...",
+        "toastSuccess": "Davet kabul edildi. Hoş geldiniz!"
+      },
+      "loadingState": {
+        "title": "Davet kontrol ediliyor...",
+        "subtitle": "Lütfen bekleyin, davet bağlantınız doğrulanıyor."
+      },
+      "guestFallback": {
+        "loading": "Geçersiz davet veya yükleniyor..."
+      },
+      "emailMismatch": {
+        "title": "Uyarı",
+        "body": "Bu davet {{inviteEmail}} adresine gönderildi ancak siz {{currentEmail}} ile giriş yaptınız.",
+        "loginAction": "{{inviteEmail}} ile giriş yap",
+        "registerAction": "{{inviteEmail}} ile kayıt ol"
+      },
+      "accepting": "Katılıyor..."
     }
   },
   "admin": {

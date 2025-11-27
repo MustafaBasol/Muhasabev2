@@ -40,6 +40,7 @@ export interface Tenant {
   status: string;
   subscriptionExpiresAt?: string;
   maxUsers?: number;
+  effectiveMaxUsers?: number | null;
   cancelAtPeriodEnd?: boolean;
   billingInterval?: 'month' | 'year' | null;
   updatedAt?: string | null;

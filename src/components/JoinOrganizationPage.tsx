@@ -59,11 +59,16 @@ const InvitePasswordForm: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
-  const captchaRequiredMessage = t('auth.captchaRequired', 'Lütfen insan doğrulamasını tamamlayın');
+  const captchaRequiredMessage = t(
+    'auth.captchaRequired',
+    'Please complete the human verification.',
+  );
 
   const handleSetPassword = async () => {
     if (!password || password.length < 6) {
-      setError(t('auth.passwordTooShort', 'Şifre en az 8 karakter olmalıdır'));
+      setError(
+        t('auth.passwordTooShort', 'Password must be at least 8 characters.'),
+      );
       return;
     }
     if (!captchaToken) {
@@ -90,7 +95,7 @@ const InvitePasswordForm: React.FC<{
             window.dispatchEvent(
               new CustomEvent('showToast', {
                 detail: {
-                  message: 'Davet kabul edildi. Hoş geldiniz!',
+                  message: t('org.join.passwordFlow.toastSuccess'),
                   tone: 'success',
                 },
               }),
@@ -111,7 +116,7 @@ const InvitePasswordForm: React.FC<{
         window.location.hash = 'login';
       }
     } catch (error: unknown) {
-      const msg = getErrorMessage(error, t('common.error', 'İşlem başarısız'));
+      const msg = getErrorMessage(error, t('common.error', 'Operation failed'));
       setError(msg);
       const lowered = String(msg || '').toLowerCase();
       if (lowered.includes('human verification') || lowered.includes('captcha')) {
@@ -136,31 +141,44 @@ const InvitePasswordForm: React.FC<{
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
         <Users className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Şifre Belirleyin</h2>
-        <p className="text-gray-600 mb-6">{invite.email} için hesabınızı oluşturmak üzere bir şifre belirleyin. E-posta doğrulaması gerekmez.</p>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          {t('org.join.passwordFlow.title')}
+        </h2>
+        <p className="text-gray-600 mb-6">
+          {t('org.join.passwordFlow.description', { email: invite.email })}
+        </p>
 
         <div className="text-left space-y-2 mb-4">
-          <label className="block text-sm font-medium text-gray-700">Şifre</label>
+          <label className="block text-sm font-medium text-gray-700">
+            {t('org.join.passwordFlow.passwordLabel')}
+          </label>
           <div className="relative">
             <input
               type={showPw ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="En az 6 karakter"
+              placeholder={t('org.join.passwordFlow.passwordPlaceholder')}
             />
             <button
               type="button"
               onClick={() => setShowPw(!showPw)}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-gray-500"
             >
-              {showPw ? 'Gizle' : 'Göster'}
+              {showPw
+                ? t('org.join.passwordFlow.hidePassword')
+                : t('org.join.passwordFlow.showPassword')}
             </button>
           </div>
         </div>
 
         <div className="mb-6">
-          <p className="text-sm text-gray-600 mb-2">{t('auth.captchaPrompt', 'Devam etmeden önce insan doğrulamasını tamamlayın.')}</p>
+          <p className="text-sm text-gray-600 mb-2">
+            {t(
+              'auth.captchaPrompt',
+              'Please complete the human verification before continuing.',
+            )}
+          </p>
           <TurnstileCaptcha
             key={`invite-complete-${captchaResetKey}`}
             onToken={(t) => {
@@ -175,7 +193,9 @@ const InvitePasswordForm: React.FC<{
           disabled={submitting}
           className="w-full px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
         >
-          {submitting ? 'Kaydediliyor...' : 'Hesap Oluştur ve Katıl'}
+          {submitting
+            ? t('org.join.passwordFlow.submitting')
+            : t('org.join.passwordFlow.submit')}
         </button>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </div>
@@ -196,9 +216,12 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
   onNavigateHome,
   onNavigateDashboard,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, isAuthenticated, logout } = useAuth();
-  const captchaRequiredMessage = t('auth.captchaRequired', 'Lütfen insan doğrulamasını tamamlayın.');
+  const captchaRequiredMessage = t(
+    'auth.captchaRequired',
+    'Please complete the human verification.',
+  );
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
   const isCodespaceHost = typeof window !== 'undefined' && (window.location.hostname?.endsWith('.github.dev') || window.location.hostname?.endsWith('.githubpreview.dev') || window.location.hostname?.includes('.app.github.dev'));
   const captchaBypassAllowed =
@@ -305,15 +328,26 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const formatDate = useCallback(
+    (dateString: string) => {
+      const locale =
+        i18n.language ||
+        (typeof navigator !== 'undefined' && navigator.language) ||
+        'en-US';
+      try {
+        return new Date(dateString).toLocaleString(locale, {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        } satisfies Intl.DateTimeFormatOptions);
+      } catch {
+        return new Date(dateString).toLocaleString(locale);
+      }
+    },
+    [i18n.language],
+  );
 
   if (!humanToken) {
     return (
@@ -343,10 +377,10 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <div className="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Davet kontrol ediliyor...
+            {t('org.join.loadingState.title')}
           </h2>
           <p className="text-gray-600">
-            Lütfen bekleyin, davet bağlantınız doğrulanıyor.
+            {t('org.join.loadingState.subtitle')}
           </p>
         </div>
       </div>
@@ -458,7 +492,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
               onClick={onNavigateHome}
               className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
-              Ana Sayfa
+              {t('common.backToHome', 'Back to Home')}
             </button>
           </div>
           
@@ -475,7 +509,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
     if (!invite) {
       return (
         <div className="min-h-screen flex items-center justify-center">
-          <div>Geçersiz davet veya yükleniyor...</div>
+          <div>{t('org.join.guestFallback.loading')}</div>
         </div>
       );
     }
@@ -501,17 +535,23 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Organizasyon:</span>
+                <span className="text-sm text-gray-600">
+                  {t('org.join.details.organizationLabel')}:
+                </span>
                 <span className="font-medium text-gray-900">{invite.organization.name}</span>
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Davet edilen e-posta:</span>
+                <span className="text-sm text-gray-600">
+                  {t('org.join.details.emailLabel')}:
+                </span>
                 <span className="font-medium text-gray-900">{invite.email}</span>
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">{t('org.join.role')}:</span>
+                <span className="text-sm text-gray-600">
+                  {t('org.join.details.roleLabel')}:
+                </span>
                 <div className="flex items-center space-x-2">
                   {getRoleIcon(invite.role)}
                   <span className="font-medium text-gray-900">
@@ -521,7 +561,9 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Son geçerlilik:</span>
+                <span className="text-sm text-gray-600">
+                  {t('org.join.details.expiresLabel')}:
+                </span>
                 <span className="text-sm text-gray-900">{formatDate(invite.expiresAt)}</span>
               </div>
             </div>
@@ -534,8 +576,11 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
               <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
               <div>
                 <p className="text-sm text-yellow-800">
-                  <strong>Uyarı:</strong> Bu davet {invite.email} adresine gönderilmiş, 
-                  ancak siz {user.email} ile giriş yapmışsınız.
+                  <strong>{t('org.join.emailMismatch.title')}:</strong>{' '}
+                  {t('org.join.emailMismatch.body', {
+                    inviteEmail: invite.email,
+                    currentEmail: user.email || '',
+                  })}
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <button
@@ -550,7 +595,9 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
                     }}
                     className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
-                    {invite.email} ile giriş yap
+                    {t('org.join.emailMismatch.loginAction', {
+                      inviteEmail: invite.email,
+                    })}
                   </button>
                   <button
                     type="button"
@@ -564,7 +611,9 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
                     }}
                     className="px-3 py-2 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
                   >
-                    {invite.email} ile kayıt ol
+                    {t('org.join.emailMismatch.registerAction', {
+                      inviteEmail: invite.email,
+                    })}
                   </button>
                 </div>
               </div>
@@ -584,7 +633,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
               <CheckCircle className="w-4 h-4" />
             )}
             <span>
-              {status === 'accepting' ? 'Katılıyor...' : t('org.join.accept')}
+              {status === 'accepting' ? t('org.join.accepting') : t('org.join.accept')}
             </span>
           </button>
           

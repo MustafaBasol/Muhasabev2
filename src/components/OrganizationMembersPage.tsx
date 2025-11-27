@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Users, Clock, Mail, RotateCcw, X, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,10 +12,15 @@ import {
   MembershipStats 
 } from '../api/organizations';
 import { logger } from '../utils/logger';
+import { getEffectiveTenantMaxUsers } from '../utils/tenantLimits';
 
 const OrganizationMembersPage: React.FC = () => {
   const { t } = useTranslation();
   const { user, tenant, refreshUser } = useAuth();
+  const resolvedTenantMaxUsers = useMemo(
+    () => getEffectiveTenantMaxUsers(tenant),
+    [tenant?.effectiveMaxUsers, tenant?.maxUsers],
+  );
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<Invite[]>([]);
@@ -89,8 +94,8 @@ const OrganizationMembersPage: React.FC = () => {
       if (patchedStats && tenant?.subscriptionPlan) {
         const mapped = normalizePlanLabel(tenant.subscriptionPlan);
         if (mapped !== patchedStats.plan) patchedStats.plan = mapped;
-        if (typeof tenant.maxUsers === 'number' && tenant.maxUsers > 0) {
-          patchedStats.maxMembers = tenant.maxUsers;
+        if (typeof resolvedTenantMaxUsers === 'number') {
+          patchedStats.maxMembers = resolvedTenantMaxUsers;
         } else if (patchedStats.maxMembers <= 1) {
           if (mapped === 'PRO' && patchedStats.maxMembers < 3) patchedStats.maxMembers = 3;
           if (mapped === 'BUSINESS' && patchedStats.maxMembers < 10) patchedStats.maxMembers = 10;
@@ -116,7 +121,7 @@ const OrganizationMembersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [normalizePlanLabel, tenant?.subscriptionPlan, tenant?.maxUsers, user?.id]);
+  }, [normalizePlanLabel, tenant?.subscriptionPlan, resolvedTenantMaxUsers, user?.id]);
 
   useEffect(() => {
     const refreshAndLoad = async () => {
@@ -164,8 +169,8 @@ const OrganizationMembersPage: React.FC = () => {
       if (patchedStats && tenant?.subscriptionPlan) {
         const mapped = normalizePlanLabel(tenant.subscriptionPlan);
         if (mapped !== patchedStats.plan) patchedStats.plan = mapped;
-        if (typeof tenant.maxUsers === 'number' && tenant.maxUsers > 0) {
-          patchedStats.maxMembers = tenant.maxUsers;
+        if (typeof resolvedTenantMaxUsers === 'number') {
+          patchedStats.maxMembers = resolvedTenantMaxUsers;
         } else if (patchedStats.maxMembers <= 1) {
           if (mapped === 'PRO' && patchedStats.maxMembers < 3) patchedStats.maxMembers = 3;
           if (mapped === 'BUSINESS' && patchedStats.maxMembers < 10) patchedStats.maxMembers = 10;
@@ -181,7 +186,7 @@ const OrganizationMembersPage: React.FC = () => {
     } catch (error) {
       logger.error('Failed to refresh pending invites after sending', error);
     }
-  }, [currentOrganization, normalizePlanLabel, tenant?.subscriptionPlan, tenant?.maxUsers]);
+  }, [currentOrganization, normalizePlanLabel, tenant?.subscriptionPlan, resolvedTenantMaxUsers]);
 
   const handleResendInvite = async (invite: Invite) => {
     if (!currentOrganization) return;

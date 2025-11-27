@@ -28,6 +28,7 @@ import { Inject, forwardRef } from '@nestjs/common';
 import { LoginAttemptsService } from './login-attempts.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { Role } from '../common/enums/organization.enum';
+import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 
 type RequestHeaders = Record<string, string | string[] | undefined>;
 
@@ -932,6 +933,29 @@ export class AuthService {
 
   private buildTenantPayload(tenant?: Tenant | null) {
     if (!tenant) return null;
+
+    const planLimits = TenantPlanLimitService.getLimitsForTenant(tenant);
+    let effectiveMaxUsers = planLimits.maxUsers;
+    const storedMaxUsers =
+      typeof tenant.maxUsers === 'number' && Number.isFinite(tenant.maxUsers)
+        ? tenant.maxUsers
+        : undefined;
+
+    if (effectiveMaxUsers === -1 || storedMaxUsers === -1) {
+      effectiveMaxUsers = -1;
+    } else if (typeof storedMaxUsers === 'number') {
+      effectiveMaxUsers = Math.max(effectiveMaxUsers, storedMaxUsers);
+    }
+
+    // Stripe koltuk senkronu varsa, storedMaxUsers değeri gerçek koltuk sayısını temsil eder
+    if (
+      tenant.stripeSubscriptionId &&
+      typeof storedMaxUsers === 'number' &&
+      Number.isFinite(storedMaxUsers)
+    ) {
+      effectiveMaxUsers = storedMaxUsers;
+    }
+
     return {
       id: tenant.id,
       name: tenant.name,
@@ -939,6 +963,7 @@ export class AuthService {
       subscriptionPlan: tenant.subscriptionPlan,
       status: tenant.status,
       maxUsers: tenant.maxUsers,
+      effectiveMaxUsers,
       subscriptionExpiresAt: tenant.subscriptionExpiresAt,
       cancelAtPeriodEnd: tenant.cancelAtPeriodEnd === true,
     };

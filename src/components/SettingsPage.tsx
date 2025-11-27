@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Settings,
@@ -36,6 +36,7 @@ import {
   updateSeats as billingUpdateSeats,
 } from '../api/billing';
 import { logger } from '../utils/logger';
+import { getEffectiveTenantMaxUsers } from '../utils/tenantLimits';
 import {
   getCachedTenantId,
   getCachedUserId,
@@ -323,7 +324,12 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   // Yalnız landing'deki 3 plan: Starter(Free), Pro, Business(Enterprise)
   const [desiredPlan, setDesiredPlan] = useState<AllowedPlan>(normalizedPlanSlug);
   const [desiredBilling, setDesiredBilling] = useState<'monthly' | 'yearly'>('monthly');
-  const currentMaxUsers = typeof tenant?.maxUsers === 'number' ? tenant.maxUsers : 1;
+  const resolvedTenantMaxUsers = useMemo(
+    () => getEffectiveTenantMaxUsers(tenant),
+    [tenant?.effectiveMaxUsers, tenant?.maxUsers],
+  );
+  const currentMaxUsers =
+    typeof resolvedTenantMaxUsers === 'number' ? resolvedTenantMaxUsers : 1;
   const baseIncludedUsers = baseIncludedFor(planRaw || 'free');
   const additionalSeatCapacity = Math.max(0, currentMaxUsers - baseIncludedUsers);
   // Plan değişiminde hedef kullanıcı alanı kaldırıldı; koltuk artışı yalnız add-on akışından yapılır
@@ -461,7 +467,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     setDesiredPlan(normalizePlanSlug(planRaw) ?? 'free');
     // Kullanıcı hedef alanı kaldırıldığı için burada ayrı bir senkron gerekmiyor
     setCancelAtPeriodEnd(!!tenant?.cancelAtPeriodEnd);
-  }, [planRaw, tenant?.maxUsers, tenant?.cancelAtPeriodEnd]);
+  }, [planRaw, resolvedTenantMaxUsers, tenant?.cancelAtPeriodEnd]);
 
   // Mount'ta tenant bilgisini tazele (AuthContext üzerinden)
   useEffect(() => {
@@ -475,7 +481,8 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       try {
         if (!isPaidPlan(planRaw)) return;
         const base = baseIncludedFor(planRaw);
-        const current = typeof tenant?.maxUsers === 'number' ? tenant.maxUsers : 0;
+        const current =
+          typeof resolvedTenantMaxUsers === 'number' ? resolvedTenantMaxUsers : 0;
         if (current > 0 && current < base) {
           const tenantId = resolvedTenantId;
           if (!tenantId) return;
@@ -493,7 +500,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     return () => {
       cancelled = true;
     };
-  }, [planRaw, tenant?.maxUsers, resolvedTenantId, refreshUser]);
+  }, [planRaw, resolvedTenantMaxUsers, resolvedTenantId, refreshUser]);
 
   // Checkout başarı dönüşünde manuel Stripe senkronu tetikle
   useEffect(() => {
@@ -596,7 +603,8 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     try {
       const tenantId = getRequiredTenantId();
       const base = baseIncludedFor(planRaw);
-      const currentMax = typeof tenant?.maxUsers === 'number' ? tenant.maxUsers : base;
+      const currentMax =
+        typeof resolvedTenantMaxUsers === 'number' ? resolvedTenantMaxUsers : base;
       const currentAddon = Math.max(0, currentMax - base);
       if (currentAddon <= 0) {
         setPlanMessage(currentLanguage === 'tr' ? 'Azaltılabilecek ilave koltuk yok.' : 'No extra seats to remove.');
@@ -740,7 +748,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           type: 'plan.current',
           plan: tenant?.subscriptionPlan ?? null,
           at: tenant?.updatedAt ?? null,
-          users: tenant?.maxUsers ?? null,
+          users: resolvedTenantMaxUsers ?? null,
         }];
         if (mounted) {
           setHistory(apiEvents.length > 0 ? apiEvents : fallbackEvents);
@@ -754,7 +762,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
     };
     void fetchHistory();
     return () => { mounted = false; };
-  }, [resolvedTenantId, tenant?.subscriptionPlan, tenant?.updatedAt, tenant?.maxUsers]);
+  }, [resolvedTenantId, tenant?.subscriptionPlan, tenant?.updatedAt, resolvedTenantMaxUsers]);
 
   // Faturaları çek
   useEffect(() => {

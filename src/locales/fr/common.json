@@ -2737,7 +2737,38 @@
         "title": "Déjà membre",
         "subtitle": "Vous faites déjà partie de cette organisation",
         "action": "Aller au tableau de bord"
-      }
+      },
+      "details": {
+        "organizationLabel": "Organisation",
+        "emailLabel": "E-mail invité",
+        "expiresLabel": "Expire le",
+        "roleLabel": "Rôle"
+      },
+      "passwordFlow": {
+        "title": "Définissez votre mot de passe",
+        "description": "Définissez un mot de passe pour créer votre compte pour {{email}}. Aucune vérification par e-mail n'est requise.",
+        "passwordLabel": "Mot de passe",
+        "passwordPlaceholder": "Au moins 6 caractères",
+        "showPassword": "Afficher",
+        "hidePassword": "Masquer",
+        "submit": "Créer le compte et rejoindre",
+        "submitting": "Enregistrement...",
+        "toastSuccess": "Invitation acceptée. Bienvenue !"
+      },
+      "loadingState": {
+        "title": "Vérification de l'invitation...",
+        "subtitle": "Merci de patienter pendant la validation de votre invitation."
+      },
+      "guestFallback": {
+        "loading": "Invitation invalide ou chargement en cours..."
+      },
+      "emailMismatch": {
+        "title": "Avertissement",
+        "body": "Cette invitation a été envoyée à {{inviteEmail}}, mais vous êtes connecté en tant que {{currentEmail}}.",
+        "loginAction": "Se connecter en tant que {{inviteEmail}}",
+        "registerAction": "S'inscrire en tant que {{inviteEmail}}"
+      },
+      "accepting": "Rejoindre..."
     }
   },
   "pdf": {

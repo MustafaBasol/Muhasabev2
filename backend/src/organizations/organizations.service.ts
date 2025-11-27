@@ -19,6 +19,7 @@ import { InviteUserDto, UpdateMemberRoleDto } from './dto/member.dto';
 import { Role, Plan } from '../common/enums/organization.enum';
 import { SubscriptionPlan } from '../tenants/entities/tenant.entity';
 import { PlanLimitService } from '../common/plan-limits.service';
+import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 import { EmailService } from '../services/email.service';
 import { randomBytes } from 'crypto';
 
@@ -139,6 +140,26 @@ This invitation will expire on ${expiryLabel}.
     };
   }
 
+  private resolveTenantSeatLimit(tenant?: User['tenant'] | null): number {
+    if (!tenant) {
+      return PlanLimitService.getMaxMembers(Plan.STARTER);
+    }
+    const tenantLimits = TenantPlanLimitService.getLimitsForTenant(tenant);
+    const planMaxUsers = tenantLimits.maxUsers;
+    const storedMaxUsers =
+      typeof tenant.maxUsers === 'number' && Number.isFinite(tenant.maxUsers)
+        ? tenant.maxUsers
+        : undefined;
+
+    if (planMaxUsers === -1 || storedMaxUsers === -1) {
+      return -1;
+    }
+    if (typeof storedMaxUsers === 'number') {
+      return Math.max(planMaxUsers, storedMaxUsers);
+    }
+    return planMaxUsers;
+  }
+
   private queueInviteEmail(options: {
     invite: Invite;
     organizationName: string;
@@ -162,39 +183,49 @@ This invitation will expire on ${expiryLabel}.
       isReminder,
     });
 
-    this.emailService
-      .sendEmail({
-        to: invite.email,
-        subject,
-        html,
-        text,
-        meta: {
-          tenantId: invite.organizationId,
-          type: isReminder ? 'verify-resend' : 'verify',
-        },
-      })
-      .then(() => {
-        this.logger.log(
-          `📧 ${isReminder ? 'Resent' : 'Sent'} invitation email to ${invite.email}`,
-        );
-      })
-      .catch((error: unknown) => {
-        let message: string;
-        if (error instanceof Error) {
-          message = error.message;
-        } else if (typeof error === 'string') {
-          message = error;
-        } else {
-          try {
-            message = JSON.stringify(error);
-          } catch {
-            message = String(error);
+    // Defer to the next tick so slow providers cannot block the API response.
+    const dispatchEmail = () => {
+      this.emailService
+        .sendEmail({
+          to: invite.email,
+          subject,
+          html,
+          text,
+          meta: {
+            tenantId: invite.organizationId,
+            type: isReminder ? 'verify-resend' : 'verify',
+          },
+        })
+        .then(() => {
+          this.logger.log(
+            `📧 ${isReminder ? 'Resent' : 'Sent'} invitation email to ${invite.email}`,
+          );
+        })
+        .catch((error: unknown) => {
+          let message: string;
+          if (error instanceof Error) {
+            message = error.message;
+          } else if (typeof error === 'string') {
+            message = error;
+          } else {
+            try {
+              message = JSON.stringify(error);
+            } catch {
+              message = String(error);
+            }
           }
-        }
-        this.logger.error(
-          `❌ Failed to ${isReminder ? 'resend' : 'send'} invitation email to ${invite.email}: ${message}`,
-        );
-      });
+          this.logger.error(
+            `❌ Failed to ${isReminder ? 'resend' : 'send'} invitation email to ${invite.email}: ${message}`,
+          );
+        });
+    };
+
+    if (typeof setImmediate === 'function') {
+      setImmediate(dispatchEmail);
+    } else {
+      // Fallback for environments without setImmediate (shouldn't happen in Node)
+      void Promise.resolve().then(dispatchEmail);
+    }
   }
 
   async create(
@@ -344,7 +375,7 @@ This invitation will expire on ${expiryLabel}.
     });
     if (inviterUser?.tenant) {
       const subPlan = inviterUser.tenant.subscriptionPlan;
-      const tenantMaxUsers = inviterUser.tenant.maxUsers; // -1 sınırsız
+      const tenantMaxUsers = this.resolveTenantSeatLimit(inviterUser.tenant);
 
       // Tenant planını organizasyon planına map et (sadece görünür plan değil, limit amacıyla)
       const mapTenantPlanToOrgPlan = (p: SubscriptionPlan): Plan => {
@@ -365,7 +396,7 @@ This invitation will expire on ${expiryLabel}.
       // Tenant maxUsers değeri organizasyon limitinden büyükse override et
       if (tenantMaxUsers === -1) {
         effectiveMax = -1; // sınırsız
-      } else if (tenantMaxUsers > effectiveMax) {
+      } else if (typeof tenantMaxUsers === 'number' && tenantMaxUsers > effectiveMax) {
         effectiveMax = tenantMaxUsers;
       }
     }
@@ -493,7 +524,7 @@ This invitation will expire on ${expiryLabel}.
       });
       if (ownerUser?.tenant) {
         const subPlan = ownerUser.tenant.subscriptionPlan;
-        const tenantMaxUsers = ownerUser.tenant.maxUsers;
+        const tenantMaxUsers = this.resolveTenantSeatLimit(ownerUser.tenant);
 
         const mapTenantPlanToOrgPlan = (p: SubscriptionPlan): Plan => {
           if (p === SubscriptionPlan.PROFESSIONAL) return Plan.PRO;
@@ -509,7 +540,7 @@ This invitation will expire on ${expiryLabel}.
         }
         if (tenantMaxUsers === -1) {
           effectiveMax = -1;
-        } else if (tenantMaxUsers > effectiveMax) {
+        } else if (typeof tenantMaxUsers === 'number' && tenantMaxUsers > effectiveMax) {
           effectiveMax = tenantMaxUsers;
         }
       }
@@ -858,7 +889,7 @@ This invitation will expire on ${expiryLabel}.
     });
     if (userWithTenant?.tenant) {
       const subPlan = userWithTenant.tenant.subscriptionPlan;
-      const tenantMaxUsers = userWithTenant.tenant.maxUsers;
+      const tenantMaxUsers = this.resolveTenantSeatLimit(userWithTenant.tenant);
       const mapTenantPlanToOrgPlan = (p: SubscriptionPlan): Plan => {
         if (p === SubscriptionPlan.PROFESSIONAL) return Plan.PRO;
         if (p === SubscriptionPlan.ENTERPRISE) return Plan.BUSINESS;
@@ -872,7 +903,7 @@ This invitation will expire on ${expiryLabel}.
       }
       if (tenantMaxUsers === -1) {
         effectiveMax = -1;
-      } else if (tenantMaxUsers > effectiveMax) {
+      } else if (typeof tenantMaxUsers === 'number' && tenantMaxUsers > effectiveMax) {
         effectiveMax = tenantMaxUsers;
       }
     }

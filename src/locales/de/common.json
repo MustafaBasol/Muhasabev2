@@ -2712,7 +2712,38 @@
         "title": "Bereits Mitglied",
         "subtitle": "Du bist bereits Mitglied dieser Organisation",
         "action": "Zum Dashboard"
-      }
+      },
+      "details": {
+        "organizationLabel": "Organisation",
+        "emailLabel": "Eingeladene E-Mail",
+        "expiresLabel": "Läuft ab",
+        "roleLabel": "Rolle"
+      },
+      "passwordFlow": {
+        "title": "Passwort festlegen",
+        "description": "Lege ein Passwort für dein Konto für {{email}} fest. Eine E-Mail-Bestätigung ist nicht erforderlich.",
+        "passwordLabel": "Passwort",
+        "passwordPlaceholder": "Mindestens 6 Zeichen",
+        "showPassword": "Anzeigen",
+        "hidePassword": "Ausblenden",
+        "submit": "Konto erstellen und beitreten",
+        "submitting": "Wird gespeichert...",
+        "toastSuccess": "Einladung akzeptiert. Willkommen!"
+      },
+      "loadingState": {
+        "title": "Einladung wird überprüft...",
+        "subtitle": "Bitte warten, während wir deine Einladung validieren."
+      },
+      "guestFallback": {
+        "loading": "Ungültige Einladung oder wird geladen..."
+      },
+      "emailMismatch": {
+        "title": "Warnung",
+        "body": "Diese Einladung wurde an {{inviteEmail}} gesendet, du bist jedoch als {{currentEmail}} angemeldet.",
+        "loginAction": "Als {{inviteEmail}} anmelden",
+        "registerAction": "Als {{inviteEmail}} registrieren"
+      },
+      "accepting": "Beitritt läuft..."
     }
   },
   "pdf": {

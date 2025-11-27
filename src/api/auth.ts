@@ -61,6 +61,11 @@ export interface AuthResponse {
     slug: string;
     subscriptionPlan: string;
     status: string;
+    maxUsers?: number | null;
+    effectiveMaxUsers?: number | null;
+    subscriptionExpiresAt?: string | null;
+    cancelAtPeriodEnd?: boolean;
+    billingInterval?: 'month' | 'year' | null;
   };
   token: string;
 }

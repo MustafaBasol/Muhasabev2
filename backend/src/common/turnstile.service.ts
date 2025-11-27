@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class TurnstileService {
   private warnedMissingSecret = false;
+  private warnedBypassToken = false;
 
   private readonly turnstileEndpoint =
     'https://challenges.cloudflare.com/turnstile/v0/siteverify';
@@ -30,6 +31,15 @@ export class TurnstileService {
       return false;
     }
     if (token === 'TURNSTILE_SKIPPED') {
+      if (this.isDevBypassEnabled()) {
+        if (!this.warnedBypassToken) {
+          console.warn(
+            '⚠️ Turnstile dev bypass token accepted (TURNSTILE_SKIPPED). Disable TURNSTILE_DEV_BYPASS for production.',
+          );
+          this.warnedBypassToken = true;
+        }
+        return true;
+      }
       return false;
     }
     try {
@@ -90,6 +100,21 @@ export class TurnstileService {
 
   private shouldLogVerbose(): boolean {
     return (process.env.TURNSTILE_LOG_VERBOSE || '').toLowerCase() === 'true';
+  }
+
+  private isDevBypassEnabled(): boolean {
+    const flag =
+      process.env.TURNSTILE_DEV_BYPASS ??
+      process.env.CAPTCHA_DEV_BYPASS ??
+      process.env.VITE_CAPTCHA_DEV_BYPASS ??
+      '';
+    const normalized = flag.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+      return true;
+    }
+    const nodeEnv = (process.env.NODE_ENV || '').toLowerCase();
+    const isCodespace = Boolean(process.env.CODESPACE_NAME);
+    return isCodespace && nodeEnv !== 'production';
   }
 }
 

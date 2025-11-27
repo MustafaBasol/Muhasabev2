@@ -2175,7 +2175,38 @@
         "title": "Already a Member",
         "subtitle": "You already belong to this organization",
         "action": "Open dashboard"
-      }
+      },
+      "details": {
+        "organizationLabel": "Organization",
+        "emailLabel": "Invited email",
+        "expiresLabel": "Expires on",
+        "roleLabel": "Role"
+      },
+      "passwordFlow": {
+        "title": "Set Your Password",
+        "description": "Set a password to create your account for {{email}}. Email verification is not required.",
+        "passwordLabel": "Password",
+        "passwordPlaceholder": "At least 6 characters",
+        "showPassword": "Show",
+        "hidePassword": "Hide",
+        "submit": "Create Account and Join",
+        "submitting": "Saving...",
+        "toastSuccess": "Invitation accepted. Welcome!"
+      },
+      "loadingState": {
+        "title": "Checking invitation...",
+        "subtitle": "Please wait while we validate your invite."
+      },
+      "guestFallback": {
+        "loading": "Invalid invite or loading..."
+      },
+      "emailMismatch": {
+        "title": "Warning",
+        "body": "This invite was sent to {{inviteEmail}}, but you are signed in as {{currentEmail}}.",
+        "loginAction": "Sign in as {{inviteEmail}}",
+        "registerAction": "Register as {{inviteEmail}}"
+      },
+      "accepting": "Joining..."
     }
   },
   "admin": {
