@@ -54,4 +54,6 @@ jobs:
           TEST_DATABASE_USER: postgres
           TEST_DATABASE_PASSWORD: postgres
           TEST_DATABASE_NAME: app_test
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: npm run test:e2e
+
