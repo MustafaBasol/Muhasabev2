@@ -111,6 +111,9 @@ describe('Authentication (e2e)', () => {
 
   describe('POST /auth/login', () => {
     it('should login successfully', async () => {
+      // Register işlemlerinin ve DB commit’inin tam bittiğinden emin olmak için
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       const response = await request(app.getHttpServer())
         .post('/auth/login')
         .send({
@@ -118,8 +121,8 @@ describe('Authentication (e2e)', () => {
           password: registeredUserPassword,
         });
 
-      // Debug için (CI loglarında görebilelim)
-      // console.log('LOGIN RESPONSE', response.status, response.body);
+      // CI logunda login cevabını görmek için
+      console.log('LOGIN RESPONSE', response.status, response.body);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('token');
