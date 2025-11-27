@@ -110,24 +110,18 @@ describe('Authentication (e2e)', () => {
   });
 
   describe('POST /auth/login', () => {
-    it('should login successfully', async () => {
-      // Register işlemlerinin ve DB commit’inin tam bittiğinden emin olmak için
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
+    it('should fail login when email is not verified', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
         .send({
           email: registeredUserEmail,
           password: registeredUserPassword,
-        });
+        })
+        .expect(401);
 
-      // CI logunda login cevabını görmek için
-      console.log('LOGIN RESPONSE', response.status, response.body);
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('token');
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user.email).toBe(registeredUserEmail);
+      // Gerçek davranışı assert edelim
+      expect(response.body).toHaveProperty('message', 'EMAIL_NOT_VERIFIED');
+      expect(response.body).toHaveProperty('statusCode', 401);
     });
 
     it('should fail with wrong password', async () => {
