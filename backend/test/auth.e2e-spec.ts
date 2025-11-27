@@ -8,6 +8,10 @@ describe('Authentication (e2e)', () => {
   let authToken: string;
   let tenantId: string;
 
+  // Login testlerinde tekrar kullanmak için
+  let registeredUserEmail: string;
+  const registeredUserPassword = 'Test123456';
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -32,7 +36,7 @@ describe('Authentication (e2e)', () => {
     it('should register a new user and tenant', async () => {
       const registerDto = {
         email: `test-${Date.now()}@example.com`,
-        password: 'Test123456',
+        password: registeredUserPassword,
         firstName: 'Test',
         lastName: 'User',
         companyName: `Test Company ${Date.now()}`,
@@ -52,6 +56,7 @@ describe('Authentication (e2e)', () => {
 
       authToken = response.body.token;
       tenantId = response.body.user.tenantId;
+      registeredUserEmail = registerDto.email;
     });
 
     it('should fail with duplicate email', async () => {
@@ -105,44 +110,28 @@ describe('Authentication (e2e)', () => {
   });
 
   describe('POST /auth/login', () => {
-    const testUser = {
-      email: `login-test-${Date.now()}@example.com`,
-      password: 'Test123456',
-      firstName: 'Login',
-      lastName: 'Test',
-      companyName: `Login Test Company ${Date.now()}`,
-    };
-
-    beforeAll(async () => {
-      // Register a user for login tests
-      await request(app.getHttpServer())
-        .post('/auth/register')
-        .send(testUser)
-        .expect(201);
-
-      // Küçük bir gecikme: DB commit ve indexlerin tamamlandığından emin olmak için
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    });
-
     it('should login successfully', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
         .send({
-          email: testUser.email,
-          password: testUser.password,
-        })
-        .expect(200);
+          email: registeredUserEmail,
+          password: registeredUserPassword,
+        });
 
+      // Debug için (CI loglarında görebilelim)
+      // console.log('LOGIN RESPONSE', response.status, response.body);
+
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('token');
       expect(response.body).toHaveProperty('user');
-      expect(response.body.user.email).toBe(testUser.email);
+      expect(response.body.user.email).toBe(registeredUserEmail);
     });
 
     it('should fail with wrong password', async () => {
       await request(app.getHttpServer())
         .post('/auth/login')
         .send({
-          email: testUser.email,
+          email: registeredUserEmail,
           password: 'WrongPassword123',
         })
         .expect(401);
