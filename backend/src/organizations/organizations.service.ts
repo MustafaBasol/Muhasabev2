@@ -98,7 +98,8 @@ export class OrganizationsService {
     expiryDate: Date;
     isReminder?: boolean;
   }): { subject: string; html: string; text: string } {
-    const { organizationName, role, inviteUrl, expiryDate, isReminder } = options;
+    const { organizationName, role, inviteUrl, expiryDate, isReminder } =
+      options;
     const expiryLabel = expiryDate.toLocaleString();
     const subject = isReminder
       ? `Reminder: Invitation to join ${organizationName}`
@@ -168,7 +169,14 @@ This invitation will expire on ${expiryLabel}.
     isReminder?: boolean;
     expiresAt?: Date;
   }): void {
-    const { invite, organizationName, role, requestOrigin, isReminder, expiresAt } = options;
+    const {
+      invite,
+      organizationName,
+      role,
+      requestOrigin,
+      isReminder,
+      expiresAt,
+    } = options;
     const expiryDate =
       expiresAt ??
       (invite.expiresAt instanceof Date
@@ -396,7 +404,10 @@ This invitation will expire on ${expiryLabel}.
       // Tenant maxUsers değeri organizasyon limitinden büyükse override et
       if (tenantMaxUsers === -1) {
         effectiveMax = -1; // sınırsız
-      } else if (typeof tenantMaxUsers === 'number' && tenantMaxUsers > effectiveMax) {
+      } else if (
+        typeof tenantMaxUsers === 'number' &&
+        tenantMaxUsers > effectiveMax
+      ) {
         effectiveMax = tenantMaxUsers;
       }
     }
@@ -540,7 +551,10 @@ This invitation will expire on ${expiryLabel}.
         }
         if (tenantMaxUsers === -1) {
           effectiveMax = -1;
-        } else if (typeof tenantMaxUsers === 'number' && tenantMaxUsers > effectiveMax) {
+        } else if (
+          typeof tenantMaxUsers === 'number' &&
+          tenantMaxUsers > effectiveMax
+        ) {
           effectiveMax = tenantMaxUsers;
         }
       }
@@ -903,7 +917,10 @@ This invitation will expire on ${expiryLabel}.
       }
       if (tenantMaxUsers === -1) {
         effectiveMax = -1;
-      } else if (typeof tenantMaxUsers === 'number' && tenantMaxUsers > effectiveMax) {
+      } else if (
+        typeof tenantMaxUsers === 'number' &&
+        tenantMaxUsers > effectiveMax
+      ) {
         effectiveMax = tenantMaxUsers;
       }
     }

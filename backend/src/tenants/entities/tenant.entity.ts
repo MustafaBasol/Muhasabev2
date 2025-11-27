@@ -84,45 +84,93 @@ export class Tenant {
   kepAddress: string | null;
 
   // === Fransa Yasal Alanları ===
-  @Column({ nullable: true, comment: 'SIRET Numarası (14 haneli)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'SIRET Numarası (14 haneli)',
+    type: 'varchar',
+  })
   siretNumber: string | null;
 
-  @Column({ nullable: true, comment: 'SIREN Numarası (9 haneli)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'SIREN Numarası (9 haneli)',
+    type: 'varchar',
+  })
   sirenNumber: string | null;
 
-  @Column({ nullable: true, comment: 'APE/NAF Kodu (ana faaliyet)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'APE/NAF Kodu (ana faaliyet)',
+    type: 'varchar',
+  })
   apeCode: string | null;
 
-  @Column({ nullable: true, comment: 'TVA Numarası (FR + 11 hane)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'TVA Numarası (FR + 11 hane)',
+    type: 'varchar',
+  })
   tvaNumber: string | null;
 
-  @Column({ nullable: true, comment: 'RCS Numarası (Ticaret Sicil)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'RCS Numarası (Ticaret Sicil)',
+    type: 'varchar',
+  })
   rcsNumber: string | null;
 
   // === Almanya Yasal Alanları ===
-  @Column({ nullable: true, comment: 'Steuernummer (Vergi Numarası)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'Steuernummer (Vergi Numarası)',
+    type: 'varchar',
+  })
   steuernummer: string | null;
 
-  @Column({ nullable: true, comment: 'Umsatzsteuer-ID (DE + 9 hane)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'Umsatzsteuer-ID (DE + 9 hane)',
+    type: 'varchar',
+  })
   umsatzsteuerID: string | null;
 
-  @Column({ nullable: true, comment: 'Handelsregisternummer (Ticaret Sicil)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'Handelsregisternummer (Ticaret Sicil)',
+    type: 'varchar',
+  })
   handelsregisternummer: string | null;
 
-  @Column({ nullable: true, comment: 'Geschäftsführer (Genel Müdür)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'Geschäftsführer (Genel Müdür)',
+    type: 'varchar',
+  })
   geschaeftsfuehrer: string | null;
 
   // === Amerika Yasal Alanları ===
-  @Column({ nullable: true, comment: 'EIN (Employer Identification Number)', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'EIN (Employer Identification Number)',
+    type: 'varchar',
+  })
   einNumber: string | null;
 
   @Column({ nullable: true, comment: 'Tax ID Numarası', type: 'varchar' })
   taxId: string | null;
 
-  @Column({ nullable: true, comment: 'Business License Number', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'Business License Number',
+    type: 'varchar',
+  })
   businessLicenseNumber: string | null;
 
-  @Column({ nullable: true, comment: 'State of Incorporation', type: 'varchar' })
+  @Column({
+    nullable: true,
+    comment: 'State of Incorporation',
+    type: 'varchar',
+  })
   stateOfIncorporation: string | null;
 
   @Column({

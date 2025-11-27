@@ -41,13 +41,14 @@ export const patchTypeOrmMetadataForTests = () => {
   if (!shouldPatch()) {
     return;
   }
-  const validator = EntityMetadataValidator.prototype as EntityMetadataValidator & {
-    __patchedForTests?: boolean;
-  };
+  const validator =
+    EntityMetadataValidator.prototype as EntityMetadataValidator & {
+      __patchedForTests?: boolean;
+    };
   if (validator.__patchedForTests) {
     return;
   }
-  const originalValidate = validator.validate;
+  const originalValidate = validator.validate.bind(validator);
   validator.validate = function patchedValidate(
     entityMetadata: EntityMetadata,
     allEntityMetadatas: EntityMetadata[],

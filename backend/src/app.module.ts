@@ -63,12 +63,19 @@ const parseDatabaseUrl = (value?: string): PgUrlParts | null => {
     return {
       host: parsed.hostname || undefined,
       port: parsed.port ? Number(parsed.port) : undefined,
-      username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
-      password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+      username: parsed.username
+        ? decodeURIComponent(parsed.username)
+        : undefined,
+      password: parsed.password
+        ? decodeURIComponent(parsed.password)
+        : undefined,
       database,
     };
   } catch (error) {
-    console.warn('⚠️  Invalid database URL provided, falling back to discrete env vars.', error);
+    console.warn(
+      '⚠️  Invalid database URL provided, falling back to discrete env vars.',
+      error,
+    );
     return null;
   }
 };
@@ -201,9 +208,10 @@ const parseDatabaseUrl = (value?: string): PgUrlParts | null => {
           synchronize: false,
           dropSchema: false,
           logging: process.env.NODE_ENV === 'development',
-          ssl: isProd || process.env.DATABASE_SSL === 'true'
-            ? { rejectUnauthorized: false }
-            : false,
+          ssl:
+            isProd || process.env.DATABASE_SSL === 'true'
+              ? { rejectUnauthorized: false }
+              : false,
           autoLoadEntities: true,
         } as const;
       },

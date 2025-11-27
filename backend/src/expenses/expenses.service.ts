@@ -68,9 +68,7 @@ export class ExpensesService {
     // Map 'date' to 'expenseDate' for entity compatibility
     const { date, amount, ...restDto } = createExpenseDto;
     const expenseDate =
-      restDto.expenseDate ||
-      date ||
-      new Date().toISOString().split('T')[0];
+      restDto.expenseDate || date || new Date().toISOString().split('T')[0];
     const normalizedAmount = Number(amount ?? 0);
     const payload: DeepPartial<Expense> = {
       ...restDto,

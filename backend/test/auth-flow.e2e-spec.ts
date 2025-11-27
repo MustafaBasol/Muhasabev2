@@ -192,7 +192,10 @@ function extractQueryParam(
   // Regex: capture param value until & or quote or whitespace
   const match = content.match(new RegExp(`${key}=([^&"\\s]+)`));
   if (!match) {
-    console.error(`[auth-flow] Missing query param ${key} in email payload`, content);
+    console.error(
+      `[auth-flow] Missing query param ${key} in email payload`,
+      content,
+    );
     return '';
   }
   return decodeURIComponent(match[1]);

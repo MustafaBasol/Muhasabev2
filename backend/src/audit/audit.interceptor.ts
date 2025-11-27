@@ -39,7 +39,7 @@ export class AuditInterceptor implements NestInterceptor {
       }
     >();
     const handler = context.getHandler() as (...args: unknown[]) => unknown;
-    const controller = context.getClass() as Type<unknown>;
+    const controller = context.getClass();
 
     // Get metadata about the audit configuration
     const auditConfig = this.getAuditConfig(controller, handler);
@@ -206,9 +206,15 @@ export class AuditInterceptor implements NestInterceptor {
   private isKnownEntity(value: unknown): value is KnownEntity {
     return (
       typeof value === 'string' &&
-      ['Quote', 'Sale', 'Invoice', 'Expense', 'Product', 'Customer', 'Supplier'].includes(
-        value,
-      )
+      [
+        'Quote',
+        'Sale',
+        'Invoice',
+        'Expense',
+        'Product',
+        'Customer',
+        'Supplier',
+      ].includes(value)
     );
   }
 

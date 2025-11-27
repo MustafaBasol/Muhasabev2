@@ -36,7 +36,9 @@ const extractHeaderValue = (value?: string | string[]): string | undefined => {
   return Array.isArray(value) ? value[0] : value;
 };
 
-const resolveRequestOrigin = (req: AuthenticatedRequest): string | undefined => {
+const resolveRequestOrigin = (
+  req: AuthenticatedRequest,
+): string | undefined => {
   if (!req?.headers) {
     return undefined;
   }
