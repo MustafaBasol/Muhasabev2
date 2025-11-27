@@ -92,7 +92,7 @@ describe('Authentication (e2e)', () => {
     });
 
     it('should fail with missing fields', async () => {
-      const registerDto = {
+      const registerDto: any = {
         email: 'test@example.com',
         // Missing password and other required fields
       };
@@ -115,7 +115,13 @@ describe('Authentication (e2e)', () => {
 
     beforeAll(async () => {
       // Register a user for login tests
-      await request(app.getHttpServer()).post('/auth/register').send(testUser);
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send(testUser)
+        .expect(201);
+
+      // Küçük bir gecikme: DB commit ve indexlerin tamamlandığından emin olmak için
+      await new Promise((resolve) => setTimeout(resolve, 500));
     });
 
     it('should login successfully', async () => {
