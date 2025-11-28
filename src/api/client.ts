@@ -5,7 +5,12 @@ import { adminAuthStorage } from '../utils/adminAuthStorage';
 import { safeLocalStorage, readLegacyAuthToken, clearLegacySessionCaches } from '../utils/localStorageSafe';
 
 // Use proxy in Codespaces (more reliable)
-const API_BASE_URL = '/api';
+// Use proxy in Codespaces (more reliable)
+const API_BASE_URL =
+  import.meta.env.DEV
+    ? '/api'
+    : 'https://api.comptario.com';
+
 
 if (import.meta.env.DEV) {
   // Yalnızca geliştirmede bilgi amaçlı logla (varsayılan olarak sessiz)

@@ -92,9 +92,10 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
       size: invisible ? 'invisible' : 'normal',
       theme: 'auto',
       callback: (token: string) => {
-        onToken(token || null);
-        errorCountRef.current = 0;
-      },
+    console.log('[Turnstile] token:', token);
+    onToken(token || null);
+    errorCountRef.current = 0;
+  },
       'error-callback': () => {
         if (errorCountRef.current === 0) {
           console.warn('[TurnstileCaptcha] error-callback tetiklendi');

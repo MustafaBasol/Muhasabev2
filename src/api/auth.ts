@@ -197,7 +197,7 @@ export const authService = {
 
   async signup(data: RegisterData): Promise<{ success: boolean }> {
     // Spec-compliant minimal response endpoint
-    const response = await apiClient.post('/auth/signup', data);
+    const response = await apiClient.post('/api/auth/register', data);
     return response.data;
   },
 
