@@ -5724,11 +5724,12 @@ const AppContent: React.FC = () => {
         onCreateInvoice={handleCreateInvoiceFromCustomer}
         onRecordPayment={handleRecordPaymentForCustomer}
         onViewHistory={customer => {
-          setSelectedCustomer(customer ?? null);
-          setShowCustomerViewModal(false);
-          setTimeout(() => {
-            setShowCustomerHistoryModal(true);
-          }, 50);
+          try {
+            const url = `${window.location.origin}/#customer-history:${encodeURIComponent(String(customer?.id || ''))}`;
+            window.open(url, '_blank');
+          } catch {
+            setCurrentPage(`customer-history:${String(customer?.id || '')}`);
+          }
         }}
       />
 
