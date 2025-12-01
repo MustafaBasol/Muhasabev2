@@ -5724,11 +5724,14 @@ const AppContent: React.FC = () => {
         onCreateInvoice={handleCreateInvoiceFromCustomer}
         onRecordPayment={handleRecordPaymentForCustomer}
         onViewHistory={customer => {
+          const customerId = encodeURIComponent(String(customer?.id || ''));
+          const targetPage = `customer-history:${customerId}`;
+          setShowCustomerViewModal(false);
           try {
-            const url = `${window.location.origin}/#customer-history:${encodeURIComponent(String(customer?.id || ''))}`;
-            window.open(url, '_blank');
-          } catch {
-            setCurrentPage(`customer-history:${String(customer?.id || '')}`);
+            window.location.hash = targetPage;
+          } catch (error) {
+            logger.warn('app.customerHistory.hashNavigationFailed', error);
+            setCurrentPage(targetPage);
           }
         }}
       />
