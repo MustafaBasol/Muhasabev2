@@ -23,11 +23,16 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
   const skipVerification = !siteKey || codespace;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const onTokenRef = useRef(onToken);
   const [ready, setReady] = useState(false);
   const [loadedScript, setLoadedScript] = useState(false);
   const [scriptError, setScriptError] = useState<string | null>(null);
   const [hardFailed, setHardFailed] = useState(false);
   const errorCountRef = useRef(0);
+
+  useEffect(() => {
+    onTokenRef.current = onToken;
+  }, [onToken]);
 
   // Fail-open davranışı: site key yoksa token'ı null yerine özel bir sentinel ile iletelim.
   useEffect(() => {
@@ -37,8 +42,8 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
     } else if (codespace) {
       console.warn('[TurnstileCaptcha] GitHub Codespace ortamı algılandı; Cloudflare domain kısıtı nedeniyle doğrulama atlandı.');
     }
-    onToken('TURNSTILE_SKIPPED');
-  }, [skipVerification, siteKey, codespace, onToken]);
+    onTokenRef.current?.('TURNSTILE_SKIPPED');
+  }, [skipVerification, siteKey, codespace]);
 
   useEffect(() => {
     if (skipVerification) return; // Fail-open: script yükleme gereksiz
@@ -92,10 +97,10 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
       size: invisible ? 'invisible' : 'normal',
       theme: 'auto',
       callback: (token: string) => {
-    console.log('[Turnstile] token:', token);
-    onToken(token || null);
-    errorCountRef.current = 0;
-  },
+        console.log('[Turnstile] token:', token);
+        onTokenRef.current?.(token || null);
+        errorCountRef.current = 0;
+      },
       'error-callback': () => {
         if (errorCountRef.current === 0) {
           console.warn('[TurnstileCaptcha] error-callback tetiklendi');
@@ -105,19 +110,19 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
         if (errorCountRef.current >= 3) {
           setHardFailed(true);
           if (shouldFailOpen) {
-            onToken('TURNSTILE_SKIPPED');
+            onTokenRef.current?.('TURNSTILE_SKIPPED');
           } else {
-            onToken(null);
+            onTokenRef.current?.(null);
           }
         } else {
-          onToken(null);
+          onTokenRef.current?.(null);
         }
       },
       'expired-callback': () => {
-        onToken(null);
+        onTokenRef.current?.(null);
       }
     });
-  }, [ready, siteKey, invisible, onToken, hardFailed, isDev, skipVerification]);
+  }, [ready, siteKey, invisible, hardFailed, isDev, skipVerification]);
 
   useEffect(() => {
     if (!hardFailed) return;
@@ -131,9 +136,9 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
   // Disabled ise token'ı sıfırla (backend bu durumda doğrulama yapmayacak)
   useEffect(() => {
     if (disabled) {
-      onToken(null);
+      onTokenRef.current?.(null);
     }
-  }, [disabled, onToken]);
+  }, [disabled]);
 
   return (
     <div className={className}>
