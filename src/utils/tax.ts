@@ -147,25 +147,46 @@ export const ensureLineItemTaxRate = <T extends LineItemWithTax>(
     products?: Product[];
     categories?: ProductCategory[];
     defaultRate?: number;
-  },
+    preferResolvedOverExisting?: boolean;
+  } = {},
 ): T => {
+  const {
+    products,
+    categories,
+    defaultRate = DEFAULT_TAX_RATE,
+    preferResolvedOverExisting = false,
+  } = options;
+
   const parsed = normalizeTaxRateInput(item.taxRate);
+  const productMatch = findProductMatch(products, {
+    id: item.productId,
+    name: item.productName ?? item.description,
+  });
+  const resolved = resolveProductTaxRate(
+    productMatch,
+    categories,
+    item.productName ?? item.description,
+    defaultRate,
+  );
+  const shouldForceResolved = Boolean(preferResolvedOverExisting && productMatch);
+
+  if (shouldForceResolved) {
+    if (item.taxRate === resolved) {
+      if (parsed !== null && parsed !== resolved) {
+        return { ...item, taxRate: resolved };
+      }
+      return item;
+    }
+    return { ...item, taxRate: resolved };
+  }
+
   if (parsed !== null) {
     if (item.taxRate === parsed) {
       return item;
     }
     return { ...item, taxRate: parsed };
   }
-  const productMatch = findProductMatch(options.products, {
-    id: item.productId,
-    name: item.productName ?? item.description,
-  });
-  const resolved = resolveProductTaxRate(
-    productMatch,
-    options.categories,
-    item.productName ?? item.description,
-    options.defaultRate,
-  );
+
   if (item.taxRate === resolved) {
     return item;
   }
@@ -178,7 +199,8 @@ export const ensureItemsHaveTaxRate = <T extends LineItemWithTax>(
     products?: Product[];
     categories?: ProductCategory[];
     defaultRate?: number;
-  },
+    preferResolvedOverExisting?: boolean;
+  } = {},
 ): T[] => {
   if (!Array.isArray(items)) {
     return [];

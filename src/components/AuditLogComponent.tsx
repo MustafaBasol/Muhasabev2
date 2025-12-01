@@ -1,33 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Filter, ChevronLeft, ChevronRight, Clock, Activity } from 'lucide-react';
+import auditApi, { type AuditLogEntry, type AuditLogResponse, type AuditEntitiesResponse } from '../api/audit';
 import { readLegacyAuthToken } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
-
-interface AuditLogEntry {
-  id: string;
-  userId: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  } | null;
-  entity: string;
-  entityId: string;
-  action: 'CREATE' | 'UPDATE' | 'DELETE';
-  diff: Record<string, unknown>;
-  ip: string;
-  userAgent: string;
-  createdAt: string;
-}
-
-interface AuditLogResponse {
-  data: AuditLogEntry[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
 
 interface AuditLogFilters {
   entity?: string;
@@ -60,22 +35,13 @@ export const AuditLogComponent: React.FC = () => {
   useEffect(() => {
     const loadEntities = async () => {
       try {
-        const token = readLegacyAuthToken();
-        const response = await fetch('/api/audit/entities', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setEntities(data.entities || []);
-        }
+        const data: AuditEntitiesResponse = await auditApi.listEntities();
+        setEntities(Array.isArray(data.entities) ? data.entities : []);
       } catch (error) {
         logger.error('Failed to load audit entities', error);
       }
     };
-    
+
     loadEntities();
   }, []);
 
@@ -83,42 +49,26 @@ export const AuditLogComponent: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const token = readLegacyAuthToken();
       if (!token) {
         setError('Authentication required');
         return;
       }
 
-      // Build query parameters
-      const params = new URLSearchParams();
-      params.append('page', filters.page.toString());
-      params.append('limit', filters.limit.toString());
-      
-      if (filters.entity) params.append('entity', filters.entity);
-      if (filters.action) params.append('action', filters.action);
-      if (filters.userId) params.append('userId', filters.userId);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
+      const query = {
+        page: filters.page,
+        limit: filters.limit,
+        entity: filters.entity || undefined,
+        action: filters.action || undefined,
+        userId: filters.userId || undefined,
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+      } as const;
 
-      logger.debug('Making request to:', `/api/audit/logs?${params.toString()}`);
-      logger.debug('With token:', token ? 'present' : 'missing');
-      
-      const response = await fetch(`/api/audit/logs?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      logger.debug('audit.logs.fetch', query);
 
-      logger.debug('Audit log response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('Audit log error response:', errorText);
-        throw new Error(`Failed to load audit logs: ${response.status} - ${errorText}`);
-      }
-
-      const data: AuditLogResponse = await response.json();
+      const data: AuditLogResponse = await auditApi.listLogs(query);
       setLogs(data.data);
       setTotalRecords(data.total);
       setTotalPages(data.totalPages);

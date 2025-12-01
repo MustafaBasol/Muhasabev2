@@ -172,6 +172,7 @@ export default function InvoiceFromSaleModal({
         products: productsCache ?? undefined,
         categories: (categoriesCache ?? undefined) as unknown as ProductCategory[] | undefined,
         defaultRate: DEFAULT_TAX_RATE,
+        preferResolvedOverExisting: true,
       });
       if (normalizeTaxRateInput(primary.taxRate) !== null) {
         return primary;
@@ -181,6 +182,7 @@ export default function InvoiceFromSaleModal({
           products: legacyProducts as Product[],
           categories: (categoriesCache ?? undefined) as unknown as ProductCategory[] | undefined,
           defaultRate: DEFAULT_TAX_RATE,
+          preferResolvedOverExisting: true,
         });
       }
       return primary;
