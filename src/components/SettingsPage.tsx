@@ -3444,6 +3444,7 @@ export default function SettingsPage({
     logger.info('Settings save triggered', {
       profile: { name: profileData.name, phone: profileData.phone },
     });
+    const effectiveCurrency = normalizeCurrencyValue(companyData.currency) ?? currency ?? 'TRY';
     
     try {
       // ✅ KULLANICI PROFİLİNİ BACKEND'E KAYDET
@@ -3562,6 +3563,7 @@ export default function SettingsPage({
 
       // Şirket bilgilerini BACKEND'E kaydet (tenant bazlı)
       let tenantUpdateOk = true;
+      let tenantResponseCurrency: Currency | null = null;
       try {
         const brandSettings: UpdateTenantDto['settings'] = {
           brand: {
@@ -3579,7 +3581,7 @@ export default function SettingsPage({
           phone: companyData.phone || undefined,
           email: companyData.email || undefined,
           website: companyData.website || undefined,
-          currency: currency || 'TRY', // Para birimi ayarını kaydet
+          currency: effectiveCurrency, // Para birimi ayarını kaydet
           // Yasal alanlar
           mersisNumber: companyData.mersisNumber || undefined,
           kepAddress: companyData.kepAddress || undefined,
@@ -3605,7 +3607,13 @@ export default function SettingsPage({
           delete payload.companyName;
         }
 
-        await tenantsApi.updateMyTenant(payload);
+        const updatedTenant = await tenantsApi.updateMyTenant(payload);
+        tenantResponseCurrency = normalizeCurrencyValue(updatedTenant?.currency);
+        const appliedCurrency = tenantResponseCurrency ?? effectiveCurrency;
+        setCompanyData(prev => (prev.currency === appliedCurrency ? prev : { ...prev, currency: appliedCurrency }));
+        if (currency !== appliedCurrency) {
+          setCurrency(appliedCurrency);
+        }
       } catch (e) {
         logger.error('Tenant settings update failed', e);
         tenantUpdateOk = false;
@@ -3613,6 +3621,7 @@ export default function SettingsPage({
 
       // UI hızlı güncelleme ve cache için App'e bildir
       if (onCompanyUpdate) {
+        const appliedCurrency = tenantResponseCurrency ?? effectiveCurrency;
         const cleaned: CompanyProfile = {
           name: companyData.name,
           address: companyData.address,
@@ -3624,7 +3633,7 @@ export default function SettingsPage({
           logoDataUrl: companyData.logoDataUrl,
           bankAccountId: companyData.bankAccountId,
           country: companyData.country || undefined,
-          currency: currency || 'TRY', // Para birimini de kaydet
+          currency: appliedCurrency, // Para birimini de kaydet
           // Yasal alanlar
           mersisNumber: companyData.mersisNumber,
           kepAddress: companyData.kepAddress,
@@ -4575,35 +4584,34 @@ export default function SettingsPage({
 
   return (
     <div className="space-y-6">
-  {/* Header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <Settings className="w-8 h-8 text-blue-600 mr-3" />
-              {text.header.title}
-            </h1>
-            <p className="text-gray-600">{text.header.subtitle}</p>
-          </div>
-          {unsavedChanges && (
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2 text-orange-600">
-                <Info className="w-4 h-4" />
-                <span className="text-sm">{text.header.unsavedChanges}</span>
-              </div>
-              <button
-                onClick={handleSave}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Save className="w-4 h-4" />
-                <span>{text.header.save}</span>
-              </button>
+      <div className="sticky top-16 z-30 space-y-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <Settings className="w-8 h-8 text-blue-600 mr-3" />
+                {text.header.title}
+              </h1>
+              <p className="text-gray-600">{text.header.subtitle}</p>
             </div>
-          )}
+            {unsavedChanges && (
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 text-orange-600">
+                  <Info className="w-4 h-4" />
+                  <span className="text-sm">{text.header.unsavedChanges}</span>
+                </div>
+                <button
+                  onClick={handleSave}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{text.header.save}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div className="sticky top-16 z-30">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="flex space-x-2 border-b border-gray-200 px-4 sm:px-6 py-3 overflow-x-auto">
             {tabs.map((tab) => {

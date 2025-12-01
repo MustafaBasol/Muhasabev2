@@ -45,6 +45,7 @@ type InvoicePayload = {
   issueDate: string;
   dueDate: string;
   items: InvoiceLineItem[];
+  lineItems?: InvoiceLineItem[];
   subtotal: number;
   taxAmount: number;
   discountAmount: number;
@@ -91,6 +92,7 @@ const createEmptyItem = (seed?: number): InvoiceLineItem => ({
   quantity: 1,
   unitPrice: 0,
   total: 0,
+  taxRate: 18,
 });
 
 const createDefaultItems = (): InvoiceLineItem[] => [createEmptyItem()];
@@ -184,6 +186,14 @@ const getAvailableStock = (product?: Product): number | null => {
   return null;
 };
 
+const parseTaxRateValue = (value: unknown): number | null => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return null;
+  }
+  return numeric;
+};
+
 const isPromiseLike = (value: unknown): value is Promise<unknown> => {
   return Boolean(value) && typeof (value as Promise<unknown>).then === 'function';
 };
@@ -191,7 +201,6 @@ const isPromiseLike = (value: unknown): value is Promise<unknown> => {
 export default function InvoiceModal({ onClose, onSave, invoice, customers = [], products = [], invoices = [] }: InvoiceModalProps) {
   const { t, i18n } = useTranslation();
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   const [invoiceData, setInvoiceData] = useState<InvoiceFormState>(() => ({
     invoiceNumber: buildTempInvoiceNumber(),
@@ -229,6 +238,90 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     originalItemStateRef.current = snapshot;
   }, []);
 
+  const resolveCategoryTaxRate = React.useCallback(
+    (categoryName?: string | null): number | null => {
+      if (!categoryName || !categories.length) {
+        return null;
+      }
+      const normalized = String(categoryName).trim().toLowerCase();
+      if (!normalized) {
+        return null;
+      }
+      const matchByName = categories.find(
+        cat => String(cat.name || '').trim().toLowerCase() === normalized,
+      );
+      const matchById = categories.find(cat => String(cat.id) === normalized);
+      const target = matchByName || matchById;
+      if (target) {
+        const rate = parseTaxRateValue(target.taxRate);
+        if (rate !== null) {
+          return rate;
+        }
+        if (target.parentId) {
+          const parent = categories.find(cat => String(cat.id) === String(target.parentId));
+          const parentRate = parent ? parseTaxRateValue(parent.taxRate) : null;
+          if (parentRate !== null) {
+            return parentRate;
+          }
+        }
+      }
+      return null;
+    },
+    [categories],
+  );
+
+  const resolveProductTaxRate = React.useCallback(
+    (product?: Product | null): number | null => {
+      if (!product) {
+        return null;
+      }
+      const override = parseTaxRateValue(product.categoryTaxRateOverride);
+      if (override !== null) {
+        return override;
+      }
+      const productSpecific = parseTaxRateValue(product.taxRate);
+      if (productSpecific !== null) {
+        return productSpecific;
+      }
+      const categoryRate = resolveCategoryTaxRate(product.category);
+      if (categoryRate !== null) {
+        return categoryRate;
+      }
+      return null;
+    },
+    [resolveCategoryTaxRate],
+  );
+
+  const ensureLineItemTaxRate = React.useCallback(
+    (item: InvoiceLineItem): InvoiceLineItem => {
+      const currentRate = parseTaxRateValue(item.taxRate);
+      let nextRate = currentRate;
+      if (nextRate === null) {
+        const pid = item.productId ? toStringId(item.productId) : '';
+        let productMatch: Product | undefined;
+        if (pid) {
+          productMatch = products.find(p => toStringId(p.id) === pid);
+        }
+        if (!productMatch && item.description) {
+          const needle = item.description.trim().toLowerCase();
+          productMatch =
+            products.find(p => String(p.name || '').trim().toLowerCase() === needle) ||
+            products.find(p => String(p.name || '').toLowerCase().includes(needle));
+        }
+        const resolved = resolveProductTaxRate(productMatch);
+        nextRate = typeof resolved === 'number' ? resolved : null;
+      }
+      if (nextRate === null) {
+        nextRate = 18;
+      }
+      if (currentRate === nextRate && item.taxRate === nextRate) {
+        return item;
+      }
+      return { ...item, taxRate: nextRate };
+    },
+    [products, resolveProductTaxRate],
+  );
+
   const getBaselineQuantity = React.useCallback(
     (itemId: string, productId?: string | number) => {
       const original = originalItemStateRef.current[itemId];
@@ -259,9 +352,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
           logger.warn('InvoiceModal: category load failed', error);
         }
       } finally {
-        if (isActive) {
-          setCategoriesLoaded(true);
-        }
+        /* noop */
       }
     })();
     return () => {
@@ -285,7 +376,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         originalInvoiceId: '',
         discountAmount: 0,
       });
-      setItems(createDefaultItems());
+      const defaults = createDefaultItems().map(ensureLineItemTaxRate);
+      setItems(defaults);
       snapshotOriginalItems([]);
       setCustomerSearch('');
       setSelectedCustomer(null);
@@ -313,7 +405,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     });
 
     const normalizedItems = normalizeInvoiceItems(invoice.items);
-    const hydratedItems = normalizedItems.length ? normalizedItems : createDefaultItems();
+    const baseline = normalizedItems.length ? normalizedItems : createDefaultItems();
+    const hydratedItems = baseline.map(ensureLineItemTaxRate);
     setItems(hydratedItems);
     snapshotOriginalItems(normalizedItems.length ? normalizedItems : []);
     setCustomerSearch(invoice.customer?.name || invoice.customerName || '');
@@ -344,13 +437,13 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         const hasMeaningfulItems = Array.isArray(invoice.items) && invoice.items.length > 0;
         if (!hasMeaningfulItems) {
           const mapped = mapReturnItemsFromOriginal(original);
-          const fallbackItems = mapped.length ? mapped : createDefaultItems();
+          const fallbackItems = (mapped.length ? mapped : createDefaultItems()).map(ensureLineItemTaxRate);
           setItems(fallbackItems);
           snapshotOriginalItems(mapped.length ? mapped : []);
         }
       }
     }
-  }, [invoice, invoices, snapshotOriginalItems]);
+  }, [invoice, invoices, snapshotOriginalItems, ensureLineItemTaxRate]);
 
   const addItem = () => {
     setItems(prev => {
@@ -482,37 +575,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       categoryTaxRateOverride: product.categoryTaxRateOverride,
       category: product.category,
     });
-    // KDV öncelik sırası: ürün override -> alt kategori -> ana kategori -> ürün.taxRate -> 18
-    const resolveEffectiveTax = (): number => {
-      // 1) Ürün override
-      if (product.categoryTaxRateOverride !== undefined && product.categoryTaxRateOverride !== null) {
-        const v = Number(product.categoryTaxRateOverride);
-        if (Number.isFinite(v) && v >= 0) return v;
-      }
-      // 2) Alt kategori adı ile bul
-      if (product.category && categoriesLoaded) {
-        const cat = categories.find(c => String(c.name).toLowerCase() === String(product.category).toLowerCase());
-        if (cat) {
-          const catRate = Number(cat.taxRate);
-          if (Number.isFinite(catRate) && catRate >= 0) return catRate;
-          if (cat.parentId) {
-            const parent = categories.find(c => String(c.id) === String(cat.parentId));
-            if (parent) {
-              const pRate = Number(parent.taxRate);
-              if (Number.isFinite(pRate) && pRate >= 0) return pRate;
-            }
-          }
-        }
-      }
-      // 3) Ürün üzerindeki eski alan
-      if (product.taxRate !== undefined && product.taxRate !== null) {
-        const v = Number(product.taxRate);
-        if (Number.isFinite(v) && v >= 0) return v;
-      }
-      // 4) Varsayılan
-      return 18;
-    };
-    const effectiveRate = resolveEffectiveTax();
+    const effectiveRate = resolveProductTaxRate(product) ?? 18;
     const available = getAvailableStock(product);
     setItems(prev => {
       const next = prev.map(item => {
@@ -608,9 +671,11 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
           return { ...it, total: quantity * unitPrice };
         });
 
+    const preparedItems = normalizedItems.map(ensureLineItemTaxRate);
+
     let subtotal = 0;
     let taxAmount = 0;
-    normalizedItems.forEach(item => {
+    preparedItems.forEach(item => {
       const itemTotal = Number(item.total) || 0;
       const itemTaxRate = Number(item.taxRate ?? 18) / 100;
       taxAmount += itemTotal * itemTaxRate;
@@ -631,7 +696,8 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       customerAddress: invoiceData.customerAddress,
       issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
       dueDate: invoiceData.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      items: normalizedItems,
+      items: preparedItems,
+      lineItems: preparedItems,
       subtotal,
       taxAmount,
       discountAmount: normalizedDiscount,
