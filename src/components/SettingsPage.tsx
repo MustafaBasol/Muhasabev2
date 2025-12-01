@@ -2671,10 +2671,21 @@ export default function SettingsPage({
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const hasManualChangesRef = useRef(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showSaveError, setShowSaveError] = useState(false);
   const [infoModal, setInfoModal] = useState<{ open: boolean; title: string; message: string; tone: 'success' | 'error' | 'info'; confirmLabel?: string; onConfirm?: () => void; cancelLabel?: string; onCancel?: () => void }>({ open: false, title: '', message: '', tone: 'info' });
   const openInfo = (title: string, message: string, tone: 'success' | 'error' | 'info' = 'info') => setInfoModal({ open: true, title, message, tone });
+
+  const markUnsaved = useCallback(() => {
+    hasManualChangesRef.current = true;
+    setUnsavedChanges(true);
+  }, []);
+
+  const resetUnsavedChanges = useCallback(() => {
+    hasManualChangesRef.current = false;
+    setUnsavedChanges(false);
+  }, []);
   
   // Privacy tab states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -3176,8 +3187,10 @@ export default function SettingsPage({
         stateOrRegion: company?.stateOrRegion ?? prev.stateOrRegion,
       };
     });
-    setUnsavedChanges(false);
-  }, [company]);
+    if (!hasManualChangesRef.current) {
+      resetUnsavedChanges();
+    }
+  }, [company, resetUnsavedChanges]);
 
   // Notifications
   // Varsayılanlar (kullanıcı hiç ayarlamadıysa hepsi açık)
@@ -3335,13 +3348,23 @@ export default function SettingsPage({
   }, [tabs, activeTab]);
 
   const handleProfileChange = (field: string, value: string) => {
-    setProfileData(prev => ({ ...prev, [field]: value }));
-    setUnsavedChanges(true);
+    setProfileData(prev => {
+      if ((prev as Record<string, string>)[field] === value) {
+        return prev;
+      }
+      markUnsaved();
+      return { ...prev, [field]: value };
+    });
   };
 
   const handleCompanyChange = (field: keyof LocalCompanyState, value: string) => {
-    setCompanyData(prev => ({ ...prev, [field]: value }));
-    setUnsavedChanges(true);
+    setCompanyData(prev => {
+      if (prev[field] === value) {
+        return prev;
+      }
+      markUnsaved();
+      return { ...prev, [field]: value };
+    });
   };
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -3363,14 +3386,14 @@ export default function SettingsPage({
         logoDataUrl: e.target?.result as string,
         logoFile: file,
       }));
-      setUnsavedChanges(true);
+      markUnsaved();
     };
     reader.readAsDataURL(file);
   };
 
   const handleRemoveLogo = () => {
     setCompanyData(prev => ({ ...prev, logoDataUrl: '', logoFile: null }));
-    setUnsavedChanges(true);
+    markUnsaved();
   };
 
   const handleNotificationChange = async (field: keyof NotificationSettings, value: boolean) => {
@@ -3394,13 +3417,27 @@ export default function SettingsPage({
         return;
       }
       currencyTouchedRef.current = true;
-      setCurrency(normalized);
+      if (currency !== normalized) {
+        setCurrency(normalized);
+      }
       // Currency değişimini companyData'da da sakla
-      setCompanyData(prev => ({ ...prev, currency: normalized }));
-    } else {
-      setSystemSettings(prev => ({ ...prev, [field]: value }));
+      setCompanyData(prev => {
+        if (prev.currency === normalized) {
+          return prev;
+        }
+        markUnsaved();
+        return { ...prev, currency: normalized };
+      });
+      return;
     }
-    setUnsavedChanges(true);
+
+    setSystemSettings(prev => {
+      if ((prev as Record<string, string | boolean>)[field] === value) {
+        return prev;
+      }
+      markUnsaved();
+      return { ...prev, [field]: value };
+    });
   };
 
   const handleSave = async () => {
@@ -3621,8 +3658,8 @@ export default function SettingsPage({
         logger.error('Notification prefs save failed', e);
       }
 
-      setUnsavedChanges(false);
       if (tenantUpdateOk) {
+        resetUnsavedChanges();
         currencyTouchedRef.current = false;
         setShowSaveSuccess(true);
       } else {
@@ -3781,7 +3818,7 @@ export default function SettingsPage({
                 value={officialCompanyName}
                 onChange={e => {
                   setOfficialCompanyName(e.target.value);
-                  setUnsavedChanges(true);
+                  markUnsaved();
                 }}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canManageSettings ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
                 disabled={!canManageSettings}
@@ -4564,31 +4601,30 @@ export default function SettingsPage({
             </div>
           )}
         </div>
+      </div>
 
-        {/* Tabs: Owner dışındaki roller sadece Profil sekmesini otomatik alıyor (tabs fonksiyonu).
-            Ek güvenlik için burada koşulu kaldırıp her zaman render ediyoruz; non-owner için zaten
-            tabs dizisi yalnızca profile içeriyor. Böylece boş alan kalmıyor ve tutarlılık artıyor. */}
-        {(
-          <div className="flex space-x-2 border-b border-gray-200 mt-6 sticky top-16 z-20 bg-white">
+      <div className="sticky top-16 z-30">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex space-x-2 border-b border-gray-200 px-4 sm:px-6 py-3 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
+                  className={`flex items-center space-x-2 px-4 py-2 border-b-2 transition-colors ${
                     activeTab === tab.id
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="font-medium text-sm">{tab.label}</span>
+                  <span className="font-medium text-sm whitespace-nowrap">{tab.label}</span>
                 </button>
               );
             })}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Content */}

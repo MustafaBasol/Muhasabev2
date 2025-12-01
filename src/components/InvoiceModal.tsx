@@ -37,7 +37,6 @@ type InvoicePayload = {
   id?: string;
   createdAt?: string;
   originalInvoiceId?: string;
-  type: InvoiceKind;
   invoiceNumber: string;
   customerId: string;
   customerName: string;
@@ -48,9 +47,11 @@ type InvoicePayload = {
   items: InvoiceLineItem[];
   subtotal: number;
   taxAmount: number;
+  discountAmount: number;
   total: number;
   notes: string;
   status: InvoiceStatus;
+  type: InvoiceKind;
 };
 
 interface InvoiceModalProps {
@@ -74,6 +75,7 @@ interface InvoiceFormState {
   status: InvoiceStatus;
   type: InvoiceKind;
   originalInvoiceId: string;
+  discountAmount: number;
 }
 
 interface StockWarningState {
@@ -203,6 +205,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     status: 'draft',
     type: 'product',
     originalInvoiceId: '',
+    discountAmount: 0,
   }));
 
   const [customerSearch, setCustomerSearch] = useState('');
@@ -213,6 +216,34 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [stockWarning, setStockWarning] = useState<StockWarningState | null>(null);
+  const originalItemStateRef = React.useRef<Record<string, { productId?: string; quantity: number }>>({});
+
+  const snapshotOriginalItems = React.useCallback((lineItems: InvoiceLineItem[]) => {
+    const snapshot: Record<string, { productId?: string; quantity: number }> = {};
+    lineItems.forEach(item => {
+      snapshot[item.id] = {
+        productId: item.productId ? toStringId(item.productId) : undefined,
+        quantity: Number(item.quantity) || 0,
+      };
+    });
+    originalItemStateRef.current = snapshot;
+  }, []);
+
+  const getBaselineQuantity = React.useCallback(
+    (itemId: string, productId?: string | number) => {
+      const original = originalItemStateRef.current[itemId];
+      if (!original) {
+        return 0;
+      }
+      if (!original.productId || !productId) {
+        return 0;
+      }
+      return toStringId(original.productId) === toStringId(productId)
+        ? Number(original.quantity) || 0
+        : 0;
+    },
+    [],
+  );
 
   React.useEffect(() => {
     let isActive = true;
@@ -252,8 +283,10 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         status: 'draft',
         type: 'product',
         originalInvoiceId: '',
+        discountAmount: 0,
       });
       setItems(createDefaultItems());
+      snapshotOriginalItems([]);
       setCustomerSearch('');
       setSelectedCustomer(null);
       setShowCustomerDropdown(false);
@@ -276,10 +309,13 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       status: invoice.status || 'draft',
       type: isReturn ? 'return' : (invoice.type as InvoiceKind) || 'product',
       originalInvoiceId: linkedOriginalId,
+      discountAmount: Number(invoice.discountAmount ?? 0) || 0,
     });
 
     const normalizedItems = normalizeInvoiceItems(invoice.items);
-    setItems(normalizedItems.length ? normalizedItems : createDefaultItems());
+    const hydratedItems = normalizedItems.length ? normalizedItems : createDefaultItems();
+    setItems(hydratedItems);
+    snapshotOriginalItems(normalizedItems.length ? normalizedItems : []);
     setCustomerSearch(invoice.customer?.name || invoice.customerName || '');
     setSelectedCustomer(invoice.customer ?? null);
     setShowCustomerDropdown(false);
@@ -308,18 +344,33 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         const hasMeaningfulItems = Array.isArray(invoice.items) && invoice.items.length > 0;
         if (!hasMeaningfulItems) {
           const mapped = mapReturnItemsFromOriginal(original);
-          setItems(mapped.length ? mapped : createDefaultItems());
+          const fallbackItems = mapped.length ? mapped : createDefaultItems();
+          setItems(fallbackItems);
+          snapshotOriginalItems(mapped.length ? mapped : []);
         }
       }
     }
-  }, [invoice, invoices]);
+  }, [invoice, invoices, snapshotOriginalItems]);
 
   const addItem = () => {
-    setItems(prev => [...prev, createEmptyItem(prev.length + 1)]);
+    setItems(prev => {
+      const newItem = createEmptyItem(prev.length + 1);
+      originalItemStateRef.current[newItem.id] = { quantity: 0 };
+      return [...prev, newItem];
+    });
   };
 
   const removeItem = (id: string) => {
-    setItems(prev => (prev.length === 1 ? prev : prev.filter(item => item.id !== id)));
+    setItems(prev => {
+      if (prev.length === 1) return prev;
+      const next = prev.filter(item => item.id !== id);
+      if (originalItemStateRef.current[id]) {
+        const snapshot = { ...originalItemStateRef.current };
+        delete snapshot[id];
+        originalItemStateRef.current = snapshot;
+      }
+      return next;
+    });
     setActiveProductDropdown(prev => (prev === id ? null : prev));
   };
 
@@ -344,7 +395,9 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
           const product = products.find(p => toStringId(p.id) === toStringId(target.productId));
           const available = getAvailableStock(product);
           const requested = Number(value) || 0;
-          if (product && available !== null && requested > available) {
+          const baseline = getBaselineQuantity(id, target.productId);
+          const effectiveAvailable = available !== null ? available + baseline : null;
+          if (product && effectiveAvailable !== null && requested > effectiveAvailable) {
             setStockWarning({ itemId: id, product, requested, available });
           }
         }
@@ -366,8 +419,10 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     subtotal += itemTotal; // KDV HARİÇ toplam
     taxAmount += itemTax; // KDV toplamı
   });
-  
-  const total = subtotal + taxAmount; // KDV DAHİL toplam
+  const discountBase = subtotal + taxAmount;
+  const rawDiscountInput = Number(invoiceData.discountAmount) || 0;
+  const discountAmount = Math.min(discountBase, Math.max(0, rawDiscountInput));
+  const total = subtotal + taxAmount - discountAmount; // KDV DAHİL toplam
 
   const filteredCustomers = customers.filter(customer => {
     const query = customerSearch.trim().toLowerCase();
@@ -510,7 +565,9 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       if (prod) {
         const available = getAvailableStock(prod);
         const requested = Number(it.quantity) || 0;
-        if (available !== null && requested > available) {
+        const baseline = it.productId ? getBaselineQuantity(it.id, it.productId) : 0;
+        const effectiveAvailable = available !== null ? available + baseline : null;
+        if (effectiveAvailable !== null && requested > effectiveAvailable) {
           setStockWarning({ itemId: String(it.id), product: prod, requested, available });
           return;
         }
@@ -559,7 +616,12 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       taxAmount += itemTotal * itemTaxRate;
       subtotal += itemTotal;
     });
-    const total = subtotal + taxAmount;
+    const maxDiscount = subtotal + taxAmount;
+    const normalizedDiscount = Math.min(
+      maxDiscount,
+      Math.max(0, Number(invoiceData.discountAmount) || 0),
+    );
+    const total = subtotal + taxAmount - normalizedDiscount;
 
     const newInvoice: InvoicePayload = {
       invoiceNumber: invoiceData.invoiceNumber,
@@ -572,6 +634,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       items: normalizedItems,
       subtotal,
       taxAmount,
+      discountAmount: normalizedDiscount,
       total,
       notes: invoiceData.notes || '',
       status: invoiceData.status || 'draft',
@@ -1004,6 +1067,23 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                 <div className="flex justify-between">
                   <span className="text-gray-600">{t('invoices.vat')}:</span>
                   <span className="font-medium">{taxAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">{t('invoices.discount') || 'İskonto'}:</span>
+                  <input
+                    type="number"
+                    value={invoiceData.discountAmount ?? 0}
+                    onChange={event => {
+                      const numeric = Number(event.target.value);
+                      setInvoiceData(prev => ({
+                        ...prev,
+                        discountAmount: Number.isFinite(numeric) && numeric >= 0 ? numeric : 0,
+                      }));
+                    }}
+                    className="w-24 px-2 py-1 border border-gray-300 rounded text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    min="0"
+                    step="0.01"
+                  />
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t border-gray-300 pt-2">
                   <span>{t('invoices.grandTotalInclVAT')}:</span>

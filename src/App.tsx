@@ -3066,6 +3066,69 @@ const AppContent: React.FC = () => {
   };
 
   const upsertInvoice = async (invoiceData: any) => {
+    const extractLineItems = (record?: any): any[] => {
+      if (!record) return [];
+      if (Array.isArray(record.items) && record.items.length) return record.items;
+      if (Array.isArray(record.lineItems) && record.lineItems.length) return record.lineItems;
+      return [];
+    };
+
+    const isRefundInvoiceRecord = (record?: any): boolean => {
+      const type = String(record?.type || '').toLowerCase();
+      return type === 'refund' || type === 'return';
+    };
+
+    const buildProductQuantityMap = (record?: any): Map<string, number> => {
+      const map = new Map<string, number>();
+      extractLineItems(record).forEach((line: any) => {
+        const pid = line?.productId ? String(line.productId) : '';
+        if (!pid) return;
+        const qty = Number(line?.quantity) || 0;
+        if (!Number.isFinite(qty) || qty === 0) return;
+        map.set(pid, (map.get(pid) || 0) + qty);
+      });
+      return map;
+    };
+
+    const applyLocalStockAdjustments = (adjustments: Map<string, number>) => {
+      if (!adjustments || adjustments.size === 0) return;
+      setProducts(prev => prev.map(product => {
+        const key = String(product.id);
+        if (!adjustments.has(key)) {
+          return product;
+        }
+        const delta = adjustments.get(key) || 0;
+        if (!delta) {
+          return product;
+        }
+        const baseStock = Number(product.stockQuantity ?? product.stock ?? 0) || 0;
+        const nextStock = Math.max(0, baseStock + delta);
+        const status = nextStock <= 0 ? 'out-of-stock' : nextStock <= (product.reorderLevel || 0) ? 'low' : 'active';
+        return {
+          ...product,
+          stockQuantity: nextStock,
+          stock: nextStock,
+          status,
+        };
+      }));
+    };
+
+    const ensureInvoiceWithItems = async (record?: any): Promise<any | null> => {
+      if (record && Array.isArray(record.items) && record.items.length) {
+        return record;
+      }
+      if (!record?.id) {
+        return record || null;
+      }
+      try {
+        const full = await invoicesApi.getInvoice(String(record.id));
+        return full;
+      } catch (error) {
+        reportSilentError('app.invoices.update.fetchFailed', error);
+        return record || null;
+      }
+    };
+
     try {
       logger.info('app.invoices.upsert.start', {
         id: invoiceData.id,
@@ -3148,11 +3211,14 @@ const AppContent: React.FC = () => {
 
       if (invoiceData.id) {
         const oldInvoice = invoices.find(i => String(i.id) === String(invoiceData.id));
-        const wasRefund = String(oldInvoice?.type || '').toLowerCase() === 'refund' || String(oldInvoice?.type || '').toLowerCase() === 'return';
+        const previousDetailed = await ensureInvoiceWithItems(oldInvoice);
+        const wasRefund = isRefundInvoiceRecord(previousDetailed);
         const updated = await invoicesApi.updateInvoice(String(invoiceData.id), cleanData);
-        const isNowRefund = String(updated.type || '').toLowerCase() === 'refund' || String(updated.type || '').toLowerCase() === 'return';
+        const updatedDetailed = await ensureInvoiceWithItems(updated);
+        const isNowRefund = isRefundInvoiceRecord(updatedDetailed);
+        const invoiceForState = updatedDetailed || updated;
         
-        const newInvoices = invoices.map(i => i.id === updated.id ? updated : i);
+        const newInvoices = invoices.map(i => i.id === updated.id ? invoiceForState : i);
         setInvoices(newInvoices);
         try {
           const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
@@ -3161,10 +3227,30 @@ const AppContent: React.FC = () => {
           reportSilentError('app.invoices.update.persistFailed', error);
         }
         
+        const isRefundTransition = !wasRefund && isNowRefund;
+        if (previousDetailed && updatedDetailed && !isRefundTransition) {
+          const prevMap = buildProductQuantityMap(previousDetailed);
+          const nextMap = buildProductQuantityMap(updatedDetailed);
+          const adjustments = new Map<string, number>();
+          const productIds = new Set<string>([
+            ...Array.from(prevMap.keys()),
+            ...Array.from(nextMap.keys()),
+          ]);
+          productIds.forEach(pid => {
+            const delta = (prevMap.get(pid) || 0) - (nextMap.get(pid) || 0);
+            if (delta !== 0) {
+              adjustments.set(pid, delta);
+            }
+          });
+          if (adjustments.size) {
+            applyLocalStockAdjustments(adjustments);
+          }
+        }
+
         // İade faturasına dönüşmüşse: stokları UI'de geri ekle + satışı iptal et
-        if (!wasRefund && isNowRefund) {
+        if (isRefundTransition) {
           try {
-            const lineItems = Array.isArray((updated as any).items) ? (updated as any).items : [];
+            const lineItems = extractLineItems(updatedDetailed || updated);
             setProducts(prev => prev.map(p => {
               const matched = lineItems.find((li: any) => String(li.productId || '') === String(p.id));
               if (!matched) return p;

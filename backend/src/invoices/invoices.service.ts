@@ -114,6 +114,74 @@ export class InvoicesService {
     return 18;
   }
 
+  private buildProductQuantityMap(
+    items: InvoiceLineItemInput[] | null | undefined,
+  ): Map<string, number> {
+    const map = new Map<string, number>();
+    if (!Array.isArray(items)) {
+      return map;
+    }
+    for (const item of items) {
+      const pid = item?.productId ? String(item.productId) : '';
+      if (!pid) {
+        continue;
+      }
+      const qty = Number(item?.quantity) || 0;
+      if (!Number.isFinite(qty) || qty === 0) {
+        continue;
+      }
+      map.set(pid, (map.get(pid) || 0) + qty);
+    }
+    return map;
+  }
+
+  private diffProductQuantities(
+    previousMap: Map<string, number>,
+    nextMap: Map<string, number>,
+  ): Map<string, number> {
+    const diff = new Map<string, number>();
+    const ids = new Set<string>([
+      ...Array.from(previousMap.keys()),
+      ...Array.from(nextMap.keys()),
+    ]);
+    for (const pid of ids) {
+      const delta = (previousMap.get(pid) || 0) - (nextMap.get(pid) || 0);
+      if (delta !== 0) {
+        diff.set(pid, delta);
+      }
+    }
+    return diff;
+  }
+
+  private async applyStockAdjustments(
+    tenantId: string,
+    adjustments: Map<string, number>,
+    context: 'update' | 'refund' = 'update',
+  ): Promise<void> {
+    if (!adjustments || adjustments.size === 0) {
+      return;
+    }
+    for (const [productId, delta] of adjustments.entries()) {
+      if (!delta) continue;
+      try {
+        const product = await this.productsRepository.findOne({
+          where: { id: productId, tenantId },
+        });
+        if (!product) continue;
+        const currentStock = Number(product.stock || 0);
+        const nextStock = currentStock + delta;
+        product.stock = nextStock < 0 ? 0 : nextStock;
+        await this.productsRepository.save(product);
+      } catch (error) {
+        this.logStockUpdateFailure(
+          `invoices.${context}.stockAdjustFailed`,
+          error,
+          'error',
+        );
+      }
+    }
+  }
+
   async create(
     tenantId: string,
     createInvoiceDto: CreateInvoiceDto,
@@ -309,6 +377,9 @@ export class InvoicesService {
     const wasRefund =
       String(invoice.type || '').toLowerCase() === 'refund' ||
       String(invoice.type || '').toLowerCase() === 'return';
+    const previousItems = Array.isArray(invoice.items) ? invoice.items : [];
+    const previousQuantityMap = this.buildProductQuantityMap(previousItems);
+    let stockAdjustments = new Map<string, number>();
 
     // Recalculate if items are updated
     if (updateInvoiceDto.lineItems || updateInvoiceDto.items) {
@@ -341,6 +412,12 @@ export class InvoicesService {
       updateInvoiceDto.subtotal = subtotal;
       updateInvoiceDto.taxAmount = taxAmount;
       updateInvoiceDto.total = total;
+
+      const nextQuantityMap = this.buildProductQuantityMap(items);
+      stockAdjustments = this.diffProductQuantities(
+        previousQuantityMap,
+        nextQuantityMap,
+      );
     }
 
     Object.assign(invoice, updateInvoiceDto);
@@ -350,6 +427,7 @@ export class InvoicesService {
     const isNowRefund =
       String(invoice.type || '').toLowerCase() === 'refund' ||
       String(invoice.type || '').toLowerCase() === 'return';
+    const isRefundTransition = !wasRefund && isNowRefund;
     if (!wasRefund && isNowRefund) {
       try {
         // Stok geri ekle
@@ -393,6 +471,10 @@ export class InvoicesService {
           'error',
         );
       }
+    }
+
+    if (stockAdjustments.size && !isRefundTransition) {
+      await this.applyStockAdjustments(tenantId, stockAdjustments, 'update');
     }
 
     // Reload with customer relation
