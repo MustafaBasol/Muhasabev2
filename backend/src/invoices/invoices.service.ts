@@ -37,6 +37,37 @@ export class InvoicesService {
     private categoriesRepository: Repository<ProductCategory>,
   ) {}
 
+  private normalizeTaxRate(value: unknown): number | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value === 'boolean') {
+      return null;
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value) || value < 0) {
+        return null;
+      }
+      return Math.round(value * 100) / 100;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const numeric = Number(trimmed);
+      if (!Number.isFinite(numeric) || numeric < 0) {
+        return null;
+      }
+      return Math.round(numeric * 100) / 100;
+    }
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 0) {
+      return null;
+    }
+    return Math.round(numeric * 100) / 100;
+  }
+
   private logStockUpdateFailure(
     event: string,
     error: unknown,
@@ -57,15 +88,9 @@ export class InvoicesService {
     item: InvoiceLineItemInput,
   ): Promise<number> {
     // 1) Satırda açıkça taxRate varsa onu kullan (satır bazlı override)
-    if (
-      item != null &&
-      Object.prototype.hasOwnProperty.call(item, 'taxRate') &&
-      item.taxRate !== undefined &&
-      item.taxRate !== null &&
-      `${item.taxRate}`.trim() !== ''
-    ) {
-      const v = Number(item.taxRate);
-      if (Number.isFinite(v) && v >= 0) return v;
+    const lineRate = this.normalizeTaxRate(item?.taxRate);
+    if (lineRate !== null) {
+      return lineRate;
     }
 
     // 2) Ürün üzerinden belirle
@@ -75,12 +100,11 @@ export class InvoicesService {
       });
       if (product) {
         // 2a) Ürüne özel override tanımlıysa (kategori KDV'sini ezer)
-        if (
-          product.categoryTaxRateOverride !== null &&
-          product.categoryTaxRateOverride !== undefined
-        ) {
-          const v = Number(product.categoryTaxRateOverride);
-          if (Number.isFinite(v) && v >= 0) return v;
+        const override = this.normalizeTaxRate(
+          product.categoryTaxRateOverride,
+        );
+        if (override !== null) {
+          return override;
         }
         // 2b) Kategori adı belirtilmişse önce alt kategori sonra ana kategori KDV'si
         if (product.category) {
@@ -88,24 +112,27 @@ export class InvoicesService {
             where: { name: product.category, tenantId },
           });
           if (category) {
-            const catRate = Number(category.taxRate);
-            if (Number.isFinite(catRate) && catRate >= 0) return catRate;
+            const catRate = this.normalizeTaxRate(category.taxRate);
+            if (catRate !== null) {
+              return catRate;
+            }
             if (category.parentId) {
               const parent = await this.categoriesRepository.findOne({
                 where: { id: category.parentId, tenantId },
               });
               if (parent) {
-                const parentRate = Number(parent.taxRate);
-                if (Number.isFinite(parentRate) && parentRate >= 0)
+                const parentRate = this.normalizeTaxRate(parent.taxRate);
+                if (parentRate !== null) {
                   return parentRate;
+                }
               }
             }
           }
         }
         // 2c) Eski alan: ürün.taxRate (mevcutsa, son çare)
-        if (product.taxRate !== undefined && product.taxRate !== null) {
-          const v = Number(product.taxRate);
-          if (Number.isFinite(v) && v >= 0) return v;
+        const productRate = this.normalizeTaxRate(product.taxRate);
+        if (productRate !== null) {
+          return productRate;
         }
       }
     }
