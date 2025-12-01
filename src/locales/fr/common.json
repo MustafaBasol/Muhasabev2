@@ -1597,6 +1597,7 @@
     "productServiceDescription": "Description du produit ou service",
     "subtotalExclVAT": "Sous-total (HT)",
     "vat": "TVA",
+    "discount": "Remise",
     "grandTotalInclVAT": "Total Général (TTC)",
     "grandTotalExclVAT": "Total Général (HT)",
     "createInvoiceFromSale": "Créer Facture à partir de Vente",

@@ -1508,6 +1508,7 @@
     "productServiceDescription": "Produkt- oder Servicebeschreibung",
     "subtotalExclVAT": "Zwischensumme (ohne MwSt.)",
     "vat": "MwSt.",
+    "discount": "Rabatt",
     "grandTotalInclVAT": "Gesamtsumme (inkl. MwSt.)",
     "grandTotalExclVAT": "Gesamtsumme (ohne MwSt.)",
     "createInvoiceFromSale": "Rechnung aus Verkauf Erstellen",

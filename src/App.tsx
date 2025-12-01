@@ -343,10 +343,12 @@ interface ImportedCustomer {
  
 type BackendInvoiceLineItem = {
   productId?: string | number;
+  productName?: string;
   description: string;
   quantity: number;
   unitPrice: number;
   total: number;
+  taxRate?: number;
 };
  
 type BackendInvoicePayload = {
@@ -4542,12 +4544,19 @@ const AppContent: React.FC = () => {
             const fallback = quantity * unitPrice;
             return Number.isFinite(fallback) ? fallback : 0;
           })();
+          const fallbackDescription = item.description || item.productName || t('products.name', 'Product');
+          const parsedTaxRate = Number(item.taxRate);
+          const taxRate = Number.isFinite(parsedTaxRate) && parsedTaxRate >= 0
+            ? Math.round(parsedTaxRate * 100) / 100
+            : undefined;
           return {
             productId: item.productId,
-            description: item.description || t('products.name', 'Product'),
+            productName: item.productName || fallbackDescription,
+            description: fallbackDescription,
             quantity,
             unitPrice,
             total: normalizedTotal,
+            taxRate,
           };
         });
     };

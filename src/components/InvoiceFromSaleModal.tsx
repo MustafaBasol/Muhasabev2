@@ -30,6 +30,7 @@ type SaleItemWithMeta = Sale['items'] extends Array<infer T>
 
 type InvoiceLineItemDraft = {
   productId?: string | number;
+  productName?: string;
   description: string;
   quantity: number;
   unitPrice: number;

@@ -270,6 +270,10 @@ export class InvoicesService {
       const itemTaxRate = Number(effectiveRate) / 100; // % => oran
       const itemTax = itemTotal * itemTaxRate; // KDV tutarı
 
+      if (item) {
+        item.taxRate = effectiveRate;
+      }
+
       console.log('  📌 Item:', {
         product: item.productName || item.description,
         quantity: item.quantity,
@@ -399,6 +403,10 @@ export class InvoicesService {
         const effectiveRate = await this.resolveTaxRate(tenantId, item);
         const itemTaxRate = Number(effectiveRate) / 100; // % => oran
         const itemTax = itemTotal * itemTaxRate; // KDV tutarı
+
+        if (item) {
+          item.taxRate = effectiveRate;
+        }
 
         subtotal += itemTotal; // KDV HARİÇ toplam
         taxAmount += itemTax; // KDV toplamı

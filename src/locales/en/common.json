@@ -1015,6 +1015,7 @@
     "productServiceDescription": "Product or service description",
     "subtotalExclVAT": "Subtotal (Excl. VAT)",
     "vat": "VAT",
+    "discount": "Discount",
     "grandTotalInclVAT": "Grand Total (Incl. VAT)",
   "grandTotalExclVAT": "Grand Total (Excl. VAT)",
     "createInvoiceFromSale": "Create Invoice from Sale",
