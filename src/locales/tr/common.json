@@ -1109,6 +1109,7 @@
     "productServiceDescription": "Ürün veya hizmet açıklaması",
     "subtotalExclVAT": "Ara Toplam (KDV Hariç)",
     "vat": "KDV",
+    "discount": "İskonto",
     "grandTotalInclVAT": "Genel Toplam (KDV Dahil)",
   "grandTotalExclVAT": "Genel Toplam (KDV Hariç)",
     "createInvoiceFromSale": "Satışa Fatura Kes",

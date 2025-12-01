@@ -6,9 +6,15 @@ import { getProducts, type Product } from '../api/products';
 import StockWarningModal from './StockWarningModal';
 import { productCategoriesApi } from '../api/product-categories';
 import { readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
-import type { Invoice, Sale } from '../types';
+import type { Invoice, Sale, ProductCategory } from '../types';
 import { logger } from '../utils/logger';
 import { toNumberSafe } from '../utils/sortAndSearch';
+import {
+  DEFAULT_TAX_RATE,
+  ensureLineItemTaxRate,
+  calculateInvoiceTotals,
+  normalizeTaxRateInput,
+} from '../utils/tax';
 
 type SaleItemWithMeta = Sale['items'] extends Array<infer T>
   ? T & { description?: string; taxRate?: number }
@@ -72,14 +78,7 @@ type CategoryMeta = {
   id?: string;
   name?: string;
   parentId?: string | null;
-  taxRate?: number;
-};
-
-const parseTaxRate = (value: unknown): number | undefined => {
-  if (value === null || typeof value === 'undefined') return undefined;
-  if (typeof value === 'string' && value.trim() === '') return undefined;
-  const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric >= 0 ? numeric : undefined;
+  taxRate?: number | null;
 };
 
 interface InvoiceFromSaleModalProps {
@@ -128,7 +127,7 @@ export default function InvoiceFromSaleModal({
               id: c.id,
               name: c.name,
               parentId: c.parentId ?? null,
-              taxRate: parseTaxRate(c.taxRate),
+              taxRate: normalizeTaxRateInput(c.taxRate),
             }))
           ),
         ]);
@@ -148,97 +147,45 @@ export default function InvoiceFromSaleModal({
   }, [isOpen]);
   
   // Ürün KDV oranını çöz (önce bellek cache'i, sonra localStorage; kategori ismi ile eşleşme)
-  const resolveCategoryTaxRate = useCallback((categoryRef?: string | number | null) => {
-    if (!categoryRef || !Array.isArray(categoriesCache) || !categoriesCache.length) return undefined;
-
-    const findCategory = (ref?: string | number | null): CategoryMeta | undefined => {
-      if (!ref) return undefined;
-      const refStr = String(ref).trim();
-      if (!refStr) return undefined;
-
-      const byId = categoriesCache.find((cat) => cat.id && String(cat.id) === refStr);
-      if (byId) return byId;
-
-      const normalized = refStr.toLowerCase();
-      let byName = categoriesCache.find((cat) => (cat.name || '').toLowerCase() === normalized);
-      if (byName) return byName;
-
-      if (refStr.includes('>')) {
-        const lastSegment = refStr.split('>').pop()?.trim().toLowerCase();
-        if (lastSegment) {
-          byName = categoriesCache.find((cat) => (cat.name || '').toLowerCase() === lastSegment);
-          if (byName) return byName;
-        }
-      }
-
-      return undefined;
-    };
-
-    const visited = new Set<string>();
-    let cursor = findCategory(categoryRef);
-    while (cursor) {
-      const rate = parseTaxRate(cursor.taxRate);
-      if (typeof rate === 'number') return rate;
-      const parentKey = cursor.parentId;
-      if (!parentKey || visited.has(parentKey)) break;
-      visited.add(parentKey);
-      cursor = findCategory(parentKey);
-    }
-    return undefined;
-  }, [categoriesCache]);
-
-  const resolveProductTaxRate = useCallback((productId?: string | number, fallback?: number, productNameHint?: string) => {
+  const legacyProducts = useMemo(() => {
     try {
-      const findProductMatch = <T extends { id?: string | number; name?: string; category?: string; taxRate?: number; categoryTaxRateOverride?: number }>(collection: T[] | null | undefined) => {
-        if (!Array.isArray(collection) || !collection.length) return undefined;
-        let product = collection.find((x) => String(x.id) === String(productId));
-        if (!product && productNameHint) {
-          const nameLc = String(productNameHint).trim().toLowerCase();
-          product = collection.find((x) => String(x.name || '').trim().toLowerCase() === nameLc)
-            || collection.find((x) => String(x.name || '').toLowerCase().includes(nameLc));
-        }
-        return product;
-      };
-
-      const pickProductRate = (product?: { category?: string; taxRate?: number; categoryTaxRateOverride?: number }) => {
-        if (!product) return undefined;
-        const override = parseTaxRate(product.categoryTaxRateOverride);
-        if (typeof override === 'number') return override;
-        const productSpecific = parseTaxRate(product.taxRate);
-        if (typeof productSpecific === 'number') return productSpecific;
-        return resolveCategoryTaxRate(product.category);
-      };
-
-      const productMatch = findProductMatch(productsCache);
-      const inventoryRate = pickProductRate(productMatch);
-      if (typeof inventoryRate === 'number') return inventoryRate;
-
       const tenantId = readLegacyTenantId();
       const key = tenantId ? `products_cache_${tenantId}` : 'products_cache';
       const raw = safeLocalStorage.getItem(key);
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as Array<{
-            id?: string | number;
-            name?: string;
-            category?: string;
-            taxRate?: number;
-            categoryTaxRateOverride?: number;
-          }>;
-          const legacyMatch = findProductMatch(parsed);
-          const legacyRate = pickProductRate(legacyMatch);
-          if (typeof legacyRate === 'number') return legacyRate;
-        } catch (error) {
-          logger.warn('invoiceFromSale.productsCache.parseFailed', error);
-        }
+      if (!raw) {
+        return [] as Partial<Product>[];
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed as Partial<Product>[];
       }
     } catch (error) {
-      logger.warn('invoiceFromSale.resolveTaxRate.error', { productId, error });
+      logger.warn('invoiceFromSale.productsCache.parseFailed', error);
     }
-    const fallbackRate = parseTaxRate(fallback);
-    if (typeof fallbackRate === 'number') return fallbackRate;
-    return 18;
-  }, [productsCache, resolveCategoryTaxRate]);
+    return [] as Partial<Product>[];
+  }, []);
+
+  const resolveLineItemWithTax = useCallback(
+    (item: InvoiceLineItemDraft): InvoiceLineItemDraft => {
+      const primary = ensureLineItemTaxRate(item, {
+        products: productsCache ?? undefined,
+        categories: (categoriesCache ?? undefined) as unknown as ProductCategory[] | undefined,
+        defaultRate: DEFAULT_TAX_RATE,
+      });
+      if (normalizeTaxRateInput(primary.taxRate) !== null) {
+        return primary;
+      }
+      if (legacyProducts.length) {
+        return ensureLineItemTaxRate(primary, {
+          products: legacyProducts as Product[],
+          categories: (categoriesCache ?? undefined) as unknown as ProductCategory[] | undefined,
+          defaultRate: DEFAULT_TAX_RATE,
+        });
+      }
+      return primary;
+    },
+    [productsCache, categoriesCache, legacyProducts],
+  );
 
   // Reset form when modal opens
   useEffect(() => {
@@ -291,25 +238,23 @@ export default function InvoiceFromSaleModal({
       const normalizedUnitPrice = toNumberSafe(item.unitPrice);
       const unitPrice = normalizedUnitPrice > 0 ? normalizedUnitPrice : unitPriceExcl;
       const description = item.productName || item.description || fallbackDescription;
-      const explicitTax = Number.isFinite(item.taxRate) ? Number(item.taxRate) : undefined;
-      const resolvedRate = resolveProductTaxRate(item.productId ?? sale.productId, explicitTax, description);
-      const total = quantity * unitPrice;
-      return {
+      const base: InvoiceLineItemDraft = {
         productId: item.productId ?? sale.productId,
+        productName: description,
         description,
         quantity,
         unitPrice,
-        taxRate: Number.isFinite(resolvedRate) && resolvedRate >= 0 ? resolvedRate : undefined,
-        total,
+        total: quantity * unitPrice,
+        taxRate: normalizeTaxRateInput(item.taxRate) ?? undefined,
       };
+      return resolveLineItemWithTax(base);
     });
 
-    const subtotal = normalizedLineItems.reduce((sum, item) => sum + item.total, 0);
-    const tax = normalizedLineItems.reduce((sum, item) => {
-      const rate = item.taxRate ?? resolveProductTaxRate(item.productId ?? sale.productId, undefined, item.description);
-      return sum + item.total * ((Number.isFinite(rate) ? Number(rate) : 0) / 100);
-    }, 0);
-    const total = subtotal + tax;
+    const { subtotal, taxAmount: tax, total } = calculateInvoiceTotals(
+      normalizedLineItems,
+      0,
+      DEFAULT_TAX_RATE,
+    );
 
     return {
       lineItems: normalizedLineItems,
@@ -317,7 +262,7 @@ export default function InvoiceFromSaleModal({
       tax,
       total,
     };
-  }, [sale, resolveProductTaxRate, t]);
+  }, [sale, resolveLineItemWithTax, t]);
 
   const handleSave = () => {
     if (!sale) return;

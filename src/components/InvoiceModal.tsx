@@ -12,6 +12,13 @@ import type {
 import { productCategoriesApi } from '../api/product-categories';
 import StockWarningModal from './StockWarningModal';
 import { logger } from '../utils/logger';
+import {
+  DEFAULT_TAX_RATE,
+  ensureItemsHaveTaxRate,
+  calculateInvoiceTotals,
+  resolveProductTaxRate as resolveProductRate,
+  normalizeTaxRateInput,
+} from '../utils/tax';
 
 type InvoiceStatus = InvoiceRecord['status'] | 'cancelled';
 type InvoiceKind = 'product' | 'return';
@@ -92,7 +99,7 @@ const createEmptyItem = (seed?: number): InvoiceLineItem => ({
   quantity: 1,
   unitPrice: 0,
   total: 0,
-  taxRate: 18,
+  taxRate: DEFAULT_TAX_RATE,
 });
 
 const createDefaultItems = (): InvoiceLineItem[] => [createEmptyItem()];
@@ -146,7 +153,7 @@ const normalizeInvoiceItems = (rawItems?: RawInvoiceItem[]): InvoiceLineItem[] =
       total: computedTotal,
       productId: hasProductId ? toStringId(item.productId) : undefined,
       unit: item.unit,
-      taxRate: Number.isFinite(Number(item.taxRate)) ? Number(item.taxRate) : 18,
+      taxRate: normalizeTaxRateInput(item.taxRate) ?? DEFAULT_TAX_RATE,
     };
   });
 };
@@ -184,14 +191,6 @@ const getAvailableStock = (product?: Product): number | null => {
     }
   }
   return null;
-};
-
-const parseTaxRateValue = (value: unknown): number | null => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric) || numeric < 0) {
-    return null;
-  }
-  return numeric;
 };
 
 const isPromiseLike = (value: unknown): value is Promise<unknown> => {
@@ -238,90 +237,6 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     originalItemStateRef.current = snapshot;
   }, []);
 
-  const resolveCategoryTaxRate = React.useCallback(
-    (categoryName?: string | null): number | null => {
-      if (!categoryName || !categories.length) {
-        return null;
-      }
-      const normalized = String(categoryName).trim().toLowerCase();
-      if (!normalized) {
-        return null;
-      }
-      const matchByName = categories.find(
-        cat => String(cat.name || '').trim().toLowerCase() === normalized,
-      );
-      const matchById = categories.find(cat => String(cat.id) === normalized);
-      const target = matchByName || matchById;
-      if (target) {
-        const rate = parseTaxRateValue(target.taxRate);
-        if (rate !== null) {
-          return rate;
-        }
-        if (target.parentId) {
-          const parent = categories.find(cat => String(cat.id) === String(target.parentId));
-          const parentRate = parent ? parseTaxRateValue(parent.taxRate) : null;
-          if (parentRate !== null) {
-            return parentRate;
-          }
-        }
-      }
-      return null;
-    },
-    [categories],
-  );
-
-  const resolveProductTaxRate = React.useCallback(
-    (product?: Product | null): number | null => {
-      if (!product) {
-        return null;
-      }
-      const override = parseTaxRateValue(product.categoryTaxRateOverride);
-      if (override !== null) {
-        return override;
-      }
-      const productSpecific = parseTaxRateValue(product.taxRate);
-      if (productSpecific !== null) {
-        return productSpecific;
-      }
-      const categoryRate = resolveCategoryTaxRate(product.category);
-      if (categoryRate !== null) {
-        return categoryRate;
-      }
-      return null;
-    },
-    [resolveCategoryTaxRate],
-  );
-
-  const ensureLineItemTaxRate = React.useCallback(
-    (item: InvoiceLineItem): InvoiceLineItem => {
-      const currentRate = parseTaxRateValue(item.taxRate);
-      let nextRate = currentRate;
-      if (nextRate === null) {
-        const pid = item.productId ? toStringId(item.productId) : '';
-        let productMatch: Product | undefined;
-        if (pid) {
-          productMatch = products.find(p => toStringId(p.id) === pid);
-        }
-        if (!productMatch && item.description) {
-          const needle = item.description.trim().toLowerCase();
-          productMatch =
-            products.find(p => String(p.name || '').trim().toLowerCase() === needle) ||
-            products.find(p => String(p.name || '').toLowerCase().includes(needle));
-        }
-        const resolved = resolveProductTaxRate(productMatch);
-        nextRate = typeof resolved === 'number' ? resolved : null;
-      }
-      if (nextRate === null) {
-        nextRate = 18;
-      }
-      if (currentRate === nextRate && item.taxRate === nextRate) {
-        return item;
-      }
-      return { ...item, taxRate: nextRate };
-    },
-    [products, resolveProductTaxRate],
-  );
-
   const getBaselineQuantity = React.useCallback(
     (itemId: string, productId?: string | number) => {
       const original = originalItemStateRef.current[itemId];
@@ -361,6 +276,17 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
   }, []);
 
   React.useEffect(() => {
+    setItems(prev => {
+      const ensured = ensureItemsHaveTaxRate(prev, {
+        products,
+        categories,
+        defaultRate: DEFAULT_TAX_RATE,
+      });
+      return ensured === prev ? prev : ensured;
+    });
+  }, [products, categories]);
+
+  React.useEffect(() => {
     if (!invoice) {
       setInvoiceData({
         invoiceNumber: buildTempInvoiceNumber(),
@@ -376,7 +302,11 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         originalInvoiceId: '',
         discountAmount: 0,
       });
-      const defaults = createDefaultItems().map(ensureLineItemTaxRate);
+      const defaults = ensureItemsHaveTaxRate(createDefaultItems(), {
+        products,
+        categories,
+        defaultRate: DEFAULT_TAX_RATE,
+      });
       setItems(defaults);
       snapshotOriginalItems([]);
       setCustomerSearch('');
@@ -406,7 +336,11 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
 
     const normalizedItems = normalizeInvoiceItems(invoice.items);
     const baseline = normalizedItems.length ? normalizedItems : createDefaultItems();
-    const hydratedItems = baseline.map(ensureLineItemTaxRate);
+    const hydratedItems = ensureItemsHaveTaxRate(baseline, {
+      products,
+      categories,
+      defaultRate: DEFAULT_TAX_RATE,
+    });
     setItems(hydratedItems);
     snapshotOriginalItems(normalizedItems.length ? normalizedItems : []);
     setCustomerSearch(invoice.customer?.name || invoice.customerName || '');
@@ -437,13 +371,17 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         const hasMeaningfulItems = Array.isArray(invoice.items) && invoice.items.length > 0;
         if (!hasMeaningfulItems) {
           const mapped = mapReturnItemsFromOriginal(original);
-          const fallbackItems = (mapped.length ? mapped : createDefaultItems()).map(ensureLineItemTaxRate);
+          const fallbackItems = ensureItemsHaveTaxRate(mapped.length ? mapped : createDefaultItems(), {
+            products,
+            categories,
+            defaultRate: DEFAULT_TAX_RATE,
+          });
           setItems(fallbackItems);
           snapshotOriginalItems(mapped.length ? mapped : []);
         }
       }
     }
-  }, [invoice, invoices, snapshotOriginalItems, ensureLineItemTaxRate]);
+  }, [invoice, invoices, snapshotOriginalItems, products, categories]);
 
   const addItem = () => {
     setItems(prev => {
@@ -500,22 +438,11 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
     });
   };
 
-  // Real-time özet hesaplama - Her ürün kendi KDV oranıyla
-  let subtotal = 0; // KDV HARİÇ toplam
-  let taxAmount = 0; // KDV tutarı
-  
-  items.forEach(item => {
-    const itemTotal = Number(item.total) || 0; // Bu KDV HARİÇ (quantity * unitPrice)
-    const itemTaxRate = Number(item.taxRate ?? 18) / 100; // %18 -> 0.18
-    const itemTax = itemTotal * itemTaxRate; // KDV tutarı
-    
-    subtotal += itemTotal; // KDV HARİÇ toplam
-    taxAmount += itemTax; // KDV toplamı
-  });
-  const discountBase = subtotal + taxAmount;
-  const rawDiscountInput = Number(invoiceData.discountAmount) || 0;
-  const discountAmount = Math.min(discountBase, Math.max(0, rawDiscountInput));
-  const total = subtotal + taxAmount - discountAmount; // KDV DAHİL toplam
+  const { subtotal, taxAmount, total } = calculateInvoiceTotals(
+    items,
+    invoiceData.discountAmount,
+    DEFAULT_TAX_RATE,
+  );
 
   const filteredCustomers = customers.filter(customer => {
     const query = customerSearch.trim().toLowerCase();
@@ -575,7 +502,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
       categoryTaxRateOverride: product.categoryTaxRateOverride,
       category: product.category,
     });
-    const effectiveRate = resolveProductTaxRate(product) ?? 18;
+    const effectiveRate = resolveProductRate(product, categories, product?.category, DEFAULT_TAX_RATE);
     const available = getAvailableStock(product);
     setItems(prev => {
       const next = prev.map(item => {
@@ -671,22 +598,18 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
           return { ...it, total: quantity * unitPrice };
         });
 
-    const preparedItems = normalizedItems.map(ensureLineItemTaxRate);
-
-    let subtotal = 0;
-    let taxAmount = 0;
-    preparedItems.forEach(item => {
-      const itemTotal = Number(item.total) || 0;
-      const itemTaxRate = Number(item.taxRate ?? 18) / 100;
-      taxAmount += itemTotal * itemTaxRate;
-      subtotal += itemTotal;
+    const preparedItems = ensureItemsHaveTaxRate(normalizedItems, {
+      products,
+      categories,
+      defaultRate: DEFAULT_TAX_RATE,
     });
-    const maxDiscount = subtotal + taxAmount;
-    const normalizedDiscount = Math.min(
-      maxDiscount,
-      Math.max(0, Number(invoiceData.discountAmount) || 0),
-    );
-    const total = subtotal + taxAmount - normalizedDiscount;
+
+    const {
+      subtotal,
+      taxAmount,
+      total,
+      discount: normalizedDiscount,
+    } = calculateInvoiceTotals(preparedItems, invoiceData.discountAmount, DEFAULT_TAX_RATE);
 
     const newInvoice: InvoicePayload = {
       invoiceNumber: invoiceData.invoiceNumber,

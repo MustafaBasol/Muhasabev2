@@ -277,6 +277,35 @@ const normalizeRelatedItems = (items: unknown): DeleteWarningRelatedItem[] => {
     });
 };
 
+const normalizeProductTaxRate = (value: unknown): number | undefined => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return undefined;
+  }
+  return Math.round(numeric * 100) / 100;
+};
+
+const mapBackendProductRecord = (record: any): Product => {
+  const rawStock = Number(record.stock);
+  const stockQuantity = Number.isFinite(rawStock) ? Math.max(0, rawStock) : 0;
+  const minStock = Number(record.minStock) || 0;
+  return {
+    ...record,
+    sku: record.code,
+    unitPrice: Number(record.price) || 0,
+    costPrice: Number(record.cost) || 0,
+    stockQuantity,
+    reorderLevel: minStock,
+    taxRate: normalizeProductTaxRate(record.taxRate),
+    categoryTaxRateOverride: normalizeProductTaxRate(record.categoryTaxRateOverride),
+    status: stockQuantity === 0
+      ? 'out-of-stock'
+      : stockQuantity <= minStock
+        ? 'low'
+        : 'active',
+  } as Product;
+};
+
 const initialProductCategories = ["Genel"]; // Boş başlangıç, backend'den yüklenecek
 const initialProductCategoryObjects: ProductCategory[] = []; // Kategori nesneleri
 
@@ -820,6 +849,21 @@ const AppContent: React.FC = () => {
   const [infoModal, setInfoModal] = useState<{ title: string; message: string; tone?: 'success' | 'error' | 'info'; confirmLabel?: string; onConfirm?: () => void; cancelLabel?: string; onCancel?: () => void; extraLabel?: string; onExtra?: () => void } | null>(null);
   const [publicQuoteId, setPublicQuoteId] = useState<string | null>(null);
 
+  const refreshProductsFromServer = React.useCallback(async () => {
+    try {
+      const latest = await productsApi.getProducts();
+      const mapped = Array.isArray(latest) ? latest.map(mapBackendProductRecord) : [];
+      setProducts(mapped);
+      try {
+        writeTenantScopedArray('products_cache', mapped, { tenantId: tenantScopedId, mirrorToBase: true });
+      } catch (cacheError) {
+        reportSilentError('app.products.refresh.cacheFailed', cacheError);
+      }
+    } catch (error) {
+      reportSilentError('app.products.refresh.failed', error);
+    }
+  }, [tenantScopedId]);
+
   const authUserSnapshot = React.useMemo(() => ({
     id: authUser?.id ?? null,
     tenantId: authUser?.tenantId ?? null,
@@ -1015,23 +1059,7 @@ const AppContent: React.FC = () => {
         });
         
         // Map backend product fields to frontend format
-        const mappedProducts = safeProductsData.map((p: any) => {
-          const rawStock = Number(p.stock);
-          const clampedStock = Number.isFinite(rawStock) ? Math.max(0, rawStock) : 0;
-          const minStock = Number(p.minStock) || 0;
-          const status = clampedStock === 0 ? 'out-of-stock' : clampedStock <= minStock ? 'low' : 'active';
-          return ({
-          ...p,
-          sku: p.code,
-          unitPrice: Number(p.price) || 0,
-          costPrice: Number(p.cost) || 0,
-          stockQuantity: clampedStock,
-          reorderLevel: minStock,
-          taxRate: Number(p.taxRate) || 0, // KDV oranı (decimal -> number)
-          categoryTaxRateOverride: p.categoryTaxRateOverride ? Number(p.categoryTaxRateOverride) : null, // Özel KDV
-          status
-        });
-        });
+        const mappedProducts = safeProductsData.map(mapBackendProductRecord);
         setProducts(mappedProducts);
         
         // Map backend expense fields to frontend format (supplier normalizasyonu dahil)
@@ -2967,17 +2995,7 @@ const AppContent: React.FC = () => {
 
         // Frontend state'i güncelle ve cache'e yaz
         if (created.length > 0) {
-          // Backend Product -> Frontend Product mapping
-            const mapped = created.map((p: any) => ({
-            ...p,
-            sku: p.code,
-            unitPrice: Number(p.price) || 0,
-            costPrice: Number(p.cost) || 0,
-            stockQuantity: Number(p.stock) || 0,
-            reorderLevel: Number(p.minStock) || 0,
-            taxRate: Number(p.taxRate) || 0,
-            status: p.stock === 0 ? 'out-of-stock' : p.stock <= p.minStock ? 'low' : 'active'
-          }));
+          const mapped = created.map(mapBackendProductRecord);
           setProducts(prev => {
             const next = [...prev, ...mapped];
             const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
@@ -3424,6 +3442,8 @@ const AppContent: React.FC = () => {
             // Fatura başarılı oldu ama satış oluşturulamadıysa kullanıcıya bilgi ver (fatura kaydı bozulmasın)
             showToast(t('toasts.invoices.createPartialError'), 'error');
           }
+
+          void refreshProductsFromServer();
         }
         
         const newInvoices = [...invoices, created];
@@ -3954,6 +3974,8 @@ const AppContent: React.FC = () => {
         tOr('notifications.sales.created.desc', `${saleData.customerName} - ${summary}: ${totalAmount} TL`, { customerName: saleData.customerName, summary, totalAmount }),
         'success', 'sales'
       );
+
+      void refreshProductsFromServer();
     }
   };
 
@@ -4019,32 +4041,12 @@ const AppContent: React.FC = () => {
       if (productData?.id) {
         // Update existing
         const updated = await productsApi.updateProduct(String(productData.id), backendData);
-        setProducts(prev => prev.map(p => p.id === updated.id ? { 
-          ...updated,
-          sku: updated.code,
-          unitPrice: Number(updated.price) || 0,
-          costPrice: Number(updated.cost) || 0,
-          stockQuantity: Number(updated.stock) || 0,
-          reorderLevel: Number(updated.minStock) || 0,
-          taxRate: Number(updated.taxRate) || 0,
-          categoryTaxRateOverride: (updated as any).categoryTaxRateOverride ? Number((updated as any).categoryTaxRateOverride) : undefined,
-          status: updated.stock === 0 ? 'out-of-stock' : updated.stock <= updated.minStock ? 'low' : 'active'
-        } as Product : p));
+        setProducts(prev => prev.map(p => p.id === updated.id ? mapBackendProductRecord(updated) : p));
         showToast(t('toasts.products.updateSuccess'), 'success');
       } else {
         // Create new
         const created = await productsApi.createProduct(backendData);
-        setProducts(prev => [...prev, { 
-          ...created,
-          sku: created.code,
-          unitPrice: Number(created.price) || 0,
-          costPrice: Number(created.cost) || 0,
-          stockQuantity: Number(created.stock) || 0,
-          reorderLevel: Number(created.minStock) || 0,
-          taxRate: Number(created.taxRate) || 0,
-          categoryTaxRateOverride: (created as any).categoryTaxRateOverride ? Number((created as any).categoryTaxRateOverride) : undefined,
-          status: created.stock === 0 ? 'out-of-stock' : created.stock <= created.minStock ? 'low' : 'active'
-        } as Product]);
+        setProducts(prev => [...prev, mapBackendProductRecord(created)]);
         showToast(t('toasts.products.createSuccess'), 'success');
         
         // Ürün eklendi bildirimi kaldırıldı (yalnızca düşük stok/tükenmiş stok bildirimleri gösterilecek)
@@ -6090,6 +6092,8 @@ const AppContent: React.FC = () => {
                 const exists = prev.some(s => String((s as any).sourceQuoteId || '') === String(q.id) || String(s.id) === String(saved.id));
                 return exists ? prev : [...prev, mapped];
               });
+
+              void refreshProductsFromServer();
             } catch (error) {
               reportSilentError('app.quotes.accepted.remoteConversionFailed', error);
               // Fallback: Local state ile oluştur (idempotent upsert)
