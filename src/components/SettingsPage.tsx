@@ -1573,6 +1573,15 @@ type LocalCompanyState = Omit<CompanyProfile, 'country'> & {
   logoFile?: File | null;
 };
 
+const VALID_CURRENCIES = ['TRY', 'USD', 'EUR', 'GBP'] as const;
+const normalizeCurrencyValue = (value: unknown): Currency | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const upper = value.trim().toUpperCase();
+  return (VALID_CURRENCIES as readonly string[]).includes(upper) ? (upper as Currency) : null;
+};
+
 const SUPPORTED_LANGUAGES = ['tr', 'en', 'fr', 'de'] as const;
 type SettingsLanguage = typeof SUPPORTED_LANGUAGES[number];
 
@@ -2749,9 +2758,15 @@ export default function SettingsPage({
           if (!cancelled) {
             // Resmi şirket adı: kullanıcı ismine otomatik düşmeyelim; companyName yoksa boş kalsın
             setOfficialCompanyName(me?.companyName ?? '');
-            // Para birimini de tenant'tan yükle
-            if (me?.currency) {
-              setCompanyData(prev => ({ ...prev, currency: me.currency as 'TRY' | 'USD' | 'EUR' | 'GBP' }));
+            // Para birimini de tenant'tan yükle (kullanıcı henüz değiştirmediyse)
+            const normalizedTenantCurrency = normalizeCurrencyValue(me?.currency);
+            if (normalizedTenantCurrency && !currencyTouchedRef.current) {
+              setCurrency(normalizedTenantCurrency);
+              setCompanyData(prev => (
+                prev.currency === normalizedTenantCurrency
+                  ? prev
+                  : { ...prev, currency: normalizedTenantCurrency }
+              ));
             }
             setOfficialLoaded(true);
           }
@@ -3042,6 +3057,7 @@ export default function SettingsPage({
   
   // Currency context
   const { currency, setCurrency } = useCurrency();
+  const currencyTouchedRef = useRef(false);
   
   logger.debug('[SettingsPage] Current currency from context', { currency });
   
@@ -3071,7 +3087,7 @@ export default function SettingsPage({
     website: company?.website ?? '',
     logoDataUrl: company?.logoDataUrl ?? '',
     bankAccountId: company?.bankAccountId ?? undefined,
-    currency: company?.currency ?? currency ?? 'TRY',
+    currency: normalizeCurrencyValue(company?.currency) ?? currency ?? 'TRY',
     // Ülke seçimi yapılmadıysa TR (Türkiye) ile başlayalım; alanlar varsayılan olarak görünsün
     country: company?.country ?? 'TR',
     logoFile: null,
@@ -3108,42 +3124,58 @@ export default function SettingsPage({
 
   // Props.company değişirse formu güncelle
   useEffect(() => {
-    setCompanyData(prev => ({
-      ...prev,
-      name: company?.name ?? prev.name,
-      address: company?.address ?? prev.address,
-      taxNumber: company?.taxNumber ?? prev.taxNumber,
-      taxOffice: company?.taxOffice ?? prev.taxOffice,
-      phone: company?.phone ?? prev.phone,
-      email: company?.email ?? prev.email,
-      website: company?.website ?? prev.website,
-      logoDataUrl: company?.logoDataUrl ?? prev.logoDataUrl,
-      bankAccountId: company?.bankAccountId ?? prev.bankAccountId,
-      currency: company?.currency ?? prev.currency ?? 'TRY',
-  country: company?.country ?? prev.country,
-      
-      // Yasal alanları da güncelle
-      mersisNumber: company?.mersisNumber ?? prev.mersisNumber,
-      kepAddress: company?.kepAddress ?? prev.kepAddress,
-      siretNumber: company?.siretNumber ?? prev.siretNumber,
-      sirenNumber: company?.sirenNumber ?? prev.sirenNumber,
-      apeCode: company?.apeCode ?? prev.apeCode,
-      tvaNumber: company?.tvaNumber ?? prev.tvaNumber,
-      rcsNumber: company?.rcsNumber ?? prev.rcsNumber,
-      steuernummer: company?.steuernummer ?? prev.steuernummer,
-      umsatzsteuerID: company?.umsatzsteuerID ?? prev.umsatzsteuerID,
-      handelsregisternummer: company?.handelsregisternummer ?? prev.handelsregisternummer,
-      geschaeftsfuehrer: company?.geschaeftsfuehrer ?? prev.geschaeftsfuehrer,
-      einNumber: company?.einNumber ?? prev.einNumber,
-      taxId: company?.taxId ?? prev.taxId,
-      businessLicenseNumber: company?.businessLicenseNumber ?? prev.businessLicenseNumber,
-      stateOfIncorporation: company?.stateOfIncorporation ?? prev.stateOfIncorporation,
+    setCompanyData(prev => {
+      const normalizedCompanyCurrency = normalizeCurrencyValue(company?.currency);
+      const shouldAdoptBackendCurrency = Boolean(
+        normalizedCompanyCurrency &&
+        !currencyTouchedRef.current &&
+        normalizedCompanyCurrency !== prev.currency,
+      );
+      const nextCurrency = shouldAdoptBackendCurrency
+        ? normalizedCompanyCurrency!
+        : prev.currency ?? normalizedCompanyCurrency ?? 'TRY';
 
-      registrationNumber: company?.registrationNumber ?? prev.registrationNumber,
-      vatNumberGeneric: company?.vatNumberGeneric ?? prev.vatNumberGeneric,
-      taxIdGeneric: company?.taxIdGeneric ?? prev.taxIdGeneric,
-      stateOrRegion: company?.stateOrRegion ?? prev.stateOrRegion,
-    }));
+      if (shouldAdoptBackendCurrency) {
+        currencyTouchedRef.current = false;
+      }
+
+      return {
+        ...prev,
+        name: company?.name ?? prev.name,
+        address: company?.address ?? prev.address,
+        taxNumber: company?.taxNumber ?? prev.taxNumber,
+        taxOffice: company?.taxOffice ?? prev.taxOffice,
+        phone: company?.phone ?? prev.phone,
+        email: company?.email ?? prev.email,
+        website: company?.website ?? prev.website,
+        logoDataUrl: company?.logoDataUrl ?? prev.logoDataUrl,
+        bankAccountId: company?.bankAccountId ?? prev.bankAccountId,
+        currency: nextCurrency,
+        country: company?.country ?? prev.country,
+
+        // Yasal alanları da güncelle
+        mersisNumber: company?.mersisNumber ?? prev.mersisNumber,
+        kepAddress: company?.kepAddress ?? prev.kepAddress,
+        siretNumber: company?.siretNumber ?? prev.siretNumber,
+        sirenNumber: company?.sirenNumber ?? prev.sirenNumber,
+        apeCode: company?.apeCode ?? prev.apeCode,
+        tvaNumber: company?.tvaNumber ?? prev.tvaNumber,
+        rcsNumber: company?.rcsNumber ?? prev.rcsNumber,
+        steuernummer: company?.steuernummer ?? prev.steuernummer,
+        umsatzsteuerID: company?.umsatzsteuerID ?? prev.umsatzsteuerID,
+        handelsregisternummer: company?.handelsregisternummer ?? prev.handelsregisternummer,
+        geschaeftsfuehrer: company?.geschaeftsfuehrer ?? prev.geschaeftsfuehrer,
+        einNumber: company?.einNumber ?? prev.einNumber,
+        taxId: company?.taxId ?? prev.taxId,
+        businessLicenseNumber: company?.businessLicenseNumber ?? prev.businessLicenseNumber,
+        stateOfIncorporation: company?.stateOfIncorporation ?? prev.stateOfIncorporation,
+
+        registrationNumber: company?.registrationNumber ?? prev.registrationNumber,
+        vatNumberGeneric: company?.vatNumberGeneric ?? prev.vatNumberGeneric,
+        taxIdGeneric: company?.taxIdGeneric ?? prev.taxIdGeneric,
+        stateOrRegion: company?.stateOrRegion ?? prev.stateOrRegion,
+      };
+    });
     setUnsavedChanges(false);
   }, [company]);
 
@@ -3356,9 +3388,15 @@ export default function SettingsPage({
     // Currency değişikliği context'e git
     if (field === 'currency') {
       logger.info('System currency change requested', { value });
-      setCurrency(value as Currency);
+      const normalized = normalizeCurrencyValue(value);
+      if (!normalized) {
+        logger.warn('Ignoring invalid currency selection', { value });
+        return;
+      }
+      currencyTouchedRef.current = true;
+      setCurrency(normalized);
       // Currency değişimini companyData'da da sakla
-      setCompanyData(prev => ({ ...prev, currency: value as Currency }));
+      setCompanyData(prev => ({ ...prev, currency: normalized }));
     } else {
       setSystemSettings(prev => ({ ...prev, [field]: value }));
     }
@@ -3585,6 +3623,7 @@ export default function SettingsPage({
 
       setUnsavedChanges(false);
       if (tenantUpdateOk) {
+        currencyTouchedRef.current = false;
         setShowSaveSuccess(true);
       } else {
         setShowSaveError(true);

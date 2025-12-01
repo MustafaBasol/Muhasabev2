@@ -281,6 +281,25 @@ const initialProductCategories = ["Genel"]; // Boş başlangıç, backend'den y�
 const initialProductCategoryObjects: ProductCategory[] = []; // Kategori nesneleri
 
 const LAST_PAGE_STORAGE_KEY = 'app:lastPage';
+const HASH_SYNC_PAGES = [
+  'dashboard',
+  'invoices',
+  'expenses',
+  'customers',
+  'products',
+  'suppliers',
+  'banks',
+  'sales',
+  'quotes',
+  'reports',
+  'general-ledger',
+  'chart-of-accounts',
+  'archive',
+  'settings',
+  'fiscal-periods',
+  'organization-members',
+] as const;
+const HASH_SYNC_PAGE_SET = new Set<string>(HASH_SYNC_PAGES);
 
 interface ImportedCustomer {
   id?: string;
@@ -396,6 +415,27 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     persistLastVisitedPage(currentPage);
+  }, [currentPage]);
+
+  // Keep URL hash in sync for primary in-app routes so refresh restores page reliably
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const isHashSyncCandidate = HASH_SYNC_PAGE_SET.has(currentPage) || currentPage.startsWith('customer-history:');
+    if (!isHashSyncCandidate) {
+      return;
+    }
+    const targetHash = currentPage === 'dashboard' ? '' : currentPage;
+    const currentHash = window.location.hash.replace('#', '');
+    if (currentHash === targetHash) {
+      return;
+    }
+    try {
+      window.location.hash = targetHash;
+    } catch (error) {
+      reportSilentError('app.hashSync.writeFailed', { targetHash, error });
+    }
   }, [currentPage]);
 
   // Legal sayfalara geçişte otomatik en üste kaydır (UX düzeltmesi)
@@ -2149,6 +2189,11 @@ const AppContent: React.FC = () => {
         logger.debug('app.hashRouting.navigate', { hash, targetPage: page, ...extra });
         setCurrentPage(page);
       };
+
+      if (HASH_SYNC_PAGE_SET.has(hash)) {
+        navigate(hash, { reason: 'hash-direct-match' });
+        return;
+      }
 
       if (hash === 'admin') {
         navigate('admin');
