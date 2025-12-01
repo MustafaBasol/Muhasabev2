@@ -2,6 +2,7 @@
 import { Users, FileText, CreditCard, TrendingUp } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
 import { CurrencyProvider, useCurrency } from "./contexts/CurrencyContext";
+import type { Currency } from "./contexts/CurrencyContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import { CookieConsentProvider } from "./contexts/CookieConsentContext";
 import { NotificationPreferencesProvider, useNotificationPreferences } from "./contexts/NotificationPreferencesContext";
@@ -158,6 +159,7 @@ const defaultCompany: CompanyProfile = {
   logoDataUrl: "",
   iban: "",
   bankAccountId: undefined,
+  currency: "TRY",
 };
 
 type Nullable<T> = T | null | undefined;
@@ -278,6 +280,8 @@ const normalizeRelatedItems = (items: unknown): DeleteWarningRelatedItem[] => {
 const initialProductCategories = ["Genel"]; // Boş başlangıç, backend'den yüklenecek
 const initialProductCategoryObjects: ProductCategory[] = []; // Kategori nesneleri
 
+const LAST_PAGE_STORAGE_KEY = 'app:lastPage';
+
 interface ImportedCustomer {
   id?: string;
   name: string;
@@ -334,10 +338,29 @@ const reportSilentError = (scope: string, detail?: unknown) => {
   logger.debug(scope, detail);
 };
 
+const readLastVisitedPage = (): string | null => {
+  try {
+    return safeSessionStorage.getItem(LAST_PAGE_STORAGE_KEY) || safeLocalStorage.getItem(LAST_PAGE_STORAGE_KEY);
+  } catch (error) {
+    reportSilentError('app.navigation.lastPage.readFailed', error);
+    return null;
+  }
+};
+
+const persistLastVisitedPage = (page: string): void => {
+  if (!page) return;
+  try {
+    safeSessionStorage.setItem(LAST_PAGE_STORAGE_KEY, page);
+    safeLocalStorage.setItem(LAST_PAGE_STORAGE_KEY, page);
+  } catch (error) {
+    reportSilentError('app.navigation.lastPage.persistFailed', { page, error });
+  }
+};
+
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, user: authUser, logout, tenant } = useAuth();
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency, setCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
   const { prefs } = useNotificationPreferences();
 
@@ -363,12 +386,16 @@ const AppContent: React.FC = () => {
     return fallback;
   }, [t]);
   
-  const [currentPage, setCurrentPage] = useState("dashboard");
+  const [currentPage, setCurrentPage] = useState(() => readLastVisitedPage() || "dashboard");
   const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
   
   // Debug currentPage değişikliklerini
   useEffect(() => {
     logger.debug('app.navigation.pageChanged', { page: currentPage });
+  }, [currentPage]);
+
+  useEffect(() => {
+    persistLastVisitedPage(currentPage);
   }, [currentPage]);
 
   // Legal sayfalara geçişte otomatik en üste kaydır (UX düzeltmesi)
@@ -452,6 +479,9 @@ const AppContent: React.FC = () => {
         const loaded: CompanyProfile | null = fromSecure ?? readCompanyProfileFromPlainStorage(tenantIdForCache);
         if (!cancelled && loaded) {
           setCompany({ ...defaultCompany, ...loaded! });
+          if (loaded.currency) {
+            setCurrency(loaded.currency as Currency);
+          }
           // Eğer şifreli kayıt yoksa ama düz kayıt varsa, bir defaya mahsus migrate et
           if (!fromSecure) {
             try {
@@ -472,10 +502,19 @@ const AppContent: React.FC = () => {
           const tenantIdForCache = getTenantIdForCompanyCache();
           const secureKey = getCompanyProfileCacheKey(tenantIdForCache);
           const fromSecure = await secureStorage.getJSON<CompanyProfile>(secureKey);
-          if (fromSecure) { setCompany({ ...defaultCompany, ...fromSecure }); return; }
+          if (fromSecure) {
+            setCompany({ ...defaultCompany, ...fromSecure });
+            if (fromSecure.currency) {
+              setCurrency(fromSecure.currency as Currency);
+            }
+            return;
+          }
           const fallback = readCompanyProfileFromPlainStorage(tenantIdForCache);
           if (fallback) {
             setCompany({ ...defaultCompany, ...fallback });
+            if (fallback.currency) {
+              setCurrency(fallback.currency as Currency);
+            }
             // Not: Event sırasında secureStorage'a tekrar yazmıyoruz (gereksiz ağır işlem ve olası döngüler)
           }
         } catch (error) {
@@ -485,7 +524,7 @@ const AppContent: React.FC = () => {
     };
     window.addEventListener('company-profile-updated', handler as EventListener);
     return () => { cancelled = true; window.removeEventListener('company-profile-updated', handler as EventListener); };
-  }, []);
+  }, [setCurrency]);
 
   // Backend'den tenant şirket profilini yükle ve local cache'i override et
   useEffect(() => {
@@ -590,6 +629,7 @@ const AppContent: React.FC = () => {
           website: me.website || '',
           logoDataUrl: brand.logoDataUrl || '',
           bankAccountId: brand.bankAccountId || brand.defaultBankAccountId || undefined,
+          currency: (me as any).currency || (brand as any).currency || 'TRY',
           country: brand.country || undefined,
           // Legal fields
           mersisNumber: (me as any).mersisNumber || '',
@@ -610,6 +650,9 @@ const AppContent: React.FC = () => {
         } as any;
         if (!cancelled) {
           setCompany(updated);
+          if (updated.currency) {
+            setCurrency(updated.currency as Currency);
+          }
           try {
             const scopedIdForCompany = tenantScopedId || '';
             const secureKey = getCompanyProfileCacheKey(scopedIdForCompany);
@@ -624,7 +667,7 @@ const AppContent: React.FC = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [isAuthenticated, tenantScopedId]);
+  }, [isAuthenticated, tenantScopedId, setCurrency]);
   const [notifications, setNotifications] = useState<HeaderNotification[]>(initialNotifications);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -2133,7 +2176,13 @@ const AppContent: React.FC = () => {
         const token = hash.replace('join?token=', '');
         navigate(`join-organization:${token}`, { token });
       } else if (hash === '') {
-        if (isAuthenticated) {
+        const assumeAuthenticated = isAuthenticated || Boolean(readLegacyAuthToken());
+        if (assumeAuthenticated) {
+          const cachedPage = readLastVisitedPage();
+          if (cachedPage) {
+            navigate(cachedPage, { reason: 'hash-empty-restored' });
+            return;
+          }
           navigate('dashboard', { reason: 'hash-empty-authenticated' });
         } else {
           navigate('landing', { reason: 'hash-empty-guest' });
@@ -2170,6 +2219,9 @@ const AppContent: React.FC = () => {
 
   const handleCompanyUpdate = (updated: CompanyProfile) => {
     setCompany(updated);
+    if (updated.currency) {
+      setCurrency(updated.currency as Currency);
+    }
     // Kalıcı saklama: secureStorage her zaman; düz localStorage yalnızca şifreleme kapalıysa
     try {
       const tenantScopedId = getTenantIdForCompanyCache();

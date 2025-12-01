@@ -6,10 +6,12 @@ import { safeLocalStorage, readLegacyAuthToken, clearLegacySessionCaches } from 
 
 // Use proxy in Codespaces (more reliable)
 // Use proxy in Codespaces (more reliable)
-const API_BASE_URL =
-  import.meta.env.DEV
-    ? '/api'
-    : 'https://api.comptario.com';
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL?.trim() && import.meta.env.VITE_API_URL?.length
+    ? import.meta.env.VITE_API_URL
+    : import.meta.env.DEV
+      ? '/api'
+      : 'https://api.comptario.com/api';
 
 
 if (import.meta.env.DEV) {

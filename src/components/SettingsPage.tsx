@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Settings,
@@ -22,7 +22,7 @@ import {
 import type { CompanyProfile } from '../utils/pdfGenerator';
 import { useAuth } from '../contexts/AuthContext';
 import type { Tenant } from '../contexts/AuthContext';
-import { useCurrency } from '../contexts/CurrencyContext';
+import { useCurrency, type Currency } from '../contexts/CurrencyContext';
 import { useNotificationPreferences } from '../contexts/NotificationPreferencesContext';
 import { tenantsApi, type UpdateTenantDto } from '../api/tenants';
 import { usersApi } from '../api/users';
@@ -1709,7 +1709,7 @@ type SettingsTranslations = {
     currencyLabel: string;
     dateFormatLabel: string;
     timezoneLabel: string;
-    currencies: Record<'TRY' | 'USD' | 'EUR', string>;
+    currencies: Record<'TRY' | 'USD' | 'EUR' | 'GBP', string>;
     timezones: Record<'Europe/Istanbul' | 'UTC' | 'America/New_York', string>;
     backup: {
       title: string;
@@ -1929,6 +1929,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         TRY: '₺ Türk Lirası',
         USD: '$ ABD Doları',
         EUR: '€ Euro',
+        GBP: '£ İngiliz Sterlini',
       },
       timezones: {
         'Europe/Istanbul': 'İstanbul',
@@ -2143,6 +2144,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         TRY: '₺ Turkish Lira',
         USD: '$ US Dollar',
         EUR: '€ Euro',
+        GBP: '£ British Pound',
       },
       timezones: {
         'Europe/Istanbul': 'Istanbul',
@@ -2357,6 +2359,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         TRY: '₺ Livre turque',
         USD: '$ Dollar américain',
         EUR: '€ Euro',
+        GBP: '£ Livre sterling',
       },
       timezones: {
         'Europe/Istanbul': 'Istanbul',
@@ -2571,6 +2574,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         TRY: '₺ Türkische Lira',
         USD: '$ US-Dollar',
         EUR: '€ Euro',
+        GBP: '£ Pfund Sterling',
       },
       timezones: {
         'Europe/Istanbul': 'Istanbul',
@@ -2745,6 +2749,10 @@ export default function SettingsPage({
           if (!cancelled) {
             // Resmi şirket adı: kullanıcı ismine otomatik düşmeyelim; companyName yoksa boş kalsın
             setOfficialCompanyName(me?.companyName ?? '');
+            // Para birimini de tenant'tan yükle
+            if (me?.currency) {
+              setCompanyData(prev => ({ ...prev, currency: me.currency as 'TRY' | 'USD' | 'EUR' | 'GBP' }));
+            }
             setOfficialLoaded(true);
           }
         } catch (error) {
@@ -3063,6 +3071,7 @@ export default function SettingsPage({
     website: company?.website ?? '',
     logoDataUrl: company?.logoDataUrl ?? '',
     bankAccountId: company?.bankAccountId ?? undefined,
+    currency: company?.currency ?? currency ?? 'TRY',
     // Ülke seçimi yapılmadıysa TR (Türkiye) ile başlayalım; alanlar varsayılan olarak görünsün
     country: company?.country ?? 'TR',
     logoFile: null,
@@ -3110,6 +3119,7 @@ export default function SettingsPage({
       website: company?.website ?? prev.website,
       logoDataUrl: company?.logoDataUrl ?? prev.logoDataUrl,
       bankAccountId: company?.bankAccountId ?? prev.bankAccountId,
+      currency: company?.currency ?? prev.currency ?? 'TRY',
   country: company?.country ?? prev.country,
       
       // Yasal alanları da güncelle
@@ -3346,7 +3356,9 @@ export default function SettingsPage({
     // Currency değişikliği context'e git
     if (field === 'currency') {
       logger.info('System currency change requested', { value });
-      setCurrency(value as 'TRY' | 'USD' | 'EUR');
+      setCurrency(value as Currency);
+      // Currency değişimini companyData'da da sakla
+      setCompanyData(prev => ({ ...prev, currency: value as Currency }));
     } else {
       setSystemSettings(prev => ({ ...prev, [field]: value }));
     }
@@ -3492,6 +3504,7 @@ export default function SettingsPage({
           phone: companyData.phone || undefined,
           email: companyData.email || undefined,
           website: companyData.website || undefined,
+          currency: currency || 'TRY', // Para birimi ayarını kaydet
           // Yasal alanlar
           mersisNumber: companyData.mersisNumber || undefined,
           kepAddress: companyData.kepAddress || undefined,
@@ -3536,6 +3549,7 @@ export default function SettingsPage({
           logoDataUrl: companyData.logoDataUrl,
           bankAccountId: companyData.bankAccountId,
           country: companyData.country || undefined,
+          currency: currency || 'TRY', // Para birimini de kaydet
           // Yasal alanlar
           mersisNumber: companyData.mersisNumber,
           kepAddress: companyData.kepAddress,
@@ -4107,7 +4121,7 @@ export default function SettingsPage({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">{text.system.currencyLabel}</label>
                 <select
-                  value={currency}
+                  value={companyData.currency || currency || 'TRY'}
                   onChange={e => {
                     logger.debug('Currency dropdown changed', { value: e.target.value });
                     handleSystemChange('currency', e.target.value);
@@ -4117,6 +4131,7 @@ export default function SettingsPage({
                   <option value="TRY">{text.system.currencies.TRY}</option>
                   <option value="USD">{text.system.currencies.USD}</option>
                   <option value="EUR">{text.system.currencies.EUR}</option>
+                  <option value="GBP">{text.system.currencies.GBP}</option>
                 </select>
               </div>
               <div>

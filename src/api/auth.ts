@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient, { API_BASE_URL } from './client';
 import { logger } from '../utils/logger';
 import { safeLocalStorage, clearLegacySessionCaches } from '../utils/localStorageSafe';
 
@@ -105,7 +105,8 @@ export const authService = {
       }
       const body = { ...data, ...clientHints };
       
-      const response = await fetch('/api/auth/login', {
+      const normalizedBase = (API_BASE_URL || '').replace(/\/+$/, '');
+      const response = await fetch(`${normalizedBase}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -197,7 +198,7 @@ export const authService = {
 
   async signup(data: RegisterData): Promise<{ success: boolean }> {
     // Spec-compliant minimal response endpoint
-    const response = await apiClient.post('/api/auth/register', data);
+    const response = await apiClient.post('/auth/register', data);
     return response.data;
   },
 

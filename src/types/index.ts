@@ -160,6 +160,7 @@ export interface CompanyProfile {
   logoDataUrl?: string;
   iban?: string;
   bankAccountId?: string;
+  currency?: 'TRY' | 'USD' | 'EUR' | 'GBP';
 }
 
 export interface User {

@@ -73,6 +73,15 @@ export class Tenant {
   @Column({ nullable: true, comment: 'Website URL', type: 'varchar' })
   website: string | null;
 
+  @Column({
+    nullable: true,
+    comment: 'Currency (TRY|USD|EUR|GBP)',
+    type: 'varchar',
+    length: 3,
+    default: 'TRY',
+  })
+  currency: string | null;
+
   // === Türkiye Yasal Alanları ===
   @Column({ nullable: true, comment: 'Vergi Dairesi', type: 'varchar' })
   taxOffice: string | null;

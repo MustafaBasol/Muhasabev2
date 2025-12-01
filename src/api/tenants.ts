@@ -14,6 +14,7 @@ export interface UpdateTenantDto {
   address?: string;
   taxNumber?: string;
   website?: string;
+  currency?: string; // Para birimi (TRY|USD|EUR|GBP)
   taxOffice?: string;
   mersisNumber?: string;
   kepAddress?: string;

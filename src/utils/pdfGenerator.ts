@@ -5,7 +5,7 @@ import DOMPurify from 'dompurify';
 import i18n from '../i18n/config';
 import { logger } from '../utils/logger';
 import { secureStorage } from '../utils/storage';
-import { readLegacyTenantId, readLegacyUserProfile, safeLocalStorage } from '../utils/localStorageSafe';
+import { readLegacyTenantId, readLegacyUserProfile, readTenantScopedValue, safeLocalStorage } from '../utils/localStorageSafe';
 import type { Invoice, Expense, Sale, InvoiceItem } from '../types';
 
 // Para birimi tipini uygulamanın CurrencyContext'inden alalım (TRY | USD | EUR | GBP)
@@ -101,9 +101,59 @@ const formatIban = (iban?: string): string => {
   return String(iban).replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
 };
 
+const CURRENCY_PREF_BASE_KEY = 'currency_preference';
+const VALID_CURRENCIES: Currency[] = ['TRY', 'USD', 'EUR', 'GBP'];
+
+const normalizeStoredCurrency = (value?: string | null): Currency | null => {
+  if (!value) return null;
+  const normalized = value.toUpperCase().trim();
+  return (VALID_CURRENCIES as readonly string[]).includes(normalized)
+    ? (normalized as Currency)
+    : null;
+};
+
+const readCompanyProfileCurrency = (): Currency | null => {
+  try {
+    const tid = (readLegacyTenantId() || '').toString();
+    const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+    const candidates = [
+      safeLocalStorage.getItem(baseKey),
+      safeLocalStorage.getItem(`${baseKey}_plain`),
+      safeLocalStorage.getItem('company'),
+      safeLocalStorage.getItem('companyProfile'),
+    ];
+    let parseErrorLogged = false;
+    for (const raw of candidates) {
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw) as { currency?: string; settings?: { brand?: { currency?: string } } };
+        const fromProfile = normalizeStoredCurrency(parsed.currency);
+        if (fromProfile) return fromProfile;
+        const fromBrand = normalizeStoredCurrency(parsed?.settings?.brand?.currency ?? null);
+        if (fromBrand) return fromBrand;
+      } catch (error) {
+        if (!parseErrorLogged) {
+          pdfWarn('Failed to parse companyProfile cache for currency.', error);
+          parseErrorLogged = true;
+        }
+      }
+    }
+  } catch (error) {
+    pdfWarn('Failed to look up companyProfile currency; falling back to preference.', error);
+  }
+  return null;
+};
+
 const getSelectedCurrency = (): Currency => {
-  const saved = safeLocalStorage.getItem('currency') as Currency | null;
-  return saved || 'TRY';
+  const pref = readTenantScopedValue(CURRENCY_PREF_BASE_KEY, { fallbackToBase: true });
+  const prefCurrency = normalizeStoredCurrency(pref);
+  if (prefCurrency) return prefCurrency;
+
+  const companyCurrency = readCompanyProfileCurrency();
+  if (companyCurrency) return companyCurrency;
+
+  const legacy = normalizeStoredCurrency(safeLocalStorage.getItem('currency'));
+  return legacy ?? 'TRY';
 };
 
 const makeCurrencyFormatter = (currency: Currency) => (amount: number | string | undefined | null) => {

@@ -53,6 +53,7 @@ export interface UpdateTenantDto {
   address?: string;
   taxNumber?: string;
   website?: string;
+  currency?: string; // Para birimi (TRY|USD|EUR|GBP)
   // Serbest biçimli ayarlar: marka/logo, varsayılan banka, ülke vb.
   settings?: Record<string, unknown>;
 

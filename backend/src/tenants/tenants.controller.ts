@@ -23,6 +23,7 @@ const TENANT_UPDATE_KEYS = [
   'address',
   'taxNumber',
   'website',
+  'currency',
   'taxOffice',
   'mersisNumber',
   'kepAddress',
