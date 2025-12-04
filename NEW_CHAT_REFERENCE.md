@@ -68,7 +68,7 @@ curl -i -X POST "http://127.0.0.1:3001/api/public/invites/<TOKEN>/register" \
 
 **Ortam Değişkenleri (Önemli)**
 - `FRONTEND_URL`: Davet linki üretimi. Örn: `https://<CODESPACE_NAME>-3000.app.github.dev` veya deploy URL’i.
-- `MAIL_PROVIDER=ses`, `AWS_REGION=eu-central-1` vb. SES yapılandırması.
+- `MAIL_PROVIDER=mailersend` (veya `ses`), gerekli API/token yapılandırması.
 - `CORS_ORIGINS` (prod’da allowlist; dev’de `main.ts` tüm originleri kabul ediyor).
 
 **Bilinen Tıkanma Noktaları ve Çözümleri**

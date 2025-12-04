@@ -241,9 +241,10 @@ EMAIL_VERIFICATION_REQUIRED=true
 TURNSTILE_SECRET_KEY=0xPRODSECRET
 TURNSTILE_DEV_BYPASS=false
 
-MAIL_PROVIDER=ses
+MAIL_PROVIDER=mailersend
 MAIL_FROM=Comptario <noreply@comptario.com>
 MAIL_REPLY_TO=success@comptario.com
+MAILERSEND_API_KEY=prod_mailersend_token
 AWS_REGION=eu-central-1
 AWS_ACCESS_KEY_ID=AKIA...
 AWS_SECRET_ACCESS_KEY=prodSecretValue

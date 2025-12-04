@@ -87,7 +87,7 @@ Not: E2E kapsam genişletmesi için ileride login + 2FA + recovery code kombine 
 | `REFRESH_RATE_LIMIT_MAX` | Refresh endpoint dakikadaki izinli istek sayısı | `5` |
 | `REFRESH_RATE_LIMIT_TTL_SECONDS` | Rate limit süresi (saniye) | `60` |
 | `EMAIL_VERIFICATION_REQUIRED` | E-posta doğrulama zorunlu mu | `true` |
-| `MAIL_PROVIDER` | E-posta sağlayıcısı (`ses`, `log`, vb.) | `log` |
+| `MAIL_PROVIDER` | E-posta sağlayıcısı (`mailersend`, `ses`, `log`, vb.) | `log` |
 | `MAIL_FROM` | Gönderici adresi | Boş |
 | `PG*` | PostgreSQL bağlantı bilgileri | Çeşitli |
 
@@ -96,7 +96,7 @@ Not: E2E kapsam genişletmesi için ileride login + 2FA + recovery code kombine 
 JWT_SECRET=change_me_prod
 REFRESH_RATE_LIMIT_MAX=5
 REFRESH_RATE_LIMIT_TTL_SECONDS=60
-MAIL_PROVIDER=ses
+MAIL_PROVIDER=mailersend
 MAIL_FROM=no-reply@yourdomain.com
 EMAIL_VERIFICATION_REQUIRED=true
 PGHOST=localhost

@@ -49,8 +49,15 @@ export DATABASE_NAME=${DATABASE_NAME:-moneyflow_dev}
 export MAIL_PROVIDER=${MAIL_PROVIDER:-log}
 export MAIL_FROM=${MAIL_FROM:-no-reply@example.com}
 export AWS_REGION=${AWS_REGION:-${SES_REGION:-us-east-1}}
+export MAILERSEND_API_KEY=${MAILERSEND_API_KEY:-}
 
 echo "✉️  Email config: provider=$MAIL_PROVIDER from=$MAIL_FROM region=${AWS_REGION:-n/a}"
+if [ "$MAIL_PROVIDER" = "ses" ] && { [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; }; then
+  echo "⚠️ MAIL_PROVIDER=ses ancak AWS kimlik bilgileri eksik"
+fi
+if [ "$MAIL_PROVIDER" = "mailersend" ] && [ -z "$MAILERSEND_API_KEY" ]; then
+  echo "⚠️ MAIL_PROVIDER=mailersend ancak MAILERSEND_API_KEY tanımlı değil"
+fi
 
 # Çalıştır ve logları arkaplana al
 echo "🔧 nest start --watch (port $PORT)"

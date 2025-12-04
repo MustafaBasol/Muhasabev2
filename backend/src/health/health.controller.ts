@@ -39,7 +39,12 @@ export class HealthController {
     const sandboxNote =
       provider === 'ses'
         ? 'If SES is in sandbox, only verified recipients will receive emails'
-        : '';
+        : provider === 'mailersend'
+          ? 'Ensure MAILERSEND_API_KEY is set and sender domain is verified'
+          : '';
+    const mailerSendKeyPresent = Boolean(
+      process.env.MAILERSEND_API_KEY || process.env.MAILERSEND_TOKEN,
+    );
     const envFlag = (process.env.EMAIL_VERIFICATION_REQUIRED ?? '')
       .trim()
       .toLowerCase();
@@ -54,6 +59,7 @@ export class HealthController {
       mode: provider,
       note: sandboxNote,
       verificationRequired,
+      mailerSendKeyPresent: provider === 'mailersend' ? mailerSendKeyPresent : undefined,
     };
   }
 }

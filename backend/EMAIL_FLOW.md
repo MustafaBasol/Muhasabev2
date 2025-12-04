@@ -1,12 +1,13 @@
-# Email Doğrulama ve Şifre Sıfırlama (SES + Sandbox)
+# Email Doğrulama ve Şifre Sıfırlama (MailerSend / SES)
 
 Bu dosya, e-posta akışlarının nasıl çalıştığını, hangi ortam değişkenlerinin gerekli olduğunu ve sandbox ortamında nasıl test edileceğini özetler.
 
 ## Gerekli Ortam Değişkenleri
 
-- MAIL_PROVIDER=ses | smtp | log (varsayılan: log)
+- MAIL_PROVIDER=mailersend | ses | smtp | log (varsayılan: log)
 - MAIL_FROM=Compario <noreply@comptario.com> (SES'te doğrulanmış olmalı)
 - AWS_REGION=eu-central-1
+- MAILERSEND_API_KEY=xxx (MAIL_PROVIDER=mailersend için)
 - FRONTEND_URL=https://app.comptario.com (veya dev için http://localhost:5174)
 - EMAIL_VERIFICATION_REQUIRED=true
 - VERIFICATION_TOKEN_TTL_HOURS=24
@@ -60,7 +61,14 @@ Bu dosya, e-posta akışlarının nasıl çalıştığını, hangi ortam değiş
 ## Bounce/Complaint İzleme
 SES gönderimleri için bounce/complaint olaylarını izlemek ve suppression listesi yönetimi için SNS entegrasyonu önerilir. Kurulum ve örnek kod için bkz: `backend/SES_SNS_BOUNCE_COMPLAINT.md`.
 
-## Sandbox Test Adımları
+## Sağlayıcıya Özgü Notlar
+
+### MailerSend
+1. `MAIL_PROVIDER=mailersend` seçin ve `MAILERSEND_API_KEY` değerini (Domains → Generate token) sunucu ortamına ekleyin.
+2. `MAIL_FROM` değerindeki domain MailerSend’de verified olmalı (`sender identities`).
+3. `POST /auth/signup` isteği sonrası loglarda `[MAILERSEND EMAIL SENT]` çıktısını görmelisiniz.
+
+### Amazon SES Sandbox
 1. `MAIL_PROVIDER=ses` ve gerekli AWS anahtarları host ortamında ayarlı olmalı; SES domain/adres verify bekleyebilir.
 2. `POST /auth/signup` ile bir kullanıcı oluşturun — backend loglarında `[SES EMAIL SENT]` veya sandbox nedeniyle hata/log görürsünüz.
 3. Tarayıcıdan gönderilen linki açın: `/auth/verify?token=...&u=...` — başarılıysa `{ success: true }`.

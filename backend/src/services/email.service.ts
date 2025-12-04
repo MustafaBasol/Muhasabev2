@@ -28,6 +28,23 @@ export interface EmailOptions {
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
+  private parseAddress(input: string): { email: string; name?: string } | null {
+    if (!input) return null;
+    const trimmed = input.trim();
+    const match = trimmed.match(/^(.*)<([^>]+)>$/);
+    if (match) {
+      const name = match[1].trim().replace(/^"|"$/g, '');
+      const email = match[2].trim();
+      if (email) {
+        return { email, name: name || undefined };
+      }
+    }
+    if (trimmed.includes(' ')) {
+      return { email: trimmed.split(' ').pop() || trimmed };
+    }
+    return { email: trimmed };
+  }
+
   private getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
       return error.message;
@@ -176,6 +193,74 @@ export class EmailService {
             this.toError(err),
           );
           // log fallback below
+        }
+      }
+    }
+
+    if (provider === 'mailersend') {
+      const apiKey = process.env.MAILERSEND_API_KEY || process.env.MAILERSEND_TOKEN || '';
+      if (!apiKey) {
+        this.logger.warn(
+          '⚠️ MAIL_PROVIDER=mailersend ancak MAILERSEND_API_KEY tanımlı değil; log fallback kullanılacak.',
+        );
+      } else {
+        try {
+          const sender = this.parseAddress(from);
+          if (!sender?.email) {
+            throw new Error('MAIL_FROM geçerli bir e-posta içermiyor');
+          }
+          const replyToAddress = replyTo ? this.parseAddress(replyTo) : null;
+          const payload = {
+            from: {
+              email: sender.email,
+              name: sender.name,
+            },
+            to: [{ email: options.to }],
+            subject: options.subject,
+            text: options.text || undefined,
+            html: options.html || undefined,
+            reply_to: replyToAddress?.email
+              ? {
+                  email: replyToAddress.email,
+                  name: replyToAddress.name,
+                }
+              : undefined,
+          };
+          const res = await fetch('https://api.mailersend.com/v1/email', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => null);
+          if (!res.ok) {
+            const code = body?.error?.code || res.status;
+            const detail = body?.error?.message || res.statusText;
+            throw new Error(`MailerSend API error code=${code} detail=${detail}`);
+          }
+          const msgId =
+            typeof body?.message_id === 'string'
+              ? body.message_id
+              : typeof body?.data?.id === 'string'
+                ? body.data.id
+                : undefined;
+          const metaStr = options.meta
+            ? ` meta=${JSON.stringify(options.meta)}`
+            : '';
+          this.logger.log(
+            `📧 [MAILERSEND EMAIL SENT] to=${options.to} subject="${options.subject}"${metaStr} messageId=${msgId || 'n/a'}`,
+          );
+          success = true;
+          messageId = msgId;
+        } catch (err: unknown) {
+          const code = this.getErrorCode(err);
+          const msg = this.getErrorMessage(err);
+          this.logger.error(
+            `❌ [MAILERSEND SEND FAILED] code=${code} message=${msg} → log fallback`,
+            this.toError(err),
+          );
         }
       }
     }

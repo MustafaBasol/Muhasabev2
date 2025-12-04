@@ -16,7 +16,10 @@ Kullanıcı doğrulanana kadar kaybolmaz. Kullanıcı doğrulama linkini tıklad
 ### 4. EmailOutbox Tablosu
 Her gönderim (SES veya log fallback) `email_outbox` tablosuna kaydedilir: `to, subject, provider, success, messageId, correlationId, userId, tenantId, tokenId, type, createdAt`. Bu tablo audit / operasyonel gözlem için kullanılabilir.
 
-### 5. Log Formatı
+### 5. Log Format
+Başarılı MailerSend gönderimi:
+`📧 [MAILERSEND EMAIL SENT] to=user@example.com subject="E-posta Doğrulama" meta={...} messageId=msg_123`
+
 Başarılı SES gönderimi:
 `📧 [SES EMAIL SENT] to=user@example.com subject="E-posta Doğrulama" meta={...} messageId=ABC123`
 
@@ -32,6 +35,7 @@ Doğrulama başarılı olunca frontend `sessionStorage.removeItem('pending_verif
 ### 8. Sorun Giderme
 - Banner görünmüyorsa: DevTools > Application > Session Storage içinde `pending_verification_email` var mı kontrol edin.
 - Outbox boşsa: Migration çalışmış mı (`email_outbox` tablosu)? Loglarda "email_outbox tablosu yok" uyarısı var mı?
+- MailerSend için API token ayarlı mı (`MAILERSEND_API_KEY`)? Domain doğrulandı mı?
 - SES MessageId yoksa: `MAIL_PROVIDER=ses` mi? Sandbox hesabında alıcı doğrulanmış mı?
 
 ### 9. Güvenlik Notları

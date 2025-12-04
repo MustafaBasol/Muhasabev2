@@ -64,6 +64,7 @@ export DATABASE_NAME=${DATABASE_NAME:-moneyflow_dev}
 export MAIL_PROVIDER=${MAIL_PROVIDER:-log}
 export MAIL_FROM=${MAIL_FROM:-no-reply@example.com}
 export AWS_REGION=${AWS_REGION:-${SES_REGION:-us-east-1}}
+export MAILERSEND_API_KEY=${MAILERSEND_API_KEY:-}
 
 echo -e "${BLUE}📬 Mail provider: $MAIL_PROVIDER (from: $MAIL_FROM)${NC}"
 if [ "$MAIL_PROVIDER" = "ses" ]; then
@@ -73,6 +74,8 @@ if [ "$MAIL_PROVIDER" = "ses" ]; then
         MASKED_KEY="${AWS_ACCESS_KEY_ID:0:6}***"
         echo -e "${GREEN}✅ SES kimlik bilgileri yüklendi (AWS_REGION=$AWS_REGION, KEY=$MASKED_KEY)${NC}"
     fi
+elif [ "$MAIL_PROVIDER" = "mailersend" ] && [ -z "$MAILERSEND_API_KEY" ]; then
+    echo -e "${RED}❌ MAIL_PROVIDER=mailersend ancak MAILERSEND_API_KEY tanımlı değil. Gönderimler başarısız olacak.${NC}"
 fi
 echo -e "${BLUE}🗄️  DB: $DATABASE_USER@$DATABASE_HOST:$DATABASE_PORT/$DATABASE_NAME${NC}"
 npm run start:dev > /tmp/backend.log 2>&1 &
