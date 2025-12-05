@@ -133,6 +133,19 @@ export default function ChartOfAccountsPage({
           .filter(expense => expense.status === 'approved' || expense.status === 'pending')
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
+      case '600': // GELİRLER - Sum of revenue children or total invoices
+        {
+          const revenueChildren = currentAccounts.filter(acc => acc.parentId === account.id);
+          if (revenueChildren.length > 0) {
+            return revenueChildren.reduce((sum, child) => sum + calculateDynamicBalance(child), 0);
+          }
+          return invoices
+            .filter(invoice =>
+              invoice.type !== 'refund' &&
+              (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue')
+            )
+            .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
+        }
       case '601': // Satış Gelirleri - Product invoices only (no duplicate counting)
         return invoices
           .filter(invoice => 
@@ -251,10 +264,9 @@ export default function ChartOfAccountsPage({
     const updatedAccounts = currentAccounts.map(account => {
       if (isDataFromOtherPages(account)) {
         const dynamicBalance = calculateDynamicBalance(account);
-        // Keep stored balance if dynamic calculation returns 0
         return {
           ...account,
-          balance: dynamicBalance > 0 ? dynamicBalance : account.balance
+          balance: Number.isFinite(dynamicBalance) ? dynamicBalance : 0
         };
       }
       return account;
@@ -491,11 +503,10 @@ export default function ChartOfAccountsPage({
         return total + calculateParentBalance(child.id);
       }
       
-      // Use dynamic balance with fallback to stored balance
       let childBalance = 0;
       if (isDataFromOtherPages(child)) {
         const dynamicBalance = calculateDynamicBalance(child);
-        childBalance = dynamicBalance > 0 ? dynamicBalance : (Number(child.balance) || 0);
+        childBalance = Number.isFinite(dynamicBalance) ? dynamicBalance : 0;
       } else {
         childBalance = Number(child.balance) || 0;
       }
@@ -508,7 +519,8 @@ export default function ChartOfAccountsPage({
   const getDisplayBalance = (account: Account): number => {
     // Özel durum: 700 ve 600 kodları için dinamik hesaplama kullan (alt hesapların toplamı değil)
     if (account.code === '700' || account.code === '600') {
-      return calculateDynamicBalance(account);
+      const dynamicBalance = calculateDynamicBalance(account);
+      return Number.isFinite(dynamicBalance) ? dynamicBalance : 0;
     }
     
     const hasChildren = isParentAccount(account.id);
@@ -519,7 +531,7 @@ export default function ChartOfAccountsPage({
     // Use dynamic balance with fallback to stored balance
     if (isDataFromOtherPages(account)) {
       const dynamicBalance = calculateDynamicBalance(account);
-      return dynamicBalance > 0 ? dynamicBalance : (Number(account.balance) || 0);
+      return Number.isFinite(dynamicBalance) ? dynamicBalance : 0;
     }
     
     return Number(account.balance) || 0;
@@ -786,8 +798,7 @@ export default function ChartOfAccountsPage({
       let balance = 0;
       if (isDataFromOtherPages(account)) {
         const dynamicBalance = calculateDynamicBalance(account);
-        // If dynamic calculation returns 0 and account has a stored balance, use the stored balance as fallback
-        balance = dynamicBalance > 0 ? dynamicBalance : (Number(account.balance) || 0);
+        balance = Number.isFinite(dynamicBalance) ? dynamicBalance : 0;
       } else {
         balance = Number(account.balance) || 0;
       }

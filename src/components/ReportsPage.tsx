@@ -261,6 +261,36 @@ const getExpenseDate = (expense: ExpenseLike | null | undefined): Date =>
 
 const getSaleDate = (sale: SaleLike | null | undefined): Date =>
   parseMaybeDate(sale?.date ?? sale?.saleDate);
+
+const resolveCustomerName = (source: unknown): string => {
+  if (!source || typeof source !== 'object') return '';
+  const payload = source as Record<string, unknown>;
+  const nested = payload.customer as Record<string, unknown> | null | undefined;
+  const candidates = [
+    ensureString(payload.customerName),
+    ensureString(payload.companyName),
+    ensureString(payload.customerCompany),
+    ensureString(payload.customerCompanyName),
+    ensureString(payload.clientName),
+    ensureString(payload.contactName),
+    ensureString(payload.name),
+  ];
+
+  if (nested && typeof nested === 'object') {
+    candidates.unshift(
+      ensureString(nested.name),
+      ensureString(nested.fullName),
+      ensureString(nested.companyName),
+      ensureString(nested.company)
+    );
+  }
+
+  for (const value of candidates) {
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return '';
+};
 interface ReportsPageProps {
   invoices?: InvoiceLike[];
   expenses?: ExpenseLike[];
@@ -596,49 +626,56 @@ export default function ReportsPage({
 
   // Customer analysis with demo data if empty
   const customerAnalysis = useMemo(() => {
-    const customerMap = new Map();
+    type CustomerAggregate = {
+      name: string;
+      total: number;
+      count: number;
+      lastPurchase?: string;
+    };
+
+    const customerMap = new Map<string, CustomerAggregate>();
+    const UNKNOWN_KEY = '__unknown__';
+
+    const getCustomerKey = (name: string) => {
+      const trimmed = name.trim();
+      return trimmed ? trimmed.toLowerCase() : UNKNOWN_KEY;
+    };
+
+    const upsertCustomer = (rawName: string, amount: number, activityDate: string) => {
+      const key = getCustomerKey(rawName);
+      const existing = customerMap.get(key);
+      const normalizedName = rawName.trim();
+      const nextName = normalizedName || existing?.name || rawName;
+      const nextTotal = (existing?.total ?? 0) + amount;
+      const nextCount = (existing?.count ?? 0) + 1;
+      const previousDate = existing?.lastPurchase;
+      const shouldUpdateDate = !previousDate || new Date(activityDate) > new Date(previousDate);
+
+      customerMap.set(key, {
+        name: nextName,
+        total: nextTotal,
+        count: nextCount,
+        lastPurchase: shouldUpdateDate ? activityDate : previousDate,
+      });
+    };
     
-    // Get customer data from paid invoices
     invoices
-      .filter(invoice => isPaidLike(invoice.status))
-      .forEach(invoice => {
-        const existing = customerMap.get(invoice.customerName) || { 
-          name: invoice.customerName, 
-          total: 0, 
-          count: 0,
-          lastPurchase: invoice.issueDate
-        };
-        existing.total += getInvoiceTotal(invoice);
-        existing.count += 1;
+      .filter((invoice) => isPaidLike(invoice.status))
+      .forEach((invoice) => {
+        const name = resolveCustomerName(invoice);
         const invoiceDate = getInvoiceDate(invoice).toISOString();
-        if (new Date(invoiceDate) > new Date(existing.lastPurchase || 0)) {
-          existing.lastPurchase = invoiceDate;
-        }
-        customerMap.set(invoice.customerName, existing);
+        upsertCustomer(name, getInvoiceTotal(invoice), invoiceDate);
       });
-    
-    // Also include direct sales that haven't been converted to invoices
+
     sales
-      .filter(sale => isCompletedLike(sale.status))
-      .forEach(sale => {
+      .filter((sale) => isCompletedLike(sale.status))
+      .forEach((sale) => {
         if (!isSaleInvoiced(sale, invoices)) {
-          const existing = customerMap.get(sale.customerName) || { 
-            name: sale.customerName, 
-            total: 0, 
-            count: 0,
-            lastPurchase: sale.date
-          };
-          existing.total += getSaleAmount(sale);
-          existing.count += 1;
+          const name = resolveCustomerName(sale);
           const saleDate = getSaleDate(sale).toISOString();
-          if (new Date(saleDate) > new Date(existing.lastPurchase || 0)) {
-            existing.lastPurchase = saleDate;
-          }
-          customerMap.set(sale.customerName, existing);
+          upsertCustomer(name, getSaleAmount(sale), saleDate);
         }
       });
-    
-    // Demo veri ekleme kaldırıldı: yalnızca gerçek veriler gösterilir
     
     return Array.from(customerMap.values())
       .sort((a, b) => b.total - a.total)
@@ -1063,78 +1100,91 @@ export default function ReportsPage({
         )}
       </div>
 
-      {/* 2. Revenue Analysis */}
       {/* VAT Analysis */}
       <div className="bg-white rounded-xl border border-gray-200">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <Receipt className="w-6 h-6 text-orange-600 mr-3" />
-              {t('reports.vatAnalysis')}
-            </h2>
-            <p className="text-gray-600">{t('reports.vatAnalysisSubtitle')}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">{t('reports.currentYearLabel', { year: currentDate.getFullYear() })}</p>
-            <p className="text-xl font-semibold text-gray-900">{formatAmount(vatYearToDate)}</p>
-          </div>
-        </div>
-        <div className="p-6 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-              <p className="text-sm text-amber-700">{t('reports.vatYearToDate')}</p>
-              <p className="text-2xl font-bold text-amber-900">{formatAmount(vatYearToDate)}</p>
-              <p className="text-xs text-amber-700 mt-1">
-                {t('reports.vatChangeVsLastYear', {
-                  percent: formatPercent(vatYearChange),
-                  lastYear: formatAmount(vatLastYear)
-                })}
-              </p>
+        <div 
+          className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => toggleSection('vat')}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                <Receipt className="w-6 h-6 text-orange-600 mr-3" />
+                {t('reports.vatAnalysis')}
+              </h2>
+              <p className="text-gray-600">{t('reports.vatAnalysisSubtitle')}</p>
             </div>
-            <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-              <p className="text-sm text-orange-700">{t('reports.vatThisMonth')}</p>
-              <p className="text-2xl font-bold text-orange-900">{formatAmount(vatCurrentMonth)}</p>
-              <p className="text-xs text-orange-700 mt-1">
-                {t('reports.vatChangeVsPreviousMonth', {
-                  percent: formatPercent(vatMonthChange),
-                  previous: formatAmount(vatPreviousMonth)
-                })}
-              </p>
-            </div>
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <p className="text-sm text-blue-700">{t('reports.vatAverageSixMonths')}</p>
-              <p className="text-2xl font-bold text-blue-900">{formatAmount(vatSixMonthAverage)}</p>
-              <p className="text-xs text-blue-700 mt-1">{t('reports.vatAverageHint')}</p>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">{t('reports.vatMonthlyBreakdown')}</h3>
-              <span className="text-sm text-gray-500">{t('reports.lastMonthsPerformance', { count: vatMonthlyBreakdown.length })}</span>
-            </div>
-            {vatMonthlyBreakdown.length ? (
-              <div className="space-y-3">
-                {vatMonthlyBreakdown.map((entry) => (
-                  <div key={entry.label} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-gray-900">{entry.label}</span>
-                      <span className="font-semibold text-gray-900">{formatAmount(entry.amount)}</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-2 bg-orange-500 rounded-full"
-                        style={{ width: `${vatMonthlyMax > 0 ? (entry.amount / vatMonthlyMax) * 100 : 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-500">{t('reports.currentYearLabel', { year: currentDate.getFullYear() })}</p>
+                <p className="text-xl font-semibold text-gray-900">{formatAmount(vatYearToDate)}</p>
               </div>
-            ) : (
-              <p className="text-sm text-gray-500">{t('reports.noVatData')}</p>
-            )}
+              {collapsedSections.has('vat') ? (
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              ) : (
+                <ChevronUp className="w-5 h-5 text-gray-400" />
+              )}
+            </div>
           </div>
         </div>
+        {!collapsedSections.has('vat') && (
+          <div className="p-6 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                <p className="text-sm text-amber-700">{t('reports.vatYearToDate')}</p>
+                <p className="text-2xl font-bold text-amber-900">{formatAmount(vatYearToDate)}</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  {t('reports.vatChangeVsLastYear', {
+                    percent: formatPercent(vatYearChange),
+                    lastYear: formatAmount(vatLastYear)
+                  })}
+                </p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                <p className="text-sm text-orange-700">{t('reports.vatThisMonth')}</p>
+                <p className="text-2xl font-bold text-orange-900">{formatAmount(vatCurrentMonth)}</p>
+                <p className="text-xs text-orange-700 mt-1">
+                  {t('reports.vatChangeVsPreviousMonth', {
+                    percent: formatPercent(vatMonthChange),
+                    previous: formatAmount(vatPreviousMonth)
+                  })}
+                </p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <p className="text-sm text-blue-700">{t('reports.vatAverageSixMonths')}</p>
+                <p className="text-2xl font-bold text-blue-900">{formatAmount(vatSixMonthAverage)}</p>
+                <p className="text-xs text-blue-700 mt-1">{t('reports.vatAverageHint')}</p>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">{t('reports.vatMonthlyBreakdown')}</h3>
+                <span className="text-sm text-gray-500">{t('reports.lastMonthsPerformance', { count: vatMonthlyBreakdown.length })}</span>
+              </div>
+              {vatMonthlyBreakdown.length ? (
+                <div className="space-y-3">
+                  {vatMonthlyBreakdown.map((entry) => (
+                    <div key={entry.label} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-gray-900">{entry.label}</span>
+                        <span className="font-semibold text-gray-900">{formatAmount(entry.amount)}</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-2 bg-orange-500 rounded-full"
+                          style={{ width: `${vatMonthlyMax > 0 ? (entry.amount / vatMonthlyMax) * 100 : 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">{t('reports.noVatData')}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 2. Revenue Analysis */}
