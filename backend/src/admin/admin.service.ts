@@ -606,6 +606,58 @@ export class AdminService {
     return { success: true };
   }
 
+  private normalizeFrontendBaseUrl(value?: string | null): string | undefined {
+    if (!value) return undefined;
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const tryParse = (candidate: string) => {
+      try {
+        const parsed = new URL(candidate);
+        return parsed.origin;
+      } catch {
+        return undefined;
+      }
+    };
+    return (
+      tryParse(trimmed) ||
+      (trimmed.startsWith('http') ? undefined : tryParse(`https://${trimmed}`))
+    );
+  }
+
+  private detectAdminCodespaceFrontendOrigin(): string | undefined {
+    const name = process.env.CODESPACE_NAME;
+    const domain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
+    if (name && domain) {
+      const port =
+        process.env.CODESPACE_FRONTEND_PORT ||
+        process.env.FRONTEND_PORT ||
+        process.env.VITE_PORT ||
+        '5174';
+      return `https://${name}-${port}.${domain}`;
+    }
+    return undefined;
+  }
+
+  private resolveAdminFrontendBaseUrl(): string {
+    const candidates = [
+      process.env.FRONTEND_URL,
+      process.env.FRONTEND_PUBLIC_URL,
+      process.env.APP_PUBLIC_URL,
+      process.env.APP_URL,
+    ];
+    for (const candidate of candidates) {
+      const normalized = this.normalizeFrontendBaseUrl(candidate);
+      if (normalized) {
+        return normalized;
+      }
+    }
+    const codespaceOrigin = this.detectAdminCodespaceFrontendOrigin();
+    if (codespaceOrigin) {
+      return codespaceOrigin;
+    }
+    return 'http://localhost:5174';
+  }
+
   async sendPasswordReset(userId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
@@ -617,7 +669,8 @@ export class AdminService {
       passwordResetToken: token,
       passwordResetExpiresAt: expiresAt,
     });
-    const resetLink = `${process.env.APP_PUBLIC_URL || 'http://localhost:5175'}/reset-password?token=${token}`;
+    const frontendBase = this.resolveAdminFrontendBaseUrl();
+    const resetLink = `${frontendBase}/#reset-password?token=${token}`;
 
     await this.emailService.sendEmail({
       to: user.email,
