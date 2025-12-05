@@ -9,6 +9,7 @@ Bu dosya, e-posta akışlarının nasıl çalıştığını, hangi ortam değiş
 - AWS_REGION=eu-central-1
 - MAILERSEND_API_KEY=xxx (MAIL_PROVIDER=mailersend için)
 - FRONTEND_URL=https://app.comptario.com (veya dev için http://localhost:5174)
+- FRONTEND_VERIFY_PATH=/#verify-email (opsiyonel; hash yerine tam yol gerekiyorsa /auth/verify olarak değiştir)
 - EMAIL_VERIFICATION_REQUIRED=true
 - VERIFICATION_TOKEN_TTL_HOURS=24
 - RESET_TOKEN_TTL_MINUTES=60
@@ -25,11 +26,12 @@ Bu dosya, e-posta akışlarının nasıl çalıştığını, hangi ortam değiş
 ### Kayıt / Signup
 - Endpoint: `POST /auth/signup` (veya `/auth/register`)
 - İşlem: Kullanıcı + tenant oluşturulur, doğrulama token'ı tabloya yazılır, e-posta ile link gönderilir.
-- Link: `${FRONTEND_URL}/auth/verify?token=RAW&u=USER_ID`
+- Link: `${FRONTEND_URL}/#verify-email?token=RAW&u=USER_ID` (veya FRONTEND_VERIFY_PATH override değeri)
 - TTL: `VERIFICATION_TOKEN_TTL_HOURS`
 
 ### E-posta Doğrulama
 - Endpoint: `GET /auth/verify?token=RAW&u=USER_ID`
+- Frontend yönlendirmesi varsayılan olarak `/#verify-email` hash rotasına yapılır; hash tabanlı olmayan dağıtımlarda `FRONTEND_VERIFY_PATH` ortam değişkenini gerçek yol ile değiştirin.
 - İşlem: Token SHA-256 eşleşmesi timing-safe ile yapılır, başarılıysa kullanıcı doğrulanır, diğer bekleyen tokenlar invalid edilir, audit log yazılır.
 
 ### Şifremi Unuttum / Reset

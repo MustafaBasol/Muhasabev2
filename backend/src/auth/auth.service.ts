@@ -120,12 +120,7 @@ export class AuthService {
 
     // Send verification email (locale-aware minimal EN by default)
     const locale = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
-    const frontendUrl =
-      process.env.FRONTEND_URL ||
-      process.env.APP_PUBLIC_URL ||
-      'http://localhost:5174';
-    const appBase = frontendUrl.replace(/\/?$/, '');
-    const verifyLink = `${appBase}/auth/verify?token=${raw}&u=${user.id}`;
+    const verifyLink = this.buildVerifyLink(raw, user.id);
     const subjectVerify =
       locale === 'tr' ? 'E-posta Doğrulama' : 'Email Verification';
     const htmlVerify =
@@ -537,12 +532,7 @@ export class AuthService {
       this.evtRepo.create({ userId: user.id, tokenHash, expiresAt }),
     );
     const locale = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
-    const frontendUrl =
-      process.env.FRONTEND_URL ||
-      process.env.APP_PUBLIC_URL ||
-      'http://localhost:5174';
-    const appBase = frontendUrl.replace(/\/?$/, '');
-    const verifyLink = `${appBase}/auth/verify?token=${raw}&u=${user.id}`;
+    const verifyLink = this.buildVerifyLink(raw, user.id);
     const subjectResend =
       locale === 'tr'
         ? 'E-posta Doğrulama (Yeniden)'
@@ -1003,5 +993,44 @@ export class AuthService {
 
   private resolveUserAgent(req?: RequestContext): string | undefined {
     return this.getHeaderValue(req, 'user-agent');
+  }
+
+  private resolveFrontendBase(): string {
+    const raw =
+      process.env.FRONTEND_URL ||
+      process.env.APP_PUBLIC_URL ||
+      'http://localhost:5174';
+    return raw.replace(/\/+$/, '');
+  }
+
+  private buildFrontendUrl(
+    preferredPath: string | undefined,
+    fallbackPath: string,
+    params: Record<string, string>,
+  ): string {
+    const base = this.resolveFrontendBase();
+    const rawPath = preferredPath?.trim() || fallbackPath;
+    const normalizedPath = (rawPath.startsWith('/') ? rawPath : `/${rawPath}`)
+      // collapse any duplicate slashes except the protocol portion (already stripped)
+      .replace(/\/+/g, '/');
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        query.append(key, value);
+      }
+    });
+    const queryString = query.toString();
+    const separator = normalizedPath.includes('?') ? '&' : '?';
+    return queryString
+      ? `${base}${normalizedPath}${separator}${queryString}`
+      : `${base}${normalizedPath}`;
+  }
+
+  private buildVerifyLink(token: string, userId: string): string {
+    const defaultPath = '/#verify-email';
+    return this.buildFrontendUrl(process.env.FRONTEND_VERIFY_PATH, defaultPath, {
+      token,
+      u: userId,
+    });
   }
 }

@@ -187,6 +187,11 @@ const isPaidLike = (status: unknown) => {
   return normalized.includes('paid') || normalized.includes('öden') || normalized.includes('odendi') || normalized.includes('ödendi');
 };
 
+const isReportableExpenseStatus = (status: unknown) => {
+  const normalized = normalizeStatusKey(String(status ?? ''));
+  return normalized === 'paid' || normalized === 'approved';
+};
+
 const isCompletedLike = (status: unknown) => {
   const normalized = statusToLower(status);
   return normalized.includes('completed') || normalized.includes('tamam');
@@ -462,7 +467,7 @@ export default function ReportsPage({
       });
 
       const monthExpenses = expenses.filter((expense) => {
-        if (!isPaidLike(expense.status)) return false;
+        if (!isReportableExpenseStatus(expense.status)) return false;
         const expenseDate = getExpenseDate(expense);
         return expenseDate.getMonth() === monthIndex && expenseDate.getFullYear() === year;
       });
@@ -524,7 +529,7 @@ export default function ReportsPage({
   });
 
   const totalExpenses = expenses
-  .filter(expense => isPaidLike(expense.status))
+    .filter((expense) => isReportableExpenseStatus(expense.status))
     .reduce((sum, expense) => sum + getExpenseAmount(expense), 0);
   
   logDebug('Total expenses (paid only)', totalExpenses);
@@ -612,7 +617,7 @@ export default function ReportsPage({
     const categoryMap = new Map();
     
     expenses
-      .filter(expense => isPaidLike(expense.status))
+      .filter((expense) => isReportableExpenseStatus(expense.status))
       .forEach(expense => {
         const existing = categoryMap.get(expense.category) || { category: expense.category, total: 0, count: 0 };
         existing.total += toNumber(expense.amount);
@@ -1342,7 +1347,7 @@ export default function ReportsPage({
                   const supplierMap = new Map();
                   
                   expenses
-                    .filter(expense => isPaidLike(expense.status))
+                    .filter((expense) => isReportableExpenseStatus(expense.status))
                     .forEach(expense => {
                       const existing = supplierMap.get(expense.supplier) || { 
                         name: expense.supplier, 
@@ -1394,7 +1399,7 @@ export default function ReportsPage({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.recentExpenses')}</h3>
               <div className="space-y-2">
                 {expenses
-                  .filter(expense => isPaidLike(expense.status))
+                  .filter((expense) => isReportableExpenseStatus(expense.status))
                   .sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime())
                   .slice(0, 5)
                   .map((expense, index) => (
