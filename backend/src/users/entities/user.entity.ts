@@ -137,6 +137,18 @@ export class User {
   @JoinColumn({ name: 'currentOrgId' })
   currentOrganization: Organization;
 
+  @Column({ type: timestamptzColumnType, nullable: true })
+  removedFromTenantAt?: Date | null;
+
+  @Column({ nullable: true })
+  removedFromTenantBy?: string | null;
+
+  @Column({ nullable: true })
+  removedFromTenantReason?: string | null;
+
+  @Column({ nullable: true })
+  removedFromTenantId?: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
