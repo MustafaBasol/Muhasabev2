@@ -8,7 +8,7 @@ interface StatsCardProps {
   change: string;
   changeType: 'increase' | 'decrease';
   icon: React.ComponentType<{ className?: string }>;
-  color: 'blue' | 'green' | 'red' | 'purple';
+  color: 'blue' | 'green' | 'red' | 'purple' | 'orange';
   subtitle?: string;
 }
 
@@ -20,14 +20,16 @@ export default function StatsCard({ title, value, change, changeType, icon: Icon
     green: 'bg-green-50 text-green-600 border-green-200',
     red: 'bg-red-50 text-red-600 border-red-200',
     purple: 'bg-purple-50 text-purple-600 border-purple-200',
-  };
+    orange: 'bg-orange-50 text-orange-600 border-orange-200',
+  } as const;
 
   const iconBgClasses = {
     blue: 'bg-blue-100',
     green: 'bg-green-100',
     red: 'bg-red-100',
     purple: 'bg-purple-100',
-  };
+    orange: 'bg-orange-100',
+  } as const;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-200 md:hover:shadow-lg md:hover:scale-105">

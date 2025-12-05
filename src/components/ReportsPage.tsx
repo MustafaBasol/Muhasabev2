@@ -20,6 +20,7 @@ import type { Quote, QuoteItemDto } from '../api/quotes';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { logger } from '../utils/logger';
 import { listLocalStorageKeys, readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
+import { toNumberSafe } from '../utils/sortAndSearch';
 
 type NumericInput = number | string | null | undefined;
 
@@ -37,6 +38,8 @@ interface InvoiceLike {
   status?: unknown;
   total?: NumericInput;
   amount?: NumericInput;
+  subtotal?: NumericInput;
+  taxAmount?: NumericInput;
   issueDate?: string | null;
   date?: string | null;
   dueDate?: string | null;
@@ -62,7 +65,9 @@ interface SaleLike {
   customerName?: string | null;
   productName?: string | null;
   status?: unknown;
+  items?: InvoiceItemLike[] | null;
   amount?: NumericInput;
+  total?: NumericInput;
   quantity?: NumericInput;
   unitPrice?: NumericInput;
   invoiceId?: string | number | null;
@@ -154,26 +159,12 @@ const escapeCsvValue = (value: unknown): string => {
 };
 
 /* __REPORTS_HELPERS__ */
-const toNumber = (value: unknown): number => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (value == null) return 0;
+const toNumber = (value: unknown): number => toNumberSafe(value);
 
-  const candidate = String(value).trim();
-
-  if (/^\d+\.?\d*$/.test(candidate)) {
-    const parsed = Number.parseFloat(candidate);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  if (candidate.includes(',')) {
-    const normalized = candidate.replace(/\./g, '').replace(/,/g, '.');
-    const parsed = Number.parseFloat(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  const sanitized = candidate.replace(/\s/g, '');
-  const parsed = Number.parseFloat(sanitized);
-  return Number.isFinite(parsed) ? parsed : 0;
+const getLineItemTotal = (item?: InvoiceItemLike | null): number => {
+  if (!item) return 0;
+  if (item.total != null) return toNumber(item.total);
+  return toNumber(item.quantity) * toNumber(item.unitPrice);
 };
 
 const parseMaybeDate = (input: unknown): Date => {
@@ -203,10 +194,10 @@ const isCompletedLike = (status: unknown) => {
 
 const getInvoiceTotal = (invoice: InvoiceLike | null | undefined): number => {
   if (!invoice) return 0;
-  if (invoice.total != null) return toNumber(invoice.total);
-  if (invoice.amount != null) return toNumber(invoice.amount);
+  const explicit = toNumber(invoice.total ?? invoice.amount);
+  if (explicit > 0) return explicit;
   if (Array.isArray(invoice.items)) {
-    return invoice.items.reduce((sum, item) => sum + toNumber(item.quantity) * toNumber(item.unitPrice), 0);
+    return invoice.items.reduce((sum, item) => sum + getLineItemTotal(item), 0);
   }
   return 0;
 };
@@ -215,8 +206,38 @@ const getExpenseAmount = (expense: ExpenseLike | null | undefined): number => to
 
 const getSaleAmount = (sale: SaleLike | null | undefined): number => {
   if (!sale) return 0;
+  if (Array.isArray(sale.items) && sale.items.length) {
+    return sale.items.reduce((sum, item) => sum + getLineItemTotal(item), 0);
+  }
+  if (sale.total != null) return toNumber(sale.total);
   if (sale.amount != null) return toNumber(sale.amount);
-  return toNumber(sale.quantity) * toNumber(sale.unitPrice);
+  const quantity = toNumber(sale.quantity);
+  const unitPrice = toNumber(sale.unitPrice);
+  if (quantity > 0 && unitPrice > 0) {
+    return quantity * unitPrice;
+  }
+  return 0;
+};
+
+const getInvoiceVatAmount = (invoice: InvoiceLike | null | undefined): number => {
+  if (!invoice) return 0;
+  const explicit = toNumber((invoice as any)?.taxAmount);
+  if (explicit > 0) return explicit;
+  const subtotal = toNumber((invoice as any)?.subtotal);
+  const total = toNumber(invoice?.total ?? invoice?.amount);
+  if (total > 0 && subtotal >= 0 && total >= subtotal) {
+    const diff = total - subtotal;
+    if (diff > 0) return diff;
+  }
+  if (Array.isArray(invoice?.items)) {
+    const vatFromItems = invoice.items.reduce((sum, item) => {
+      const rate = toNumber((item as Record<string, unknown>)?.taxRate);
+      if (rate <= 0) return sum;
+      return sum + getLineItemTotal(item) * (rate / 100);
+    }, 0);
+    if (vatFromItems > 0) return vatFromItems;
+  }
+  return 0;
 };
 
 const isSaleInvoiced = (sale: SaleLike | null | undefined, allInvoices: InvoiceLike[]): boolean => {
@@ -272,6 +293,8 @@ export default function ReportsPage({
       logger.debug('[ReportsPage]', ...args);
     }
   };
+
+  const paidInvoicesAll = useMemo(() => invoices.filter((invoice) => isPaidLike(invoice.status)), [invoices]);
 
   const normalizedQuotes = useMemo(() => normalizeQuoteArray(quotes), [quotes]);
   const [liveQuotes, setLiveQuotes] = useState<QuoteLike[]>(normalizedQuotes);
@@ -394,7 +417,7 @@ export default function ReportsPage({
       t('months.short.dec'),
     ];
 
-    const months = [] as Array<{ month: string; monthIndex: number; year: number; income: number; expense: number }>;
+    const months = [] as Array<{ month: string; monthIndex: number; year: number; income: number; expense: number; vat: number }>;
 
     for (let offset = 0; offset < 6; offset += 1) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - offset, 1);
@@ -422,6 +445,7 @@ export default function ReportsPage({
       });
 
       const invoiceIncome = monthInvoices.reduce((sum, invoice) => sum + getInvoiceTotal(invoice), 0);
+      const vatAmount = monthInvoices.reduce((sum, invoice) => sum + getInvoiceVatAmount(invoice), 0);
       const salesIncome = monthSales.reduce((sum, sale) => sum + getSaleAmount(sale), 0);
       const totalIncome = invoiceIncome + salesIncome;
       const totalExpense = monthExpenses.reduce((sum, expense) => sum + getExpenseAmount(expense), 0);
@@ -432,6 +456,7 @@ export default function ReportsPage({
         salesIncome,
         totalIncome,
         totalExpense,
+        vatAmount,
       });
 
       months.push({
@@ -440,6 +465,7 @@ export default function ReportsPage({
         year,
         income: totalIncome,
         expense: totalExpense,
+        vat: vatAmount,
       });
     }
 
@@ -448,8 +474,7 @@ export default function ReportsPage({
 
   // Calculate metrics
   // Calculate total revenue from paid invoices
-  const paidInvoiceRevenue = invoices
-    .filter(invoice => isPaidLike(invoice.status))
+  const paidInvoiceRevenue = paidInvoicesAll
     .reduce((sum, invoice) => sum + getInvoiceTotal(invoice), 0);
   
   // Calculate revenue from direct sales (not converted to invoices)
@@ -487,6 +512,38 @@ export default function ReportsPage({
     };
   });
 
+  const vatMonthlyBreakdown = useMemo(() =>
+    last6Months.map((monthInfo) => ({
+      label: `${monthInfo.month} ${monthInfo.year}`,
+      amount: monthInfo.vat ?? 0,
+    })),
+  [last6Months]);
+
+  const vatMonthlyMax = Math.max(...vatMonthlyBreakdown.map((entry) => entry.amount), 1);
+  const vatCurrentMonth = vatMonthlyBreakdown[0]?.amount ?? 0;
+  const vatPreviousMonth = vatMonthlyBreakdown[1]?.amount ?? 0;
+  const vatYearToDate = paidInvoicesAll.reduce((sum, invoice) => {
+    const invoiceDate = getInvoiceDate(invoice);
+    return invoiceDate.getFullYear() === currentDate.getFullYear()
+      ? sum + getInvoiceVatAmount(invoice)
+      : sum;
+  }, 0);
+  const vatLastYear = paidInvoicesAll.reduce((sum, invoice) => {
+    const invoiceDate = getInvoiceDate(invoice);
+    return invoiceDate.getFullYear() === currentDate.getFullYear() - 1
+      ? sum + getInvoiceVatAmount(invoice)
+      : sum;
+  }, 0);
+  const vatSixMonthAverage = vatMonthlyBreakdown.length
+    ? vatMonthlyBreakdown.reduce((sum, entry) => sum + entry.amount, 0) / vatMonthlyBreakdown.length
+    : 0;
+  const vatMonthChange = vatPreviousMonth > 0
+    ? ((vatCurrentMonth - vatPreviousMonth) / vatPreviousMonth) * 100
+    : (vatCurrentMonth ? 100 : 0);
+  const vatYearChange = vatLastYear > 0
+    ? ((vatYearToDate - vatLastYear) / vatLastYear) * 100
+    : (vatYearToDate ? 100 : 0);
+
   // Product sales analysis
   const productSales = useMemo(() => {
     type ProductAggregate = { name: string; total: number; count: number };
@@ -498,8 +555,7 @@ export default function ReportsPage({
         (invoice.items ?? []).forEach((item) => {
           const label = item.description || '—';
           const existing = productMap.get(label) ?? { name: label, total: 0, count: 0 };
-          const lineTotal = item.total != null ? toNumber(item.total) : toNumber(item.quantity) * toNumber(item.unitPrice);
-          existing.total += lineTotal;
+          existing.total += getLineItemTotal(item);
           existing.count += 1;
           productMap.set(label, existing);
         });
@@ -552,10 +608,11 @@ export default function ReportsPage({
           count: 0,
           lastPurchase: invoice.issueDate
         };
-        existing.total += toNumber(invoice.total);
+        existing.total += getInvoiceTotal(invoice);
         existing.count += 1;
-        if (new Date(invoice.issueDate) > new Date(existing.lastPurchase)) {
-          existing.lastPurchase = invoice.issueDate;
+        const invoiceDate = getInvoiceDate(invoice).toISOString();
+        if (new Date(invoiceDate) > new Date(existing.lastPurchase || 0)) {
+          existing.lastPurchase = invoiceDate;
         }
         customerMap.set(invoice.customerName, existing);
       });
@@ -571,10 +628,11 @@ export default function ReportsPage({
             count: 0,
             lastPurchase: sale.date
           };
-          existing.total += toNumber(sale.amount);
+          existing.total += getSaleAmount(sale);
           existing.count += 1;
-          if (new Date(sale.date) > new Date(existing.lastPurchase)) {
-            existing.lastPurchase = sale.date;
+          const saleDate = getSaleDate(sale).toISOString();
+          if (new Date(saleDate) > new Date(existing.lastPurchase || 0)) {
+            existing.lastPurchase = saleDate;
           }
           customerMap.set(sale.customerName, existing);
         }
@@ -588,6 +646,7 @@ export default function ReportsPage({
   }, [invoices, sales]);
 
   const formatAmount = useCallback((amount: unknown) => formatCurrency(toNumber(amount)), [formatCurrency]);
+  const formatPercent = useCallback((value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`, []);
 
   const formatDate = useCallback((value?: string | null) => {
     if (!value) return '—';
@@ -1002,6 +1061,80 @@ export default function ReportsPage({
             </div>
           </div>
         )}
+      </div>
+
+      {/* 2. Revenue Analysis */}
+      {/* VAT Analysis */}
+      <div className="bg-white rounded-xl border border-gray-200">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <Receipt className="w-6 h-6 text-orange-600 mr-3" />
+              {t('reports.vatAnalysis')}
+            </h2>
+            <p className="text-gray-600">{t('reports.vatAnalysisSubtitle')}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-500">{t('reports.currentYearLabel', { year: currentDate.getFullYear() })}</p>
+            <p className="text-xl font-semibold text-gray-900">{formatAmount(vatYearToDate)}</p>
+          </div>
+        </div>
+        <div className="p-6 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+              <p className="text-sm text-amber-700">{t('reports.vatYearToDate')}</p>
+              <p className="text-2xl font-bold text-amber-900">{formatAmount(vatYearToDate)}</p>
+              <p className="text-xs text-amber-700 mt-1">
+                {t('reports.vatChangeVsLastYear', {
+                  percent: formatPercent(vatYearChange),
+                  lastYear: formatAmount(vatLastYear)
+                })}
+              </p>
+            </div>
+            <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+              <p className="text-sm text-orange-700">{t('reports.vatThisMonth')}</p>
+              <p className="text-2xl font-bold text-orange-900">{formatAmount(vatCurrentMonth)}</p>
+              <p className="text-xs text-orange-700 mt-1">
+                {t('reports.vatChangeVsPreviousMonth', {
+                  percent: formatPercent(vatMonthChange),
+                  previous: formatAmount(vatPreviousMonth)
+                })}
+              </p>
+            </div>
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <p className="text-sm text-blue-700">{t('reports.vatAverageSixMonths')}</p>
+              <p className="text-2xl font-bold text-blue-900">{formatAmount(vatSixMonthAverage)}</p>
+              <p className="text-xs text-blue-700 mt-1">{t('reports.vatAverageHint')}</p>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">{t('reports.vatMonthlyBreakdown')}</h3>
+              <span className="text-sm text-gray-500">{t('reports.lastMonthsPerformance', { count: vatMonthlyBreakdown.length })}</span>
+            </div>
+            {vatMonthlyBreakdown.length ? (
+              <div className="space-y-3">
+                {vatMonthlyBreakdown.map((entry) => (
+                  <div key={entry.label} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-gray-900">{entry.label}</span>
+                      <span className="font-semibold text-gray-900">{formatAmount(entry.amount)}</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-2 bg-orange-500 rounded-full"
+                        style={{ width: `${vatMonthlyMax > 0 ? (entry.amount / vatMonthlyMax) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">{t('reports.noVatData')}</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 2. Revenue Analysis */}

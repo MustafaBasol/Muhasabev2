@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import { Users, FileText, CreditCard, TrendingUp } from "lucide-react";
+import { Users, FileText, CreditCard, TrendingUp, Receipt } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
 import { CurrencyProvider, useCurrency } from "./contexts/CurrencyContext";
 import type { Currency } from "./contexts/CurrencyContext";
@@ -4922,10 +4922,65 @@ const AppContent: React.FC = () => {
       return !isNaN(date.getTime()) && date.getMonth() === month && date.getFullYear() === year;
     };
 
+    const parseAmount = (value: unknown) => toNumberSafe(value);
+    const getLineItemTotal = (item: any) => {
+      if (!item) return 0;
+      if (item?.total != null) return parseAmount(item.total);
+      return parseAmount(item?.quantity) * parseAmount(item?.unitPrice);
+    };
+    const resolveLineItems = (record: any) => {
+      if (Array.isArray(record?.items) && record.items.length) return record.items;
+      if (Array.isArray(record?.lineItems) && record.lineItems.length) return record.lineItems;
+      return [];
+    };
 
-  const saleAmount = (sale: any) => Number(sale?.amount ?? (sale?.quantity || 0) * (sale?.unitPrice || 0));
-    const expenseAmount = (expense: any) => Number(expense?.amount ?? 0);
-    const invoiceAmount = (invoice: any) => Number(invoice?.total ?? 0);
+    const saleAmount = (sale: any) => {
+      if (!sale) return 0;
+      const items = resolveLineItems(sale);
+      if (items.length) {
+        return items.reduce((sum: number, item: any) => sum + getLineItemTotal(item), 0);
+      }
+      if (sale?.total != null) return parseAmount(sale.total);
+      if (sale?.amount != null) return parseAmount(sale.amount);
+      const quantity = parseAmount(sale?.quantity);
+      const unitPrice = parseAmount(sale?.unitPrice);
+      if (quantity > 0 && unitPrice > 0) {
+        return quantity * unitPrice;
+      }
+      return 0;
+    };
+    const expenseAmount = (expense: any) => parseAmount(expense?.amount);
+    const invoiceAmount = (invoice: any) => {
+      if (!invoice) return 0;
+      const explicit = parseAmount(invoice?.total ?? invoice?.amount);
+      if (explicit > 0) return explicit;
+      const items = resolveLineItems(invoice);
+      if (items.length) {
+        return items.reduce((sum: number, item: any) => sum + getLineItemTotal(item), 0);
+      }
+      return 0;
+    };
+    const invoiceVatAmount = (invoice: any) => {
+      if (!invoice) return 0;
+      const taxAmount = parseAmount(invoice?.taxAmount);
+      if (taxAmount > 0) return taxAmount;
+      const subtotal = parseAmount(invoice?.subtotal);
+      const total = parseAmount(invoice?.total);
+      if (total > 0 && subtotal >= 0 && total >= subtotal) {
+        const diff = total - subtotal;
+        if (diff > 0) return diff;
+      }
+      const items = resolveLineItems(invoice);
+      if (items.length) {
+        const vatFromItems = items.reduce((sum: number, item: any) => {
+          const rate = parseAmount(item?.taxRate);
+          if (rate <= 0) return sum;
+          return sum + getLineItemTotal(item) * (rate / 100);
+        }, 0);
+        if (vatFromItems > 0) return vatFromItems;
+      }
+      return 0;
+    };
 
     const sum = (items: any[], selector: (item: any) => number) => items.reduce((total, item) => total + selector(item), 0);
 
@@ -4953,10 +5008,7 @@ const AppContent: React.FC = () => {
     };
 
     // Sadece ödenmiş giderler
-    const paidExpenses = expenses.filter(exp => {
-      const s = String(exp.status || '').toLowerCase();
-      return s.includes('paid') || s.includes('öden') || s.includes('odendi') || s.includes('ödenendi');
-    });
+    const paidExpenses = expenses.filter(exp => isPaidLike(exp?.status));
 
     // Gelir: Ödenmiş faturalar + faturaya dönüşmeyen tamamlanmış satışlar
     const paidInvoicesCurrent = invoices.filter(inv => isPaidLike(inv.status) && isInMonth(inv?.issueDate, currentMonth, currentYear));
@@ -4975,6 +5027,8 @@ const AppContent: React.FC = () => {
 
     const revenueCurrent = sum(paidInvoicesCurrent, invoiceAmount) + sum(completedSalesCurrent, saleAmount);
     const revenuePrevious = sum(paidInvoicesPrevious, invoiceAmount) + sum(completedSalesPrevious, saleAmount);
+    const vatCurrent = sum(paidInvoicesCurrent, invoiceVatAmount);
+    const vatPrevious = sum(paidInvoicesPrevious, invoiceVatAmount);
 
   const expenseCurrent = sum(paidExpenses.filter(expense => isInMonth(expense?.expenseDate, currentMonth, currentYear)), expenseAmount);
     const expensePrevious = sum(paidExpenses.filter(expense => isInMonth(expense?.expenseDate, previousMonth, previousYear)), expenseAmount);
@@ -5038,6 +5092,15 @@ const AppContent: React.FC = () => {
         changeType: changeDirection(revenuePrevious, revenueCurrent),
         icon: TrendingUp,
         color: "green" as const,
+      },
+      {
+        title: t('dashboard.vatToPay'),
+        value: formatCurrency(vatCurrent),
+        change: formatPercentage(percentChange(vatPrevious, vatCurrent)),
+        changeType: changeDirection(vatPrevious, vatCurrent),
+        icon: Receipt,
+        color: "orange" as const,
+        subtitle: t('dashboard.vatToPaySubtitle'),
       },
       {
         title: t('dashboard.totalExpense'),
@@ -5131,7 +5194,7 @@ const AppContent: React.FC = () => {
 
   const renderDashboard = () => (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {metrics.statsCards.map(card => (
           <StatsCard
             key={card.title}
