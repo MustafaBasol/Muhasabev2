@@ -60,29 +60,30 @@
       "status": "active"
     },
     {
-      "id": "sendgrid",
-      "name": "SendGrid (Twilio)",
+      "id": "mailersend",
+      "name": "MailerSend",
       "purpose": {
-        "en": "Email delivery and communication",
-        "tr": "E-posta gönderimi ve iletişim",
-        "de": "E-Mail-Versand und Kommunikation",
-        "fr": "Livraison d'e-mails et communication"
+        "en": "Transactional email delivery and suppression management (no marketing emails)",
+        "tr": "İşlemsel e-posta gönderimi ve suppression yönetimi (pazarlama yok)",
+        "de": "Transaktionaler E-Mail-Versand und Suppression-Verwaltung (keine Marketing-Mails)",
+        "fr": "Livraison d'e-mails transactionnels et gestion des suppressions (pas de marketing)"
       },
-      "region": "EU, US", 
-      "website": "https://sendgrid.com",
-      "dpaLink": "https://www.twilio.com/legal/data-protection-addendum",
+      "region": "EU (Frankfurt primary, Amsterdam failover)",
+      "website": "https://www.mailersend.com",
+      "dpaLink": "https://www.mailersend.com/legal/data-processing-addendum",
       "dataCategories": [
         "Email addresses",
-        "Communication logs",
-        "Contact data"
+        "Transactional metadata",
+        "Technical delivery logs",
+        "Suppression records"
       ],
       "safeguards": [
-        "EU Adequacy Decision",
-        "SOC 2 Type II",
-        "Data Transfer Agreement"
+        "EU Standard Contractual Clauses",
+        "ISO 27001",
+        "SOC 2 Type II"
       ],
-      "certifications": ["SOC 2 Type II", "ISO 27001"],
-      "addedDate": "2024-01-01",
+      "certifications": ["ISO 27001", "SOC 2 Type II"],
+      "addedDate": "2025-01-10",
       "status": "active"
     },
     {
@@ -181,7 +182,7 @@
         },
         {
           "type": "updated",
-          "description": "SendGrid DPA link following Twilio acquisition"
+          "description": "MailerSend DPA link documented for EU cluster routing"
         }
       ]
     },

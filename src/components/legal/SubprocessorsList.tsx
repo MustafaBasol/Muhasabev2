@@ -183,11 +183,11 @@ const SubprocessorsList: React.FC = () => {
           subprocessors: [
             {
               id: '1',
-              name: 'Amazon Web Services (AWS) - SES (Frankfurt, eu-central-1)',
-              purpose: 'Transactional email delivery and infrastructure (no marketing emails)',
-              region: 'EU (Frankfurt)',
-              dataCategories: ['Email addresses', 'Transactional metadata', 'Technical delivery logs'],
-              dpaLink: 'https://aws.amazon.com/compliance/gdpr-center/',
+              name: 'MailerSend Inc.',
+              purpose: 'Transactional email delivery, suppression management and infrastructure (EU cluster, no marketing emails)',
+              region: 'EU (Frankfurt primary, Amsterdam failover)',
+              dataCategories: ['Email addresses', 'Transactional metadata', 'Technical delivery logs', 'Suppression records'],
+              dpaLink: 'https://www.mailersend.com/legal/data-processing-addendum',
               lastUpdated: '2025-11-10'
             },
             {
@@ -230,7 +230,7 @@ const SubprocessorsList: React.FC = () => {
             {
               date: '2025-11-10',
               version: '1.1',
-              changes: ['Removed SendGrid (no longer used)', 'Refined AWS SES Frankfurt entry with scope clarification'],
+              changes: ['Migrated transactional email coverage to MailerSend EU cluster', 'Clarified transactional-only email scope'],
               author: 'Legal Team'
             }
           ]
@@ -258,20 +258,15 @@ const SubprocessorsList: React.FC = () => {
   const getTranslatedData = (processor: Subprocessor) => {
     const translations = {
       tr: {
-        'Amazon Web Services (AWS)': {
-          name: 'Amazon Web Services (AWS)',
-          purpose: 'Bulut barındırma ve altyapı hizmetleri',
-          categories: ['Teknik veri', 'Kullanıcı verisi', 'İşlem verisi']
+        'MailerSend Inc.': {
+          name: 'MailerSend Inc.',
+          purpose: 'E-posta teslimatı, suppression yönetimi ve altyapı (yalnız işlemsel trafik)',
+          categories: ['E-posta adresleri', 'İşlemsel meta veriler', 'Teknik teslimat kayıtları', 'Suppression kayıtları']
         },
         'Stripe Inc.': {
           name: 'Stripe Inc.',
           purpose: 'Ödeme işleme ve finansal hizmetler',
           categories: ['Ödeme verisi', 'İşlem verisi', 'Müşteri verisi']
-        },
-        'SendGrid Inc.': {
-          name: 'SendGrid Inc.',
-          purpose: 'E-posta teslimat ve iletişim hizmetleri',
-          categories: ['E-posta adresleri', 'İletişim verisi']
         },
         'Google Analytics': {
           name: 'Google Analytics',

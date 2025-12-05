@@ -41,5 +41,5 @@ export const COMPANY_LEGAL: CompanyLegalConstants = {
     ape: ''
   },
   hostingProvider: 'Hostinger International Ltd.',
-  emailInfrastructure: 'Amazon Simple Email Service (SES), Amazon Web Services EMEA SARL – EU (Frankfurt)'
+  emailInfrastructure: 'MailerSend Ireland Limited – EU cluster (Frankfurt primary, Amsterdam failover)'
 };

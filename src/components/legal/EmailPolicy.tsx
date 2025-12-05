@@ -46,7 +46,7 @@ const EmailPolicy: React.FC = () => {
       infrastructure: {
         title: 'Altyapı ve Teslimat',
         items: [
-          `E-posta iletimi: ${COMPANY_LEGAL.emailInfrastructure || 'Amazon SES (EU - Frankfurt)'}.`,
+          `E-posta iletimi: ${COMPANY_LEGAL.emailInfrastructure || 'MailerSend (EU - Frankfurt)'}.`,
           'Teslimat kalitesi düzenli olarak izlenir (bounce/complaint oranları).',
           'Gerekirse teslimat zincirine ek güvenlik katmanları (şifreleme, imzalama) eklenir.'
         ]
@@ -99,7 +99,7 @@ const EmailPolicy: React.FC = () => {
       infrastructure: {
         title: 'Infrastructure & Delivery',
         items: [
-          `Delivery infrastructure: ${COMPANY_LEGAL.emailInfrastructure || 'Amazon SES (EU - Frankfurt)'}.`,
+          `Delivery infrastructure: ${COMPANY_LEGAL.emailInfrastructure || 'MailerSend (EU - Frankfurt)'}.`,
           'Delivery quality (bounce/complaint rates) is continuously monitored.',
           'Additional cryptographic safeguards may be added where appropriate.'
         ]
@@ -152,7 +152,7 @@ const EmailPolicy: React.FC = () => {
       infrastructure: {
         title: 'Infrastruktur & Zustellung',
         items: [
-          `Versandinfrastruktur: ${COMPANY_LEGAL.emailInfrastructure || 'Amazon SES (EU - Frankfurt)'}.`,
+          `Versandinfrastruktur: ${COMPANY_LEGAL.emailInfrastructure || 'MailerSend (EU - Frankfurt)'}.`,
           'Zustellqualität (Bounce/Beschwerde-Raten) wird überwacht.',
           'Bei Bedarf zusätzliche kryptografische Schutzmaßnahmen.'
         ]
@@ -205,7 +205,7 @@ const EmailPolicy: React.FC = () => {
       infrastructure: {
         title: 'Infrastructure & Livraison',
         items: [
-          `Infrastructure d’envoi : ${COMPANY_LEGAL.emailInfrastructure || 'Amazon SES (UE - Francfort)'}.`,
+          `Infrastructure d’envoi : ${COMPANY_LEGAL.emailInfrastructure || 'MailerSend (UE - Francfort)'}.`,
           'Qualité de livraison surveillée (taux de rebond/réclamation).',
           'Des protections cryptographiques additionnelles peuvent être ajoutées si nécessaire.'
         ]
