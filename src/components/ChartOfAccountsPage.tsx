@@ -1,10 +1,91 @@
-import React, { useState, useEffect } from 'react';
-import { BookOpen, Plus, Trash2, Search, FolderOpen, Folder, X, Check } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { BookOpen, Plus, Trash2, Search, FolderOpen, Folder, X, Check, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 // Debug bileşeni sadece çeviri sorunlarını teşhis etmek için (dev mod / query param)
 import TranslationDebug from './TranslationDebug';
 import type { ChartAccount } from '../types';
+
+type DatePreset =
+  | 'this-month'
+  | 'this-quarter'
+  | 'this-year'
+  | 'last-year'
+  | 'all'
+  | 'custom';
+
+type DateRangeConfig = {
+  startMs?: number;
+  endMs?: number;
+  preset: DatePreset;
+};
+
+const DATE_PRESET_OPTIONS: Array<{
+  value: DatePreset;
+  labelKey: string;
+  defaultLabel: string;
+}> = [
+  { value: 'this-month', labelKey: 'chartOfAccounts.dateFilters.thisMonth', defaultLabel: 'Bu Ay' },
+  { value: 'this-quarter', labelKey: 'chartOfAccounts.dateFilters.thisQuarter', defaultLabel: 'Bu Çeyrek' },
+  { value: 'this-year', labelKey: 'chartOfAccounts.dateFilters.thisYear', defaultLabel: 'Bu Yıl' },
+  { value: 'last-year', labelKey: 'chartOfAccounts.dateFilters.lastYear', defaultLabel: 'Geçen Yıl' },
+  { value: 'all', labelKey: 'chartOfAccounts.dateFilters.all', defaultLabel: 'Tümü' },
+  { value: 'custom', labelKey: 'chartOfAccounts.dateFilters.custom', defaultLabel: 'Özel Tarih' },
+];
+
+const startOfDay = (date: Date) => {
+  const clone = new Date(date);
+  clone.setHours(0, 0, 0, 0);
+  return clone;
+};
+
+const endOfDay = (date: Date) => {
+  const clone = new Date(date);
+  clone.setHours(23, 59, 59, 999);
+  return clone;
+};
+
+const parseMaybeDate = (input: unknown): Date => {
+  if (!input) return new Date('1970-01-01');
+  const value = String(input).trim();
+  if (!value) return new Date('1970-01-01');
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return new Date(value);
+  }
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(value)) {
+    const [dd, mm, yyyy] = value.split('.');
+    return new Date(`${yyyy}-${mm}-${dd}`);
+  }
+  return new Date(value);
+};
+
+const getInvoiceDate = (invoice: Record<string, unknown>) =>
+  parseMaybeDate(invoice?.issueDate ?? (invoice as any)?.date);
+
+const getExpenseDate = (expense: Record<string, unknown>) =>
+  parseMaybeDate(expense?.expenseDate ?? (expense as any)?.date);
+
+const getSaleDate = (sale: Record<string, unknown>) =>
+  parseMaybeDate((sale as any)?.date ?? (sale as any)?.saleDate);
+
+const parseDateInput = (value?: string) => {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed;
+};
+
+const isDateWithinRange = (
+  date: Date | null | undefined,
+  startMs?: number,
+  endMs?: number,
+) => {
+  if (!date || Number.isNaN(date.getTime())) return true;
+  const timestamp = date.getTime();
+  if (typeof startMs === 'number' && timestamp < startMs) return false;
+  if (typeof endMs === 'number' && timestamp > endMs) return false;
+  return true;
+};
 
 interface ChartOfAccountsPageProps {
   accounts?: ChartAccount[];
@@ -25,6 +106,22 @@ export default function ChartOfAccountsPage({
 }: ChartOfAccountsPageProps) {
   const { formatCurrency, getCurrencySymbol } = useCurrency();
   const { t } = useTranslation('common');
+
+  const activeDateRangeLabel = useMemo(() => {
+    if (datePreset === 'custom') {
+      if (customStartDate || customEndDate) {
+        const startLabel = customStartDate || '…';
+        const endLabel = customEndDate || '…';
+        return `${startLabel} – ${endLabel}`;
+      }
+      return t('chartOfAccounts.dateFilters.custom', { defaultValue: 'Özel Tarih' });
+    }
+    const preset = DATE_PRESET_OPTIONS.find((option) => option.value === datePreset);
+    if (preset) {
+      return t(preset.labelKey, { defaultValue: preset.defaultLabel });
+    }
+    return t('chartOfAccounts.dateFilters.all', { defaultValue: 'Tümü' });
+  }, [customEndDate, customStartDate, datePreset, t]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -34,6 +131,9 @@ export default function ChartOfAccountsPage({
   const [tempValues, setTempValues] = useState<{[key: string]: string}>({});
   const [showExpenseCategoryModal, setShowExpenseCategoryModal] = useState(false);
   const [pendingParentId, setPendingParentId] = useState<string | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>('this-year');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   // Gider kategorileri (ExpenseModal ile aynı)
   const expenseCategories = [
@@ -100,6 +200,82 @@ export default function ChartOfAccountsPage({
     accounts.length > 0 ? accounts : getDefaultAccounts()
   );
 
+  const activeDateRange = useMemo<DateRangeConfig>(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    let start: Date | undefined;
+    let end: Date | undefined;
+
+    switch (datePreset) {
+      case 'this-month':
+        start = startOfDay(new Date(currentYear, now.getMonth(), 1));
+        end = endOfDay(new Date(currentYear, now.getMonth() + 1, 0));
+        break;
+      case 'this-quarter': {
+        const quarterIndex = Math.floor(now.getMonth() / 3);
+        const quarterStartMonth = quarterIndex * 3;
+        start = startOfDay(new Date(currentYear, quarterStartMonth, 1));
+        end = endOfDay(new Date(currentYear, quarterStartMonth + 3, 0));
+        break;
+      }
+      case 'this-year':
+        start = startOfDay(new Date(currentYear, 0, 1));
+        end = endOfDay(new Date(currentYear, 11, 31));
+        break;
+      case 'last-year':
+        start = startOfDay(new Date(currentYear - 1, 0, 1));
+        end = endOfDay(new Date(currentYear - 1, 11, 31));
+        break;
+      case 'custom': {
+        const customStart = parseDateInput(customStartDate);
+        const customEnd = parseDateInput(customEndDate);
+        start = customStart ? startOfDay(customStart) : undefined;
+        end = customEnd ? endOfDay(customEnd) : undefined;
+        break;
+      }
+      case 'all':
+      default:
+        start = undefined;
+        end = undefined;
+        break;
+    }
+
+    if (start && end && start.getTime() > end.getTime()) {
+      const temp = start;
+      start = end;
+      end = temp;
+    }
+
+    return {
+      startMs: start?.getTime(),
+      endMs: end?.getTime(),
+      preset: datePreset,
+    };
+  }, [datePreset, customStartDate, customEndDate]);
+
+  const { startMs, endMs } = activeDateRange;
+
+  const scopedInvoices = useMemo(() => {
+    if (!startMs && !endMs) return invoices;
+    return invoices.filter((invoice) =>
+      isDateWithinRange(getInvoiceDate(invoice as Record<string, unknown>), startMs, endMs)
+    );
+  }, [invoices, startMs, endMs]);
+
+  const scopedExpenses = useMemo(() => {
+    if (!startMs && !endMs) return expenses;
+    return expenses.filter((expense) =>
+      isDateWithinRange(getExpenseDate(expense as Record<string, unknown>), startMs, endMs)
+    );
+  }, [expenses, startMs, endMs]);
+
+  const scopedSales = useMemo(() => {
+    if (!startMs && !endMs) return sales;
+    return sales.filter((sale) =>
+      isDateWithinRange(getSaleDate(sale as Record<string, unknown>), startMs, endMs)
+    );
+  }, [sales, startMs, endMs]);
+
   // Update accounts when language changes
   useEffect(() => {
     if (accounts.length === 0) {
@@ -114,22 +290,22 @@ export default function ChartOfAccountsPage({
     // Calculate based on account type and code
     switch (accountCode) {
       case '101': // Kasa - Cash payments from paid invoices
-        return invoices
+        return scopedInvoices
           .filter(invoice => invoice.status === 'paid' && invoice.paymentMethod === 'cash')
           .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
       case '102': // Bankalar - Bank/card payments from paid invoices
-        return invoices
+        return scopedInvoices
           .filter(invoice => invoice.status === 'paid' && (invoice.paymentMethod === 'card' || invoice.paymentMethod === 'transfer'))
           .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
       case '120': // Alıcılar - Unpaid invoices (receivables)
-        return invoices
+        return scopedInvoices
           .filter(invoice => invoice.status === 'sent' || invoice.status === 'overdue')
           .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
       case '201': // Satıcılar - Unpaid expenses (payables)
-        return expenses
+        return scopedExpenses
           .filter(expense => expense.status === 'approved' || expense.status === 'pending')
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
@@ -139,7 +315,7 @@ export default function ChartOfAccountsPage({
           if (revenueChildren.length > 0) {
             return revenueChildren.reduce((sum, child) => sum + calculateDynamicBalance(child), 0);
           }
-          return invoices
+          return scopedInvoices
             .filter(invoice =>
               invoice.type !== 'refund' &&
               (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue')
@@ -147,7 +323,7 @@ export default function ChartOfAccountsPage({
             .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
         }
       case '601': // Satış Gelirleri - Product invoices only (no duplicate counting)
-        return invoices
+        return scopedInvoices
           .filter(invoice => 
             invoice.type !== 'refund' && 
             (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && 
@@ -156,7 +332,7 @@ export default function ChartOfAccountsPage({
           .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
       case '602': // Hizmet Gelirleri - Service invoices only
-        return invoices
+        return scopedInvoices
           .filter(invoice => 
             invoice.type !== 'refund' && 
             (invoice.status === 'paid' || invoice.status === 'sent' || invoice.status === 'overdue') && 
@@ -165,22 +341,22 @@ export default function ChartOfAccountsPage({
           .reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
       
       case '701': // Kira Giderleri - Rent expenses (all statuses)
-        return expenses
+        return scopedExpenses
           .filter(expense => expense.category === 'rent')
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
       case '702': // Personel Giderleri - Personnel expenses (all statuses)
-        return expenses
+        return scopedExpenses
           .filter(expense => expense.category === 'personnel')
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
       case '703': // Fatura Giderleri - Utilities expenses (all statuses)
-        return expenses
+        return scopedExpenses
           .filter(expense => expense.category === 'utilities')
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
       case '700': // GİDERLER - All expenses total
-        return expenses
+        return scopedExpenses
           .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
       
       default:
@@ -191,7 +367,7 @@ export default function ChartOfAccountsPage({
             // Hesap isminden kategori değerini bul
             const categoryValue = categoryNameToValue[account.name];
             if (categoryValue) {
-              return expenses
+              return scopedExpenses
                 .filter(expense => expense.category === categoryValue)
                 .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
             }
@@ -252,13 +428,13 @@ export default function ChartOfAccountsPage({
   // Update accounts with dynamic balances
   React.useEffect(() => {
     console.log('📊 Hesap Planı Veri Kontrolü:', {
-      invoicesCount: invoices.length,
-      expensesCount: expenses.length,
-      salesCount: sales.length,
+      invoicesCount: scopedInvoices.length,
+      expensesCount: scopedExpenses.length,
+      salesCount: scopedSales.length,
       customersCount: customers.length,
-      sampleInvoice: invoices[0],
-      sampleExpense: expenses[0],
-      sampleSale: sales[0]
+      sampleInvoice: scopedInvoices[0],
+      sampleExpense: scopedExpenses[0],
+      sampleSale: scopedSales[0]
     });
     
     const updatedAccounts = currentAccounts.map(account => {
@@ -272,7 +448,7 @@ export default function ChartOfAccountsPage({
       return account;
     });
     setCurrentAccounts(updatedAccounts);
-  }, [invoices, expenses, sales, customers]);
+  }, [scopedInvoices, scopedExpenses, scopedSales, customers]);
 
   const filteredAccounts = currentAccounts.filter(account => {
     const matchesSearch = 
@@ -391,6 +567,15 @@ export default function ChartOfAccountsPage({
 
   const handleTempValueChange = (field: string, value: string) => {
     setTempValues(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDatePresetChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextPreset = event.target.value as DatePreset;
+    setDatePreset(nextPreset);
+    if (nextPreset !== 'custom') {
+      setCustomStartDate('');
+      setCustomEndDate('');
+    }
   };
 
   const addNewAccount = (parentId?: string) => {
@@ -850,7 +1035,7 @@ export default function ChartOfAccountsPage({
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="text-sm text-blue-600 mb-1">{t('chartOfAccounts.accountTypesPlural.asset')}</div>
             <div className="text-lg font-bold text-blue-700 truncate" title={formatAmount(totals.asset || 0)}>
@@ -882,9 +1067,13 @@ export default function ChartOfAccountsPage({
             </div>
           </div>
         </div>
+        <p className="text-xs text-gray-500 mb-6">
+          {t('chartOfAccounts.activeDateRangeLabel', { defaultValue: 'Tarih filtresi:' })}{' '}
+          <span className="font-medium text-gray-700">{activeDateRangeLabel}</span>
+        </p>
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col xl:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -895,18 +1084,52 @@ export default function ChartOfAccountsPage({
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">{t('chartOfAccounts.accountTypes.all')}</option>
-            <option value="asset">{t('chartOfAccounts.accountTypesPlural.asset')}</option>
-            <option value="liability">{t('chartOfAccounts.accountTypesPlural.liability')}</option>
-            <option value="equity">{t('chartOfAccounts.accountTypesPlural.equity')}</option>
-            <option value="revenue">{t('chartOfAccounts.accountTypesPlural.revenue')}</option>
-            <option value="expense">{t('chartOfAccounts.accountTypesPlural.expense')}</option>
-          </select>
+          <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">{t('chartOfAccounts.accountTypes.all')}</option>
+              <option value="asset">{t('chartOfAccounts.accountTypesPlural.asset')}</option>
+              <option value="liability">{t('chartOfAccounts.accountTypesPlural.liability')}</option>
+              <option value="equity">{t('chartOfAccounts.accountTypesPlural.equity')}</option>
+              <option value="revenue">{t('chartOfAccounts.accountTypesPlural.revenue')}</option>
+              <option value="expense">{t('chartOfAccounts.accountTypesPlural.expense')}</option>
+            </select>
+            <div className="flex flex-col gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-500" />
+                <select
+                  value={datePreset}
+                  onChange={handleDatePresetChange}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {DATE_PRESET_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {t(option.labelKey, { defaultValue: option.defaultLabel })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {datePreset === 'custom' && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
