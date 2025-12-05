@@ -131,7 +131,7 @@ export class User {
 
   // Current organization ID for session context
   @Column({ nullable: true })
-  currentOrgId: string;
+  currentOrgId?: string | null;
 
   @ManyToOne(() => Organization, { nullable: true })
   @JoinColumn({ name: 'currentOrgId' })
