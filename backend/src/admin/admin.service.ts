@@ -4,6 +4,8 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -40,6 +42,8 @@ import {
   TenantPlanLimitService,
   TenantPlanOverrides,
 } from '../common/tenant-plan-limits.service';
+import { OrganizationsService } from '../organizations/organizations.service';
+import { Role } from '../common/enums/organization.enum';
 
 const USER_ROLE_SET = new Set<UserRole>(Object.values(UserRole) as UserRole[]);
 
@@ -220,6 +224,8 @@ export class AdminService {
     @InjectRepository(AdminConfig)
     private adminConfigRepo: Repository<AdminConfig>,
     private readonly adminSecurity: AdminSecurityService,
+    @Inject(forwardRef(() => OrganizationsService))
+    private readonly organizationsService: OrganizationsService,
   ) {}
 
   async adminLogin(username: string, password: string, totp?: string) {
@@ -506,6 +512,7 @@ export class AdminService {
     const firstName = payload.firstName || '';
     const lastName = payload.lastName || '';
     const activate = payload.activate !== false; // varsayılan true
+    const orgRole = role === UserRole.TENANT_ADMIN ? Role.ADMIN : Role.MEMBER;
 
     if (user) {
       // Mevcut kullanıcıyı güncelle ve tenant'a ata
@@ -519,6 +526,11 @@ export class AdminService {
         emailVerifiedAt: now,
         password: passwordHash || user.password,
       });
+      await this.ensureTenantOrganizationMembership(
+        tenant.id,
+        user.id,
+        orgRole,
+      );
       return {
         success: true,
         userId: user.id,
@@ -542,6 +554,11 @@ export class AdminService {
       tenantId: tenant.id,
     });
     const savedUser = await this.userRepository.save(created);
+    await this.ensureTenantOrganizationMembership(
+      tenant.id,
+      savedUser.id,
+      orgRole,
+    );
     return {
       success: true,
       userId: savedUser.id,
@@ -550,6 +567,26 @@ export class AdminService {
       tempPassword,
       created: true,
     };
+  }
+
+  private async ensureTenantOrganizationMembership(
+    tenantId: string,
+    userId: string,
+    orgRole: Role,
+  ): Promise<void> {
+    try {
+      await this.organizationsService.attachUserToTenantOrganization(
+        tenantId,
+        userId,
+        { role: orgRole },
+      );
+    } catch (error) {
+      this.logger.warn(
+        `ensureTenantOrganizationMembership failed for tenant ${tenantId}, user ${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   async updateTenantBasic(

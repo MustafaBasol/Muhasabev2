@@ -10,7 +10,7 @@ import { Repository, IsNull } from 'typeorm';
 import { Organization } from './entities/organization.entity';
 import { OrganizationMember } from './entities/organization-member.entity';
 import { Invite } from './entities/invite.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import {
   CreateOrganizationDto,
   UpdateOrganizationDto,
@@ -21,6 +21,7 @@ import { SubscriptionPlan } from '../tenants/entities/tenant.entity';
 import { PlanLimitService } from '../common/plan-limits.service';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 import { EmailService } from '../services/email.service';
+import { TenantsService } from '../tenants/tenants.service';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -37,6 +38,7 @@ export class OrganizationsService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private emailService: EmailService,
+    private tenantsService: TenantsService,
   ) {}
 
   private normalizeBaseUrl(value?: string | null): string | undefined {
@@ -661,6 +663,64 @@ This invitation will expire on ${expiryLabel}.
     return ownerMember?.user?.tenantId || null;
   }
 
+  async attachUserToTenantOrganization(
+    tenantId: string,
+    userId: string,
+    options?: { role?: Role },
+  ): Promise<Organization | null> {
+    try {
+      const ownerUser = await this.userRepository.findOne({
+        where: { tenantId, role: UserRole.TENANT_ADMIN },
+        order: { createdAt: 'ASC' },
+      });
+
+      if (!ownerUser) {
+        this.logger.warn(
+          `attachUserToTenantOrganization: owner not found for tenant ${tenantId}`,
+        );
+        return null;
+      }
+
+      const ownerOrg = await this.resolveOwnerOrganization(ownerUser.id);
+      if (!ownerOrg) {
+        this.logger.warn(
+          `attachUserToTenantOrganization: organization missing for tenant owner ${ownerUser.id}`,
+        );
+        return null;
+      }
+
+      const desiredRole = options?.role ?? Role.MEMBER;
+      const existingMembership = await this.memberRepository.findOne({
+        where: { organizationId: ownerOrg.id, userId },
+      });
+
+      if (existingMembership) {
+        if (options?.role && existingMembership.role !== options.role) {
+          existingMembership.role = options.role;
+          await this.memberRepository.save(existingMembership);
+        }
+        await this.ensureUserCurrentOrg(userId, ownerOrg.id);
+        return ownerOrg;
+      }
+
+      const member = this.memberRepository.create({
+        organizationId: ownerOrg.id,
+        userId,
+        role: desiredRole,
+      });
+      await this.memberRepository.save(member);
+      await this.ensureUserCurrentOrg(userId, ownerOrg.id);
+      return ownerOrg;
+    } catch (error) {
+      this.logger.warn(
+        `attachUserToTenantOrganization failed for tenant ${tenantId}, user ${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
+  }
+
   async updateMemberRole(
     organizationId: string,
     memberId: string,
@@ -753,6 +813,10 @@ This invitation will expire on ${expiryLabel}.
     }
 
     await this.memberRepository.remove(targetMember);
+    await this.handleTenantDetachmentAfterRemoval(
+      organizationId,
+      targetMember.userId,
+    );
   }
 
   async getPendingInvites(
@@ -827,6 +891,150 @@ This invitation will expire on ${expiryLabel}.
     });
 
     return member?.role || null;
+  }
+
+  private async ensureUserCurrentOrg(
+    userId: string,
+    organizationId: string,
+  ): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) return;
+    if (user.currentOrgId === organizationId) {
+      return;
+    }
+    await this.userRepository.update(userId, { currentOrgId: organizationId });
+  }
+
+  private async resolveOwnerOrganization(
+    ownerUserId: string,
+  ): Promise<Organization | null> {
+    const membership = await this.memberRepository.findOne({
+      where: { userId: ownerUserId, role: Role.OWNER },
+      relations: ['organization'],
+      order: { createdAt: 'ASC' },
+    });
+    if (membership?.organization) {
+      return membership.organization;
+    }
+    try {
+      return await this.migrateUserToOrganization(ownerUserId);
+    } catch (error) {
+      this.logger.warn(
+        `resolveOwnerOrganization failed for user ${ownerUserId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
+  }
+
+  private buildPersonalTenantName(user: User): string {
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    if (fullName) {
+      return `${fullName} Workspace`;
+    }
+    const localPart = (user.email || '').split('@')[0] || 'workspace';
+    return `${localPart} Workspace`;
+  }
+
+  private async createPersonalTenantForUser(user: User) {
+    try {
+      return await this.tenantsService.create({
+        name: this.buildPersonalTenantName(user),
+        companyName:
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() || undefined,
+        email: user.email,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `createPersonalTenantForUser failed for user ${user.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
+  }
+
+  private async userSharesTenantAcrossMemberships(
+    userId: string,
+    tenantId: string,
+  ): Promise<boolean> {
+    const memberships = await this.memberRepository.find({ where: { userId } });
+    if (memberships.length === 0) {
+      return false;
+    }
+
+    for (const membership of memberships) {
+      const ownerTenantId = await this.getOwnerTenantId(
+        membership.organizationId,
+      );
+      if (ownerTenantId === tenantId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private async handleTenantDetachmentAfterRemoval(
+    organizationId: string,
+    removedUserId: string,
+  ): Promise<void> {
+    try {
+      const ownerTenantId = await this.getOwnerTenantId(organizationId);
+      if (!ownerTenantId) {
+        return;
+      }
+
+      const removedUser = await this.userRepository.findOne({
+        where: { id: removedUserId },
+      });
+      if (!removedUser || removedUser.tenantId !== ownerTenantId) {
+        return;
+      }
+
+      const stillShares = await this.userSharesTenantAcrossMemberships(
+        removedUserId,
+        ownerTenantId,
+      );
+      if (stillShares) {
+        return;
+      }
+
+      const fallbackTenant = await this.createPersonalTenantForUser(
+        removedUser,
+      );
+      if (!fallbackTenant) {
+        return;
+      }
+
+      await this.userRepository.update(removedUser.id, {
+        tenantId: fallbackTenant.id,
+        currentOrgId: null,
+        role:
+          removedUser.role === UserRole.TENANT_ADMIN
+            ? removedUser.role
+            : UserRole.USER,
+      });
+
+      try {
+        const personalOrg = await this.migrateUserToOrganization(
+          removedUser.id,
+        );
+        await this.ensureUserCurrentOrg(removedUser.id, personalOrg.id);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to create default organization for removed user ${removedUser.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `handleTenantDetachmentAfterRemoval failed for organization ${organizationId}, user ${removedUserId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   async migrateUserToOrganization(userId: string): Promise<Organization> {

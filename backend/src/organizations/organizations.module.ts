@@ -9,12 +9,14 @@ import { Invite } from './entities/invite.entity';
 import { User } from '../users/entities/user.entity';
 import { EmailModule } from '../email/email.module';
 import { AuthModule } from '../auth/auth.module';
+import { TenantsModule } from '../tenants/tenants.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Organization, OrganizationMember, Invite, User]),
     EmailModule,
     forwardRef(() => AuthModule),
+    TenantsModule,
   ],
   controllers: [OrganizationsController, PublicInvitesController],
   providers: [OrganizationsService],
