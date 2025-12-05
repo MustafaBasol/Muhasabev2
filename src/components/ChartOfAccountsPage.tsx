@@ -1003,6 +1003,23 @@ export default function ChartOfAccountsPage({
     }
     return acc;
   }, {} as Record<string, number>);
+
+  // Summary cards for revenue/expense should mirror their dynamic root accounts
+  const revenueRoot = currentAccounts.find((account) => account.code === '600');
+  if (revenueRoot) {
+    const revenueTotal = calculateDynamicBalance(revenueRoot);
+    if (Number.isFinite(revenueTotal)) {
+      totals.revenue = revenueTotal;
+    }
+  }
+
+  const expenseRoot = currentAccounts.find((account) => account.code === '700');
+  if (expenseRoot) {
+    const expenseTotal = calculateDynamicBalance(expenseRoot);
+    if (Number.isFinite(expenseTotal)) {
+      totals.expense = expenseTotal;
+    }
+  }
   
   console.log('📊 Hesaplanan Toplamlar:', totals);
 
@@ -1073,8 +1090,8 @@ export default function ChartOfAccountsPage({
         </p>
 
         {/* Search and Filter */}
-        <div className="flex flex-col xl:flex-row gap-4">
-          <div className="relative flex-1">
+        <div className="flex flex-col xl:flex-row gap-4 items-start">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
