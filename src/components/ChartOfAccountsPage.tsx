@@ -107,6 +107,18 @@ export default function ChartOfAccountsPage({
   const { formatCurrency, getCurrencySymbol } = useCurrency();
   const { t } = useTranslation('common');
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [inlineEditingAccount, setInlineEditingAccount] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempValues, setTempValues] = useState<{[key: string]: string}>({});
+  const [showExpenseCategoryModal, setShowExpenseCategoryModal] = useState(false);
+  const [pendingParentId, setPendingParentId] = useState<string | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>('this-year');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+
   const activeDateRangeLabel = useMemo(() => {
     if (datePreset === 'custom') {
       if (customStartDate || customEndDate) {
@@ -122,18 +134,6 @@ export default function ChartOfAccountsPage({
     }
     return t('chartOfAccounts.dateFilters.all', { defaultValue: 'Tümü' });
   }, [customEndDate, customStartDate, datePreset, t]);
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [inlineEditingAccount, setInlineEditingAccount] = useState<string | null>(null);
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [tempValues, setTempValues] = useState<{[key: string]: string}>({});
-  const [showExpenseCategoryModal, setShowExpenseCategoryModal] = useState(false);
-  const [pendingParentId, setPendingParentId] = useState<string | null>(null);
-  const [datePreset, setDatePreset] = useState<DatePreset>('this-year');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
 
   // Gider kategorileri (ExpenseModal ile aynı)
   const expenseCategories = [
