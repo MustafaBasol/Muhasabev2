@@ -674,11 +674,11 @@ export class AdminService {
 
     await this.emailService.sendEmail({
       to: user.email,
-      subject: 'Şifre Sıfırlama Talebi',
-      html: `<p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
-             <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanabilirsiniz:</p>
+      subject: 'Password Reset Request',
+      html: `<p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
+             <p>You can reset your password using the secure link below:</p>
              <p><a href="${resetLink}">${resetLink}</a></p>
-             <p>Bu işlem bir saat içinde geçerlidir.</p>`,
+             <p>This link will expire in one hour.</p>`,
     });
 
     return { success: true, message: 'Password reset email sent' };

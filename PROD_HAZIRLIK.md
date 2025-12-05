@@ -63,7 +63,7 @@ Not: `backend/docker-compose.production.yml` dosyası PostgreSQL için hazırdı
 ### Güvenlik Webhook (opsiyonel)
 - `SECURITY_WEBHOOK_URL` = Güvenlik uyarıları/olayları için webhook (Slack/Teams vb.)
 
-> Not: Şu an `EmailService` gerçek gönderim yerine log’a yazan simülasyon kullanıyor. PROD için bir sağlayıcı (SendGrid, AWS SES, SMTP/Nodemailer vb.) entegre edilmesi önerilir.
+> Not: `EmailService` artık varsayılan olarak MailerSend’i destekliyor. PROD ortamında `MAIL_PROVIDER=mailersend`, `MAILERSEND_API_KEY` ve `MAILERSEND_WEBHOOK_SECRET` değerlerini tanımlayıp domaininizi MailerSend’de doğrulamanız gerekir.
 
 ---
 
@@ -110,7 +110,7 @@ Not: `backend/docker-compose.production.yml` dosyası PostgreSQL için hazırdı
 
 - Linkler SPA hash route kullanır: `FRONTEND_URL/#verify-email?token=...` vb.
 - Test ortamında e-posta doğrulama zorunluluğu bypass edilir; PROD’da `EMAIL_VERIFICATION_REQUIRED=true` ile giriş öncesi doğrulama önerilir.
-- Şu an e-postalar simüle edilip log’lanıyor. PROD’ta gerçek gönderim için bir sağlayıcı ekleyin ve ilgili kimlik bilgilerini güvenli şekilde yönetin.
+- Geliştirme ortamında e-postalar log’a düşer. PROD’da MailerSend’i etkinleştirip kimlik bilgilerini güvenli biçimde yönetin.
 
 ---
 

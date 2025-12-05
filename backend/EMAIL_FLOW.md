@@ -1,13 +1,13 @@
-# Email Doğrulama ve Şifre Sıfırlama (MailerSend / SES)
+# Email Doğrulama ve Şifre Sıfırlama (MailerSend)
 
 Bu dosya, e-posta akışlarının nasıl çalıştığını, hangi ortam değişkenlerinin gerekli olduğunu ve sandbox ortamında nasıl test edileceğini özetler.
 
 ## Gerekli Ortam Değişkenleri
 
-- MAIL_PROVIDER=mailersend | ses | smtp | log (varsayılan: log)
-- MAIL_FROM=Compario <noreply@comptario.com> (SES'te doğrulanmış olmalı)
-- AWS_REGION=eu-central-1
+- MAIL_PROVIDER=mailersend | smtp | log (varsayılan: log)
+- MAIL_FROM=Compario <noreply@comptario.com> (MailerSend domain'inizde doğrulanmalı)
 - MAILERSEND_API_KEY=xxx (MAIL_PROVIDER=mailersend için)
+- MAILERSEND_WEBHOOK_SECRET=opsiyonel paylaşılan gizli anahtar (bounce/complaint webhooku)
 - FRONTEND_URL=https://app.comptario.com (veya dev için http://localhost:5174)
 - FRONTEND_VERIFY_PATH=/#verify-email (opsiyonel; hash yerine tam yol gerekiyorsa /auth/verify olarak değiştir)
 - EMAIL_VERIFICATION_REQUIRED=true
@@ -58,24 +58,18 @@ Bu dosya, e-posta akışlarının nasıl çalıştığını, hangi ortam değiş
 
 ## Sağlık (Health) Kontrolü
 - Endpoint: `GET /health/email`
-- Dönen alanlar: `provider`, `from`, `region`, `frontendUrl`, `verificationRequired`, `note` (sandbox notu)
+- Dönen alanlar: `provider`, `from`, `frontendUrl`, `verificationRequired`, `note` (MailerSend setup notu)
 
 ## Bounce/Complaint İzleme
-SES gönderimleri için bounce/complaint olaylarını izlemek ve suppression listesi yönetimi için SNS entegrasyonu önerilir. Kurulum ve örnek kod için bkz: `backend/SES_SNS_BOUNCE_COMPLAINT.md`.
+MailerSend bounce/complaint webhook entegrasyonu için `backend/MAILERSEND_WEBHOOKS.md` dokümanını takip edin. Webhook, `MAILERSEND_WEBHOOK_SECRET` ile korunabilir.
 
 ## Sağlayıcıya Özgü Notlar
 
 ### MailerSend
-1. `MAIL_PROVIDER=mailersend` seçin ve `MAILERSEND_API_KEY` değerini (Domains → Generate token) sunucu ortamına ekleyin.
-2. `MAIL_FROM` değerindeki domain MailerSend’de verified olmalı (`sender identities`).
-3. `POST /auth/signup` isteği sonrası loglarda `[MAILERSEND EMAIL SENT]` çıktısını görmelisiniz.
-
-### Amazon SES Sandbox
-1. `MAIL_PROVIDER=ses` ve gerekli AWS anahtarları host ortamında ayarlı olmalı; SES domain/adres verify bekleyebilir.
-2. `POST /auth/signup` ile bir kullanıcı oluşturun — backend loglarında `[SES EMAIL SENT]` veya sandbox nedeniyle hata/log görürsünüz.
-3. Tarayıcıdan gönderilen linki açın: `/auth/verify?token=...&u=...` — başarılıysa `{ success: true }`.
-4. `POST /auth/forgot` ile şifre sıfırlama e-postasını tetikleyin; linki `/auth/reset` üzerinde test edin.
+1. `MAIL_PROVIDER=mailersend` seçin ve `MAILERSEND_API_KEY` değerini (Domains → API tokens) sunucu ortamına ekleyin.
+2. `MAIL_FROM` içindeki domain MailerSend’de doğrulanmış (`sender identities`).
+3. `MAILERSEND_WEBHOOK_SECRET` belirleyip MailerSend dashboard'unda webhook oluşturun ve `POST /webhooks/mailersend/events` adresine yönlendirin.
+4. `POST /auth/signup` isteği sonrası loglarda `[MAILERSEND EMAIL SENT]` çıktısını görmelisiniz.
 
 ## Notlar
-- Üretimde SES sandbox'tan çıkmak şarttır; aksi halde yalnızca doğrulanmış alıcılara iletir.
-- SPF/DKIM/DMARC kayıtlarını tamamlayın ve gönderim oranlarına alarm kurun.
+- SPF/DKIM/DMARC kayıtlarını MailerSend yönergelerine göre tamamlayın ve gönderim oranlarına alarm kurun.

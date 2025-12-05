@@ -3,11 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailSuppression } from '../email/entities/email-suppression.entity';
 import { EmailOutbox } from '../email/entities/email-outbox.entity';
-import {
-  SESClient,
-  SendEmailCommand,
-  SendEmailCommandOutput,
-} from '@aws-sdk/client-ses';
 
 export interface EmailOptions {
   to: string;
@@ -20,7 +15,7 @@ export interface EmailOptions {
     tenantId?: string;
     tokenId?: string; // verification/reset token kaydı
     correlationId?: string; // istek/işlem korelasyon kimliği
-    type?: 'verify' | 'verify-resend' | 'reset';
+    type?: 'verify' | 'verify-resend' | 'reset' | 'welcome';
   };
 }
 
@@ -88,22 +83,9 @@ export class EmailService {
     const provider = (process.env.MAIL_PROVIDER || 'log').toLowerCase();
     const from = process.env.MAIL_FROM || 'no-reply@example.com';
     const replyTo = process.env.MAIL_REPLY_TO || '';
-    const configurationSet = process.env.SES_CONFIGURATION_SET || '';
-
-    // Başlangıç tanılama logu
-    try {
-      const maskedKey =
-        (process.env.AWS_ACCESS_KEY_ID || '').slice(0, 6) +
-        (process.env.AWS_ACCESS_KEY_ID ? '***' : '');
-      this.logger.debug(
-        `[EMAIL INIT] provider=${provider} from=${from} replyTo=${replyTo || 'n/a'} region=${process.env.AWS_REGION || process.env.SES_REGION || 'default'} awsKey=${maskedKey || 'n/a'} confSet=${configurationSet || 'n/a'}`,
-      );
-    } catch (error: unknown) {
-      this.logger.warn(
-        'EmailService init log serialization failed',
-        this.toError(error),
-      );
-    }
+    this.logger.debug(
+      `[EMAIL INIT] provider=${provider} from=${from} replyTo=${replyTo || 'n/a'}`,
+    );
 
     // Suppression kontrolü (lowercase)
     const normalizedTo = options.to.trim().toLowerCase();
@@ -138,64 +120,6 @@ export class EmailService {
 
     let success = false;
     let messageId: string | undefined;
-
-    if (provider === 'ses') {
-      const region =
-        process.env.AWS_REGION || process.env.SES_REGION || 'us-east-1';
-      if (
-        !process.env.AWS_ACCESS_KEY_ID ||
-        !process.env.AWS_SECRET_ACCESS_KEY
-      ) {
-        this.logger.warn(
-          '⚠️ MAIL_PROVIDER=ses ancak AWS kimlik bilgileri tanımlı değil; log fallback kullanılacak.',
-        );
-      } else {
-        try {
-          const ses = new SESClient({ region });
-          const command = new SendEmailCommand({
-            Destination: { ToAddresses: [options.to] },
-            Source: from,
-            ReplyToAddresses: replyTo ? [replyTo] : undefined,
-            ConfigurationSetName: configurationSet || undefined,
-            Message: {
-              Subject: { Data: options.subject, Charset: 'UTF-8' },
-              Body: {
-                Html: options.html
-                  ? { Data: options.html, Charset: 'UTF-8' }
-                  : undefined,
-                Text: options.text
-                  ? { Data: options.text, Charset: 'UTF-8' }
-                  : undefined,
-              },
-            },
-          });
-          const result: SendEmailCommandOutput = await ses.send(command);
-          const rawMessageId = result?.MessageId;
-          const msgId =
-            typeof rawMessageId === 'string'
-              ? rawMessageId
-              : typeof rawMessageId === 'object' && rawMessageId !== null
-                ? String(rawMessageId)
-                : undefined;
-          const metaStr = options.meta
-            ? ` meta=${JSON.stringify(options.meta)}`
-            : '';
-          this.logger.log(
-            `📧 [SES EMAIL SENT] to=${options.to} subject="${options.subject}"${metaStr} messageId=${msgId || 'n/a'} region=${region}${replyTo ? ` replyTo=${replyTo}` : ''}${configurationSet ? ` configSet=${configurationSet}` : ''}`,
-          );
-          success = true;
-          messageId = msgId;
-        } catch (err: unknown) {
-          const code = this.getErrorCode(err);
-          const msg = this.getErrorMessage(err);
-          this.logger.error(
-            `❌ [SES SEND FAILED] code=${code} message=${msg} → log fallback`,
-            this.toError(err),
-          );
-          // log fallback below
-        }
-      }
-    }
 
     if (provider === 'mailersend') {
       const apiKey = process.env.MAILERSEND_API_KEY || process.env.MAILERSEND_TOKEN || '';

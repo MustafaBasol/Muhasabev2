@@ -1,29 +1,28 @@
 # Email Deliverability Checklist
 
-Bu dosya üretim ortamına çıkmadan önce SES ve genel email teslim edilebilirliği (deliverability) için kontrol listesidir.
+Bu dosya üretim ortamına çıkmadan önce MailerSend ve genel email teslim edilebilirliği (deliverability) için kontrol listesidir.
 
 ## 1. Kimlik Doğrulama (Authentication)
-- [ ] SPF kaydı: `v=spf1 include:amazonses.com -all`
+- [ ] SPF kaydı: `v=spf1 include:spf.mailersend.net -all`
   - Çoklu gönderen (ör. helpdesk, marketing) varsa ilgili sağlayıcıların include mekanizması birleştirildi.
-- [ ] DKIM: AWS SES içinde domain için DKIM kayıtları (CNAME) doğrulandı (3 record hepsi `verified`).
+- [ ] DKIM: MailerSend dashboard'unda gösterilen CNAME kayıtları doğrulandı (tümüne `verified` statüsü geldi).
 - [ ] DMARC: `v=DMARC1; p=none; rua=mailto:dmarc-reports@yourdomain.com; ruf=mailto:dmarc-forensic@yourdomain.com; fo=1`
   - Aşama 1: `p=none`
   - Aşama 2: `p=quarantine`
   - Aşama 3: `p=reject`
 - [ ] BIMI (opsiyonel): SVG logonuz + VMC sertifikası hazır (marka görünürlüğü istenirse).
 
-## 2. AWS SES Yapılandırması
-- [ ] Production sandbox çıkışı başvurusu yapıldı (Use case açıklaması + bounce rate hedefleri belirtilmiş).
-- [ ] Sending quotas (Max send rate / 24h sending limit) uygulama ihtiyaçlarını karşılıyor.
-- [ ] Configuration Set oluşturuldu (örn. `primary`) ve:
-  - [ ] Reputation metrics
-  - [ ] Delivery, Bounce, Complaint SNS event publishing etkin.
-  - [ ] (Opsiyonel) Open / Click tracking devre dışı veya gizlilik politikası ile uyumlu.
-- [ ] Suppression list (SES account-level) izleniyor; uygulama içi `email_suppression` tablosu entegre.
+## 2. MailerSend Yapılandırması
+- [ ] Domain doğrulanması tamamlandı (SPF + DKIM + DMARC).
+- [ ] API Token oluşturuldu ve güvenli şekilde `MAILERSEND_API_KEY` olarak tanımlandı.
+- [ ] Webhook oluşturuldu (`/webhooks/mailersend/events`) ve `MAILERSEND_WEBHOOK_SECRET` ile korundu.
+- [ ] `activity.hard_bounced`, `activity.soft_bounced`, `activity.complained`, `activity.spam_complaint`, `activity.unsubscribed` event'leri webhook'a seçildi.
+- [ ] MailerSend dashboard'unda gönderim kotaları (send rate / günlük limit) ihtiyaçları karşılıyor.
+- [ ] Suppression list raporları düzenli kontrol ediliyor; uygulama içi `email_suppression` tablosu güncelleniyor.
 
 ## 3. DNS / Network Sağlığı
 - [ ] Tüm DNS kayıtları (SPF, DKIM, DMARC) için TTL <= 1 saat (ilk geçişte hız için) sonra 24 saate çıkarıldı.
-- [ ] Reverse DNS (PTR) gerekmez (SES shared IP) fakat özel ip pool kullanılıyorsa RDNS yapılandırıldı.
+- [ ] Reverse DNS (PTR) gerekmez (MailerSend shared IP) fakat özel ip pool kullanılıyorsa RDNS yapılandırıldı.
 - [ ] MX kayıtları çakışmıyor (aynı domain transactional email + inbound farklıysa alt domain stratejisi). 
 
 ## 4. Gönderim Politikası
@@ -46,8 +45,8 @@ Bu dosya üretim ortamına çıkmadan önce SES ve genel email teslim edilebilir
 - [ ] Link’lerde açık yönlendirme (open redirect) yok.
 
 ## 7. İzleme & Metri̇kler
-- [ ] CloudWatch metric alarm: Bounce rate > 5% -> uyarı.
-- [ ] CloudWatch metric alarm: Complaint rate > 0.2% -> uyarı.
+- [ ] MailerSend "Analytics" sekmesinde bounce rate > 5% için alarm veya e-posta bildirimi.
+- [ ] Complaint rate > 0.2% olduğunda Slack/ops bildirimi.
 - [ ] Kumulatif gönderim hacmi günlük raporu.
 - [ ] Suppression tablosu boyutu ve artış hızı (aşırı yükseliş deliverability sorunu göstergesi).
 
@@ -66,8 +65,8 @@ Bu dosya üretim ortamına çıkmadan önce SES ve genel email teslim edilebilir
 |------|-------|-----|
 | Suppression tablo entegrasyonu | Tamam | bounce/complaint + manual delete |
 | Plain text fallback | Kısmi | Bazı mailler yalnız HTML (iyileştir) |
-| Configuration Set header | Var | Env: SES_CONFIGURATION_SET |
-| SNS Signature validation | Var | `sns-validator` kullanılıyor |
+| MailerSend webhook health | Var | `/webhooks/mailersend/events` + shared secret |
+| MailerSend signature/paylaşılan secret | Var | Header kontrolü ile doğrulama |
 | Rate limit (resend/forgot) | Var | Env üzerinden |
 | Audit log | Kısmi | Webhook event’leri audit’e eklenebilir |
 | Scheduled deliverability report | Eksik | Gelecekte eklenebilir |

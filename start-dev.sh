@@ -63,18 +63,11 @@ export DATABASE_PASSWORD=${DATABASE_PASSWORD:-moneyflow123}
 export DATABASE_NAME=${DATABASE_NAME:-moneyflow_dev}
 export MAIL_PROVIDER=${MAIL_PROVIDER:-log}
 export MAIL_FROM=${MAIL_FROM:-no-reply@example.com}
-export AWS_REGION=${AWS_REGION:-${SES_REGION:-us-east-1}}
 export MAILERSEND_API_KEY=${MAILERSEND_API_KEY:-}
+export MAILERSEND_WEBHOOK_SECRET=${MAILERSEND_WEBHOOK_SECRET:-}
 
 echo -e "${BLUE}📬 Mail provider: $MAIL_PROVIDER (from: $MAIL_FROM)${NC}"
-if [ "$MAIL_PROVIDER" = "ses" ]; then
-    if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-        echo -e "${RED}❌ MAIL_PROVIDER=ses ancak AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY tanımlı değil. Gönderimler başarısız olacak.${NC}"
-    else
-        MASKED_KEY="${AWS_ACCESS_KEY_ID:0:6}***"
-        echo -e "${GREEN}✅ SES kimlik bilgileri yüklendi (AWS_REGION=$AWS_REGION, KEY=$MASKED_KEY)${NC}"
-    fi
-elif [ "$MAIL_PROVIDER" = "mailersend" ] && [ -z "$MAILERSEND_API_KEY" ]; then
+if [ "$MAIL_PROVIDER" = "mailersend" ] && [ -z "$MAILERSEND_API_KEY" ]; then
     echo -e "${RED}❌ MAIL_PROVIDER=mailersend ancak MAILERSEND_API_KEY tanımlı değil. Gönderimler başarısız olacak.${NC}"
 fi
 echo -e "${BLUE}🗄️  DB: $DATABASE_USER@$DATABASE_HOST:$DATABASE_PORT/$DATABASE_NAME${NC}"

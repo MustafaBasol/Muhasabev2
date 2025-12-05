@@ -717,7 +717,7 @@ Notlar:
 - Legacy `basic` referansları artık Pro ile aynı anlamdadır (geçiş uyumluluğu için tutulur).
 - [Güvenlik İyileştirmeleri](./SECURITY_IMPROVEMENTS.md) - Güvenlik önlemleri
 - [Email Doğrulama & Şifre Sıfırlama Akışları](./backend/EMAIL_FLOW.md) - SES sandbox ile test ve yapılandırma
-- [SES Bounce/Complaint Entegrasyonu](./backend/SES_SNS_BOUNCE_COMPLAINT.md) - SNS topic + suppression listesi
+- [MailerSend Bounce/Complaint Webhook](./backend/MAILERSEND_WEBHOOKS.md) - suppression listesi otomasyonu
 
 ## 📄 Lisans
 

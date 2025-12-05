@@ -118,26 +118,16 @@ export class AuthService {
       this.evtRepo.create({ userId: user.id, tokenHash, expiresAt }),
     );
 
-    // Send verification email (locale-aware minimal EN by default)
-    const locale = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
+    // Send verification email (English only)
     const verifyLink = this.buildVerifyLink(raw, user.id);
-    const subjectVerify =
-      locale === 'tr' ? 'E-posta Doğrulama' : 'Email Verification';
-    const htmlVerify =
-      locale === 'tr'
-        ? `
+    const subjectVerify = 'Email Verification';
+    const htmlVerify = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-          <h2 style="color:#059669;">E-posta Doğrulama</h2>
-          <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
-          <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
-          <p><a href="${verifyLink}">${verifyLink}</a></p>
-        </div>`
-        : `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-          <h2 style="color:#059669;">Email Verification</h2>
+          <h2 style="color:#059669;">Verify Your Email</h2>
           <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
-          <p>Please click the link below to verify your account:</p>
+          <p>Please confirm your email address by clicking the secure link below:</p>
           <p><a href="${verifyLink}">${verifyLink}</a></p>
+          <p>This link will expire in ${verifyHours} hour(s).</p>
         </div>`;
     try {
       await this.emailService.sendEmail({
@@ -155,6 +145,8 @@ export class AuthService {
     } catch (error) {
       this.logSoftError('auth.register.email', error);
     }
+
+    void this.sendWelcomeEmail(user, tenant);
 
     // Generate JWT token
     const payload = {
@@ -531,26 +523,13 @@ export class AuthService {
     const evt = await this.evtRepo.save(
       this.evtRepo.create({ userId: user.id, tokenHash, expiresAt }),
     );
-    const locale = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
     const verifyLink = this.buildVerifyLink(raw, user.id);
-    const subjectResend =
-      locale === 'tr'
-        ? 'E-posta Doğrulama (Yeniden)'
-        : 'Email Verification (Resend)';
-    const htmlResend =
-      locale === 'tr'
-        ? `
+    const subjectResend = 'Email Verification Reminder';
+    const htmlResend = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-        <h2 style="color:#059669;">E-posta Doğrulama (Yeniden)</h2>
-        <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
-        <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
-        <p><a href="${verifyLink}">${verifyLink}</a></p>
-      </div>`
-        : `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-        <h2 style="color:#059669;">Email Verification (Resend)</h2>
+        <h2 style="color:#059669;">Verify Your Email</h2>
         <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
-        <p>Please use the link below to verify your account:</p>
+        <p>This is a reminder to confirm your email. Use the secure link below:</p>
         <p><a href="${verifyLink}">${verifyLink}</a></p>
       </div>`;
     await this.emailService.sendEmail({
@@ -663,25 +642,14 @@ export class AuthService {
       this.logSoftError('auth.forgotLegacy.persistToken', error);
     }
     const base = this.getFrontendBase();
-    const locale = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
     const resetLink = `${base}/#reset-password?token=${token}`;
     try {
-      const subject =
-        locale === 'tr' ? 'Şifre Sıfırlama Talebi' : 'Password Reset Request';
-      const html =
-        locale === 'tr'
-          ? `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-          <h2 style="color:#b91c1c;">Şifre Sıfırlama</h2>
-          <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
-          <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanın (1 saat geçerlidir):</p>
-          <p><a href="${resetLink}">${resetLink}</a></p>
-        </div>`
-          : `
+      const subject = 'Password Reset Request';
+      const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#b91c1c;">Password Reset</h2>
           <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
-          <p>Use the link below to reset your password (valid for 1 hour):</p>
+          <p>Use the secure link below to reset your password (valid for one hour):</p>
           <p><a href="${resetLink}">${resetLink}</a></p>
         </div>`;
       await this.emailService.sendEmail({
@@ -712,26 +680,15 @@ export class AuthService {
         ua: this.resolveUserAgent(req) ?? null,
       }),
     );
-    const locale2 = (process.env.DEFAULT_EMAIL_LOCALE || 'en').toLowerCase();
     const appBase = this.getFrontendBase(req);
     const resetLink = `${appBase}/#reset-password?token=${raw}&u=${user.id}`;
     try {
-      const subject =
-        locale2 === 'tr' ? 'Şifre Sıfırlama Talebi' : 'Password Reset Request';
-      const html =
-        locale2 === 'tr'
-          ? `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-          <h2 style="color:#b91c1c;">Şifre Sıfırlama</h2>
-          <p>Merhaba ${user.firstName || ''} ${user.lastName || ''},</p>
-          <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanın (1 saat geçerlidir):</p>
-          <p><a href="${resetLink}">${resetLink}</a></p>
-        </div>`
-          : `
+      const subject = 'Password Reset Request';
+      const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#b91c1c;">Password Reset</h2>
           <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
-          <p>Use the link below to reset your password (valid for 1 hour):</p>
+          <p>Use the secure link below to reset your password (valid for one hour):</p>
           <p><a href="${resetLink}">${resetLink}</a></p>
         </div>`;
       await this.emailService.sendEmail({
@@ -831,6 +788,43 @@ export class AuthService {
       this.logSoftError('auth.frontendBase.codespaces', error);
     }
     return candidate.replace(/\/?$/, '');
+  }
+
+  private async sendWelcomeEmail(user: User, tenant: Tenant): Promise<void> {
+    try {
+      const base = this.getFrontendBase();
+      const dashboardLink = `${base}/#login`;
+      const subject = 'Welcome to Comptario';
+      const html = `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+          <h2 style="color:#2563eb;">Welcome to Comptario</h2>
+          <p>Hello ${user.firstName || ''} ${user.lastName || ''},</p>
+          <p>Your workspace <strong>${tenant.name || 'Comptario Workspace'}</strong> has been created successfully.</p>
+          <p>Sign in to start managing your finances:</p>
+          <p><a href="${dashboardLink}">${dashboardLink}</a></p>
+          <p>If you did not create this account, contact support immediately.</p>
+        </div>`;
+      const text = `Welcome to Comptario, ${user.firstName || user.email}!
+
+Your workspace ${tenant.name || 'Comptario Workspace'} is ready.
+Sign in: ${dashboardLink}
+
+If you did not create this account, contact support immediately.`;
+      await this.emailService.sendEmail({
+        to: user.email,
+        subject,
+        html,
+        text,
+        meta: {
+          userId: user.id,
+          tenantId: tenant.id,
+          correlationId: crypto.randomUUID(),
+          type: 'welcome',
+        },
+      });
+    } catch (error) {
+      this.logSoftError('auth.welcome.email', error);
+    }
   }
 
   async resetPasswordHashed(

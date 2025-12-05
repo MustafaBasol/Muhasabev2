@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SesSnsController } from './ses-sns.controller';
+import { MailerSendWebhookController } from './mailersend.controller';
 import { EmailSuppression } from '../email/entities/email-suppression.entity';
 import { StripeWebhookController } from './stripe.controller';
 import { Tenant } from '../tenants/entities/tenant.entity';
@@ -11,6 +11,6 @@ import { BillingModule } from '../billing/billing.module';
     TypeOrmModule.forFeature([EmailSuppression, Tenant]),
     BillingModule,
   ],
-  controllers: [SesSnsController, StripeWebhookController],
+  controllers: [MailerSendWebhookController, StripeWebhookController],
 })
 export class WebhooksModule {}

@@ -104,31 +104,22 @@ export class OrganizationsService {
     const subject = isReminder
       ? `Reminder: Invitation to join ${organizationName}`
       : `Invitation to join ${organizationName}`;
-    const enIntro = isReminder
+    const intro = isReminder
       ? `You still have a pending invitation to join <strong>${organizationName}</strong> as a <strong>${role}</strong>.`
       : `You have been invited to join <strong>${organizationName}</strong> as a <strong>${role}</strong>.`;
-    const enNote = `<p><strong>Note:</strong> This invitation will expire on ${expiryLabel}.</p>`;
-    const trIntro = isReminder
-      ? `<p><strong>${organizationName}</strong> organizasyonuna <strong>${role}</strong> olarak katılmanız için bekleyen bir davetiniz var.</p>`
-      : `<p><strong>${organizationName}</strong> organizasyonuna <strong>${role}</strong> rolüyle katılmanız için davet edildiniz.</p>`;
-    const trNote = `<p><em>Not:</em> Davetin son geçerlilik tarihi: ${expiryLabel}.</p>`;
+    const note = `<p><strong>Note:</strong> This invitation will expire on ${expiryLabel}.</p>`;
 
     return {
       subject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #059669;">${isReminder ? 'Invitation Reminder' : 'Organization Invitation'}</h2>
-          <p>${enIntro}</p>
+          <p>${intro}</p>
           <div style="background-color: #ecfdf5; border: 1px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 0;">Click the link below to accept the invitation:</p>
             <a href="${inviteUrl}" style="color: #059669; text-decoration: none; font-weight: bold;">${inviteUrl}</a>
           </div>
-          ${enNote}
-          <hr style="margin: 24px 0; border:none; border-top: 1px solid #e5e7eb;" />
-          <h3 style="color:#374151; margin-top:0;">TR</h3>
-          ${trIntro}
-          <p>Daveti kabul etmek için bağlantıya tıklayın: <a href="${inviteUrl}">${inviteUrl}</a></p>
-          ${trNote}
+          ${note}
         </div>
       `,
       text: `

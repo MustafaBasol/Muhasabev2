@@ -10,7 +10,7 @@ Kullanıcı -> CDN/Cloudflare -> Nginx/Caddy (HTTPS) -> Node/NestJS Backend (pm2
                                      |                                  ├─ Serve Static React Build (backend/public)
                                      |                                  ├─ PostgreSQL 15 (docker, /var/lib/postgresql/data)
                                      |                                  └─ Redis 7 (docker, /var/lib/redis)
-                                     └─ Webhook & API entegrasyonları (Stripe, AWS SES, Cloudflare Turnstile)
+                                     └─ Webhook & API entegrasyonları (Stripe, MailerSend, Cloudflare Turnstile)
 ```
 
 - **Frontend**: Vite + React 18 build’i `build-and-deploy.sh` ile `backend/public/` dizinine kopyalanır; NestJS `@nestjs/serve-static` ile tek porttan sunar.
@@ -29,7 +29,7 @@ Kullanıcı -> CDN/Cloudflare -> Nginx/Caddy (HTTPS) -> Node/NestJS Backend (pm2
 
 ### 2.2 Backend (NestJS API)
 - Giriş noktası: `backend/src/main.ts` (prod’da `main.production.ts`).
-- Paketler: Stripe, AWS SES, Redis, TypeORM (PostgreSQL). Bkz. `backend/package.json`.
+- Paketler: Stripe, MailerSend, Redis, TypeORM (PostgreSQL). Bkz. `backend/package.json`.
 - Build/deploy: `npm run build` ardından `npm run start:prod`. PM2 konfigürasyonu `ecosystem.config.js`.
 - Health: `GET /api/health` (Nginx proxy’si üzerinden `https://<domain>/api/health`).
 
@@ -92,7 +92,7 @@ Gruplandırılmış önemli değişkenler:
 - **Veritabanı**: `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_NAME`.
 - **Redis**: `REDIS_HOST`, `REDIS_PORT`.
 - **JWT & CSRF**: `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CSRF_SECRET`, `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`.
-- **Mail/SMS**: `MAIL_PROVIDER`, `MAIL_FROM`, `AWS_REGION`, `SES_CONFIGURATION_SET` (bkz. `backend/.env.example`).
+- **Mail/SMS**: `MAIL_PROVIDER`, `MAIL_FROM`, `MAILERSEND_API_KEY`, `MAILERSEND_WEBHOOK_SECRET` (bkz. `backend/.env.example`).
 - **Stripe**: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, plan price ID’leri (`STRIPE_PRICE_*`).
 - **URLs**: `FRONTEND_URL`, `CORS_ORIGINS` (virgülle). 
 - **Rate Limits**: `SIGNUP_RATE_LIMIT`, `FORGOT_RATE_LIMIT` vb.

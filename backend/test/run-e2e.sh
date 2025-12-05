@@ -28,10 +28,9 @@ export TEST_DATABASE_PASSWORD=${TEST_DATABASE_PASSWORD:-${DATABASE_PASSWORD:-mon
 export TEST_DATABASE_SSL=${TEST_DATABASE_SSL:-${DATABASE_SSL:-false}}
 export EMAIL_VERIFICATION_REQUIRED=${EMAIL_VERIFICATION_REQUIRED:-true}
 
-# Force safe email provider in tests to avoid hitting AWS SES
+# Force safe email provider in tests to avoid hitting external services
 export MAIL_PROVIDER=log
-export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
-export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-test}
+unset MAILERSEND_API_KEY || true
 
 # Ensure legacy env vars remain populated for TypeORM consumers that don't read TEST_* values
 default_db_host=${DATABASE_HOST:-${TEST_DATABASE_HOST}}

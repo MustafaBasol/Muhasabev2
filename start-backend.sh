@@ -48,13 +48,10 @@ export DATABASE_NAME=${DATABASE_NAME:-moneyflow_dev}
 # E-posta değişkenlerini .env'den gelen değerler varsa koru; yoksa varsayılan ver
 export MAIL_PROVIDER=${MAIL_PROVIDER:-log}
 export MAIL_FROM=${MAIL_FROM:-no-reply@example.com}
-export AWS_REGION=${AWS_REGION:-${SES_REGION:-us-east-1}}
 export MAILERSEND_API_KEY=${MAILERSEND_API_KEY:-}
+export MAILERSEND_WEBHOOK_SECRET=${MAILERSEND_WEBHOOK_SECRET:-}
 
-echo "✉️  Email config: provider=$MAIL_PROVIDER from=$MAIL_FROM region=${AWS_REGION:-n/a}"
-if [ "$MAIL_PROVIDER" = "ses" ] && { [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; }; then
-  echo "⚠️ MAIL_PROVIDER=ses ancak AWS kimlik bilgileri eksik"
-fi
+echo "✉️  Email config: provider=$MAIL_PROVIDER from=$MAIL_FROM"
 if [ "$MAIL_PROVIDER" = "mailersend" ] && [ -z "$MAILERSEND_API_KEY" ]; then
   echo "⚠️ MAIL_PROVIDER=mailersend ancak MAILERSEND_API_KEY tanımlı değil"
 fi
