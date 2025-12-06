@@ -23,6 +23,20 @@ export interface EmailOptions {
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
+  private safeStringify(payload: unknown): string | null {
+    if (payload === undefined || payload === null) {
+      return null;
+    }
+    if (typeof payload === 'string') {
+      return payload;
+    }
+    try {
+      return JSON.stringify(payload);
+    } catch {
+      return null;
+    }
+  }
+
   private parseAddress(input: string): { email: string; name?: string } | null {
     if (!input) return null;
     const trimmed = input.trim();
@@ -122,7 +136,8 @@ export class EmailService {
     let messageId: string | undefined;
 
     if (provider === 'mailersend') {
-      const apiKey = process.env.MAILERSEND_API_KEY || process.env.MAILERSEND_TOKEN || '';
+      const apiKey =
+        process.env.MAILERSEND_API_KEY || process.env.MAILERSEND_TOKEN || '';
       if (!apiKey) {
         this.logger.warn(
           '⚠️ MAIL_PROVIDER=mailersend ancak MAILERSEND_API_KEY tanımlı değil; log fallback kullanılacak.',
@@ -162,7 +177,14 @@ export class EmailService {
           if (!res.ok) {
             const code = body?.error?.code || res.status;
             const detail = body?.error?.message || res.statusText;
-            throw new Error(`MailerSend API error code=${code} detail=${detail}`);
+            const error = new Error(
+              `MailerSend API error code=${code} detail=${detail}`,
+            );
+            (error as { code?: unknown }).code = code;
+            if (body) {
+              (error as { mailerSendBody?: unknown }).mailerSendBody = body;
+            }
+            throw error;
           }
           const msgId =
             typeof body?.message_id === 'string'
@@ -181,8 +203,13 @@ export class EmailService {
         } catch (err: unknown) {
           const code = this.getErrorCode(err);
           const msg = this.getErrorMessage(err);
+          const extraDetails =
+            typeof err === 'object' && err
+              ? (err as { mailerSendBody?: unknown }).mailerSendBody
+              : null;
+          const serialized = this.safeStringify(extraDetails);
           this.logger.error(
-            `❌ [MAILERSEND SEND FAILED] code=${code} message=${msg} → log fallback`,
+            `❌ [MAILERSEND SEND FAILED] code=${code} message=${msg}${serialized ? ` details=${serialized}` : ''} → log fallback`,
             this.toError(err),
           );
         }
@@ -207,7 +234,9 @@ export class EmailService {
     } else if (options.text) {
       this.logger.debug(options.text.substring(0, 500));
     }
-    if (!success) success = true; // log provider treated as success
+    if (!success && provider === 'log') {
+      success = true;
+    }
 
     // Outbox kaydı (best-effort, hata olsa göndermeyi etkilemesin)
     try {

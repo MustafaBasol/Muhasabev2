@@ -1022,9 +1022,13 @@ If you did not create this account, contact support immediately.`;
 
   private buildVerifyLink(token: string, userId: string): string {
     const defaultPath = '/#verify-email';
-    return this.buildFrontendUrl(process.env.FRONTEND_VERIFY_PATH, defaultPath, {
-      token,
-      u: userId,
-    });
+    return this.buildFrontendUrl(
+      process.env.FRONTEND_VERIFY_PATH,
+      defaultPath,
+      {
+        token,
+        u: userId,
+      },
+    );
   }
 }

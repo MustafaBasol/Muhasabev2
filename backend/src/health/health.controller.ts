@@ -54,7 +54,8 @@ export class HealthController {
       frontendUrl,
       note: sandboxNote,
       verificationRequired,
-      mailerSendKeyPresent: provider === 'mailersend' ? mailerSendKeyPresent : undefined,
+      mailerSendKeyPresent:
+        provider === 'mailersend' ? mailerSendKeyPresent : undefined,
     };
   }
 }

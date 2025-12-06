@@ -100,9 +100,7 @@ export class InvoicesService {
       });
       if (product) {
         // 2a) Ürüne özel override tanımlıysa (kategori KDV'sini ezer)
-        const override = this.normalizeTaxRate(
-          product.categoryTaxRateOverride,
-        );
+        const override = this.normalizeTaxRate(product.categoryTaxRateOverride);
         if (override !== null) {
           return override;
         }
