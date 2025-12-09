@@ -1380,7 +1380,7 @@ export default function ProductList({
                 )
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1024px] table-fixed divide-y divide-gray-200">
+                  <table className="w-full min-w-full lg:min-w-[1024px] table-fixed divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="w-12 px-4 py-3">
@@ -1408,7 +1408,7 @@ export default function ProductList({
                         <th className="w-32 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                           {t('products.status')}
                         </th>
-                        <th className="sticky right-0 z-10 w-44 min-w-[176px] px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50">
+                        <th className="sticky right-0 z-10 w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50">
                           {t('products.actions')}
                         </th>
                       </tr>
@@ -1490,7 +1490,7 @@ export default function ProductList({
                                 {statusLabel}
                               </span>
                             </td>
-                            <td className="sticky right-0 w-44 min-w-[176px] whitespace-nowrap px-6 py-4 text-right text-sm font-medium bg-white group-hover:bg-gray-50">
+                            <td className="sticky right-0 w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] whitespace-nowrap px-6 py-4 text-right text-sm font-medium bg-white group-hover:bg-gray-50">
                               <div className="flex items-center justify-end space-x-2">
                                 <button
                                   type="button"

@@ -203,8 +203,8 @@ export default function CustomerList({
 
   const renderHeader = () => (
     <div className="p-6 border-b border-gray-200">
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-4">
+        <div className="flex-1 min-w-0">
           <h2 className="text-xl font-semibold text-gray-900">
             {selectionMode ? 'Müşteri Seç' : t('customers.title')}
           </h2>
@@ -213,7 +213,7 @@ export default function CustomerList({
           </p>
         </div>
         {!selectionMode && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
             <input
               ref={fileInputRef}
               type="file"
@@ -263,7 +263,7 @@ export default function CustomerList({
           />
         </div>
         {/* Filters row */}
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-sm text-gray-700 inline-flex items-center gap-2">
               <input type="checkbox" className="rounded" checked={hasEmailOnly} onChange={(e)=>setHasEmailOnly(e.target.checked)} />
@@ -287,7 +287,7 @@ export default function CustomerList({
               )}
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex w-full flex-wrap justify-start gap-2 sm:justify-end">
           <SavedViewsBar
             listType="customers"
             getState={() => ({ searchTerm, hasEmailOnly, hasPhoneOnly, hasCompanyOnly, startDate, endDate, pageSize })}

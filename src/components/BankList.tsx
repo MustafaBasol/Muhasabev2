@@ -117,12 +117,12 @@ export default function BankList({
   }, 0);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-      <div className="min-w-[720px]">
+    <div className="bg-white rounded-xl border border-gray-200">
+      <div className="w-full">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+      <div className="border-b border-gray-200 p-6">
+        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
             <h2 className="text-xl font-semibold text-gray-900">{t('banks.title')}</h2>
             <p className="text-sm text-gray-500">
               {bankAccounts.length} {t('banks.accountsRegistered')} • {t('banks.totalBalance')}: {formatAmountNoSymbol(totalBalance)}
@@ -130,7 +130,7 @@ export default function BankList({
           </div>
           <button
             onClick={onAddBank}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center gap-2 self-start rounded-lg bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
           >
             <Plus className="w-4 h-4" />
             <span>{t('banks.newAccount')}</span>
@@ -138,7 +138,7 @@ export default function BankList({
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -146,13 +146,13 @@ export default function BankList({
               placeholder={t('banks.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 md:w-56"
           >
             <option value="all">{t('banks.filterAll')}</option>
             <option value="active">{t('chartOfAccounts.active')}</option>
@@ -288,7 +288,7 @@ export default function BankList({
           ))
         )}
       </div>
-      <div className="p-4 border-t border-gray-200 bg-white">
+      <div className="border-t border-gray-200 bg-white p-4">
         <Pagination
           page={page}
           pageSize={pageSize}
@@ -299,6 +299,6 @@ export default function BankList({
       </div>
     </div>
     </div>
-    
+
   );
 }

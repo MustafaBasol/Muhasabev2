@@ -808,7 +808,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
               <TrendingUp className="w-8 h-8 text-green-600 mr-3" />
@@ -822,7 +822,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               setEditingSale(null);
               setShowSaleModal(true);
             }}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center gap-2 self-start rounded-lg bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
           >
             <Plus className="w-4 h-4" />
             <span>{t('sales.newSale')}</span>
@@ -864,7 +864,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       {/* Sales List */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-lg font-semibold text-gray-900">{t('sales.salesList')}</h3>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <p className="text-sm text-gray-500">
@@ -882,22 +882,23 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
           </div>
 
           {/* Search and Filter */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+              <div className="relative w-full md:flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder={t('sales.search')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 md:w-56"
+              >
               <option value="all">
                 {i18n.language === 'tr' ? 'Tüm Durumlar' : 
                  i18n.language === 'en' ? 'All Statuses' :
@@ -907,25 +908,26 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
               <option value="completed">{resolveStatusLabel(t, 'completed')}</option>
               <option value="pending">{resolveStatusLabel(t, 'pending')}</option>
               <option value="cancelled">{resolveStatusLabel(t, 'cancelled')}</option>
-            </select>
-            <div className="flex gap-2">
+              </select>
+            </div>
+            <div className="grid w-full gap-2 sm:grid-cols-2 md:max-w-md">
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 placeholder={t('startDate')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 placeholder={t('endDate')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             {/* Hazır filtreler + Kaydedilmiş görünümler */}
-            <div className="ml-auto flex items-center">
+            <div className="flex w-full flex-wrap justify-start gap-2 sm:justify-end">
               <SavedViewsBar
                 listType="sales"
                 getState={() => ({ searchTerm, statusFilter, startDate, endDate, sortBy, sortDir, pageSize })}
@@ -988,8 +990,8 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
           ) : (
             <>
             <div className="overflow-x-auto relative">
-              {/* Küçük ekranlarda sıkışmayı önlemek için tabloya minimum genişlik ver */}
-              <table className="w-full min-w-[1024px] table-fixed">
+              {/* Mobilde tablo genişliği ekranla uyumlu, lg ve üstünde geniş görünüm */}
+              <table className="w-full min-w-full lg:min-w-[1024px] table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
                     <th onClick={() => toggleSort('saleNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
@@ -1013,7 +1015,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                     <th onClick={() => toggleSort('date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                       {t('sales.date')}<SortIndicator active={sortBy==='date'} />
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-44 min-w-[176px] sticky right-0 bg-gray-50 z-10">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] sticky right-0 bg-gray-50 z-10">
                       {t('sales.actions')}
                     </th>
                   </tr>
@@ -1160,7 +1162,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[176px]">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[140px] lg:min-w-[176px]">
                         <div className="flex items-center justify-end gap-2">
                           <button 
                             onClick={() => handleViewSale(sale)}

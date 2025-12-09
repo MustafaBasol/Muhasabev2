@@ -33,8 +33,8 @@ export default function StatsCard({ title, value, change, changeType, icon: Icon
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-200 md:hover:shadow-lg md:hover:scale-105">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
           <p className="text-gray-600 text-sm font-medium mb-1">{title}</p>
           <p className="text-2xl font-bold text-gray-900">{value}</p>
         </div>
@@ -43,7 +43,7 @@ export default function StatsCard({ title, value, change, changeType, icon: Icon
         </div>
       </div>
       
-      <div className="flex items-center mt-4 space-x-1">
+      <div className="mt-4 flex flex-wrap items-center gap-1">
         {changeType === 'increase' ? (
           <TrendingUp className="w-4 h-4 text-green-500" />
         ) : (

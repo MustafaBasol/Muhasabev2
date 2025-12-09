@@ -576,8 +576,8 @@ export default function ExpenseList({
         ) : (
           <>
           <div className="overflow-x-auto">
-            {/* Küçük ekranlarda sıkışmayı önlemek için tabloya minimum genişlik ver */}
-            <table className="w-full min-w-[1024px] table-fixed">
+            {/* Küçük ekranlarda tablo genişliği ekrana göre küçülür, lg ve üstünde geniş görünüm korunur */}
+            <table className="w-full min-w-full lg:min-w-[1024px] table-fixed">
               <thead className="bg-gray-50">
                 <tr>
                   <th onClick={() => toggleSort('description')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-[320px]">
@@ -598,7 +598,7 @@ export default function ExpenseList({
                   <th onClick={() => toggleSort('expenseDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('expenses.date')}<SortIndicator active={sort.by==='expenseDate'} />
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-44 min-w-[176px] sticky right-0 bg-gray-50 z-10">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] sticky right-0 bg-gray-50 z-10">
                     {t('expenses.actions')}
                   </th>
                 </tr>
@@ -712,7 +712,7 @@ export default function ExpenseList({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[176px]">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[140px] lg:min-w-[176px]">
                       <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => onViewExpense(expense)}
