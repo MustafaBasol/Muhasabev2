@@ -1169,7 +1169,7 @@ export default function ProductList({
           </div>
 
           <div className="space-y-4">
-            <div className="sticky top-16 z-20">
+            <div className="lg:sticky lg:top-16 lg:z-20">
               <div className="rounded-xl border border-gray-200 bg-white/95 p-4 shadow-sm backdrop-blur">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
                   <div className="relative flex-1">

@@ -263,8 +263,8 @@ export default function SupplierList({
               }`}
               onClick={() => selectionMode && onSelectSupplier?.(supplier)}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4 min-w-0">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start sm:items-center gap-4 min-w-0 w-full">
                   <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                     <span className="text-orange-600 font-semibold text-lg">
                       {initials}
@@ -292,7 +292,7 @@ export default function SupplierList({
                         <span className="truncate">{companyName}</span>
                       </p>
                     )}
-                    <div className="flex items-center space-x-4 mt-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 min-w-0">
                       <span className="text-sm text-gray-500 flex items-center truncate">
                         <Mail className="w-3 h-3 mr-1" />
                         <span className="truncate">{emailLabel}</span>
@@ -310,7 +310,7 @@ export default function SupplierList({
 
                     {/* Mobile actions */}
                     {!selectionMode && (
-                      <div className="flex items-center gap-2 mt-2 sm:hidden">
+                      <div className="flex items-center gap-2 mt-3 sm:hidden">
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEditSupplier(supplier); }}
                           className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

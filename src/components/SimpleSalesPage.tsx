@@ -1160,7 +1160,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           </div>
                         )}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-left md:text-right">
+                      <td className="px-4 md:px-6 py-4 text-left md:text-right whitespace-normal md:whitespace-nowrap">
                         {editingField?.saleId === sale.id && editingField?.field === 'amount' ? (
                           <div className="flex items-center space-x-2">
                             <input
