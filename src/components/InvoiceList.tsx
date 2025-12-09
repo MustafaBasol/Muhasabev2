@@ -526,29 +526,29 @@ export default function InvoiceList({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            {/* Küçük ekranlarda tablo genişliği ekrana göre uyum sağlar */}
-            <table className="w-full min-w-full lg:min-w-[1024px] table-fixed">
+            {/* Tablo mobilde otomatik genişleyip kritik alanları kart içinde gösterir */}
+            <table className="w-full text-sm table-auto lg:min-w-[1024px]">
               <thead className="bg-gray-50">
                 <tr>
-                  <th onClick={() => toggleSort('invoiceNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
+                  <th onClick={() => toggleSort('invoiceNumber')} className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-full md:w-40">
                     {t('invoices.invoiceNumber')}<SortIndicator active={sort.by==='invoiceNumber'} />
                   </th>
-                  <th onClick={() => toggleSort('customer')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-56">
+                  <th onClick={() => toggleSort('customer')} className="hidden md:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-56">
                     {t('invoices.customer')}<SortIndicator active={sort.by==='customer'} />
                   </th>
-                  <th onClick={() => toggleSort('description')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-[320px]">
+                  <th onClick={() => toggleSort('description')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-[320px]">
                     {t('common.description')}<SortIndicator active={sort.by==='description'} />
                   </th>
-                  <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
+                  <th onClick={() => toggleSort('amount')} className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('invoices.amount')}<SortIndicator active={sort.by==='amount'} />
                   </th>
-                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
+                  <th onClick={() => toggleSort('status')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                     {t('invoices.status')}<SortIndicator active={sort.by==='status'} />
                   </th>
-                  <th onClick={() => toggleSort('issueDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
+                  <th onClick={() => toggleSort('issueDate')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('invoices.date')}<SortIndicator active={sort.by==='issueDate'} />
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] sticky right-0 bg-gray-50 z-10">
+                  <th className="hidden md:table-cell px-4 md:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] sticky right-0 bg-gray-50 z-10">
                     {t('invoices.actions')}
                   </th>
                 </tr>
@@ -556,7 +556,7 @@ export default function InvoiceList({
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedInvoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 md:px-6 py-4 align-top">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-4 h-4 text-blue-600" />
@@ -577,8 +577,80 @@ export default function InvoiceList({
                           </div>
                         </div>
                       </div>
+                      <div className="mt-3 space-y-2 text-xs text-gray-600 md:hidden">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-gray-500 font-medium">{t('invoices.customer')}:</span>
+                          <span className="text-gray-900">{invoice.customer?.name || t('invoices.noCustomer', { defaultValue: 'Müşteri Yok' })}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-gray-500 font-medium">{t('invoices.status')}:</span>
+                          {getStatusBadge(invoice.status, invoice.isVoided)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-gray-500 font-medium">{t('invoices.amount')}:</span>
+                          <span className="text-gray-900 font-semibold">{formatAmount(Number(invoice.total) || 0)}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Calendar className="w-3 h-3" />
+                          <span>{formatDate(invoice.issueDate)}</span>
+                          <span className="text-gray-400">/</span>
+                          <span>{formatDate(invoice.dueDate)}</span>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 md:hidden">
+                        <button 
+                          onClick={() => onViewInvoice(invoice)}
+                          className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title={t('invoices.view')}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => onEditInvoice(invoice)}
+                          disabled={invoice.isVoided}
+                          className={`inline-flex items-center justify-center w-9 h-9 rounded transition-colors ${
+                            invoice.isVoided 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                          }`}
+                          title={invoice.isVoided ? t('invoices.cannotEditVoided', { defaultValue: 'İptal edilmiş fatura düzenlenemez' }) : t('invoices.edit')}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => onDownloadInvoice?.(invoice)}
+                          className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                          title={t('invoices.download')}
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        {invoice.isVoided ? (
+                          <button 
+                            onClick={() => handleRestoreInvoice(invoice.id)}
+                            className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title={t('invoices.restore', { defaultValue: 'Geri Yükle' })}
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleVoidInvoice(invoice)}
+                            className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                            title={t('invoices.void', { defaultValue: 'Faturayı İptal Et' })}
+                          >
+                            <Ban className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => onDeleteInvoice(invoice.id)}
+                          className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title={t('invoices.delete')}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="hidden md:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {invoice.customer?.name || 'Müşteri Yok'}
@@ -588,7 +660,7 @@ export default function InvoiceList({
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="hidden lg:table-cell px-4 md:px-6 py-4">
                       <div className="text-sm text-gray-700 max-w-[260px]">
                         {(() => {
                           const itemsList = invoice.items || (invoice as any).lineItems || [];
@@ -617,14 +689,14 @@ export default function InvoiceList({
                         })()}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-left md:text-right">
                       <div className="flex items-center">
                         <span className="text-sm font-semibold text-gray-900">
                           {formatAmount(Number(invoice.total) || 0)}
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
                       {editingInvoice === invoice.id && editingField === 'status' ? (
                         <div className="flex items-center space-x-2 flex-nowrap z-10">
                           <select
@@ -661,7 +733,7 @@ export default function InvoiceList({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {editingInvoice === invoice.id && editingField === 'issueDate' ? (
                         <div className="flex items-center space-x-2">
                           <input
@@ -692,7 +764,7 @@ export default function InvoiceList({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[140px] lg:min-w-[176px]">
+                    <td className="hidden md:table-cell px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[140px] lg:min-w-[176px]">
                       <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => onViewInvoice(invoice)}

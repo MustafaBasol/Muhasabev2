@@ -1380,10 +1380,10 @@ export default function ProductList({
                 )
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-full lg:min-w-[1024px] table-fixed divide-y divide-gray-200">
+                  <table className="w-full text-sm table-auto lg:min-w-[1024px] divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="w-12 px-4 py-3">
+                        <th className="hidden md:table-cell w-12 px-4 py-3">
                           <input
                             ref={selectAllCheckboxRef}
                             type="checkbox"
@@ -1393,22 +1393,22 @@ export default function ProductList({
                             className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                           />
                         </th>
-                        <th className="w-[320px] px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        <th className="px-4 md:px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-full md:w-[320px]">
                           {t('products.name')}
                         </th>
-                        <th className="w-40 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        <th className="hidden lg:table-cell w-40 px-4 md:px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                           {t('products.category')}
                         </th>
-                        <th className="w-32 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        <th className="hidden lg:table-cell w-32 px-4 md:px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                           {t('products.price')}
                         </th>
-                        <th className="w-32 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        <th className="hidden xl:table-cell w-32 px-4 md:px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                           {t('products.stock')}
                         </th>
-                        <th className="w-32 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        <th className="hidden xl:table-cell w-32 px-4 md:px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                           {t('products.status')}
                         </th>
-                        <th className="sticky right-0 z-10 w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50">
+                        <th className="hidden md:table-cell sticky right-0 z-10 w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] px-4 md:px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50">
                           {t('products.actions')}
                         </th>
                       </tr>
@@ -1432,7 +1432,7 @@ export default function ProductList({
                             key={product.id}
                             className={`group transition-colors hover:bg-gray-50 ${isSelected ? 'bg-indigo-50' : ''}`}
                           >
-                            <td className="px-4 py-4">
+                            <td className="hidden md:table-cell px-4 py-4">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
@@ -1441,34 +1441,96 @@ export default function ProductList({
                                 className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                               />
                             </td>
-                            <td className="w-[320px] whitespace-nowrap px-6 py-4">
-                              <div className="flex items-center space-x-3">
+                            <td className="whitespace-nowrap px-4 md:px-6 py-4 align-top">
+                              <div className="flex items-start space-x-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100">
                                   <Package className="h-5 w-5 text-indigo-600" />
                                 </div>
-                                <div className="min-w-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => onViewProduct(product)}
-                                    className="block max-w-[260px] truncate text-left font-medium text-gray-900 transition-colors hover:text-indigo-600"
-                                  >
-                                    {product.name}
-                                  </button>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => onViewProduct(product)}
+                                      className="block max-w-[220px] truncate text-left font-medium text-gray-900 transition-colors hover:text-indigo-600"
+                                    >
+                                      {product.name}
+                                    </button>
+                                    <div className="md:hidden">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => toggleSelectProduct(product.id)}
+                                        aria-label={`Urunu sec: ${product.name}`}
+                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                      />
+                                    </div>
+                                  </div>
                                   <div className="hidden text-xs text-gray-500 lg:block">
                                     <span className="inline-block max-w-[260px] truncate" title={`SKU: ${product.sku}`}>
                                       SKU: {product.sku}
                                     </span>
                                   </div>
+                                  <div className="mt-3 space-y-2 text-xs text-gray-600 md:hidden">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="text-gray-500 font-medium">SKU:</span>
+                                      <span className="text-gray-900">{product.sku || '—'}</span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="text-gray-500 font-medium">{t('products.category')}:</span>
+                                      <span className="text-gray-900">{product.category}</span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="text-gray-500 font-medium">{t('products.price')}:</span>
+                                      <span className="text-gray-900 font-semibold">{formatCurrency(product.unitPrice || 0)}</span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="text-gray-500 font-medium">{t('products.stock')}:</span>
+                                      <span className="text-gray-900">
+                                        {Math.floor(product.stockQuantity)} {product.unit}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}>
+                                        {statusLabel}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap gap-2 md:hidden">
+                                    <button
+                                      type="button"
+                                      onClick={() => onViewProduct(product)}
+                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-indigo-600"
+                                      title={t('products.viewProduct')}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => onEditProduct(product)}
+                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-blue-600"
+                                      title={t('products.edit')}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => onDeleteProduct(product.id)}
+                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
+                                      title={t('products.delete')}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </td>
-                            <td className="w-40 whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+                            <td className="hidden lg:table-cell w-40 whitespace-nowrap px-4 md:px-6 py-4 text-sm text-gray-600">
                               <div className="flex items-center gap-2 min-w-0">
                                 <Tag className="h-4 w-4 text-gray-400" />
                                 <span className="truncate" title={product.category}>{product.category}</span>
                               </div>
                             </td>
-                            <td className="w-32 whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                            <td className="hidden lg:table-cell w-32 whitespace-nowrap px-4 md:px-6 py-4 text-sm text-gray-900">
                               <div className="font-semibold">
                                 {formatCurrency(product.unitPrice || 0)}
                               </div>
@@ -1477,7 +1539,7 @@ export default function ProductList({
                               </div>
                             </td>
                             <td
-                              className="w-32 whitespace-nowrap px-6 py-4 text-sm text-gray-900"
+                              className="hidden xl:table-cell w-32 whitespace-nowrap px-4 md:px-6 py-4 text-sm text-gray-900"
                               title={`${t('products.minStock')}: ${Math.floor(product.reorderLevel)}`}
                             >
                               <div className="font-semibold">
@@ -1485,12 +1547,12 @@ export default function ProductList({
                               </div>
                               <div className="text-xs text-gray-500">{t('products.minStock')}: {Math.floor(product.reorderLevel)}</div>
                             </td>
-                            <td className="w-32 whitespace-nowrap px-6 py-4 text-sm">
+                            <td className="hidden xl:table-cell w-32 whitespace-nowrap px-4 md:px-6 py-4 text-sm">
                               <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}>
                                 {statusLabel}
                               </span>
                             </td>
-                            <td className="sticky right-0 w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] whitespace-nowrap px-6 py-4 text-right text-sm font-medium bg-white group-hover:bg-gray-50">
+                            <td className="hidden md:table-cell sticky right-0 w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] whitespace-nowrap px-4 md:px-6 py-4 text-right text-sm font-medium bg-white group-hover:bg-gray-50">
                               <div className="flex items-center justify-end space-x-2">
                                 <button
                                   type="button"

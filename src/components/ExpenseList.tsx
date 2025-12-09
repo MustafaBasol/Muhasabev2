@@ -576,29 +576,29 @@ export default function ExpenseList({
         ) : (
           <>
           <div className="overflow-x-auto">
-            {/* Küçük ekranlarda tablo genişliği ekrana göre küçülür, lg ve üstünde geniş görünüm korunur */}
-            <table className="w-full min-w-full lg:min-w-[1024px] table-fixed">
+            {/* Tablo mobilde dar ekranlara uyum sağlamak için otomatik genişlik kullanır */}
+            <table className="w-full text-sm table-auto lg:min-w-[1024px]">
               <thead className="bg-gray-50">
                 <tr>
-                  <th onClick={() => toggleSort('description')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-[320px]">
+                  <th onClick={() => toggleSort('description')} className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-full md:w-[320px]">
                     {t('expenses.description')}<SortIndicator active={sort.by==='description'} />
                   </th>
-                  <th onClick={() => toggleSort('supplier')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-56">
+                  <th onClick={() => toggleSort('supplier')} className="hidden md:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-56">
                     {t('expenses.supplier')}<SortIndicator active={sort.by==='supplier'} />
                   </th>
-                  <th onClick={() => toggleSort('category')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
+                  <th onClick={() => toggleSort('category')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                     {t('expenses.category')}<SortIndicator active={sort.by==='category'} />
                   </th>
-                  <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
+                  <th onClick={() => toggleSort('amount')} className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('expenses.amount')}<SortIndicator active={sort.by==='amount'} />
                   </th>
-                  <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
+                  <th onClick={() => toggleSort('status')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                     {t('expenses.status')}<SortIndicator active={sort.by==='status'} />
                   </th>
-                  <th onClick={() => toggleSort('expenseDate')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
+                  <th onClick={() => toggleSort('expenseDate')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('expenses.date')}<SortIndicator active={sort.by==='expenseDate'} />
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] sticky right-0 bg-gray-50 z-10">
+                  <th className="hidden md:table-cell px-4 md:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] sticky right-0 bg-gray-50 z-10">
                     {t('expenses.actions')}
                   </th>
                 </tr>
@@ -606,7 +606,7 @@ export default function ExpenseList({
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedExpenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 md:px-6 py-4 align-top">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
                           <Receipt className="w-4 h-4 text-red-600" />
@@ -626,8 +626,88 @@ export default function ExpenseList({
                           </div>
                         </div>
                       </div>
+                      <div className="mt-3 space-y-2 text-xs text-gray-600 md:hidden">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-gray-500 font-medium">{t('expenses.supplier')}:</span>
+                          <span className="text-gray-900">
+                            {getSupplierDisplay(
+                              typeof expense.supplier === 'string'
+                                ? expense.supplier
+                                : expense.supplier?.name
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-gray-500 font-medium">{t('expenses.category')}:</span>
+                          <span>{getCategoryLabel(expense.category)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 font-medium">{t('expenses.status')}:</span>
+                          {getStatusBadge(expense.status, expense.isVoided)}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3 h-3" />
+                          <span>{formatDate(expense.expenseDate)}</span>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 md:hidden">
+                        <button 
+                          onClick={() => onViewExpense(expense)}
+                          className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title={t('expenses.view')}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => onEditExpense(expense)}
+                          disabled={expense.isVoided}
+                          className={`inline-flex items-center justify-center w-9 h-9 rounded transition-colors ${
+                            expense.isVoided 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                          }`}
+                          title={expense.isVoided ? 'İptal edilmiş gider düzenlenemez' : t('expenses.edit')}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (onDownloadExpense) {
+                              onDownloadExpense(expense);
+                            }
+                          }}
+                          className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                          title={t('expenses.download')}
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        {expense.isVoided ? (
+                          <button 
+                            onClick={() => handleRestoreExpense(expense.id)}
+                            className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title="Gideri geri yükle"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleVoidExpense(expense)}
+                            className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                            title="Gideri iptal et"
+                          >
+                            <Ban className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => onDeleteExpense(expense.id)}
+                          className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title={t('expenses.delete')}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="hidden md:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {getSupplierDisplay(
                           typeof expense.supplier === 'string'
@@ -636,17 +716,17 @@ export default function ExpenseList({
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">
                         {getCategoryLabel(expense.category)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-left md:text-right">
                       <span className="text-sm font-semibold text-red-600">
                         -{formatAmount(expense.amount)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
                       {editingExpense === expense.id && editingField === 'status' ? (
                         <div className="flex items-center space-x-2 flex-nowrap z-10">
                           <select
@@ -683,7 +763,7 @@ export default function ExpenseList({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {editingExpense === expense.id && editingField === 'dueDate' ? (
                         <div className="flex items-center space-x-2">
                           <input
@@ -712,7 +792,7 @@ export default function ExpenseList({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[140px] lg:min-w-[176px]">
+                    <td className="hidden md:table-cell px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[140px] lg:min-w-[176px]">
                       <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => onViewExpense(expense)}

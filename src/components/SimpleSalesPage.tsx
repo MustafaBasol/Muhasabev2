@@ -990,32 +990,32 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
           ) : (
             <>
             <div className="overflow-x-auto relative">
-              {/* Mobilde tablo genişliği ekranla uyumlu, lg ve üstünde geniş görünüm */}
-              <table className="w-full min-w-full lg:min-w-[1024px] table-fixed">
+              {/* Tablo mobilde kart benzeri detaylarla dar ekranlara sığar */}
+              <table className="w-full text-sm table-auto lg:min-w-[1024px]">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th onClick={() => toggleSort('saleNumber')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
+                    <th onClick={() => toggleSort('saleNumber')} className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-full md:w-40">
                       {t('sales.sale')}<SortIndicator active={sortBy==='saleNumber'} />
                     </th>
-                    <th onClick={() => toggleSort('customer')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-56">
+                    <th onClick={() => toggleSort('customer')} className="hidden md:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-56">
                       {t('sales.customer')}<SortIndicator active={sortBy==='customer'} />
                     </th>
-                    <th onClick={() => toggleSort('product')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-[320px]">
+                    <th onClick={() => toggleSort('product')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-[320px]">
                       {t('sales.productService')}<SortIndicator active={sortBy==='product'} />
                     </th>
-                    <th onClick={() => toggleSort('amount')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
+                    <th onClick={() => toggleSort('amount')} className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                       {t('sales.amount')}<SortIndicator active={sortBy==='amount'} />
                     </th>
-                    <th onClick={() => toggleSort('status')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
+                    <th onClick={() => toggleSort('status')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                       {t('sales.status')}<SortIndicator active={sortBy==='status'} />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
+                    <th className="hidden xl:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                       {t('customer.historyColumns.createdBy')}
                     </th>
-                    <th onClick={() => toggleSort('date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
+                    <th onClick={() => toggleSort('date')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                       {t('sales.date')}<SortIndicator active={sortBy==='date'} />
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] sticky right-0 bg-gray-50 z-10">
+                    <th className="hidden md:table-cell px-4 md:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32 lg:w-44 min-w-[140px] lg:min-w-[176px] sticky right-0 bg-gray-50 z-10">
                       {t('sales.actions')}
                     </th>
                   </tr>
@@ -1023,7 +1023,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 <tbody className="bg-white divide-y divide-gray-200">
                   {paginatedSales.map((sale) => (
                     <tr key={`${sale.id}-${sale.saleNumber || ''}`} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 md:px-6 py-4 align-top">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                             <TrendingUp className="w-4 h-4 text-green-600" />
@@ -1040,8 +1040,91 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                             </div>
                           </div>
                         </div>
+                        <div className="mt-3 space-y-2 text-xs text-gray-600 md:hidden">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-gray-500 font-medium">{t('sales.customer')}:</span>
+                            <span className="text-gray-900">{sale.customerName}</span>
+                          </div>
+                          {sale.items && sale.items.length > 0 ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-gray-500 font-medium">{t('sales.productService')}:</span>
+                              <span className="text-gray-900">{sale.items[0].productName}</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-gray-500 font-medium">{t('sales.productService')}:</span>
+                              <span className="text-gray-900">{sale.productName}</span>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-gray-500 font-medium">{t('sales.amount')}:</span>
+                            <span className="text-gray-900 font-semibold">{formatAmount(resolveSaleTotal(sale))}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-gray-500 font-medium">{t('sales.status')}:</span>
+                            {getStatusBadge(sale.status)}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Calendar className="w-3 h-3" />
+                            <span>{formatDate(sale.date)}</span>
+                            {sale.paymentMethod && (
+                              <span className="text-gray-500">· {getPaymentMethodLabel(sale.paymentMethod)}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2 md:hidden">
+                          <button 
+                            onClick={() => handleViewSale(sale)}
+                            className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title={t('sales.viewSale')}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleEditSale(sale)}
+                            className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title={t('sales.editSale')}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => onDownloadSale?.(sale)}
+                            className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title={t('sales.download')}
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleCreateInvoiceFromSale(sale)}
+                            className={`inline-flex items-center justify-center w-9 h-9 rounded transition-colors ${
+                              invoices.some(inv => 
+                                (inv.saleId && String(inv.saleId) === String(sale.id)) ||
+                                (sale.invoiceId && String(sale.invoiceId) === String(inv.id))
+                              )
+                                ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50 bg-blue-50'
+                                : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                            }`}
+                            title={
+                              invoices.some(inv => 
+                                (inv.saleId && String(inv.saleId) === String(sale.id)) ||
+                                (sale.invoiceId && String(sale.invoiceId) === String(inv.id))
+                              )
+                                ? t('sales.viewSale')
+                                : t('sales.createInvoice')
+                            }
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteSale(sale.id)}
+                            className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title={t('sales.deleteSale')}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="hidden md:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {sale.customerName}
@@ -1053,7 +1136,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
                         {sale.items && sale.items.length > 0 ? (
                           <div>
                             <div className="text-sm text-gray-900 truncate max-w-[260px]" title={sale.items[0].productName}>
@@ -1077,7 +1160,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-left md:text-right">
                         {editingField?.saleId === sale.id && editingField?.field === 'amount' ? (
                           <div className="flex items-center space-x-2">
                             <input
@@ -1111,7 +1194,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
                         {editingField?.saleId === sale.id && editingField?.field === 'status' ? (
                           <div className="flex items-center space-x-2 flex-nowrap z-10">
                             <select
@@ -1148,10 +1231,10 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <td className="hidden xl:table-cell px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                         {sale.createdByName || '—'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">
                           <Calendar className="w-3 h-3 mr-1" />
                           {formatDate(sale.date)}
@@ -1162,7 +1245,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[140px] lg:min-w-[176px]">
+                      <td className="hidden md:table-cell px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-white z-10 min-w-[140px] lg:min-w-[176px]">
                         <div className="flex items-center justify-end gap-2">
                           <button 
                             onClick={() => handleViewSale(sale)}
