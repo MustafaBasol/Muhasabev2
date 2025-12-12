@@ -830,7 +830,7 @@ export default function ReportsPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
               <BarChart3 className="w-8 h-8 text-blue-600 mr-3" />
@@ -853,7 +853,7 @@ export default function ReportsPage({
           className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => toggleSection('overview')}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <Activity className="w-6 h-6 text-blue-600 mr-3" />
               {t('reports.overview')}
@@ -873,7 +873,7 @@ export default function ReportsPage({
               className="cursor-pointer"
               onClick={() => toggleSection('basic-metrics')}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">{t('reports.basicMetrics')}</h3>
                 {collapsedSections.has('basic-metrics') ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -883,7 +883,7 @@ export default function ReportsPage({
               </div>
               
               {!collapsedSections.has('basic-metrics') && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div className="bg-green-50 rounded-lg p-4">
                     <div className="flex items-center">
                       <TrendingUp className="w-8 h-8 text-green-600 mr-3" />
@@ -937,7 +937,7 @@ export default function ReportsPage({
               className="cursor-pointer"
               onClick={() => toggleSection('monthly-chart')}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">{t('reports.last6MonthsPerformance')}</h3>
                 {collapsedSections.has('monthly-chart') ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -983,7 +983,7 @@ export default function ReportsPage({
               className="cursor-pointer"
               onClick={() => toggleSection('financial-health')}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">{t('reports.financialHealth')}</h3>
                 {collapsedSections.has('financial-health') ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -993,7 +993,7 @@ export default function ReportsPage({
               </div>
               
               {!collapsedSections.has('financial-health') && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 text-white">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1036,7 +1036,7 @@ export default function ReportsPage({
               className="cursor-pointer"
               onClick={() => toggleSection('payment-status')}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">{t('reports.paymentStatusAnalysis')}</h3>
                 {collapsedSections.has('payment-status') ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -1046,7 +1046,7 @@ export default function ReportsPage({
               </div>
               
               {!collapsedSections.has('payment-status') && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <h4 className="font-medium text-gray-900 mb-3">{t('reports.invoiceStatuses')}</h4>
                     <div className="space-y-2">
@@ -1111,7 +1111,7 @@ export default function ReportsPage({
           className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => toggleSection('vat')}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                 <Receipt className="w-6 h-6 text-orange-600 mr-3" />
@@ -1119,7 +1119,7 @@ export default function ReportsPage({
               </h2>
               <p className="text-gray-600">{t('reports.vatAnalysisSubtitle')}</p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-4">
               <div className="text-right">
                 <p className="text-sm text-gray-500">{t('reports.currentYearLabel', { year: currentDate.getFullYear() })}</p>
                 <p className="text-xl font-semibold text-gray-900">{formatAmount(vatYearToDate)}</p>
@@ -1163,7 +1163,7 @@ export default function ReportsPage({
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">{t('reports.vatMonthlyBreakdown')}</h3>
                 <span className="text-sm text-gray-500">{t('reports.lastMonthsPerformance', { count: vatMonthlyBreakdown.length })}</span>
               </div>
@@ -1198,7 +1198,7 @@ export default function ReportsPage({
           className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => toggleSection('revenue')}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <TrendingUp className="w-6 h-6 text-green-600 mr-3" />
               {t('reports.revenueAnalysis')}
@@ -1218,7 +1218,7 @@ export default function ReportsPage({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.productBasedSales')}</h3>
               <div className="space-y-3">
                 {productSales.map((product, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={index} className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium text-gray-900">{product.name}</div>
                       <div className="text-sm text-gray-500">{product.count} {t('reports.sales')}</div>
@@ -1239,7 +1239,7 @@ export default function ReportsPage({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.monthlyRevenueTrend')}</h3>
               <div className="space-y-3">
                 {displayMonthlyData.map((data, index) => (
-                  <div key={index} className="flex items-center justify-between">
+                  <div key={index} className="flex flex-wrap items-center justify-between gap-3">
                     <span className="text-sm font-medium text-gray-700 w-12">{data.month}</span>
                     <div className="flex-1 mx-4">
                       <div className="h-6 bg-gray-200 rounded-full overflow-hidden">
@@ -1266,7 +1266,7 @@ export default function ReportsPage({
           className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => toggleSection('expenses')}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <Receipt className="w-6 h-6 text-red-600 mr-3" />
               {t('reports.expenseAnalysis')}
@@ -1300,7 +1300,7 @@ export default function ReportsPage({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.categoryBasedExpenses')}</h3>
               <div className="space-y-3">
                 {expenseCategories.map((category, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={index} className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium text-gray-900">{category.category}</div>
                       <div className="text-sm text-gray-500">{category.count} {t('reports.expenses')}</div>
@@ -1321,7 +1321,7 @@ export default function ReportsPage({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.monthlyExpenseTrend')}</h3>
               <div className="space-y-3">
                 {displayMonthlyData.map((data, index) => (
-                  <div key={index} className="flex items-center justify-between">
+                  <div key={index} className="flex flex-wrap items-center justify-between gap-3">
                     <span className="text-sm font-medium text-gray-700 w-12">{data.month}</span>
                     <div className="flex-1 mx-4">
                       <div className="h-6 bg-gray-200 rounded-full overflow-hidden">
@@ -1369,7 +1369,7 @@ export default function ReportsPage({
                     .sort((a, b) => b.total - a.total)
                     .slice(0, 5);
                 })().map((supplier, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={index} className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
                         <span className="text-red-600 font-semibold text-sm">
@@ -1403,7 +1403,7 @@ export default function ReportsPage({
                   .sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime())
                   .slice(0, 5)
                   .map((expense, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                  <div key={index} className="flex flex-wrap items-center justify-between gap-3 p-2 hover:bg-gray-50 rounded">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{expense.description}</div>
                       <div className="text-xs text-gray-500">{expense.supplier} • {formatDate(expense.expenseDate)}</div>
@@ -1451,7 +1451,7 @@ export default function ReportsPage({
           className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => toggleSection('quotes')}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <FileText className="w-6 h-6 text-indigo-600 mr-3" />
               {t('reports.quoteAnalysis')}
@@ -1515,7 +1515,7 @@ export default function ReportsPage({
                         draft: 'bg-yellow-100 text-yellow-800'
                       } as const;
                       return (
-                        <div key={statusKey} className="flex justify-between items-center">
+                        <div key={statusKey} className="flex flex-wrap justify-between items-center gap-2">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[statusKey]}`}>
                             {resolveStatusLabel(t, statusKey)}
                           </span>
@@ -1544,7 +1544,7 @@ export default function ReportsPage({
                       return items.map(({ q, dt }, idx) => {
                         const daysLeft = Math.ceil((dt.getTime() - today.getTime()) / (1000*60*60*24));
                         return (
-                          <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div key={idx} className="flex flex-wrap items-center justify-between gap-2 p-2 bg-gray-50 rounded">
                             <div className="text-sm text-gray-900 font-medium">{q.quoteNumber || '—'}</div>
                             <div className="text-xs text-gray-500">
                               {t('reports.daysLeft')}: {daysLeft} • {formatAmount(getQuoteTotal(q))}
@@ -1567,7 +1567,7 @@ export default function ReportsPage({
                   .sort((a, b) => getQuoteDate(b).getTime() - getQuoteDate(a).getTime())
                   .slice(0, 5)
                   .map((q, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                  <div key={idx} className="flex flex-wrap items-center justify-between gap-3 p-2 hover:bg-gray-50 rounded">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{q.quoteNumber || '—'}</div>
                       <div className="text-xs text-gray-500">{resolveStatusLabel(t, normalizeStatusKey(q.status))} • {getQuoteDate(q).toLocaleDateString('tr-TR')}</div>
@@ -1589,7 +1589,7 @@ export default function ReportsPage({
           className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => toggleSection('customers')}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <Users className="w-6 h-6 text-purple-600 mr-3" />
               {t('reports.customerAnalysis')}
@@ -1609,7 +1609,7 @@ export default function ReportsPage({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('reports.topCustomers')}</h3>
               <div className="space-y-3">
                 {customerAnalysis.map((customer, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={index} className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                         <span className="text-purple-600 font-semibold text-sm">
@@ -1682,7 +1682,7 @@ export default function ReportsPage({
           className="p-6 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => toggleSection('performance')}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <Target className="w-6 h-6 text-orange-600 mr-3" />
               {t('reports.performanceReports')}

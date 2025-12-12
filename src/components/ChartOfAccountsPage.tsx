@@ -1034,7 +1034,7 @@ export default function ChartOfAccountsPage({
       )}
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
               <BookOpen className="w-8 h-8 text-blue-600 mr-3" />
@@ -1052,7 +1052,7 @@ export default function ChartOfAccountsPage({
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="text-sm text-blue-600 mb-1">{t('chartOfAccounts.accountTypesPlural.asset')}</div>
             <div className="text-lg font-bold text-blue-700 truncate" title={formatAmount(totals.asset || 0)}>
@@ -1090,7 +1090,7 @@ export default function ChartOfAccountsPage({
         </p>
 
         {/* Search and Filter */}
-        <div className="flex flex-col xl:flex-row gap-4 items-start">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -1101,7 +1101,7 @@ export default function ChartOfAccountsPage({
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 w-full xl:w-auto">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
@@ -1115,7 +1115,7 @@ export default function ChartOfAccountsPage({
               <option value="expense">{t('chartOfAccounts.accountTypesPlural.expense')}</option>
             </select>
             <div className="flex flex-col gap-2 w-full sm:w-auto">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <Calendar className="w-4 h-4 text-gray-500" />
                 <select
                   value={datePreset}

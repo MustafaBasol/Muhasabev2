@@ -4584,9 +4584,9 @@ export default function SettingsPage({
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-16 z-30 space-y-4">
+      <div className="space-y-4 lg:sticky lg:top-16 lg:z-30">
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center">
                 <Settings className="w-8 h-8 text-blue-600 mr-3" />
@@ -4595,7 +4595,7 @@ export default function SettingsPage({
               <p className="text-gray-600">{text.header.subtitle}</p>
             </div>
             {unsavedChanges && (
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center space-x-2 text-orange-600">
                   <Info className="w-4 h-4" />
                   <span className="text-sm">{text.header.unsavedChanges}</span>
@@ -4613,7 +4613,7 @@ export default function SettingsPage({
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex space-x-2 border-b border-gray-200 px-4 sm:px-6 py-3 overflow-x-auto">
+          <div className="flex flex-wrap gap-2 border-b border-gray-200 px-4 sm:px-6 py-3 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (

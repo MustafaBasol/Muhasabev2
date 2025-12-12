@@ -350,12 +350,12 @@ export default function ArchivePage({
       {/* Tabs */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
+          <nav className="flex flex-wrap gap-3 px-4 sm:px-6">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === tab.id
                     ? 'border-gray-600 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -400,39 +400,73 @@ export default function ArchivePage({
                   ) : (
                     <>
                     <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-blue-100">
+                      <table className="w-full table-auto text-sm">
+                        <thead className="bg-blue-100 text-blue-800">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.invoice')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.customer')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.amount')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.status')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-blue-800 uppercase">{t('archive.table.date')}</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-blue-800 uppercase">{t('archive.table.actions')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.invoice')}</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.customer')}</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.amount')}</th>
+                            <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.status')}</th>
+                            <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.date')}</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-semibold uppercase">{t('archive.table.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-blue-100">
                           {paginatedInvoices.map((invoice) => (
                             <tr key={invoice.id} className="hover:bg-blue-25 transition-colors">
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 align-top">
                                 <button
                                   onClick={() => onViewInvoice?.(invoice)}
                                   className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
                                 >
                                   {invoice.invoiceNumber}
                                 </button>
+                                <div className="mt-2 space-y-2 text-xs text-gray-600 md:hidden">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.customer')}:</span>
+                                    <span className="text-gray-900">{invoice.customerName}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.amount')}:</span>
+                                    <span className="text-gray-900 font-semibold">{formatAmount(invoice.total)}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.status')}:</span>
+                                    <span className="inline-flex">{getStatusBadge(invoice.status, 'invoice')}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.date')}:</span>
+                                    <span className="text-gray-900">{formatDate(invoice.issueDate)}</span>
+                                  </div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2 md:hidden">
+                                  <button 
+                                    onClick={() => onViewInvoice?.(invoice)}
+                                    className="inline-flex items-center justify-center w-9 h-9 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                                    title={t('archive.actions.view')}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => onDownloadInvoice?.(invoice)}
+                                    className="inline-flex items-center justify-center w-9 h-9 rounded text-gray-400 hover:text-green-600 hover:bg-green-50"
+                                    title={t('archive.actions.download')}
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{invoice.customerName}</td>
-                              <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                              <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{invoice.customerName}</td>
+                              <td className="hidden md:table-cell px-4 py-3 text-sm font-semibold text-gray-900">
                                 {formatAmount(invoice.total)}
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="hidden lg:table-cell px-4 py-3">
                                 {getStatusBadge(invoice.status, 'invoice')}
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">
+                              <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
                                 {formatDate(invoice.issueDate)}
                               </td>
-                              <td className="px-4 py-3 text-right">
+                              <td className="hidden md:table-cell px-4 py-3 text-right">
                                 <div className="flex items-center justify-end space-x-2">
                                   <button 
                                     onClick={() => onViewInvoice?.(invoice)}
@@ -500,42 +534,80 @@ export default function ArchivePage({
                   ) : (
                     <>
                     <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-red-100">
+                      <table className="w-full table-auto text-sm">
+                        <thead className="bg-red-100 text-red-800">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.expense')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.supplier')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.category')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.amount')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-800 uppercase">{t('archive.table.date')}</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-red-800 uppercase">{t('archive.table.actions')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.expense')}</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.supplier')}</th>
+                            <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.category')}</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.amount')}</th>
+                            <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.date')}</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-semibold uppercase">{t('archive.table.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-red-100">
                           {paginatedExpenses.map((expense) => (
                             <tr key={expense.id} className="hover:bg-red-25 transition-colors">
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 align-top">
                                 <button
                                   onClick={() => onViewExpense?.(expense)}
                                   className="text-red-600 hover:text-red-800 font-medium transition-colors"
                                 >
                                   {expense.expenseNumber}
                                 </button>
-                                <div className="text-xs text-gray-500">{expense.description}</div>
+                                {expense.description && (
+                                  <div className="text-xs text-gray-500">{expense.description}</div>
+                                )}
+                                <div className="mt-2 space-y-2 text-xs text-gray-600 md:hidden">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.supplier')}:</span>
+                                    <span className="text-gray-900">{expense.supplier || '—'}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.category')}:</span>
+                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">
+                                      {expense.category}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.amount')}:</span>
+                                    <span className="text-red-600 font-semibold">-{formatAmount(expense.amount)}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.date')}:</span>
+                                    <span className="text-gray-900">{formatDate(expense.expenseDate)}</span>
+                                  </div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2 md:hidden">
+                                  <button 
+                                    onClick={() => onViewExpense?.(expense)}
+                                    className="inline-flex items-center justify-center w-9 h-9 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                    title={t('archive.actions.view')}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => onDownloadExpense?.(expense)}
+                                    className="inline-flex items-center justify-center w-9 h-9 rounded text-gray-400 hover:text-green-600 hover:bg-green-50"
+                                    title={t('archive.actions.download')}
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{expense.supplier}</td>
-                              <td className="px-4 py-3">
+                              <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{expense.supplier}</td>
+                              <td className="hidden lg:table-cell px-4 py-3">
                                 <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">
                                   {expense.category}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-sm font-semibold text-red-600">
+                              <td className="hidden md:table-cell px-4 py-3 text-sm font-semibold text-red-600">
                                 -{formatAmount(expense.amount)}
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">
+                              <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
                                 {formatDate(expense.expenseDate)}
                               </td>
-                              <td className="px-4 py-3 text-right">
+                              <td className="hidden md:table-cell px-4 py-3 text-right">
                                 <div className="flex items-center justify-end space-x-2">
                                   <button 
                                     onClick={() => onViewExpense?.(expense)}
@@ -603,41 +675,79 @@ export default function ArchivePage({
                   ) : (
                     <>
                     <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-green-100">
+                      <table className="w-full table-auto text-sm">
+                        <thead className="bg-green-100 text-green-800">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.sale')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.customer')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.product')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.amount')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.status')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-green-800 uppercase">{t('archive.table.date')}</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-green-800 uppercase">{t('archive.table.actions')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.sale')}</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.customer')}</th>
+                            <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.product')}</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.amount')}</th>
+                            <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.status')}</th>
+                            <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold uppercase">{t('archive.table.date')}</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-semibold uppercase">{t('archive.table.actions')}</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-green-100">
                           {paginatedSales.map((sale) => (
                             <tr key={sale.id} className="hover:bg-green-25 transition-colors">
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 align-top">
                                 <button
                                   onClick={() => onViewSale?.(sale)}
                                   className="text-green-600 hover:text-green-800 font-medium transition-colors"
                                 >
                                   {sale.saleNumber || `SAL-${sale.id}`}
                                 </button>
+                                <div className="mt-2 space-y-2 text-xs text-gray-600 md:hidden">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.customer')}:</span>
+                                    <span className="text-gray-900">{sale.customerName}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.product')}:</span>
+                                    <span className="text-gray-900">{sale.productName || '—'}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.amount')}:</span>
+                                    <span className="text-green-600 font-semibold">{formatAmount(sale.amount)}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.status')}:</span>
+                                    <span className="inline-flex">{getStatusBadge(sale.status, 'sale')}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-gray-500 font-medium">{t('archive.table.date')}:</span>
+                                    <span className="text-gray-900">{formatDate(sale.date)}</span>
+                                  </div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2 md:hidden">
+                                  <button 
+                                    onClick={() => onViewSale?.(sale)}
+                                    className="inline-flex items-center justify-center w-9 h-9 rounded text-gray-400 hover:text-green-600 hover:bg-green-50"
+                                    title={t('archive.actions.view')}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => onDownloadSale?.(sale)}
+                                    className="inline-flex items-center justify-center w-9 h-9 rounded text-gray-400 hover:text-green-600 hover:bg-green-50"
+                                    title={t('archive.actions.download')}
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{sale.customerName}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{sale.productName}</td>
-                              <td className="px-4 py-3 text-sm font-semibold text-green-600">
+                              <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{sale.customerName}</td>
+                              <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-900">{sale.productName}</td>
+                              <td className="hidden md:table-cell px-4 py-3 text-sm font-semibold text-green-600">
                                 {formatAmount(sale.amount)}
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="hidden lg:table-cell px-4 py-3">
                                 {getStatusBadge(sale.status, 'sale')}
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">
+                              <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
                                 {formatDate(sale.date)}
                               </td>
-                              <td className="px-4 py-3 text-right">
+                              <td className="hidden md:table-cell px-4 py-3 text-right">
                                 <div className="flex items-center justify-end space-x-2">
                                   <button 
                                     onClick={() => onViewSale?.(sale)}

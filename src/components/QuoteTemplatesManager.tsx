@@ -94,13 +94,13 @@ const QuoteTemplatesManager: React.FC<Props> = ({ isOpen, onClose, planRaw }) =>
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl h-[90vh] flex flex-col">
-        <div className="px-5 py-3 border-b flex items-center justify-between">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl h-full max-h-[90vh] flex flex-col">
+        <div className="px-5 py-3 border-b flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-lg font-semibold">{t('quotes.templates.title', { defaultValue: 'Teklif Şablonları' })}</h3>
           <button onClick={onClose} className="px-3 py-1.5 border rounded-md">{t('common.close')}</button>
         </div>
-        <div className="flex-1 overflow-hidden flex">
-          <div className="w-64 border-r overflow-y-auto">
+        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+          <div className="w-full lg:w-64 border-b lg:border-b-0 lg:border-r overflow-y-auto">
             <div className="p-3 flex items-center justify-between">
               <span className="text-sm text-gray-700">{t('quotes.templates.list', { defaultValue: 'Şablonlar' })}</span>
               <button
@@ -141,7 +141,7 @@ const QuoteTemplatesManager: React.FC<Props> = ({ isOpen, onClose, planRaw }) =>
               <div className="text-sm text-gray-600">{t('quotes.templates.manageUpgrade', { defaultValue: 'Şablon yönetimi için Pro veya Business planına geçin.' })}</div>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
                   <input
                     type="text"
                     value={name}

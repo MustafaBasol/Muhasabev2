@@ -356,7 +356,7 @@ export default function InvoiceList({
     <div className="bg-white rounded-xl border border-gray-200">
       {/* Header */}
       <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{t('invoices.title')}</h2>
             <p className="text-sm text-gray-500">
@@ -375,8 +375,8 @@ export default function InvoiceList({
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-4 xl:flex-row">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
@@ -389,7 +389,7 @@ export default function InvoiceList({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
           >
             <option value="all">{t('invoices.filterAll')}</option>
             <option value="draft">{resolveStatusLabel(t, 'draft')}</option>
@@ -399,36 +399,36 @@ export default function InvoiceList({
             <option value="cancelled">{resolveStatusLabel(t, 'cancelled')}</option>
           </select>
           {/* Date range */}
-          <div className="flex gap-2 items-center">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <label className="text-sm text-gray-700 whitespace-nowrap">{t('startDate')}</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 w-full sm:w-auto"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <label className="text-sm text-gray-700 whitespace-nowrap">{t('endDate')}</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 w-full sm:w-auto"
               />
             </div>
             {(startDate || endDate) && (
               <button
                 onClick={() => { setStartDate(''); setEndDate(''); }}
-                className="px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 w-full sm:w-auto"
                 title={t('archive.clearFilters')}
               >
                 {t('archive.clearFilters')}
               </button>
             )}
           </div>
-          <label className="flex items-center px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
+          <label className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 bg-gray-50 rounded-lg w-full sm:w-auto">
             <input
               type="checkbox"
               checked={showVoided}
@@ -438,7 +438,7 @@ export default function InvoiceList({
             {showVoided ? t('invoices.hideVoided') : t('invoices.showVoided')}
           </label>
           {/* Hazır filtreler + Kaydedilmiş görünümler */}
-          <div className="ml-auto flex items-center">
+          <div className="w-full flex justify-start lg:justify-end">
             <SavedViewsBar
               listType="invoices"
               getState={() => ({
@@ -492,7 +492,7 @@ export default function InvoiceList({
           </div>
           {/* Plan kullanım özeti */}
           {isFreePlan && (
-            <div className="px-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 whitespace-nowrap">
+            <div className="px-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 w-full sm:w-auto text-center sm:text-left">
               Bu ay: <strong className={`${atLimit ? 'text-red-600' : 'text-gray-900'}`}>{invoicesThisMonth}/{MONTHLY_MAX}</strong>
             </div>
           )}

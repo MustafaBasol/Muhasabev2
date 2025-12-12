@@ -5194,23 +5194,26 @@ const AppContent: React.FC = () => {
 
   const renderDashboard = () => (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {metrics.statsCards.map(card => (
-          <StatsCard
-            key={card.title}
-            title={card.title}
-            value={card.value}
-            change={card.change}
-            changeType={card.changeType}
-            icon={card.icon}
-            color={card.color}
-            subtitle={(card as any).subtitle}
-          />
-        ))}
+      <div className="-mx-4 sm:mx-0">
+        <div className="flex gap-4 overflow-x-auto px-4 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {metrics.statsCards.map(card => (
+            <div key={card.title} className="flex-none min-w-[240px] sm:min-w-0">
+              <StatsCard
+                title={card.title}
+                value={card.value}
+                change={card.change}
+                changeType={card.changeType}
+                icon={card.icon}
+                color={card.color}
+                subtitle={(card as any).subtitle}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 lg:col-span-2 min-w-0">
           <ChartCard sales={sales} expenses={expenses} invoices={invoices} />
           {(() => {
             // Quotes: Son İşlemler için local cache'den oku (tenant scoped)
@@ -5252,7 +5255,7 @@ const AppContent: React.FC = () => {
             );
           })()}
         </div>
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           <QuickActions
             onNewInvoice={() => openInvoiceModal()}
             onNewExpense={() => openExpenseModal()}
