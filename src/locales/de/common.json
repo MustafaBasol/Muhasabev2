@@ -155,11 +155,11 @@
     "pricing.pro": "Pro",
     "pricing.business": "Business",
     "pricing.price.free": "0€/Monat",
-    "pricing.price.pro": "29€/Monat",
-    "pricing.price.biz": "59€/Monat",
+    "pricing.price.pro": "9.90€/Monat",
+    "pricing.price.biz": "29.90€/Monat",
     "pricing.annualLine.free": "",
-    "pricing.annualLine.pro": "Jährlich: 290€/Jahr (2 Monate gratis)",
-    "pricing.annualLine.biz": "Jährlich: 590€/Jahr (2 Monate gratis)",
+    "pricing.annualLine.pro": "Jährlich: 99€/Jahr",
+    "pricing.annualLine.biz": "Jährlich: 299€/Jahr",
     "pricing.cta": "Jetzt starten",
     "pricing.ctaStarter": "Kostenlos starten",
     "pricing.ctaPro": "Zu Pro wechseln",
@@ -194,11 +194,11 @@
         "pro": "Pro",
         "business": "Business"
       },
-      "price": { "free": "0€/Monat", "pro": "29€/Monat", "biz": "59€/Monat" },
+      "price": { "free": "0€/Monat", "pro": "9.90€/Monat", "biz": "29.90€/Monat" },
       "annualLine": {
         "free": "",
-        "pro": "Jährlich: 290€/Jahr (2 Monate gratis)",
-        "biz": "Jährlich: 590€/Jahr (2 Monate gratis)"
+        "pro": "Jährlich: 99€/Jahr",
+        "biz": "Jährlich: 299€/Jahr"
       },
       "cta": "Jetzt starten",
       "ctaStarter": "Kostenlos starten",
@@ -630,8 +630,8 @@
       "ctaPro": "Zu Pro wechseln",
       "ctaBusiness": "Business wählen",
       "annualLine": {
-        "pro": "Jahresvorauszahlung: 290€/Jahr (2 Monate gratis)",
-        "biz": "Jahresvorauszahlung: 590€/Jahr (2 Monate gratis)"
+        "pro": "Jahresvorauszahlung: 99€/Jahr",
+        "biz": "Jahresvorauszahlung: 299€/Jahr"
       },
       "notes": {
         "vatAndCurrency": "Preise exkl. MwSt.",
@@ -686,7 +686,7 @@
     "managePayments": "Zahlungen verwalten",
     "monthly": "Monatlich",
     "yearly": "Jährlich",
-    "yearlyNote": "2 Monate gratis",
+    "yearlyNote": "",
     "currentPlan": {
       "label": "Aktueller Plan",
       "seatsInUse": "Verwendete Sitzplätze",
@@ -712,8 +712,8 @@
     "prices": {
       "monthly": {
         "free": "0€/Monat",
-        "pro": "29€/Monat",
-        "enterprise": "59€/Monat"
+        "pro": "9.90€/Monat",
+        "enterprise": "29.90€/Monat"
       }
     },
     "configuration": "Konfiguration",
@@ -2838,7 +2838,7 @@
       "managePayments": "Zahlungen verwalten",
       "monthly": "Monatlich",
       "yearly": "Jährlich",
-      "yearlyNote": "2 Monate gratis",
+      "yearlyNote": "",
       "currentPlan": {
         "label": "Aktueller Plan",
         "seatsInUse": "Verwendete Sitzplätze",
@@ -2864,8 +2864,8 @@
       "prices": {
         "monthly": {
           "free": "0€/Monat",
-          "pro": "29€/Monat",
-          "enterprise": "59€/Monat"
+          "pro": "9.90€/Monat",
+          "enterprise": "29.90€/Monat"
         }
       },
       "configuration": "Konfiguration",

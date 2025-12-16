@@ -49,11 +49,11 @@
     "pricing.pro": "Pro",
     "pricing.business": "İşletme",
       "pricing.price.free": "0€/ay",
-      "pricing.price.pro": "29€/ay",
-      "pricing.price.biz": "59€/ay",
+      "pricing.price.pro": "9.90€/ay",
+      "pricing.price.biz": "29.90€/ay",
   "pricing.annualLine.free": "",
-  "pricing.annualLine.pro": "Yıllık peşin: 290€/yıl (2 ay ücretsiz)",
-  "pricing.annualLine.biz": "Yıllık peşin: 590€/yıl (2 ay ücretsiz)",
+  "pricing.annualLine.pro": "Yıllık peşin: 99€/yıl",
+  "pricing.annualLine.biz": "Yıllık peşin: 299€/yıl",
   "pricing.cta": "Şimdi Başlayın",
   "pricing.ctaStarter": "Şimdi Başlayın",
   "pricing.ctaPro": "Şimdi Pro’ya Geçin",
@@ -2328,7 +2328,7 @@
     "managePayments": "Ödemeleri Yönet",
     "monthly": "Aylık",
     "yearly": "Yıllık",
-    "yearlyNote": "2 ay ücretsiz",
+    "yearlyNote": "",
     "currentPlan": {
       "label": "Mevcut Plan",
       "seatsInUse": "Kullanımda koltuk",
@@ -2354,8 +2354,8 @@
     "prices": {
       "monthly": {
         "free": "0€/ay",
-        "pro": "29€/ay",
-        "enterprise": "59€/ay"
+        "pro": "9.90€/ay",
+        "enterprise": "29.90€/ay"
       }
     },
     "configuration": "Yapılandırma",

@@ -41,11 +41,11 @@
     "pricing.pro": "Pro",
     "pricing.business": "Business",
     "pricing.price.free": "0€/mo",
-    "pricing.price.pro": "29€/mo",
-    "pricing.price.biz": "59€/mo",
+    "pricing.price.pro": "9.90€/mo",
+    "pricing.price.biz": "29.90€/mo",
     "pricing.annualLine.free": "",
-    "pricing.annualLine.pro": "Annual prepay: 290€/year (2 months free)",
-    "pricing.annualLine.biz": "Annual prepay: 590€/year (2 months free)",
+    "pricing.annualLine.pro": "Annual prepay: 99€/year",
+    "pricing.annualLine.biz": "Annual prepay: 299€/year",
     "pricing.cta": "Start now",
     "pricing.ctaStarter": "Start for Free",
     "pricing.ctaPro": "Upgrade to Pro",
@@ -2258,7 +2258,7 @@
     "managePayments": "Manage Payments",
     "monthly": "Monthly",
     "yearly": "Yearly",
-    "yearlyNote": "2 months free",
+    "yearlyNote": "",
     "currentPlan": {
       "label": "Current Plan",
       "seatsInUse": "Seats in use",
@@ -2284,8 +2284,8 @@
     "prices": {
       "monthly": {
         "free": "0€/mo",
-        "pro": "29€/mo",
-        "enterprise": "59€/mo"
+        "pro": "9.90€/mo",
+        "enterprise": "29.90€/mo"
       }
     },
     "configuration": "Configuration",
@@ -2423,7 +2423,7 @@
         "managePayments": "Manage Payments",
         "monthly": "Monthly",
         "yearly": "Yearly",
-        "yearlyNote": "2 months free",
+        "yearlyNote": "",
         "currentPlan": {
           "label": "Current Plan",
           "seatsInUse": "Seats in use",
@@ -2449,8 +2449,8 @@
         "prices": {
           "monthly": {
             "free": "0€/mo",
-            "pro": "29€/mo",
-            "enterprise": "59€/mo"
+            "pro": "9.90€/mo",
+            "enterprise": "29.90€/mo"
           }
         },
         "configuration": "Configuration",

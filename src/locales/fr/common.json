@@ -49,11 +49,11 @@
     "pricing.pro": "Pro",
     "pricing.business": "Business",
     "pricing.price.free": "0€/mois",
-    "pricing.price.pro": "29€/mois",
-    "pricing.price.biz": "59€/mois",
+    "pricing.price.pro": "9.90€/mois",
+    "pricing.price.biz": "29.90€/mois",
     "pricing.annualLine.free": "",
-    "pricing.annualLine.pro": "Paiement annuel : 290€/an (2 mois offerts)",
-    "pricing.annualLine.biz": "Paiement annuel : 590€/an (2 mois offerts)",
+    "pricing.annualLine.pro": "Paiement annuel : 99€/an",
+    "pricing.annualLine.biz": "Paiement annuel : 299€/an",
     "pricing.cta": "Commencer",
     "pricing.ctaStarter": "Commencer gratuitement",
     "pricing.ctaPro": "Passer à Pro",
@@ -71,13 +71,13 @@
       },
       "price": {
         "free": "0€/mois",
-        "pro": "29€/mois",
-        "biz": "59€/mois"
+        "pro": "9.90€/mois",
+        "biz": "29.90€/mois"
       },
       "annualLine": {
         "free": "",
-        "pro": "Paiement annuel : 290€/an (2 mois offerts)",
-        "biz": "Paiement annuel : 590€/an (2 mois offerts)"
+        "pro": "Paiement annuel : 99€/an",
+        "biz": "Paiement annuel : 299€/an"
       },
       "cta": "Commencer",
       "ctaStarter": "Commencer gratuitement",
@@ -562,8 +562,8 @@
       "ctaPro": "Passer à Pro",
       "ctaBusiness": "Choisir Business",
       "annualLine": {
-        "pro": "Paiement annuel : 290€/an (2 mois offerts)",
-        "biz": "Paiement annuel : 590€/an (2 mois offerts)"
+        "pro": "Paiement annuel : 99€/an",
+        "biz": "Paiement annuel : 299€/an"
       },
       "notes": {
         "vatAndCurrency": "Les prix s'entendent hors TVA.",
@@ -610,7 +610,7 @@
     "managePayments": "Gérer les paiements",
     "monthly": "Mensuel",
     "yearly": "Annuel",
-    "yearlyNote": "2 mois offerts",
+    "yearlyNote": "",
     "currentPlan": {
       "label": "Offre actuelle",
       "seatsInUse": "Sièges utilisés",
@@ -636,8 +636,8 @@
     "prices": {
       "monthly": {
         "free": "0€/mois",
-        "pro": "29€/mois",
-        "enterprise": "59€/mois"
+        "pro": "9.90€/mois",
+        "enterprise": "29.90€/mois"
       }
     },
     "configuration": "Configuration",
@@ -2863,7 +2863,7 @@
       "managePayments": "Gérer les paiements",
       "monthly": "Mensuel",
       "yearly": "Annuel",
-      "yearlyNote": "2 mois offerts",
+      "yearlyNote": "",
       "currentPlan": {
         "label": "Offre actuelle",
         "seatsInUse": "Sièges utilisés",
@@ -2889,8 +2889,8 @@
       "prices": {
         "monthly": {
           "free": "0€/mois",
-          "pro": "29€/mois",
-          "enterprise": "59€/mois"
+          "pro": "9.90€/mois",
+          "enterprise": "29.90€/mois"
         }
       },
       "configuration": "Configuration",

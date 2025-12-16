@@ -1,1 +1,0 @@
-import{a as t}from"./index-B2UwnqKS.js";const e={async list(){return(await t.get("/bank-accounts")).data},async create(a){return(await t.post("/bank-accounts",a)).data},async update(a,n){return(await t.patch(`/bank-accounts/${a}`,n)).data},async remove(a){await t.delete(`/bank-accounts/${a}`)}};export{e as bankAccountsApi};
