@@ -375,7 +375,7 @@ export default function InvoiceList({
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col gap-4 xl:flex-row">
+        <div className="flex flex-col gap-4 xl:flex-row xl:flex-wrap xl:items-center">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -438,7 +438,7 @@ export default function InvoiceList({
             {showVoided ? t('invoices.hideVoided') : t('invoices.showVoided')}
           </label>
           {/* Hazır filtreler + Kaydedilmiş görünümler */}
-          <div className="w-full flex justify-start lg:justify-end">
+          <div className="flex justify-start lg:justify-end xl:ml-auto xl:w-auto">
             <SavedViewsBar
               listType="invoices"
               getState={() => ({
