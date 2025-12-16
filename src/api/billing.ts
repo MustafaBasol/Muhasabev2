@@ -26,6 +26,17 @@ export interface PortalSessionResponse {
   url: string;
 }
 
+export async function getUpgradeStatus(tenantId: string): Promise<{
+  success?: boolean;
+  subscriptionPlan?: string | null;
+  billingInterval?: string | null;
+  maxUsers?: number | null;
+  cancelAtPeriodEnd?: boolean;
+}> {
+  const res = await apiClient.get(`/billing/${tenantId}/upgrade-status`);
+  return res.data;
+}
+
 export interface UpdateSeatsResponse {
   success: boolean;
   maxUsers: number;

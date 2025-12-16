@@ -518,11 +518,11 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
 
         let attempts = 0;
         const maxAttempts = 6;
-        const fetchStatus = async (): Promise<{ subscriptionPlan?: string } | null> => {
+        const fetchStatus = async (): Promise<{ subscriptionPlan?: string | null } | null> => {
           try {
-            const resp = await fetch(`/api/billing/${tenantId}/upgrade-status`, { credentials: 'include' });
-            if (!resp.ok) return null;
-            return (await resp.json()) as { subscriptionPlan?: string };
+            const { getUpgradeStatus } = await import('../api/billing');
+            const status = await getUpgradeStatus(tenantId);
+            return { subscriptionPlan: status?.subscriptionPlan ?? null };
           } catch (error) {
             logger.warn('Upgrade status polling failed', error);
             return null;
