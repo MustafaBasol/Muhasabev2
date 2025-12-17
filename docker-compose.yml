@@ -29,6 +29,10 @@ services:
     container_name: mfv2-backend
     env_file:
       - ./backend/.env.docker
+    environment:
+      BACKUP_DIR: /data/backups
+    volumes:
+      - ./volumes/backups:/data/backups
     depends_on:
       postgres:
         condition: service_healthy
