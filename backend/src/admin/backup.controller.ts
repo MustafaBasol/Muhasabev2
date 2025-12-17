@@ -8,6 +8,7 @@ import {
   Body,
   Headers,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   BackupMetadata,
@@ -113,7 +114,7 @@ export class BackupController {
   ) {
     this.checkAdminAuth(headers);
     if (!confirm) {
-      throw new Error('Sistem geri yüklemesi için confirm: true gerekli');
+      throw new BadRequestException('Sistem geri yüklemesi için confirm: true gerekli');
     }
     return this.backupService.restoreSystemBackup(backupId);
   }
@@ -130,7 +131,7 @@ export class BackupController {
   ) {
     this.checkAdminAuth(headers);
     if (!confirm) {
-      throw new Error('Kullanıcı geri yüklemesi için confirm: true gerekli');
+      throw new BadRequestException('Kullanıcı geri yüklemesi için confirm: true gerekli');
     }
     return this.backupService.restoreUserBackup(userId, backupId);
   }
@@ -147,7 +148,7 @@ export class BackupController {
   ) {
     this.checkAdminAuth(headers);
     if (!confirm) {
-      throw new Error('Tenant geri yüklemesi için confirm: true gerekli');
+      throw new BadRequestException('Tenant geri yüklemesi için confirm: true gerekli');
     }
     return this.backupService.restoreTenantBackup(tenantId, backupId);
   }

@@ -1,14 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import * as os from 'os';
 
 type SnapshotScalar = string | number | boolean | null | Date;
 
@@ -199,11 +201,16 @@ export interface BackupMetadata {
   description?: string;
 }
 
+type SystemBackupPayload = {
+  version: 1;
+  createdAt: string;
+  tables: Record<string, Record<string, unknown>[]>;
+};
+
 @Injectable()
 export class BackupService {
-  private readonly backupDir = '/workspaces/Muhasabev2/backend/backups';
-  private readonly metadataFile =
-    '/workspaces/Muhasabev2/backend/backups/metadata.json';
+  private backupDir: string;
+  private metadataFile: string;
 
   constructor(
     @InjectRepository(User)
@@ -211,7 +218,55 @@ export class BackupService {
     @InjectRepository(Tenant)
     private tenantsRepository: Repository<Tenant>,
     private dataSource: DataSource,
-  ) {}
+  ) {
+    const configuredDir = process.env.BACKUP_DIR?.trim();
+    const initialDir = configuredDir
+      ? path.resolve(configuredDir)
+      : path.resolve(process.cwd(), 'backups');
+
+    this.backupDir = initialDir;
+    this.metadataFile = path.join(this.backupDir, 'metadata.json');
+  }
+
+  private setBackupDir(dir: string) {
+    this.backupDir = dir;
+    this.metadataFile = path.join(dir, 'metadata.json');
+  }
+
+  private quoteIdent(identifier: string): string {
+    // Identifier list comes from DB metadata; escape defensively.
+    return `"${String(identifier).replace(/"/g, '""')}"`;
+  }
+
+  private async ensureBackupStorage(): Promise<void> {
+    try {
+      await fs.mkdir(this.backupDir, { recursive: true });
+    } catch {
+      const fallbackDir = path.join(os.tmpdir(), 'muhasabe-backups');
+      try {
+        await fs.mkdir(fallbackDir, { recursive: true });
+        this.setBackupDir(fallbackDir);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new InternalServerErrorException(
+          `Backup klasörü oluşturulamadı (${fallbackDir}): ${reason}`,
+        );
+      }
+    }
+
+    try {
+      await fs.access(this.metadataFile);
+    } catch {
+      try {
+        await fs.writeFile(this.metadataFile, '[]', 'utf-8');
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new InternalServerErrorException(
+          `Backup metadata dosyası yazılamadı (${this.metadataFile}): ${reason}`,
+        );
+      }
+    }
+  }
 
   private async queryRows<T>(
     query: string,
@@ -258,6 +313,7 @@ export class BackupService {
    * Metadata dosyasını oku
    */
   private async readMetadata(): Promise<BackupMetadata[]> {
+    await this.ensureBackupStorage();
     try {
       const data = await fs.readFile(this.metadataFile, 'utf-8');
       return JSON.parse(data) as BackupMetadata[];
@@ -270,6 +326,7 @@ export class BackupService {
    * Metadata dosyasına yaz
    */
   private async writeMetadata(metadata: BackupMetadata[]): Promise<void> {
+    await this.ensureBackupStorage();
     await fs.writeFile(this.metadataFile, JSON.stringify(metadata, null, 2));
   }
 
@@ -308,13 +365,39 @@ export class BackupService {
    * Sistem bazlı backup oluştur (tüm veritabanı)
    */
   async createSystemBackup(description?: string): Promise<BackupMetadata> {
+    await this.ensureBackupStorage();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `system_backup_${timestamp}.sql`;
+    const filename = `system_backup_${timestamp}.json`;
     const filepath = path.join(this.backupDir, filename);
 
-    // PostgreSQL dump al
-    const command = `docker exec moneyflow-db pg_dump -U moneyflow moneyflow_dev > ${filepath}`;
-    await execAsync(command);
+    const tableRows = await this.queryRows<{ table_name: string }>(
+      `SELECT table_name
+       FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+       ORDER BY table_name ASC`,
+    );
+
+    const excludedTables = new Set<string>([
+      'migrations',
+      'typeorm_metadata',
+    ]);
+
+    const tables: Record<string, Record<string, unknown>[]> = {};
+    for (const row of tableRows) {
+      const tableName = row.table_name;
+      if (!tableName || excludedTables.has(tableName)) continue;
+      tables[tableName] = await this.queryRows<Record<string, unknown>>(
+        `SELECT * FROM ${this.quoteIdent(tableName)}`,
+      );
+    }
+
+    const payload: SystemBackupPayload = {
+      version: 1,
+      createdAt: new Date().toISOString(),
+      tables,
+    };
+
+    await fs.writeFile(filepath, JSON.stringify(payload, null, 2), 'utf-8');
 
     // Dosya boyutunu al
     const stats = await fs.stat(filepath);
@@ -343,6 +426,7 @@ export class BackupService {
     userId: string,
     description?: string,
   ): Promise<BackupMetadata> {
+    await this.ensureBackupStorage();
     const user = await this.usersRepository.findOne({
       where: { id: userId },
       relations: ['tenant'],
@@ -416,6 +500,7 @@ export class BackupService {
     tenantId: string,
     description?: string,
   ): Promise<BackupMetadata> {
+    await this.ensureBackupStorage();
     const tenant = await this.tenantsRepository.findOne({
       where: { id: tenantId },
     });
@@ -527,15 +612,124 @@ export class BackupService {
 
     const filepath = path.join(this.backupDir, backup.filename);
 
-    // Veritabanını sıfırla ve geri yükle
-    const commands = [
-      'docker exec moneyflow-db psql -U moneyflow -d postgres -c "DROP DATABASE IF EXISTS moneyflow_dev;"',
-      'docker exec moneyflow-db psql -U moneyflow -d postgres -c "CREATE DATABASE moneyflow_dev;"',
-      `docker exec -i moneyflow-db psql -U moneyflow moneyflow_dev < ${filepath}`,
-    ];
+    if (!backup.filename.endsWith('.json')) {
+      throw new BadRequestException(
+        'Bu sistem yedeği formatı desteklenmiyor. Lütfen yeni bir sistem yedeği (JSON) oluşturun.',
+      );
+    }
 
-    for (const command of commands) {
-      await execAsync(command);
+    const backupData = await this.readBackupPayload<SystemBackupPayload>(filepath);
+    if (!backupData?.tables || typeof backupData.tables !== 'object') {
+      throw new BadRequestException('Backup dosyası bozuk veya beklenen formatta değil');
+    }
+
+    const tableNames = Object.keys(backupData.tables);
+    if (tableNames.length === 0) {
+      throw new BadRequestException('Backup boş (tablo verisi yok)');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const truncateList = tableNames.map((t) => this.quoteIdent(t)).join(', ');
+      await queryRunner.query(
+        `TRUNCATE TABLE ${truncateList} RESTART IDENTITY CASCADE`,
+      );
+
+      // FK bağımlılıklarına göre tablo sırasını belirle (parent önce).
+      const nameSet = new Set(tableNames);
+      const fkRows = (await queryRunner.query(
+        `SELECT
+           tc.table_name AS table_name,
+           ccu.table_name AS referenced_table_name
+         FROM information_schema.table_constraints tc
+         JOIN information_schema.key_column_usage kcu
+           ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+         JOIN information_schema.constraint_column_usage ccu
+           ON ccu.constraint_name = tc.constraint_name
+          AND ccu.table_schema = tc.table_schema
+         WHERE tc.constraint_type = 'FOREIGN KEY'
+           AND tc.table_schema = 'public'`,
+      )) as Array<{ table_name: string; referenced_table_name: string }>;
+
+      const incoming = new Map<string, number>();
+      const outgoing = new Map<string, Set<string>>();
+      for (const n of tableNames) {
+        incoming.set(n, 0);
+        outgoing.set(n, new Set());
+      }
+      for (const row of fkRows) {
+        const from = row.table_name;
+        const to = row.referenced_table_name;
+        if (!nameSet.has(from) || !nameSet.has(to)) continue;
+        // to (referenced) should come before from.
+        const outs = outgoing.get(to);
+        if (outs && !outs.has(from)) {
+          outs.add(from);
+          incoming.set(from, (incoming.get(from) ?? 0) + 1);
+        }
+      }
+
+      const queue: string[] = [];
+      for (const [name, count] of incoming.entries()) {
+        if (count === 0) queue.push(name);
+      }
+      queue.sort();
+
+      const ordered: string[] = [];
+      while (queue.length) {
+        const current = queue.shift() as string;
+        ordered.push(current);
+        const outs = outgoing.get(current);
+        if (!outs) continue;
+        for (const dep of outs) {
+          const next = (incoming.get(dep) ?? 0) - 1;
+          incoming.set(dep, next);
+          if (next === 0) {
+            queue.push(dep);
+            queue.sort();
+          }
+        }
+      }
+
+      // Döngü varsa (rare), kalanları en sona ekle.
+      if (ordered.length !== tableNames.length) {
+        const remaining = tableNames.filter((t) => !ordered.includes(t)).sort();
+        ordered.push(...remaining);
+      }
+
+      for (const tableName of ordered) {
+        const rows = Array.isArray(backupData.tables[tableName])
+          ? backupData.tables[tableName]
+          : [];
+        if (rows.length === 0) continue;
+
+        for (const row of rows) {
+          const cols = Object.keys(row);
+          if (cols.length === 0) continue;
+
+          const quotedCols = cols.map((c) => this.quoteIdent(c)).join(', ');
+          const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+          const values = cols.map((c) => {
+            const v = (row as Record<string, unknown>)[c];
+            return typeof v === 'undefined' ? null : v;
+          });
+
+          await queryRunner.query(
+            `INSERT INTO ${this.quoteIdent(tableName)} (${quotedCols}) VALUES (${placeholders})`,
+            values,
+          );
+        }
+      }
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
 
     return {

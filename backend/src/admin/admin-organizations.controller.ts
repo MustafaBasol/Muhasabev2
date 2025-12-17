@@ -88,7 +88,7 @@ export class AdminOrganizationsController {
       where: { id: memberId, organizationId: orgId },
     });
     if (!member) {
-      throw new Error('Member not found');
+      throw new NotFoundException('Member not found');
     }
     member.role = body.role;
     return this.memberRepo.save(member);
@@ -105,7 +105,7 @@ export class AdminOrganizationsController {
       where: { id: memberId, organizationId: orgId },
     });
     if (!member) {
-      throw new Error('Member not found');
+      throw new NotFoundException('Member not found');
     }
     await this.memberRepo.remove(member);
     return { success: true };
