@@ -172,8 +172,25 @@ export default function GeneralLedger({
       return toNumber(exp.amount);
     };
     const getSaleAmount = (sale: Sale): number => {
-      if (sale?.amount != null) return toNumber(sale.amount);
-      return toNumber(sale?.quantity) * toNumber(sale?.unitPrice);
+      const anySale = sale as any;
+      // Prefer explicit totals if present
+      if (anySale?.total != null) return toNumber(anySale.total);
+      if (anySale?.amount != null) return toNumber(anySale.amount);
+
+      // Multi-item sales: sum item totals (or qty*unitPrice)
+      const items = Array.isArray(anySale?.items) ? anySale.items : [];
+      if (items.length > 0) {
+        const sum = items.reduce((acc: number, it: any) => {
+          const lineTotal = it?.total != null
+            ? toNumber(it.total)
+            : (toNumber(it?.quantity) * toNumber(it?.unitPrice));
+          return acc + lineTotal;
+        }, 0);
+        return toNumber(sum);
+      }
+
+      // Legacy single-item fields
+      return toNumber(anySale?.quantity) * toNumber(anySale?.unitPrice);
     };
 
     const getSaleDate = (sale: Sale): string => {
