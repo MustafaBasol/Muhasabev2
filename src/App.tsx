@@ -279,6 +279,23 @@ const normalizeRelatedItems = (items: unknown): DeleteWarningRelatedItem[] => {
 };
 
 const normalizeProductTaxRate = (value: unknown): number | undefined => {
+  if (value === null || value === undefined || value === '') {
+    return undefined;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return undefined;
+  }
+  return Math.round(numeric * 100) / 100;
+};
+
+const normalizeNullableProductTaxRateOverride = (value: unknown): number | null | undefined => {
+  if (value === null) {
+    return null;
+  }
+  if (value === undefined || value === '') {
+    return undefined;
+  }
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric < 0) {
     return undefined;
@@ -298,7 +315,7 @@ const mapBackendProductRecord = (record: any): Product => {
     stockQuantity,
     reorderLevel: minStock,
     taxRate: normalizeProductTaxRate(record.taxRate),
-    categoryTaxRateOverride: normalizeProductTaxRate(record.categoryTaxRateOverride),
+    categoryTaxRateOverride: normalizeNullableProductTaxRateOverride(record.categoryTaxRateOverride),
     status: stockQuantity === 0
       ? 'out-of-stock'
       : stockQuantity <= minStock
