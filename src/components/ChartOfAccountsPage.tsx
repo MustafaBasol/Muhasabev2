@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Plus, Trash2, Search, FolderOpen, Folder, X, Check, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
+import { readTenantScopedObject, writeTenantScopedObject } from '../utils/localStorageSafe';
 // Debug bileşeni sadece çeviri sorunlarını teşhis etmek için (dev mod / query param)
 import TranslationDebug from './TranslationDebug';
 import type { ChartAccount } from '../types';
@@ -106,6 +108,10 @@ export default function ChartOfAccountsPage({
 }: ChartOfAccountsPageProps) {
   const { formatCurrency, getCurrencySymbol } = useCurrency();
   const { t } = useTranslation('common');
+  const { tenant, user } = useAuth();
+  const tenantId = String((tenant as any)?.id ?? (tenant as any)?.tenantId ?? 'anon');
+  const userId = String((user as any)?.id ?? (user as any)?._id ?? 'anon');
+  const lastViewKey = `last_view_chartOfAccounts_u_${userId}`;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -118,6 +124,34 @@ export default function ChartOfAccountsPage({
   const [datePreset, setDatePreset] = useState<DatePreset>('this-year');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+
+  // Son görünümü yükle (filtre/görünüm state'leri)
+  useEffect(() => {
+    const saved = readTenantScopedObject<any>(lastViewKey, { tenantId, fallbackToBase: true })
+      ?? readTenantScopedObject<any>('last_view_chartOfAccounts', { tenantId, fallbackToBase: true });
+    if (!saved) return;
+    if (typeof saved.searchTerm === 'string') setSearchTerm(saved.searchTerm);
+    if (typeof saved.typeFilter === 'string') setTypeFilter(saved.typeFilter);
+    if (typeof saved.datePreset === 'string') setDatePreset(saved.datePreset as DatePreset);
+    if (typeof saved.customStartDate === 'string') setCustomStartDate(saved.customStartDate);
+    if (typeof saved.customEndDate === 'string') setCustomEndDate(saved.customEndDate);
+    if (Array.isArray(saved.expandedGroups)) {
+      setExpandedGroups(new Set(saved.expandedGroups.filter((x: any) => typeof x === 'string')));
+    }
+  }, [tenantId, lastViewKey]);
+
+  // Son görünümü kaydet
+  useEffect(() => {
+    writeTenantScopedObject(lastViewKey, {
+      searchTerm,
+      typeFilter,
+      datePreset,
+      customStartDate,
+      customEndDate,
+      expandedGroups: Array.from(expandedGroups),
+      savedAt: new Date().toISOString(),
+    }, { tenantId, mirrorToBase: false });
+  }, [tenantId, lastViewKey, searchTerm, typeFilter, datePreset, customStartDate, customEndDate, expandedGroups]);
 
   const activeDateRangeLabel = useMemo(() => {
     if (datePreset === 'custom') {

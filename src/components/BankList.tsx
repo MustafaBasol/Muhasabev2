@@ -3,7 +3,8 @@ import { Search, Plus, Edit, Trash2, CreditCard, Building2, Eye, DollarSign } fr
 import { formatCurrency as formatCurrencyUtil, type Currency } from '../utils/currencyFormatter';
 import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
-import { safeLocalStorage } from '../utils/localStorageSafe';
+import { readTenantScopedObject, safeLocalStorage, writeTenantScopedObject } from '../utils/localStorageSafe';
+import { useAuth } from '../contexts/AuthContext';
 
 const BANK_PAGE_SIZES = [20, 50, 100] as const;
 const isValidBankPageSize = (value: number): value is (typeof BANK_PAGE_SIZES)[number] =>
@@ -48,10 +49,49 @@ export default function BankList({
   onViewBank
 }: BankListProps) {
   const { t } = useTranslation();
+  const { tenant, user } = useAuth();
+  const tenantId = String((tenant as any)?.id ?? (tenant as any)?.tenantId ?? 'anon');
+  const userId = String((user as any)?.id ?? (user as any)?._id ?? 'anon');
+  const lastViewKey = `last_view_banks_u_${userId}`;
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(() => getSavedBankPageSize());
+
+  // Son görünümü yükle
+  useEffect(() => {
+    const saved = readTenantScopedObject<{
+      searchTerm?: string;
+      statusFilter?: string;
+      page?: number;
+      pageSize?: number;
+    }>(lastViewKey, { tenantId, fallbackToBase: true })
+      ?? readTenantScopedObject<{
+        searchTerm?: string;
+        statusFilter?: string;
+        page?: number;
+        pageSize?: number;
+      }>('last_view_banks', { tenantId, fallbackToBase: true });
+    if (!saved) return;
+    if (typeof saved.searchTerm === 'string') setSearchTerm(saved.searchTerm);
+    if (typeof saved.statusFilter === 'string') setStatusFilter(saved.statusFilter);
+    if (typeof saved.page === 'number' && Number.isFinite(saved.page) && saved.page > 0) setPage(saved.page);
+    if (typeof saved.pageSize === 'number' && isValidBankPageSize(saved.pageSize)) {
+      setPageSize(saved.pageSize);
+    }
+  }, [tenantId, lastViewKey]);
+
+  // Son görünümü kaydet
+  useEffect(() => {
+    writeTenantScopedObject(lastViewKey, {
+      searchTerm,
+      statusFilter,
+      page,
+      pageSize,
+      savedAt: new Date().toISOString(),
+    }, { tenantId, mirrorToBase: false });
+  }, [tenantId, lastViewKey, searchTerm, statusFilter, page, pageSize]);
 
   const filteredBanks = useMemo(() => bankAccounts.filter(bank => {
     const matchesSearch = 

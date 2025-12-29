@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { 
   Archive, 
   Search, 
@@ -19,8 +19,9 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
-import { safeLocalStorage } from '../utils/localStorageSafe';
+import { readTenantScopedObject, safeLocalStorage, writeTenantScopedObject } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ArchivePageProps {
   invoices?: any[];
@@ -94,6 +95,10 @@ export default function ArchivePage({
 }: ArchivePageProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation('common');
+  const { tenant, user } = useAuth();
+  const tenantId = String((tenant as any)?.id ?? (tenant as any)?.tenantId ?? 'anon');
+  const userId = String((user as any)?.id ?? (user as any)?._id ?? 'anon');
+  const lastViewKey = `last_view_archive_u_${userId}`;
   
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -110,6 +115,39 @@ export default function ArchivePage({
   const [custPageSize, setCustPageSize] = useState<number>(() => getSavedArchivePageSize(ARCHIVE_PAGE_KEYS.customers));
   const [supPage, setSupPage] = useState<number>(1);
   const [supPageSize, setSupPageSize] = useState<number>(() => getSavedArchivePageSize(ARCHIVE_PAGE_KEYS.suppliers));
+
+  // Son görünümü yükle
+  useEffect(() => {
+    const saved = readTenantScopedObject<any>(lastViewKey, { tenantId, fallbackToBase: true })
+      ?? readTenantScopedObject<any>('last_view_archive', { tenantId, fallbackToBase: true });
+    if (!saved) return;
+    if (typeof saved.searchTerm === 'string') setSearchTerm(saved.searchTerm);
+    if (typeof saved.dateFilter === 'string') setDateFilter(saved.dateFilter);
+    if (typeof saved.activeTab === 'string') setActiveTab(saved.activeTab);
+    if (Array.isArray(saved.expandedSections)) setExpandedSections(new Set(saved.expandedSections.filter((x: any) => typeof x === 'string')));
+
+    if (typeof saved.invPage === 'number' && saved.invPage > 0) setInvPage(saved.invPage);
+    if (typeof saved.expPage === 'number' && saved.expPage > 0) setExpPage(saved.expPage);
+    if (typeof saved.salePage === 'number' && saved.salePage > 0) setSalePage(saved.salePage);
+    if (typeof saved.custPage === 'number' && saved.custPage > 0) setCustPage(saved.custPage);
+    if (typeof saved.supPage === 'number' && saved.supPage > 0) setSupPage(saved.supPage);
+  }, [tenantId, lastViewKey]);
+
+  // Son görünümü kaydet
+  useEffect(() => {
+    writeTenantScopedObject(lastViewKey, {
+      searchTerm,
+      dateFilter,
+      activeTab,
+      expandedSections: Array.from(expandedSections),
+      invPage,
+      expPage,
+      salePage,
+      custPage,
+      supPage,
+      savedAt: new Date().toISOString(),
+    }, { tenantId, mirrorToBase: false });
+  }, [tenantId, lastViewKey, searchTerm, dateFilter, activeTab, expandedSections, invPage, expPage, salePage, custPage, supPage]);
 
   const handleInvPageSizeChange = (size: number) =>
     updateArchivePageSize(size, setInvPageSize, setInvPage, ARCHIVE_PAGE_KEYS.invoices);

@@ -3,6 +3,7 @@ import { BookmarkPlus, Bookmark, Star, Trash2, ChevronDown, Layers } from 'lucid
 import { useSavedListViews, type ListType } from '../hooks/useSavedListViews';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { readTenantScopedObject, writeTenantScopedObject } from '../utils/localStorageSafe';
 
 export interface SavedViewsBarProps<State = any> {
   listType: ListType;
@@ -14,9 +15,31 @@ export interface SavedViewsBarProps<State = any> {
 
 export default function SavedViewsBar<State = any>({ listType, title, getState, applyState, presets = [] }: SavedViewsBarProps<State>) {
   const { t, i18n } = useTranslation('common');
-  const { tenant } = useAuth();
+  const { tenant, user } = useAuth();
   const planRaw = String((tenant as any)?.subscriptionPlan || '').toLowerCase();
   const canSave = ['business','enterprise'].some(p => planRaw.includes(p));
+
+  const resolveTenantId = (source: any): string => {
+    if (!source) return 'anon';
+    if (source.id) return String(source.id);
+    if (source.tenantId) return String(source.tenantId);
+    return 'anon';
+  };
+
+  const resolveUserId = (source: any): string => {
+    if (!source) return 'anon';
+    if (source.id) return String(source.id);
+    if (source._id) return String(source._id);
+    return 'anon';
+  };
+
+  const tenantScopedId = resolveTenantId(tenant ?? user);
+  const userScopedId = resolveUserId(user);
+  const lastViewStorageKey = React.useMemo(() => `last_lv_${listType}`, [listType]);
+  const userLastViewStorageKey = React.useMemo(
+    () => `last_lv_${listType}_u_${userScopedId}`,
+    [listType, userScopedId]
+  );
 
   const {
     views,
@@ -37,6 +60,12 @@ export default function SavedViewsBar<State = any>({ listType, title, getState, 
   const presetsRef = React.useRef<HTMLDivElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
   const [didAutoApply, setDidAutoApply] = React.useState(false);
+  const lastSavedJsonRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    // Kullanıcı/tenant değişince gereksiz "aynı JSON" optimizasyonunu sıfırla
+    lastSavedJsonRef.current = null;
+  }, [tenantScopedId, userScopedId, userLastViewStorageKey]);
 
   const lang = (i18n.language || 'tr').split('-')[0] as 'tr' | 'en' | 'fr' | 'de';
   const L = {
@@ -80,9 +109,32 @@ export default function SavedViewsBar<State = any>({ listType, title, getState, 
     };
   }, [menuOpen, presetsOpen]);
 
-  // Uygulama açıldığında varsayılan görünümü bir kez uygula
+  // Sayfa açıldığında önce son görünümü (otomatik) uygula; yoksa varsayılan görünümü bir kez uygula.
   React.useEffect(() => {
     if (didAutoApply) return;
+    try {
+      // Öncelik: kullanıcı-bazlı son görünüm; yoksa tenant-bazlı legacy anahtar.
+      const lastUser = readTenantScopedObject<{ state?: State }>(userLastViewStorageKey, {
+        tenantId: tenantScopedId,
+        fallbackToBase: true,
+      });
+      if (lastUser && lastUser.state) {
+        applyState(lastUser.state as State);
+        setDidAutoApply(true);
+        return;
+      }
+
+      const lastTenantLegacy = readTenantScopedObject<{ state?: State }>(lastViewStorageKey, {
+        tenantId: tenantScopedId,
+        fallbackToBase: true,
+      });
+      if (lastTenantLegacy && lastTenantLegacy.state) {
+        applyState(lastTenantLegacy.state as State);
+        setDidAutoApply(true);
+        return;
+      }
+    } catch {}
+
     const def = getDefault();
     if (def && def.state) {
       try {
@@ -90,7 +142,25 @@ export default function SavedViewsBar<State = any>({ listType, title, getState, 
       } catch {}
     }
     setDidAutoApply(true);
-  }, [views]);
+  }, [views, didAutoApply, applyState, getDefault, lastViewStorageKey, userLastViewStorageKey, tenantScopedId]);
+
+  // Her değişiklikte (filtre/sıralama/pageSize) en son görünümü otomatik kaydet.
+  React.useEffect(() => {
+    try {
+      const state = getState();
+      const payload = { state, savedAt: new Date().toISOString() };
+      const json = JSON.stringify(payload);
+      if (json === lastSavedJsonRef.current) return;
+      lastSavedJsonRef.current = json;
+      // Kullanıcı bazlı kaydet (tenant içinde kullanıcılar birbirinin görünümünü ezmesin)
+      writeTenantScopedObject(userLastViewStorageKey, payload as any, {
+        tenantId: tenantScopedId,
+        mirrorToBase: false,
+      });
+    } catch {
+      // Sessiz geç: circular vs.
+    }
+  }, [getState, tenantScopedId, userLastViewStorageKey]);
 
   const handleSave = () => {
     const trimmed = newName.trim();

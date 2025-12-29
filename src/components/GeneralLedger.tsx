@@ -6,6 +6,9 @@ import SaleViewModal from './SaleViewModal';
 import { useCurrency } from '../contexts/CurrencyContext';
 import Pagination from './Pagination';
 import { safeLocalStorage } from '../utils/localStorageSafe';
+import * as invoicesApi from '../api/invoices';
+import * as expensesApi from '../api/expenses';
+import * as salesApi from '../api/sales';
 import type { Sale } from '../types';
 import type { ExpenseRecord, InvoiceRecord } from '../types/records';
 
@@ -73,7 +76,10 @@ interface GeneralLedgerProps {
 export default function GeneralLedger({
   invoices,
   expenses,
-  sales
+  sales,
+  onInvoicesUpdate,
+  onExpensesUpdate,
+  onSalesUpdate,
 }: GeneralLedgerProps) {
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
@@ -98,6 +104,44 @@ export default function GeneralLedger({
 
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(() => getSavedLedgerPageSize());
+
+  // Muhasebe sayfasına girince güncel veriyi backend'den çek.
+  // Amaç: başka sayfada/sekmede silinen satış/fatura/gider burada “stale” kalmasın.
+  useEffect(() => {
+    let cancelled = false;
+
+    const refresh = async () => {
+      const results = await Promise.allSettled([
+        invoicesApi.getInvoices(),
+        expensesApi.getExpenses(),
+        salesApi.getSales(),
+      ]);
+      if (cancelled) return;
+
+      const [invRes, expRes, salesRes] = results;
+      try {
+        if (invRes.status === 'fulfilled') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (onInvoicesUpdate as any)?.(invRes.value as any);
+        }
+        if (expRes.status === 'fulfilled') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (onExpensesUpdate as any)?.(expRes.value as any);
+        }
+        if (salesRes.status === 'fulfilled') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (onSalesUpdate as any)?.(salesRes.value as any);
+        }
+      } catch {
+        // Sessiz geç: sayfayı bozmasın
+      }
+    };
+
+    void refresh();
+    return () => {
+      cancelled = true;
+    };
+  }, [onExpensesUpdate, onInvoicesUpdate, onSalesUpdate]);
 
   // Convert all transactions to ledger entries
   const entries: LedgerEntry[] = useMemo(() => {
