@@ -176,6 +176,36 @@ export default function GeneralLedger({
       return toNumber(sale?.quantity) * toNumber(sale?.unitPrice);
     };
 
+    const getSaleDate = (sale: Sale): string => {
+      const anySale = sale as any;
+      return String(anySale?.date || anySale?.saleDate || anySale?.createdAt || '') || '';
+    };
+
+    const getSaleCustomerName = (sale: Sale): string => {
+      const anySale = sale as any;
+      const direct = typeof anySale?.customerName === 'string' ? anySale.customerName : '';
+      const fromObj = typeof anySale?.customer?.name === 'string' ? anySale.customer.name : '';
+      return direct || fromObj || '';
+    };
+
+    const getSaleTitle = (sale: Sale): string => {
+      const anySale = sale as any;
+      const direct = typeof anySale?.productName === 'string' ? anySale.productName : '';
+      if (direct) return direct;
+      const items = Array.isArray(anySale?.items) ? anySale.items : [];
+      const first = items[0];
+      const firstName = (typeof first?.productName === 'string' && first.productName.trim())
+        ? first.productName.trim()
+        : (typeof first?.description === 'string' && first.description.trim())
+          ? first.description.trim()
+          : '';
+      if (firstName) {
+        const extraCount = Math.max(0, items.length - 1);
+        return extraCount > 0 ? `${firstName} +${extraCount}` : firstName;
+      }
+      return t('common.generic.sale', { defaultValue: 'Satış' }) as unknown as string;
+    };
+
     // Add invoices
     invoices.forEach(invoice => {
       allTransactions.push({
@@ -197,7 +227,7 @@ export default function GeneralLedger({
     // Add sales (for visibility if you also record direct sales separate from invoices)
     sales.forEach(sale => {
       allTransactions.push({
-        date: sale.date,
+        date: getSaleDate(sale),
         type: 'sale',
         data: sale
       });
@@ -260,16 +290,18 @@ export default function GeneralLedger({
       } else if (transaction.type === 'sale') {
         const sale = transaction.data;
         const saleAmount = getSaleAmount(sale);
+        const saleTitle = getSaleTitle(sale);
+        const saleCustomer = getSaleCustomerName(sale);
         if (sale.status === 'completed') {
           runningBalance += saleAmount;
         }
 
         entries.push({
           id: `sal-${sale.id}`,
-          date: sale.date,
-          description: `${t('ledger.entry.salePrefix')} - ${sale.productName}`,
+          date: getSaleDate(sale),
+          description: `${t('ledger.entry.salePrefix')} - ${saleTitle}`,
           reference: sale.saleNumber || `SAL-${sale.id}`,
-          customer: sale.customerName,
+          customer: saleCustomer,
           category: t('chartOfAccounts.accountNames.601'),
           debit: 0,
           credit: sale.status === 'completed' ? saleAmount : 0,
