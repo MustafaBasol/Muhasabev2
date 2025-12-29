@@ -672,19 +672,16 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         saleCustomerEmail: sale.customerEmail,
         totalCustomers: customers.length,
       });
-      
-      const quantity = sale.quantity && sale.quantity > 0 ? sale.quantity : 1;
+
+      // Satışlar ekranında tutarlar "KDV Hariç" (net) gösteriliyor.
+      // Bu yüzden faturayı oluştururken sale.amount gibi alanlardan ziyade satış kalemlerinden
+      // net toplamı hesapla; KDV oranına göre brüt (fatura total) tutarı üret.
+      const saleItems = Array.isArray(sale.items) ? sale.items : [];
+      const hasItems = saleItems.length > 0;
+
       const matchedProduct = sale.productId
         ? products.find(product => String(product.id) === String(sale.productId))
         : products.find(product => product.name.toLowerCase() === (sale.productName || '').toLowerCase());
-
-      const fallbackUnitPrice = sale.unitPrice && sale.unitPrice > 0
-        ? sale.unitPrice
-        : matchedProduct?.unitPrice ?? 0;
-
-      const calculatedTotal = sale.amount && sale.amount > 0 ? sale.amount : fallbackUnitPrice * quantity;
-      const totalAmount = Number.isFinite(calculatedTotal) ? calculatedTotal : 0;
-      const unitPriceWithTax = quantity > 0 ? totalAmount / quantity : fallbackUnitPrice;
 
       const productCategory = (matchedProduct?.category || '').toLowerCase().trim();
       const productNameLower = (matchedProduct?.name || sale.productName || '').toLowerCase().trim();
@@ -752,14 +749,75 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         });
       }
 
-      const taxRate = resolveProductTaxRate(
-        matchedProduct ?? null,
-        productCategoryObjects,
-        matchedProduct?.category ?? (sale.productName || null),
-        DEFAULT_TAX_RATE,
-      );
-      const netUnitPrice = quantity > 0 ? (unitPriceWithTax / (1 + taxRate / 100)) : unitPriceWithTax;
-      const netLineTotal = netUnitPrice * quantity;
+      const buildLineItems = (): InvoiceLineItemInput[] => {
+        if (hasItems) {
+          return saleItems.map((it: any, idx: number) => {
+            const quantity = toNumber(it?.quantity ?? 1) || 1;
+            const unitPrice = toNumber(it?.unitPrice ?? 0);
+            const total = Number.isFinite(toNumber(it?.total)) && toNumber(it?.total) > 0
+              ? toNumber(it?.total)
+              : (quantity * unitPrice);
+
+            const productId = it?.productId ?? sale.productId;
+            const name = it?.productName || it?.description || sale.productName;
+            const prod = productId
+              ? products.find(p => String(p.id) === String(productId))
+              : products.find(p => (p.name || '').toLowerCase() === String(name || '').toLowerCase());
+
+            const taxRate = resolveProductTaxRate(
+              prod ?? null,
+              productCategoryObjects,
+              prod?.category ?? (name || null),
+              DEFAULT_TAX_RATE,
+            );
+
+            return {
+              id: `${sale.id}-li-${idx}`,
+              productId: prod?.id ?? productId,
+              productName: prod?.name || name,
+              description: prod?.name || name,
+              quantity,
+              unitPrice, // KDV hariç
+              total, // KDV hariç
+              taxRate,
+            };
+          });
+        }
+
+        const quantity = sale.quantity && sale.quantity > 0 ? sale.quantity : 1;
+        const unitPrice = sale.unitPrice && sale.unitPrice > 0
+          ? sale.unitPrice
+          : (matchedProduct?.unitPrice ?? 0);
+
+        const total = quantity * unitPrice;
+        const taxRate = resolveProductTaxRate(
+          matchedProduct ?? null,
+          productCategoryObjects,
+          matchedProduct?.category ?? (sale.productName || null),
+          DEFAULT_TAX_RATE,
+        );
+
+        return [
+          {
+            productId: matchedProduct?.id,
+            productName: matchedProduct?.name || sale.productName,
+            description: matchedProduct?.name || sale.productName,
+            quantity,
+            unitPrice, // KDV hariç
+            total, // KDV hariç
+            taxRate,
+          },
+        ];
+      };
+
+      const lineItems = buildLineItems();
+      const subtotal = lineItems.reduce((sum, li) => sum + (toNumber(li.total) || 0), 0);
+      const taxAmount = lineItems.reduce((sum, li) => {
+        const base = toNumber(li.total) || 0;
+        const rate = toNumber(li.taxRate) || 0;
+        return sum + base * (rate / 100);
+      }, 0);
+      const totalAmount = subtotal + taxAmount;
       const invoiceData = {
         saleId: sale.id,
         customerId: String(customerToUse.id),
@@ -767,19 +825,9 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         issueDate: new Date().toISOString().split('T')[0],
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'sent',
-        lineItems: [
-          {
-            productId: matchedProduct?.id,
-            productName: matchedProduct?.name || sale.productName,
-            description: matchedProduct?.name || sale.productName,
-            quantity,
-            unitPrice: netUnitPrice,
-            total: netLineTotal,
-            taxRate,
-          },
-        ],
-        subtotal: netLineTotal,
-        taxAmount: totalAmount - netLineTotal,
+        lineItems,
+        subtotal,
+        taxAmount,
         total: totalAmount,
         notes: 'Bu fatura ' + (sale.saleNumber || ('SAL-' + sale.id)) + ' numaralı satıştan oluşturulmuştur.',
       };
@@ -1527,7 +1575,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                       <strong>{t('sales.productService')}:</strong> {selectedSaleForInvoice.productName}
                     </p>
                     <p className="text-xs text-gray-600">
-                      <strong>{t('sales.amount')}:</strong> {formatAmount(selectedSaleForInvoice.amount)}
+                      <strong>{t('sales.amount')}:</strong> {formatAmount(resolveSaleTotal(selectedSaleForInvoice))}
                     </p>
                   </div>
                 </div>

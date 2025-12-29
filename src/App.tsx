@@ -280,7 +280,7 @@ const normalizeRelatedItems = (items: unknown): DeleteWarningRelatedItem[] => {
 
 const normalizeProductTaxRate = (value: unknown): number | undefined => {
   const numeric = Number(value);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
+  if (!Number.isFinite(numeric) || numeric < 0) {
     return undefined;
   }
   return Math.round(numeric * 100) / 100;

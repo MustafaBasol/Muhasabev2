@@ -22,6 +22,8 @@
     "migration:generate": "npm run typeorm -- migration:generate -d src/config/typeorm.config.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/config/typeorm.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/config/typeorm.config.ts",
+    "migration:run:prod": "NODE_ENV=production node ./node_modules/typeorm/cli.js migration:run -d dist/src/config/typeorm.config.js",
+    "migration:revert:prod": "NODE_ENV=production node ./node_modules/typeorm/cli.js migration:revert -d dist/src/config/typeorm.config.js",
     "seed:demo": "ts-node -r tsconfig-paths/register src/seeds/demo-data.seed.ts",
     "backup": "./backup-db.sh",
     "restore": "./restore-db.sh",
