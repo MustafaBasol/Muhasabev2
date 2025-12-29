@@ -4013,7 +4013,9 @@ const AppContent: React.FC = () => {
     setSaleToDelete(String(saleId));
   };
 
-  const upsertProduct = async (productData: Partial<Product>) => {
+  const upsertProduct = async (
+    productData: Partial<Product>
+  ): Promise<{ ok: true } | { ok: false; fieldErrors?: Record<string, string> }> => {
     try {
       const categoryName = (productData?.category ? String(productData.category) : "").trim() || "Genel";
       addProductCategory(categoryName);
@@ -4045,6 +4047,7 @@ const AppContent: React.FC = () => {
         const updated = await productsApi.updateProduct(String(productData.id), backendData);
         setProducts(prev => prev.map(p => p.id === updated.id ? mapBackendProductRecord(updated) : p));
         showToast(t('toasts.products.updateSuccess'), 'success');
+        return { ok: true };
       } else {
         // Create new
         const created = await productsApi.createProduct(backendData);
@@ -4062,12 +4065,23 @@ const AppContent: React.FC = () => {
             'products'
           );
         }
+
+        return { ok: true };
       }
     } catch (error: any) {
       console.error('Product upsert error:', error);
       console.error('Error details:', error.response?.data);
-      const errorMsg = error.response?.data?.message || error.message || 'Ürün kaydedilemedi';
-      showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
+      const status = error?.response?.status;
+      const rawMessage = error?.response?.data?.message ?? error?.message ?? 'Ürün kaydedilemedi';
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : String(rawMessage);
+
+      // SKU (backend: code) çakışmasını alan bazlı göster
+      if (status === 409 && /sku/i.test(message)) {
+        return { ok: false, fieldErrors: { sku: message } };
+      }
+
+      showToast(message, 'error');
+      return { ok: false };
     }
   };
 
@@ -5394,6 +5408,7 @@ const AppContent: React.FC = () => {
             sales={sales}
             invoices={invoices}
             products={products}
+            productCategoryObjects={productCategoryObjects}
             onSalesUpdate={handleSimpleSalesPageUpdate}
             onUpsertSale={upsertSale}
             onCreateInvoice={upsertInvoice}
@@ -5741,9 +5756,8 @@ const AppContent: React.FC = () => {
         <ProductModal
           isOpen={showProductModal}
           onClose={closeProductModal}
-          onSave={product => {
-            upsertProduct(product);
-            closeProductModal();
+          onSave={async product => {
+            return await upsertProduct(product);
           }}
           categories={productCategories}
           categoryObjects={productCategoryObjects}

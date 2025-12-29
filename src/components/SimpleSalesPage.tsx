@@ -4,7 +4,7 @@ import { TrendingUp, Plus, Calendar, DollarSign, User, Package, Search, Eye, Edi
 import SaleModal from './SaleModal';
 import SaleViewModal from './SaleViewModal';
 import InvoiceViewModal from './InvoiceViewModal';
-import type { Customer, Invoice, Product, Sale } from '../types';
+import type { Customer, Invoice, Product, ProductCategory, Sale } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { compareBy, defaultStatusOrderSales, normalizeText, parseDateSafe, toNumberSafe, SortDir } from '../utils/sortAndSearch';
@@ -15,6 +15,7 @@ import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 // preset etiketleri i18n'den alınır
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
+import { DEFAULT_TAX_RATE, resolveProductTaxRate } from '../utils/tax';
 
 
 
@@ -120,6 +121,7 @@ interface SimpleSalesPageProps {
   onEditInvoice?: (invoice: InvoiceWithRelations) => void;
   onDownloadSale?: (sale: SaleWithMetadata) => void;
   products?: Product[];
+  productCategoryObjects?: ProductCategory[];
   onDeleteSale?: (id: string | number) => Promise<void> | void; // Opsiyonel: üst komponent kalıcı silsin
 }
 
@@ -145,7 +147,7 @@ const getSavedSalesPageSize = (): number => {
   return isValidSalesPageSize(parsed) ? parsed : SALES_PAGE_SIZES[0];
 };
 
-export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale, onDeleteSale }: SimpleSalesPageProps) {
+export default function SimpleSalesPage({ customers = [], sales = [], invoices = [], products = [], productCategoryObjects = [], onSalesUpdate, onUpsertSale, onCreateInvoice, onEditInvoice, onDownloadSale, onDeleteSale }: SimpleSalesPageProps) {
   const { t, i18n } = useTranslation('common');
   const { formatCurrency } = useCurrency();
   
@@ -447,6 +449,30 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       }
     });
 
+  const filtersActive =
+    searchTerm.trim().length > 0 ||
+    statusFilter !== 'all' ||
+    Boolean(startDate) ||
+    Boolean(endDate);
+
+  const summaryPrefix = (() => {
+    const language = String(i18n.language || '').toLowerCase();
+    if (filtersActive) {
+      if (language.startsWith('tr')) return 'Filtreli';
+      if (language.startsWith('de')) return 'Gefiltert';
+      if (language.startsWith('fr')) return 'Filtré';
+      return 'Filtered';
+    }
+    if (language.startsWith('tr')) return 'Gösterilen';
+    if (language.startsWith('de')) return 'Angezeigt';
+    if (language.startsWith('fr')) return 'Affiché';
+    return 'Shown';
+  })();
+
+  const filteredTotalSales = useMemo(() => {
+    return filteredSales.reduce((sum, sale) => sum + resolveSaleTotal(sale), 0);
+  }, [filteredSales]);
+
   const paginatedSales = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filteredSales.slice(start, start + pageSize);
@@ -726,7 +752,12 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
         });
       }
 
-      const taxRate = matchedProduct?.taxRate ?? 18;
+      const taxRate = resolveProductTaxRate(
+        matchedProduct ?? null,
+        productCategoryObjects,
+        matchedProduct?.category ?? (sale.productName || null),
+        DEFAULT_TAX_RATE,
+      );
       const netUnitPrice = quantity > 0 ? (unitPriceWithTax / (1 + taxRate / 100)) : unitPriceWithTax;
       const netLineTotal = netUnitPrice * quantity;
       const invoiceData = {
@@ -882,79 +913,86 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
           </div>
 
           {/* Search and Filter */}
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-              <div className="relative w-full md:flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder={t('sales.search')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-4">
+              <div className="relative w-full xl:flex-1 xl:min-w-0">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder={t('sales.search')}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+                />
               </div>
+
+              <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  placeholder={t('startDate')}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 sm:w-44"
+                />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  placeholder={t('endDate')}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 sm:w-44"
+                />
+              </div>
+
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 md:w-56"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 xl:w-56"
               >
-              <option value="all">
-                {i18n.language === 'tr' ? 'Tüm Durumlar' : 
-                 i18n.language === 'en' ? 'All Statuses' :
-                 i18n.language === 'de' ? 'Alle Status' :
-                 i18n.language === 'fr' ? 'Tous les Statuts' : 'All Statuses'}
-              </option>
-              <option value="completed">{resolveStatusLabel(t, 'completed')}</option>
-              <option value="pending">{resolveStatusLabel(t, 'pending')}</option>
-              <option value="cancelled">{resolveStatusLabel(t, 'cancelled')}</option>
+                <option value="all">
+                  {i18n.language === 'tr' ? 'Tüm Durumlar' : 
+                   i18n.language === 'en' ? 'All Statuses' :
+                   i18n.language === 'de' ? 'Alle Status' :
+                   i18n.language === 'fr' ? 'Tous les Statuts' : 'All Statuses'}
+                </option>
+                <option value="completed">{resolveStatusLabel(t, 'completed')}</option>
+                <option value="pending">{resolveStatusLabel(t, 'pending')}</option>
+                <option value="cancelled">{resolveStatusLabel(t, 'cancelled')}</option>
               </select>
+
+              <div className="flex w-full justify-start xl:ml-auto xl:w-auto">
+                <SavedViewsBar
+                  listType="sales"
+                  getState={() => ({ searchTerm, statusFilter, startDate, endDate, sortBy, sortDir, pageSize })}
+                  applyState={(s) => {
+                    const st = (s || {}) as SimpleSalesViewState;
+                    setSearchTerm(st.searchTerm ?? '');
+                    setStatusFilter(st.statusFilter ?? 'all');
+                    setStartDate(st.startDate ?? '');
+                    setEndDate(st.endDate ?? '');
+                    if (st.sortBy) setSortBy(st.sortBy);
+                    if (st.sortDir) setSortDir(st.sortDir);
+                    if (st.pageSize && isValidSalesPageSize(st.pageSize)) {
+                      handlePageSizeChange(st.pageSize);
+                    }
+                  }}
+                  presets={[
+                    { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
+                      const d = new Date();
+                      const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+                      const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+                      setStartDate(start); setEndDate(end);
+                    }},
+                    { id: 'completed', label: resolveStatusLabel(t, 'completed'), apply: () => setStatusFilter('completed') },
+                    { id: 'pending', label: resolveStatusLabel(t, 'pending'), apply: () => setStatusFilter('pending') },
+                    { id: 'cancelled', label: resolveStatusLabel(t, 'cancelled'), apply: () => setStatusFilter('cancelled') },
+                  ]}
+                />
+              </div>
             </div>
-            <div className="grid w-full gap-2 sm:grid-cols-2 md:max-w-md">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                placeholder={t('startDate')}
-                className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                placeholder={t('endDate')}
-                className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            {/* Hazır filtreler + Kaydedilmiş görünümler */}
-            <div className="flex w-full flex-wrap justify-start gap-2 sm:justify-end">
-              <SavedViewsBar
-                listType="sales"
-                getState={() => ({ searchTerm, statusFilter, startDate, endDate, sortBy, sortDir, pageSize })}
-                applyState={(s) => {
-                  const st = (s || {}) as SimpleSalesViewState;
-                  setSearchTerm(st.searchTerm ?? '');
-                  setStatusFilter(st.statusFilter ?? 'all');
-                  setStartDate(st.startDate ?? '');
-                  setEndDate(st.endDate ?? '');
-                  if (st.sortBy) setSortBy(st.sortBy);
-                  if (st.sortDir) setSortDir(st.sortDir);
-                  if (st.pageSize && isValidSalesPageSize(st.pageSize)) {
-                    handlePageSizeChange(st.pageSize);
-                  }
-                }}
-                presets={[
-                  { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
-                    const d = new Date();
-                    const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
-                    const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
-                    setStartDate(start); setEndDate(end);
-                  }},
-                  { id: 'completed', label: resolveStatusLabel(t, 'completed'), apply: () => setStatusFilter('completed') },
-                  { id: 'pending', label: resolveStatusLabel(t, 'pending'), apply: () => setStatusFilter('pending') },
-                  { id: 'cancelled', label: resolveStatusLabel(t, 'cancelled'), apply: () => setStatusFilter('cancelled') },
-                ]}
-              />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+              <span>{summaryPrefix}: {filteredSales.length} {t('sales.salesRegistered')}</span>
+              <span>{summaryPrefix} {t('sales.totalSales') + netSuffix}: {formatAmount(filteredTotalSales)}</span>
             </div>
           </div>
         </div>

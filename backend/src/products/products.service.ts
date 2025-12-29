@@ -1,7 +1,7 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -64,8 +64,11 @@ export class ProductsService {
       saved = await this.productsRepository.save(product);
     } catch (error) {
       if (this.isUniqueProductCodeError(error)) {
-        throw new BadRequestException(
-          'Bu ürün kodu zaten kullanılıyor. Lütfen farklı bir kod deneyin.',
+        const code = (createProductDto?.code || '').trim();
+        throw new ConflictException(
+          code
+            ? `Bu SKU zaten kayıtlı: ${code}. Lütfen farklı bir SKU deneyin.`
+            : 'Bu SKU zaten kayıtlı. Lütfen farklı bir SKU deneyin.',
         );
       }
       throw error;
@@ -92,7 +95,19 @@ export class ProductsService {
       categoryTaxRateOverride: updateProductDto.categoryTaxRateOverride,
     });
 
-    await this.productsRepository.update({ id, tenantId }, updateProductDto);
+    try {
+      await this.productsRepository.update({ id, tenantId }, updateProductDto);
+    } catch (error) {
+      if (this.isUniqueProductCodeError(error)) {
+        const code = (updateProductDto?.code || '').trim();
+        throw new ConflictException(
+          code
+            ? `Bu SKU zaten kayıtlı: ${code}. Lütfen farklı bir SKU deneyin.`
+            : 'Bu SKU zaten kayıtlı. Lütfen farklı bir SKU deneyin.',
+        );
+      }
+      throw error;
+    }
 
     const updated = await this.findOne(id, tenantId);
 

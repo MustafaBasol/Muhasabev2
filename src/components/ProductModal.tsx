@@ -22,11 +22,15 @@ declare global {
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (product: Partial<Product>) => void;
+  onSave: (product: Partial<Product>) => Promise<SaveResult> | SaveResult;
   product?: Product | null;
   categories: string[];
   categoryObjects?: ProductCategory[]; // Kategori nesneleri (taxRate için)
 }
+
+type SaveResult =
+  | { ok: true }
+  | { ok: false; fieldErrors?: Record<string, string> };
 
 interface ProductFormState {
   name: string;
@@ -154,6 +158,9 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
+    if (errors._form) {
+      setErrors(prev => ({ ...prev, _form: '' }));
+    }
   };
 
   const validate = () => {
@@ -179,7 +186,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) {
       return;
     }
@@ -222,8 +229,23 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       nextProduct.createdAt = product.createdAt;
     }
 
-    onSave(nextProduct);
-    onClose();
+    try {
+      const result = await onSave(nextProduct);
+      if (result?.ok) {
+        onClose();
+        return;
+      }
+
+      const fieldErrors = result?.fieldErrors;
+      if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+        setErrors(prev => ({ ...prev, ...fieldErrors }));
+      } else {
+        setErrors(prev => ({ ...prev, _form: t('common.error') || 'İşlem başarısız' }));
+      }
+    } catch {
+      // Üst katman toast gösterebilir; modal açık kalsın.
+      setErrors(prev => ({ ...prev, _form: t('common.error') || 'İşlem başarısız' }));
+    }
   };
 
   if (!isOpen) {
@@ -256,6 +278,11 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
         </div>
 
         <div className="space-y-8 p-6 overflow-y-auto flex-1">
+          {errors._form && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {errors._form}
+            </div>
+          )}
           <section>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('products.generalInfo')}</h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">

@@ -236,6 +236,39 @@ export default function InvoiceList({
     });
   }, [invoices, debouncedSearch, statusFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
 
+  const filtersActive =
+    searchTerm.trim().length > 0 ||
+    statusFilter !== 'all' ||
+    Boolean(startDate) ||
+    Boolean(endDate) ||
+    Boolean(showVoided);
+
+  const filteredInvoicesTotal = useMemo(() => {
+    return filteredInvoices.reduce((sum, inv) => sum + toNumberSafe(inv.total), 0);
+  }, [filteredInvoices]);
+
+  const totalLabel = (() => {
+    const lang = String(i18n?.language || '').toLowerCase();
+    if (lang.startsWith('tr')) return 'Toplam';
+    if (lang.startsWith('de')) return 'Summe';
+    if (lang.startsWith('fr')) return 'Total';
+    return 'Total';
+  })();
+
+  const shownLabel = (() => {
+    const lang = String(i18n?.language || '').toLowerCase();
+    if (filtersActive) {
+      if (lang.startsWith('tr')) return 'Filtreli';
+      if (lang.startsWith('de')) return 'Gefiltert';
+      if (lang.startsWith('fr')) return 'Filtré';
+      return 'Filtered';
+    }
+    if (lang.startsWith('tr')) return 'Gösterilen';
+    if (lang.startsWith('de')) return 'Angezeigt';
+    if (lang.startsWith('fr')) return 'Affiché';
+    return 'Shown';
+  })();
+
   const paginatedInvoices = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filteredInvoices.slice(start, start + pageSize);
@@ -496,6 +529,11 @@ export default function InvoiceList({
               Bu ay: <strong className={`${atLimit ? 'text-red-600' : 'text-gray-900'}`}>{invoicesThisMonth}/{MONTHLY_MAX}</strong>
             </div>
           )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+          <span>{shownLabel}: {filteredInvoices.length} {t('invoices.invoicesRegistered')}</span>
+          <span>{shownLabel} {totalLabel}: {formatCurrency(filteredInvoicesTotal)}</span>
         </div>
       </div>
 

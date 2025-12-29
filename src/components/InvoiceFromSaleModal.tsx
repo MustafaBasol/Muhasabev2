@@ -221,7 +221,16 @@ export default function InvoiceFromSaleModal({
       } else {
         const grossAmount = toNumberSafe(sale.amount);
         if (grossAmount > 0) {
-          unitPriceExcl = (grossAmount / 1.18) / quantityFallback;
+          const guess = resolveLineItemWithTax({
+            productId: sale.productId,
+            productName: sale.productName,
+            description: sale.productName || t('products.name', 'Product'),
+            quantity: 1,
+            unitPrice: 1,
+            total: 1,
+          });
+          const guessedRate = normalizeTaxRateInput(guess.taxRate) ?? DEFAULT_TAX_RATE;
+          unitPriceExcl = (grossAmount / (1 + guessedRate / 100)) / quantityFallback;
         }
       }
     }

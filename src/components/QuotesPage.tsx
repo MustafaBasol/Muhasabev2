@@ -110,7 +110,7 @@ const mapQuoteFromApi = (quote: QuoteApiRecord): QuoteListItem => ({
 });
 
 const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { formatCurrency, currency: defaultCurrency } = useCurrency();
   const { tenant, user: authUser } = useAuth();
   const planRaw = String(tenant?.subscriptionPlan || '').toLowerCase();
@@ -229,6 +229,56 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
         }
       });
   }, [quotes, searchTerm, statusFilter, sortBy, sortDir, startDate, endDate]);
+
+  const filtersActive =
+    searchTerm.trim().length > 0 ||
+    statusFilter !== 'all' ||
+    Boolean(startDate) ||
+    Boolean(endDate);
+
+  const filteredTotalsByCurrency = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const quote of filtered) {
+      const currency = (quote.currency || defaultCurrency || 'TRY') as string;
+      const prev = map.get(currency) ?? 0;
+      map.set(currency, prev + (Number(quote.total) || 0));
+    }
+    return Array.from(map.entries());
+  }, [filtered, defaultCurrency]);
+
+  const totalLabel = (() => {
+    const lang = String(i18n?.language || '').toLowerCase();
+    if (lang.startsWith('tr')) return 'Toplam';
+    if (lang.startsWith('de')) return 'Summe';
+    if (lang.startsWith('fr')) return 'Total';
+    return 'Total';
+  })();
+
+  const filteredLabel = (() => {
+    const lang = String(i18n?.language || '').toLowerCase();
+    if (lang.startsWith('tr')) return 'Filtreli';
+    if (lang.startsWith('de')) return 'Gefiltert';
+    if (lang.startsWith('fr')) return 'Filtré';
+    return 'Filtered';
+  })();
+
+  const shownLabel = (() => {
+    const lang = String(i18n?.language || '').toLowerCase();
+    if (lang.startsWith('tr')) return 'Gösterilen';
+    if (lang.startsWith('de')) return 'Angezeigt';
+    if (lang.startsWith('fr')) return 'Affiché';
+    return 'Shown';
+  })();
+
+  const formatMoney = (amount: number, currency: string) => {
+    const locale = String(i18n?.language || 'tr-TR');
+    try {
+      return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount);
+    } catch {
+      // Fallback: formatCurrency (varsayılan para birimi) + kod
+      return `${formatCurrency(amount)} ${currency}`;
+    }
+  };
 
   const paginated = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -553,72 +603,81 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
 
       {/* Ara ve Filtreler */}
       <div className="bg-white rounded-xl border border-gray-200">
-        <div className="p-6 border-b border-gray-200 flex flex-col lg:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder={t('quotes.search')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilterValue)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="all">{t('quotes.filterAll')}</option>
-            <option value="draft">{t('quotes.statusLabels.draft')}</option>
-            <option value="sent">{t('quotes.statusLabels.sent')}</option>
-            <option value="viewed">{t('quotes.statusLabels.viewed')}</option>
-            <option value="accepted">{t('quotes.statusLabels.accepted')}</option>
-            <option value="declined">{t('quotes.statusLabels.declined')}</option>
-            <option value="expired">{t('quotes.statusLabels.expired')}</option>
-          </select>
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              placeholder={t('startDate')}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder={t('quotes.search')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilterValue)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              placeholder={t('endDate')}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            >
+              <option value="all">{t('quotes.filterAll')}</option>
+              <option value="draft">{t('quotes.statusLabels.draft')}</option>
+              <option value="sent">{t('quotes.statusLabels.sent')}</option>
+              <option value="viewed">{t('quotes.statusLabels.viewed')}</option>
+              <option value="accepted">{t('quotes.statusLabels.accepted')}</option>
+              <option value="declined">{t('quotes.statusLabels.declined')}</option>
+              <option value="expired">{t('quotes.statusLabels.expired')}</option>
+            </select>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                placeholder={t('startDate')}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                placeholder={t('endDate')}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="ml-auto flex items-center">
+              <SavedViewsBar
+                listType="quotes"
+                getState={() => ({ searchTerm, statusFilter, startDate, endDate, sortBy, sortDir, pageSize })}
+                applyState={(state) => {
+                  if (!state) return;
+                  setSearchTerm(state.searchTerm ?? '');
+                  setStatusFilter(state.statusFilter ?? 'all');
+                  setStartDate(state.startDate ?? '');
+                  setEndDate(state.endDate ?? '');
+                  if (state.sortBy) setSortBy(state.sortBy);
+                  if (state.sortDir) setSortDir(state.sortDir);
+                  if (state.pageSize && [20,50,100].includes(state.pageSize)) handlePageSizeChange(state.pageSize);
+                }}
+                presets={[
+                  { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
+                    const d = new Date();
+                    const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+                    const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+                    setStartDate(start); setEndDate(end);
+                  }},
+                  { id: 'accepted', label: t('quotes.statusLabels.accepted'), apply: () => setStatusFilter('accepted') },
+                  { id: 'declined', label: t('quotes.statusLabels.declined'), apply: () => setStatusFilter('declined') },
+                  { id: 'expired', label: t('quotes.statusLabels.expired'), apply: () => setStatusFilter('expired') },
+                ]}
+              />
+            </div>
           </div>
-          <div className="ml-auto flex items-center">
-            <SavedViewsBar
-              listType="quotes"
-              getState={() => ({ searchTerm, statusFilter, startDate, endDate, sortBy, sortDir, pageSize })}
-              applyState={(state) => {
-                if (!state) return;
-                setSearchTerm(state.searchTerm ?? '');
-                setStatusFilter(state.statusFilter ?? 'all');
-                setStartDate(state.startDate ?? '');
-                setEndDate(state.endDate ?? '');
-                if (state.sortBy) setSortBy(state.sortBy);
-                if (state.sortDir) setSortDir(state.sortDir);
-                if (state.pageSize && [20,50,100].includes(state.pageSize)) handlePageSizeChange(state.pageSize);
-              }}
-              presets={[
-                { id: 'this-month', label: t('presets.thisMonth'), apply: () => {
-                  const d = new Date();
-                  const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
-                  const end = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
-                  setStartDate(start); setEndDate(end);
-                }},
-                { id: 'accepted', label: t('quotes.statusLabels.accepted'), apply: () => setStatusFilter('accepted') },
-                { id: 'declined', label: t('quotes.statusLabels.declined'), apply: () => setStatusFilter('declined') },
-                { id: 'expired', label: t('quotes.statusLabels.expired'), apply: () => setStatusFilter('expired') },
-              ]}
-            />
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+            <span>{filtersActive ? filteredLabel : shownLabel}: {filtered.length}</span>
+            <span>
+              {(filtersActive ? filteredLabel : shownLabel)} {totalLabel}: {filteredTotalsByCurrency.map(([cur, sum]) => formatMoney(sum, cur)).join(' • ')}
+            </span>
           </div>
         </div>
         {/* Liste */}

@@ -73,17 +73,17 @@ export default function ProductViewModal({ isOpen, onClose, product, onEdit }: P
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-200 p-6">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-4 border-b border-gray-200 p-6">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-indigo-100">
               <Package className="h-5 w-5 text-indigo-600" />
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">{product.name}</h2>
-              <p className="text-sm text-gray-500">{L.sku}: {product.sku}</p>
+            <div className="min-w-0">
+              <h2 className="truncate text-xl font-semibold text-gray-900">{product.name}</h2>
+              <p className="truncate text-sm text-gray-500">{L.sku}: {product.sku}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {onEdit && (
               <button
                 type="button"
@@ -91,7 +91,7 @@ export default function ProductViewModal({ isOpen, onClose, product, onEdit }: P
                   onEdit(product);
                   onClose();
                 }}
-                className="rounded-lg border border-indigo-100 px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50"
+                className="shrink-0 rounded-lg border border-indigo-100 px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50"
               >
                 {L.edit}
               </button>
@@ -99,7 +99,7 @@ export default function ProductViewModal({ isOpen, onClose, product, onEdit }: P
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              className="shrink-0 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
               aria-label={L.close}
             >
               <X className="h-5 w-5" />

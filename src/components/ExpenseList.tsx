@@ -210,6 +210,40 @@ export default function ExpenseList({
     });
   }, [expenses, debouncedSearch, statusFilter, categoryFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
 
+  const filtersActive =
+    searchTerm.trim().length > 0 ||
+    statusFilter !== 'all' ||
+    categoryFilter !== 'all' ||
+    Boolean(startDate) ||
+    Boolean(endDate) ||
+    Boolean(showVoided);
+
+  const filteredExpensesTotal = useMemo(() => {
+    return filteredExpenses.reduce((sum, exp) => sum + toNumberSafe(exp.amount), 0);
+  }, [filteredExpenses]);
+
+  const totalLabel = (() => {
+    const lang = String(i18n?.language || '').toLowerCase();
+    if (lang.startsWith('tr')) return 'Toplam';
+    if (lang.startsWith('de')) return 'Summe';
+    if (lang.startsWith('fr')) return 'Total';
+    return 'Total';
+  })();
+
+  const shownLabel = (() => {
+    const lang = String(i18n?.language || '').toLowerCase();
+    if (filtersActive) {
+      if (lang.startsWith('tr')) return 'Filtreli';
+      if (lang.startsWith('de')) return 'Gefiltert';
+      if (lang.startsWith('fr')) return 'Filtré';
+      return 'Filtered';
+    }
+    if (lang.startsWith('tr')) return 'Gösterilen';
+    if (lang.startsWith('de')) return 'Angezeigt';
+    if (lang.startsWith('fr')) return 'Affiché';
+    return 'Shown';
+  })();
+
   // Filtre/arama/sıralama değiştiğinde sayfayı 1'e al
   useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, categoryFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
 
@@ -545,6 +579,11 @@ export default function ExpenseList({
               Bu ay: <strong className={`${atLimit ? 'text-red-600' : 'text-gray-900'}`}>{expensesThisMonth}/{MONTHLY_MAX}</strong>
             </div>
           )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+          <span>{shownLabel}: {filteredExpenses.length} {t('expenses.expensesRegistered')}</span>
+          <span>{shownLabel} {totalLabel}: {formatCurrency(filteredExpensesTotal)}</span>
         </div>
       </div>
 
