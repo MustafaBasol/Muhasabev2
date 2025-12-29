@@ -258,9 +258,10 @@ export default function GeneralLedger({
       });
     });
 
-    // Add sales (direct sales that are NOT already invoiced)
+    // Add sales (always visible in ledger).
+    // Important: If a sale has an invoice, we still show the sale row, but we must NOT count it in totals
+    // (otherwise sale + invoice would be double-counted). Totals will prefer the invoice.
     sales.forEach(sale => {
-      if (isSaleInvoiced(sale)) return;
       allTransactions.push({
         date: getSaleDate(sale),
         type: 'sale',
@@ -327,7 +328,9 @@ export default function GeneralLedger({
         const saleAmount = getSaleAmount(sale);
         const saleTitle = getSaleTitle(sale);
         const saleCustomer = getSaleCustomerName(sale);
-        if (sale.status === 'completed') {
+        const saleCompleted = String((sale as any)?.status || '').toLowerCase() === 'completed';
+        const shouldCountSaleInTotals = saleCompleted && !isSaleInvoiced(sale);
+        if (shouldCountSaleInTotals) {
           runningBalance += saleAmount;
         }
 
@@ -339,7 +342,7 @@ export default function GeneralLedger({
           customer: saleCustomer,
           category: t('chartOfAccounts.accountNames.601'),
           debit: 0,
-          credit: sale.status === 'completed' ? saleAmount : 0,
+          credit: shouldCountSaleInTotals ? saleAmount : 0,
           displayCredit: saleAmount,
           balance: runningBalance,
           type: 'sale',
