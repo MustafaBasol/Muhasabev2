@@ -5490,7 +5490,7 @@ const AppContent: React.FC = () => {
             onEditSale={sale => openSaleModal(sale)}
             onInvoicesUpdate={setInvoices}
             onExpensesUpdate={setExpenses}
-            onSalesUpdate={(nextSales) => persistSalesState(nextSales)}
+            onSalesUpdate={persistSalesState}
           />
         );
       case "chart-of-accounts":

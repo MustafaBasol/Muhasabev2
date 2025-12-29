@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import InvoiceViewModal from './InvoiceViewModal';
 import ExpenseViewModal from './ExpenseViewModal';
@@ -105,32 +105,41 @@ export default function GeneralLedger({
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(() => getSavedLedgerPageSize());
 
+  const didRefreshRef = useRef(false);
+
   // Muhasebe sayfasına girince güncel veriyi backend'den çek.
   // Amaç: başka sayfada/sekmede silinen satış/fatura/gider burada “stale” kalmasın.
   useEffect(() => {
+    if (didRefreshRef.current) return;
+    didRefreshRef.current = true;
     let cancelled = false;
 
     const refresh = async () => {
-      const results = await Promise.allSettled([
-        invoicesApi.getInvoices(),
-        expensesApi.getExpenses(),
-        salesApi.getSales(),
-      ]);
-      if (cancelled) return;
-
-      const [invRes, expRes, salesRes] = results;
       try {
-        if (invRes.status === 'fulfilled') {
+        const nextInvoices = await invoicesApi.getInvoices();
+        if (!cancelled) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (onInvoicesUpdate as any)?.(invRes.value as any);
+          (onInvoicesUpdate as any)?.(nextInvoices as any);
         }
-        if (expRes.status === 'fulfilled') {
+      } catch {
+        // Sessiz geç: sayfayı bozmasın
+      }
+
+      try {
+        const nextExpenses = await expensesApi.getExpenses();
+        if (!cancelled) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (onExpensesUpdate as any)?.(expRes.value as any);
+          (onExpensesUpdate as any)?.(nextExpenses as any);
         }
-        if (salesRes.status === 'fulfilled') {
+      } catch {
+        // Sessiz geç: sayfayı bozmasın
+      }
+
+      try {
+        const nextSales = await salesApi.getSales();
+        if (!cancelled) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (onSalesUpdate as any)?.(salesRes.value as any);
+          (onSalesUpdate as any)?.(nextSales as any);
         }
       } catch {
         // Sessiz geç: sayfayı bozmasın
