@@ -37,7 +37,7 @@ export interface Product {
   status?: string;
   description?: string;
   taxRate?: number; // KDV oranı (%).
-  categoryTaxRateOverride?: number; // Ürüne özel KDV oranı (kategorinin KDV'sini override eder)
+  categoryTaxRateOverride?: number | null; // Ürüne özel KDV oranı (kategorinin KDV'sini override eder)
 }
 
 export interface ProductCategory {

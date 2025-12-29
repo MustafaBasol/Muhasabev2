@@ -13,7 +13,7 @@ export interface Product {
   category?: string;
   barcode?: string;
   taxRate: number;
-  categoryTaxRateOverride?: number;
+  categoryTaxRateOverride?: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -31,7 +31,7 @@ export interface CreateProductDto {
   category?: string;
   barcode?: string;
   taxRate?: number;
-  categoryTaxRateOverride?: number;
+  categoryTaxRateOverride?: number | null;
 }
 
 export interface UpdateProductDto {
@@ -47,7 +47,7 @@ export interface UpdateProductDto {
   barcode?: string;
   taxRate?: number;
   isActive?: boolean;
-  categoryTaxRateOverride?: number;
+  categoryTaxRateOverride?: number | null;
 }
 
 /**

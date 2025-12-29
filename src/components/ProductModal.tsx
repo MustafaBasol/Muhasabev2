@@ -221,6 +221,9 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       if (!isNaN(taxRateOverride) && taxRateOverride >= 0 && taxRateOverride <= 100) {
         nextProduct.categoryTaxRateOverride = taxRateOverride;
       }
+    } else if (!formState.hasCustomTaxRate) {
+      // Checkbox kapatıldıysa mevcut override'ı temizle
+      nextProduct.categoryTaxRateOverride = null;
     }
     
     // Only include ID if editing existing product

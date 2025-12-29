@@ -835,9 +835,10 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
       logger.debug('simpleSales.invoice.payloadPrepared', {
         customerId: invoiceData.customerId,
         saleId: invoiceData.saleId,
+        subtotal,
+        taxAmount,
         totalWithTax: totalAmount,
-        unitPriceWithTax,
-        quantity,
+        lineItemsCount: lineItems.length,
       });
 
       try {
