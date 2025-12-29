@@ -473,7 +473,7 @@ export default function ProductList({
     setEditingCategoryData({ 
       id: categoryObj?.id || '',
       name: category.trim(), 
-      taxRate: categoryObj?.taxRate ?? 18, // Backend'den gelen değer veya varsayılan 18
+      taxRate: categoryObj?.taxRate ?? 0,
       isActive: categoryObj?.isActive ?? true,
       isProtected: categoryObj?.isProtected ?? false,
     });

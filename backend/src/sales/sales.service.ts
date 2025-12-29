@@ -102,8 +102,8 @@ export class SalesService {
         }
       }
     }
-    // 3) Varsayılan %18
-    return 18;
+    // 3) Varsayılan: bilinmiyorsa KDV eklenmesin.
+    return 0;
   }
 
   private async generateSaleNumber(tenantId: string, dateStr: string) {

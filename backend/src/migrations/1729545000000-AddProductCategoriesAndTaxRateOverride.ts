@@ -9,7 +9,7 @@ export class AddProductCategoriesAndTaxRateOverride1729545000000
       CREATE TABLE IF NOT EXISTS "product_categories" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
         "name" varchar NOT NULL,
-        "taxRate" decimal(5,2) NOT NULL DEFAULT 18,
+        "taxRate" decimal(5,2) NOT NULL DEFAULT 0,
         "isActive" boolean NOT NULL DEFAULT true,
         "tenantId" uuid NOT NULL,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),

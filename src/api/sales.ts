@@ -7,7 +7,7 @@ export interface SaleItemDto {
   productName?: string;
   quantity: number;
   unitPrice: number;
-  taxRate?: number; // % cinsinden (örn: 18)
+  taxRate?: number; // KDV oranı (%).
 }
 
 export interface CreateSaleDto {

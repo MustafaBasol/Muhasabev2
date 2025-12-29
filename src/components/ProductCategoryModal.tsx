@@ -48,7 +48,7 @@ export default function ProductCategoryModal({
 }: ProductCategoryModalProps) {
   const { t } = useTranslation();
   const [name, setName] = React.useState('');
-  const [taxRate, setTaxRate] = React.useState('18');
+  const [taxRate, setTaxRate] = React.useState('0');
   const [parentId, setParentId] = React.useState('');
   const [error, setError] = React.useState('');
 
@@ -63,7 +63,7 @@ export default function ProductCategoryModal({
   React.useEffect(() => {
     if (!isOpen) {
       setName('');
-      setTaxRate('18');
+      setTaxRate('0');
       setParentId('');
       setError('');
       return;
@@ -74,7 +74,7 @@ export default function ProductCategoryModal({
       setParentId('');
     } else {
       setName('');
-      setTaxRate('18');
+      setTaxRate('0');
       // Varsayılan olarak ilk ana kategoriyi seç
       if (parentCategories.length > 0) {
         setParentId(parentCategories[0].id);

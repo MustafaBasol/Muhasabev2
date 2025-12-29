@@ -252,8 +252,8 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     
     // Create invoice if requested
     if (createInvoice && onCreateInvoice) {
-      // Varsayılan vergi oranı (ürün üzerinde yoksa)
-      const defaultTaxRate = 18;
+      // Varsayılan vergi oranı: bilinmiyorsa KDV eklenmesin.
+      const defaultTaxRate = DEFAULT_TAX_RATE;
       const saleTaxRate = (pendingSale as Sale & { taxRate?: number })?.taxRate ?? defaultTaxRate;
       const qty = quantity;
       const grossTotal = rawAmount; // KDV dahil tutar

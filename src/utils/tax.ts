@@ -1,6 +1,7 @@
 import type { Product, ProductCategory } from '../types';
 
-export const DEFAULT_TAX_RATE = 18;
+// Varsayılan KDV oranı: bilinmiyorsa KDV eklenmesin.
+export const DEFAULT_TAX_RATE = 0;
 
 const normalizeCategoryToken = (value?: string | number | null): string => {
   if (value === null || value === undefined) {

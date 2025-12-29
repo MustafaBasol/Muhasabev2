@@ -229,14 +229,14 @@ export class TenantsService {
     const defaultCategories = [
       {
         name: 'Hizmetler',
-        taxRate: 18,
+        taxRate: 0,
         isProtected: true,
         isActive: true,
         tenant,
       },
       {
         name: 'Ürünler',
-        taxRate: 18,
+        taxRate: 0,
         isProtected: true,
         isActive: true,
         tenant,

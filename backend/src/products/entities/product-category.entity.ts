@@ -17,8 +17,8 @@ export class ProductCategory {
   @Column()
   name: string;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 18 })
-  taxRate: number; // KDV oranı (örn: 18 = %18)
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  taxRate: number; // KDV oranı (%). Bilinmiyorsa 0.
 
   @Column({ default: true })
   isActive: boolean;

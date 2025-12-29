@@ -199,7 +199,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
 
     // Kategorinin KDV oranını bul
     const categoryObj = categoryObjects?.find(c => c.name === selectedCategory);
-    const categoryTaxRate = categoryObj?.taxRate ?? 18; // Kategori KDV'si veya varsayılan %18
+    const categoryTaxRate = categoryObj?.taxRate ?? 0;
 
     const nextProduct: Partial<Product> = {
       name: formState.name.trim(),
@@ -216,7 +216,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
     };
 
     // Özel KDV oranı varsa ekle (kategorinin KDV'sini override eder)
-    if (formState.hasCustomTaxRate && formState.categoryTaxRateOverride) {
+    if (formState.hasCustomTaxRate && formState.categoryTaxRateOverride.trim() !== '') {
       const taxRateOverride = Number(formState.categoryTaxRateOverride);
       if (!isNaN(taxRateOverride) && taxRateOverride >= 0 && taxRateOverride <= 100) {
         nextProduct.categoryTaxRateOverride = taxRateOverride;

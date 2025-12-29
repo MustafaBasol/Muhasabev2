@@ -28,6 +28,7 @@ import { secureStorage } from "./utils/storage";
 import { getErrorMessage } from "./utils/errorHandler";
 import { isEmailVerificationRequired } from "./utils/emailVerification";
 import { logger } from "./utils/logger";
+import { DEFAULT_TAX_RATE, resolveProductTaxRate as resolveProductTaxRateUtil } from "./utils/tax";
 
 // API imports
 import * as customersApi from "./api/customers";
@@ -3180,7 +3181,7 @@ const AppContent: React.FC = () => {
           quantity: Number(item.quantity) || 1,
           unitPrice: Number(item.unitPrice) || 0,
           total: Number(item.total) || 0,
-          taxRate: Number(item.taxRate ?? 18), // KDV oranını ekle
+          taxRate: Number(item.taxRate ?? DEFAULT_TAX_RATE),
         })),
         taxAmount: Number(invoiceData.taxAmount || 0),
         discountAmount: Number(invoiceData.discountAmount || 0),
@@ -3357,7 +3358,7 @@ const AppContent: React.FC = () => {
               productName: item.productName || item.description || 'Ürün/Hizmet',
               quantity: Number(item.quantity) || 1,
               unitPrice: Number(item.unitPrice) || 0,
-              taxRate: Number(item.taxRate ?? 18)
+              taxRate: Number(item.taxRate ?? DEFAULT_TAX_RATE)
             }));
 
             const salePayload: salesApi.CreateSaleDto = {
@@ -3830,7 +3831,13 @@ const AppContent: React.FC = () => {
       const productName = saleData.productName || products.find(p => String(p.id) === String(productId))?.name || 'Ürün/Hizmet';
       const productTax = (() => {
         const p = products.find(x => String(x.id) === String(productId));
-        return p?.taxRate != null ? Number(p.taxRate) : 18;
+        if (!p) return DEFAULT_TAX_RATE;
+        return resolveProductTaxRateUtil(
+          p,
+          productCategoryObjects,
+          p.category ?? null,
+          DEFAULT_TAX_RATE,
+        );
       })();
 
       const dto: salesApi.CreateSaleDto = {
@@ -4031,8 +4038,11 @@ const AppContent: React.FC = () => {
         minStock: Number(productData.reorderLevel ?? 0),
         unit: productData.unit || 'adet',
         category: categoryName,
-        taxRate: Number(productData.taxRate ?? 18), // Kategori KDV'si
-        categoryTaxRateOverride: productData.categoryTaxRateOverride ? Number(productData.categoryTaxRateOverride) : undefined, // Özel KDV
+        taxRate: Number(productData.taxRate ?? DEFAULT_TAX_RATE),
+        categoryTaxRateOverride:
+          productData.categoryTaxRateOverride !== null && productData.categoryTaxRateOverride !== undefined
+            ? Number(productData.categoryTaxRateOverride)
+            : undefined,
       };
 
       logger.debug('app.products.upsert.payload', {
@@ -4422,7 +4432,7 @@ const AppContent: React.FC = () => {
         total: Number(li?.total) || ((Number(li?.quantity) || 1) * (Number(li?.unitPrice) || 0)),
         productId: li?.productId,
         unit: li?.unit,
-        taxRate: Number(li?.taxRate ?? 18),
+        taxRate: Number(li?.taxRate ?? DEFAULT_TAX_RATE),
       }));
     }
     // Fatura türünü ürün/hizmet/genel olarak belirle (ürün kategorisi köküne göre)
@@ -6121,16 +6131,22 @@ const AppContent: React.FC = () => {
               continue;
             }
             const items = Array.isArray(q.items) ? q.items : [];
-            // Ürünün efektif KDV oranını belirle: ürün özel > kategori > ürün alanı > varsayılan 18
-            const resolveProductTaxRate = (productId?: any): number => {
+            // Ürünün efektif KDV oranını belirle: ürün özel > ürün > kategori hiyerarşisi (alt->ana) > default (0)
+            const resolveEffectiveTaxRate = (productId?: any): number => {
               const pid = String(productId || '');
-              if (!pid) return 18;
+              if (!pid) return DEFAULT_TAX_RATE;
               try {
                 const p = products.find((pp: any) => String(pp.id) === pid);
-                if (!p) return 18;
-                const v = Number(p.categoryTaxRateOverride ?? p.taxRate ?? 18);
-                return Number.isFinite(v) && v >= 0 ? v : 18;
-              } catch { return 18; }
+                if (!p) return DEFAULT_TAX_RATE;
+                return resolveProductTaxRateUtil(
+                  p,
+                  productCategoryObjects,
+                  p.category ?? null,
+                  DEFAULT_TAX_RATE,
+                );
+              } catch {
+                return DEFAULT_TAX_RATE;
+              }
             };
             const mappedItems = items.map((it: any) => {
               const quantity = Number(it?.quantity || 1);
@@ -6141,7 +6157,7 @@ const AppContent: React.FC = () => {
               const taxRate = (() => {
                 const explicit = Number((it as any).taxRate);
                 if (Number.isFinite(explicit) && explicit >= 0) return explicit;
-                return resolveProductTaxRate(productId);
+                return resolveEffectiveTaxRate(productId);
               })();
               return { productId, productName, quantity, unitPrice, total, taxRate };
             });
@@ -6157,7 +6173,7 @@ const AppContent: React.FC = () => {
                   productName: it.productName,
                   quantity: Number(it.quantity) || 1,
                   unitPrice: Number(it.unitPrice) || 0,
-                  taxRate: Number(it.taxRate ?? 18),
+                  taxRate: Number(it.taxRate ?? DEFAULT_TAX_RATE),
                 })),
                 discountAmount: 0,
                 notes: 'Teklif kabul edildi (otomatik oluşturuldu)'.trim(),

@@ -135,8 +135,8 @@ export class InvoicesService {
       }
     }
 
-    // 3) Varsayılan: %18
-    return 18;
+    // 3) Varsayılan: bilinmiyorsa KDV eklenmesin.
+    return 0;
   }
 
   private buildProductQuantityMap(
