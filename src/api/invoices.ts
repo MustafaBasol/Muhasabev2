@@ -47,7 +47,11 @@ export interface CreateInvoiceDto {
   type?: 'product' | 'service';
   lineItems: InvoiceLineItem[];
   taxAmount: number;
+  discountAmount?: number;
   notes?: string;
+  status?: InvoiceStatus | string;
+  // Opsiyonel: Satış ile ilişkilendirme (backend destekliyorsa)
+  saleId?: string;
 }
 
 export interface UpdateInvoiceDto {

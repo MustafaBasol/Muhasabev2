@@ -107,7 +107,7 @@ interface InvoiceCreationPayload {
 }
 
 type InvoiceWithRelations = Invoice & {
-  customer?: Customer;
+  customer?: Customer | null | Partial<Customer>;
   saleId?: string | number;
 };
 

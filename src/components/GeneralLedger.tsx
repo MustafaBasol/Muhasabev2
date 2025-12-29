@@ -118,7 +118,6 @@ export default function GeneralLedger({
       try {
         const nextInvoices = await invoicesApi.getInvoices();
         if (!cancelled) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (onInvoicesUpdate as any)?.(nextInvoices as any);
         }
       } catch {
@@ -128,7 +127,6 @@ export default function GeneralLedger({
       try {
         const nextExpenses = await expensesApi.getExpenses();
         if (!cancelled) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (onExpensesUpdate as any)?.(nextExpenses as any);
         }
       } catch {
@@ -138,7 +136,6 @@ export default function GeneralLedger({
       try {
         const nextSales = await salesApi.getSales();
         if (!cancelled) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (onSalesUpdate as any)?.(nextSales as any);
         }
       } catch {
@@ -156,6 +153,26 @@ export default function GeneralLedger({
   const entries: LedgerEntry[] = useMemo(() => {
     const entries: LedgerEntry[] = [];
     const allTransactions: Array<{ date: string; type: 'invoice' | 'expense' | 'sale'; data: InvoiceRecord | ExpenseRecord | Sale; }> = [];
+
+    const isSaleInvoiced = (sale: Sale): boolean => {
+      const anySale = sale as any;
+      const saleId = String(anySale?.id ?? '');
+      if (!saleId) return false;
+
+      // Direkt link alanı varsa
+      if (anySale?.invoiceId) return true;
+
+      // Invoice.saleId ile bağlanmış olabilir
+      const viaSaleId = invoices.some((inv) => String((inv as any)?.saleId ?? '') === saleId);
+      if (viaSaleId) return true;
+
+      // Bazı sürümlerde invoice.notes içine satış numarası yazılıyor
+      const saleNumber = String(anySale?.saleNumber ?? `SAL-${saleId}`);
+      return invoices.some((inv) => {
+        const notes = (inv as any)?.notes;
+        return typeof notes === 'string' && notes.includes(saleNumber);
+      });
+    };
 
     // Helpers to robustly get amounts
     const getInvoiceTotal = (inv: InvoiceRecord): number => {
@@ -241,8 +258,9 @@ export default function GeneralLedger({
       });
     });
 
-    // Add sales (for visibility if you also record direct sales separate from invoices)
+    // Add sales (direct sales that are NOT already invoiced)
     sales.forEach(sale => {
+      if (isSaleInvoiced(sale)) return;
       allTransactions.push({
         date: getSaleDate(sale),
         type: 'sale',

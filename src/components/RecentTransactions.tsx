@@ -2,15 +2,11 @@ import React, { useMemo } from 'react';
 import { useCurrency, Currency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
-import { Invoice } from '../api/invoices';
-import { Expense } from '../api/expenses';
-import { SaleRecord } from '../api/sales';
-import { Quote } from '../api/quotes';
 
-type InvoiceLike = Partial<Invoice>;
-type ExpenseLike = Partial<Expense>;
-type SaleLike = Partial<SaleRecord>;
-type QuoteLike = Partial<Quote>;
+type InvoiceLike = Record<string, unknown>;
+type ExpenseLike = Record<string, unknown>;
+type SaleLike = Record<string, unknown>;
+type QuoteLike = Record<string, unknown>;
 
 type TransactionType = 'invoice' | 'expense' | 'sale' | 'quote';
 

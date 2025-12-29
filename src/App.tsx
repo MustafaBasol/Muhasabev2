@@ -14,7 +14,6 @@ import type {
   Product,
   ProductCategory,
   Sale,
-  Invoice,
   Bank,
   ChartAccount,
 } from "./types";
@@ -24,6 +23,8 @@ import type {
   InvoiceRecord,
   ExpenseRecord,
 } from "./types/records";
+
+import type { SupplierExpenseHint } from "./types/records";
 import { secureStorage } from "./utils/storage";
 import { getErrorMessage } from "./utils/errorHandler";
 import { isEmailVerificationRequired } from "./utils/emailVerification";
@@ -360,26 +361,13 @@ interface ImportedCustomer {
 }
  
 type BackendInvoiceLineItem = {
-  productId?: string | number;
+  productId?: string;
   productName?: string;
   description: string;
   quantity: number;
   unitPrice: number;
   total: number;
   taxRate?: number;
-};
- 
-type BackendInvoicePayload = {
-  customerId: string;
-  issueDate: string;
-  dueDate: string;
-  type: 'product' | 'service';
-  lineItems: BackendInvoiceLineItem[];
-  taxAmount: number;
-  discountAmount: number;
-  notes: string;
-  status: Invoice['status'];
-  saleId?: string | number;
 };
 
 type SalesUpdater = Sale[] | ((prev: Sale[]) => Sale[]);
@@ -1865,15 +1853,22 @@ const AppContent: React.FC = () => {
       // Giderleri kontrol et (tercih açık ise)
       if (allowExpenseAlerts) {
         expenses.forEach(expense => {
-          if (expense.status === 'paid' || expense.status === 'cancelled') return;
-          
-          const dueDate = expense.dueDate || expense.expenseDate ? new Date(expense.dueDate || expense.expenseDate) : null;
+          if (String((expense as any)?.status || '').toLowerCase() === 'paid') return;
+          if ((expense as any)?.isVoided) return;
+
+          const dueRaw: unknown = (expense as any)?.dueDate ?? (expense as any)?.expenseDate ?? (expense as any)?.date;
+          const dueDate = dueRaw ? new Date(dueRaw as any) : null;
           if (!dueDate) return;
           
           dueDate.setHours(0, 0, 0, 0);
           const dueDateMs = dueDate.getTime();
           
-          const supplierName = expense.supplier?.name || expense.supplier || tOr('common.generic.supplier', 'Tedarikçi');
+          const supplierName = (() => {
+            const supplier = (expense as any)?.supplier;
+            if (typeof supplier === 'string') return supplier;
+            if (supplier && typeof supplier === 'object' && typeof supplier.name === 'string') return supplier.name;
+            return tOr('common.generic.supplier', 'Tedarikçi');
+          })();
           const description = expense.description || tOr('common.generic.expense', 'Gider');
           
           if (dueDateMs < todayMs) {
@@ -2500,7 +2495,7 @@ const AppContent: React.FC = () => {
   const handleToggleSidebar = () => setIsSidebarOpen(prev => !prev);
   const handleCloseSidebar = () => setIsSidebarOpen(false);
 
-  const upsertCustomer = async (customerData: Partial<Customer>) => {
+  const upsertCustomer = async (customerData: Partial<CustomerRecord>) => {
     try {
       // Clean data - remove empty strings
       const cleanData = {
@@ -3396,10 +3391,10 @@ const AppContent: React.FC = () => {
             const firstItem = Array.isArray(savedSale?.items) && savedSale.items.length > 0 ? savedSale.items[0] : undefined;
             const uiSale = {
               ...savedSale,
-              customerName: savedSale?.customer?.name || customerName,
-              customerEmail: customerEmail,
+              customerName: (savedSale as any)?.customerName || customerName,
+              customerEmail: (savedSale as any)?.customerEmail || customerEmail,
               productId: firstItem?.productId,
-              productName: firstItem?.productName || firstItem?.description || '',
+              productName: firstItem?.productName || '',
               quantity: Number(firstItem?.quantity ?? 1),
               unitPrice: Number(firstItem?.unitPrice ?? 0),
               date: savedSale?.saleDate ? String(savedSale.saleDate).slice(0,10) : cleanData.issueDate,
@@ -3882,8 +3877,8 @@ const AppContent: React.FC = () => {
         const mapped = {
           id: saved.id,
           saleNumber: saved.saleNumber || saleData.saleNumber || `SAL-${new Date().toISOString().slice(0,7)}-???`,
-          customerName: saleData.customerName || saved.customer?.name || '',
-          customerEmail: saleData.customerEmail || saved.customer?.email || '',
+          customerName: saleData.customerName || (saved as any)?.customerName || '',
+          customerEmail: saleData.customerEmail || (saved as any)?.customerEmail || '',
           items: Array.isArray(saved.items) ? saved.items : dto.items,
           productName: productName,
           quantity,
@@ -3895,8 +3890,8 @@ const AppContent: React.FC = () => {
           paymentMethod: saleData.paymentMethod || 'cash',
           notes: dto.notes,
           invoiceId: saved.invoiceId,
-          createdByName: saved?.createdByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || user.name,
-          updatedByName: saved?.updatedByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || user.name,
+          createdByName: (saved as any)?.createdByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || user.name,
+          updatedByName: (saved as any)?.updatedByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || user.name,
           createdAt: saved?.createdAt || new Date().toISOString(),
           updatedAt: saved?.updatedAt || new Date().toISOString(),
         } as any;
@@ -3921,7 +3916,7 @@ const AppContent: React.FC = () => {
             total: Number(updated.total ?? s.total) || 0,
             items: Array.isArray(updated.items) ? updated.items : s.items,
             notes: updated.notes ?? s.notes,
-            updatedByName: updated?.updatedByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || s.updatedByName,
+            updatedByName: (updated as any)?.updatedByName || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.email || (s as any).updatedByName,
             updatedAt: updated?.updatedAt || new Date().toISOString(),
           } : s));
         showToast(t('toasts.sales.updateSuccess'), 'success');
@@ -4314,7 +4309,10 @@ const AppContent: React.FC = () => {
             return {
               ...bank,
               ...updated,
+              bankName: bankData.bankName || (updated as any).bankName || bank.bankName,
               accountName: updated.name,
+              accountNumber: (bank as any).accountNumber || bankData.accountNumber || '',
+              iban: bankData.iban || (updated as any).iban || (bank as any).iban || '',
               // UI'ya özel alanları KALICI olarak sakla (localStorage ile)
               isActive: bankData.isActive !== false,
               accountType: bankData.accountType || 'checking',
@@ -4363,7 +4361,10 @@ const AppContent: React.FC = () => {
             {
               ...created,
               id: String(created.id),
+              bankName: bankData.bankName || created.bankName || '',
               accountName: created.name,
+              accountNumber: bankData.accountNumber || '',
+              iban: bankData.iban || created.iban || '',
               isActive: bankData.isActive !== false,
               accountType: bankData.accountType || 'checking',
               balance: Number(bankData.balance) || 0,
@@ -4532,12 +4533,18 @@ const AppContent: React.FC = () => {
     if (preselectedCustomerForInvoice) {
       setSelectedInvoice({
         id: normalizeId(preselectedCustomerForInvoice.id),
+        invoiceNumber: '',
         customerName: preselectedCustomerForInvoice.name,
         customerEmail: preselectedCustomerForInvoice.email,
         customerAddress: preselectedCustomerForInvoice.address,
         status: 'draft',
         issueDate: new Date().toISOString().split('T')[0],
-      });
+        dueDate: new Date().toISOString().split('T')[0],
+        items: [],
+        subtotal: 0,
+        taxAmount: 0,
+        total: 0,
+      } as any);
     } else {
       setSelectedInvoice(null);
     }
@@ -4594,7 +4601,7 @@ const AppContent: React.FC = () => {
             ? Math.round(parsedTaxRate * 100) / 100
             : undefined;
           return {
-            productId: item.productId,
+            productId: item.productId != null ? String(item.productId) : undefined,
             productName: item.productName || fallbackDescription,
             description: fallbackDescription,
             quantity,
@@ -4647,12 +4654,22 @@ const AppContent: React.FC = () => {
         throw new Error('lineItems required');
       }
 
-      const backendData: BackendInvoicePayload = {
+      const issueDate = invoiceData.issueDate || new Date().toISOString().split('T')[0];
+      const dueDate = invoiceData.dueDate || issueDate;
+      const backendLineItems: invoicesApi.InvoiceLineItem[] = lineItems.map(item => ({
+        productId: item.productId ? String(item.productId) : undefined,
+        productName: String(item.productName || item.description || '').trim() || t('common.unknown', 'Bilinmiyor'),
+        quantity: Number(item.quantity) || 0,
+        unitPrice: Number(item.unitPrice) || 0,
+        total: Number(item.total) || 0,
+      }));
+
+      const backendData: invoicesApi.CreateInvoiceDto = {
         customerId,
-        issueDate: invoiceData.issueDate || new Date().toISOString().split('T')[0],
-        dueDate: invoiceData.dueDate,
+        issueDate,
+        dueDate,
         type: invoiceData.type || 'service',
-        lineItems,
+        lineItems: backendLineItems,
         taxAmount: Math.max(0, toNumberSafe(invoiceData.taxAmount)),
         discountAmount: Math.max(0, toNumberSafe(invoiceData.discountAmount)),
         notes: invoiceData.notes?.trim() || '',
@@ -5271,24 +5288,24 @@ const AppContent: React.FC = () => {
             }
             return (
           <RecentTransactions
-            invoices={invoices}
-            expenses={expenses}
-            sales={sales}
+            invoices={invoices as any}
+            expenses={expenses as any}
+            sales={sales as any}
             quotes={quotesForRecent}
             onViewInvoice={(invoice) => { openInvoiceView(invoice); }}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
             onDownloadInvoice={handleDownloadInvoice}
             onViewExpense={expense => {
-              setSelectedExpense(expense);
+              setSelectedExpense(expense as any);
               setShowExpenseViewModal(true);
             }}
-            onEditExpense={expense => openExpenseModal(expense)}
+            onEditExpense={expense => openExpenseModal(expense as any)}
             onDownloadExpense={handleDownloadExpense}
             onViewSale={sale => {
-              setSelectedSale(sale);
+              setSelectedSale(sale as any);
               setShowSaleViewModal(true);
             }}
-            onEditSale={sale => openSaleModal(sale)}
+            onEditSale={sale => openSaleModal(sale as any)}
             onDownloadSale={handleDownloadSale}
             onViewQuote={quote => {
               setSelectedQuote(quote as any);
@@ -5351,7 +5368,7 @@ const AppContent: React.FC = () => {
             onEditCustomer={customer => openCustomerModal(customer)}
             onDeleteCustomer={customerId => deleteCustomer(customerId)}
             onViewCustomer={customer => {
-              setSelectedCustomer(customer);
+              setSelectedCustomer(customer as any);
               setShowCustomerViewModal(true);
             }}
             onImportCustomers={handleImportCustomers}
@@ -5382,7 +5399,7 @@ const AppContent: React.FC = () => {
             onEditSupplier={supplier => openSupplierModal(supplier)}
             onDeleteSupplier={deleteSupplier}
             onViewSupplier={supplier => {
-              setSelectedSupplier(supplier);
+              setSelectedSupplier(supplier as any);
               setShowSupplierViewModal(true);
             }}
           />
@@ -5390,7 +5407,7 @@ const AppContent: React.FC = () => {
       case "invoices":
         return (
           <InvoiceList
-            invoices={invoices}
+            invoices={invoices as any}
             onAddInvoice={() => openInvoiceModal()}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
             onDeleteInvoice={requestDeleteInvoice}
@@ -5404,12 +5421,12 @@ const AppContent: React.FC = () => {
       case "expenses":
         return (
           <ExpenseList
-            expenses={expenses}
+            expenses={expenses as any}
             onAddExpense={() => openExpenseModal()}
             onEditExpense={expense => openExpenseModal(expense)}
             onDeleteExpense={expenseId => deleteExpense(expenseId)}
             onViewExpense={expense => {
-              setSelectedExpense(expense);
+              setSelectedExpense(expense as any);
               setShowExpenseViewModal(true);
             }}
             onUpdateExpense={updateExpenseStatusInline}
@@ -5452,10 +5469,10 @@ const AppContent: React.FC = () => {
       case "reports":
         return (
           <ReportsPage 
-            invoices={invoices} 
-            expenses={expenses} 
-            sales={sales} 
-            customers={customers}
+            invoices={invoices as any} 
+            expenses={expenses as any} 
+            sales={sales as any} 
+            customers={customers as any}
             quotes={(() => {
               // Quotes: Raporlar sayfası için local cache'den oku (tenant scoped)
               let list: any[] = [];
@@ -5473,9 +5490,9 @@ const AppContent: React.FC = () => {
       case "general-ledger":
         return (
           <GeneralLedger
-            invoices={invoices}
-            expenses={expenses}
-            sales={sales}
+            invoices={invoices as any}
+            expenses={expenses as any}
+            sales={sales as any}
             onViewInvoice={(invoice) => { openInvoiceView(invoice); }}
             onEditInvoice={invoice => openInvoiceModal(invoice)}
             onViewExpense={expense => {
@@ -5658,7 +5675,7 @@ const AppContent: React.FC = () => {
         <QuoteCreateModal
           isOpen={showQuoteCreateModal}
           onClose={() => setShowQuoteCreateModal(false)}
-          customers={customers}
+          customers={customers as any}
           products={products}
           onCreate={(payload: QuoteCreatePayload) => {
             try {
@@ -5709,10 +5726,10 @@ const AppContent: React.FC = () => {
           isOpen={showSupplierModal}
           onClose={closeSupplierModal}
           onSave={supplier => {
-            upsertSupplier(supplier);
+            upsertSupplier(supplier as any);
             closeSupplierModal();
           }}
-          supplier={selectedSupplier}
+          supplier={selectedSupplier as any}
         />
       )}
 
@@ -5738,7 +5755,7 @@ const AppContent: React.FC = () => {
                 (s.customerEmail && preselectedCustomerForInvoice?.email && String(s.customerEmail) === String(preselectedCustomerForInvoice.email))
               )
             : sales}
-          existingInvoices={invoices}
+          existingInvoices={invoices as any}
         />
       )}
 
@@ -5761,10 +5778,10 @@ const AppContent: React.FC = () => {
             await upsertInvoice(invoice);
             closeInvoiceModal();
           }}
-          invoice={selectedInvoice}
-          customers={customers}
+          invoice={selectedInvoice as any}
+          customers={customers as any}
           products={products}
-          invoices={invoices}
+          invoices={invoices as any}
         />
       )}
 
@@ -5804,7 +5821,7 @@ const AppContent: React.FC = () => {
             closeSaleModal();
           }}
           sale={selectedSale}
-          customers={customers}
+          customers={customers as any}
           products={products}
         />
       )}
@@ -5817,8 +5834,8 @@ const AppContent: React.FC = () => {
             upsertBank(bank);
             closeBankModal();
           }}
-          bank={selectedBank}
-          bankAccount={selectedBank}
+          bank={selectedBank as any}
+          bankAccount={selectedBank as any}
           country={company?.country as any}
         />
       )}
@@ -5849,11 +5866,11 @@ const AppContent: React.FC = () => {
       <SupplierViewModal
         isOpen={showSupplierViewModal}
         onClose={closeSupplierViewModal}
-        supplier={selectedSupplier}
+        supplier={selectedSupplier as any}
         onEdit={supplier => openSupplierModal(supplier)}
-        onCreateExpense={handleCreateExpenseFromSupplier}
+        onCreateExpense={handleCreateExpenseFromSupplier as any}
         onViewHistory={supplier => {
-          setSelectedSupplier(supplier);
+          setSelectedSupplier(supplier as any);
           setShowSupplierHistoryModal(true);
         }}
       />
@@ -5861,7 +5878,7 @@ const AppContent: React.FC = () => {
       <InvoiceViewModal
         isOpen={showInvoiceViewModal}
         onClose={closeInvoiceViewModal}
-        invoice={selectedInvoice}
+        invoice={selectedInvoice as any}
         onEdit={invoice => openInvoiceModal(invoice)}
         onDownload={handleDownloadInvoice}
       />
@@ -5869,15 +5886,15 @@ const AppContent: React.FC = () => {
       <ExpenseViewModal
         isOpen={showExpenseViewModal}
         onClose={closeExpenseViewModal}
-        expense={selectedExpense}
-        onEdit={expense => openExpenseModal(expense)}
+        expense={selectedExpense as any}
+        onEdit={expense => openExpenseModal(expense as any)}
         onDownload={handleDownloadExpense}
       />
 
       <SaleViewModal
         isOpen={showSaleViewModal}
         onClose={closeSaleViewModal}
-        sale={selectedSale}
+        sale={selectedSale as any}
         onEdit={sale => openSaleModal(sale)}
         onDelete={handleDeleteSale}
         onDownload={handleDownloadSale}
@@ -5928,7 +5945,7 @@ const AppContent: React.FC = () => {
                     ? {
                         ...q,
                         quoteNumber: saved.quoteNumber ?? q.quoteNumber,
-                        customerName: saved.customer?.name || saved.customerName || updated.customerName,
+                        customerName: saved.customerName || q.customerName || updated.customerName,
                         customerId: saved.customerId ?? (q as any).customerId,
                         issueDate: String(saved.issueDate || updated.issueDate).slice(0,10),
                         validUntil: saved.validUntil ? String(saved.validUntil).slice(0,10) : (updated.validUntil || null),
@@ -5989,7 +6006,7 @@ const AppContent: React.FC = () => {
       <CustomerHistoryModal
         isOpen={showCustomerHistoryModal}
         onClose={closeCustomerHistoryModal}
-        customer={selectedCustomer}
+        customer={selectedCustomer as any}
         invoices={invoices.filter(inv => {
           const sel = selectedCustomer;
           if (!sel) return false;
@@ -6001,28 +6018,29 @@ const AppContent: React.FC = () => {
           const selName = String(sel?.name || '').trim();
           return invName && selName && invName === selName;
         })}
-        sales={sales.filter(sale => sale.customerName === selectedCustomer?.name)}
+        sales={sales.filter(sale => sale.customerName === selectedCustomer?.name) as any}
         onViewInvoice={async invoice => {
           closeCustomerHistoryModal();
           setTimeout(async () => {
-            let full = invoice;
-            const hasItems = Array.isArray(invoice?.items) && invoice.items.length > 0;
-            const hasLineItems = Array.isArray((invoice as any)?.lineItems) && (invoice as any).lineItems.length > 0;
-            if (!hasItems && !hasLineItems && invoice?.id) {
+            const invAny = invoice as any;
+            let full = invAny;
+            const hasItems = Array.isArray(invAny?.items) && invAny.items.length > 0;
+            const hasLineItems = Array.isArray(invAny?.lineItems) && invAny.lineItems.length > 0;
+            if (!hasItems && !hasLineItems && invAny?.id) {
               try {
-                full = await invoicesApi.getInvoice(String(invoice.id));
+                full = await invoicesApi.getInvoice(String(invAny.id));
               } catch (e) {
                 console.warn('Geçmişten fatura görüntüleme: detay alınamadı, mevcut veri kullanılacak:', e);
               }
             }
-            setSelectedInvoice(normalizeInvoiceForUi(full));
+            setSelectedInvoice(normalizeInvoiceForUi(full) as any);
             setShowInvoiceViewModal(true);
           }, 50);
         }}
         onViewSale={sale => {
           closeCustomerHistoryModal();
           setTimeout(() => {
-            setSelectedSale(sale);
+            setSelectedSale(sale as any);
             setShowSaleViewModal(true);
           }, 50);
         }}
@@ -6033,19 +6051,19 @@ const AppContent: React.FC = () => {
             setShowQuoteViewModal(true);
           }, 50);
         }}
-        onCreateInvoice={handleCreateInvoiceFromCustomer}
+        onCreateInvoice={handleCreateInvoiceFromCustomer as any}
       />
 
       <SupplierHistoryModal
         isOpen={showSupplierHistoryModal}
         onClose={closeSupplierHistoryModal}
-        supplier={selectedSupplier}
-        expenses={expenses.filter(expense => expense.supplier === selectedSupplier?.name)}
+        supplier={selectedSupplier as any}
+        expenses={expenses.filter(expense => expense.supplier === selectedSupplier?.name) as any}
         onViewExpense={expense => {
-          setSelectedExpense(expense);
+          setSelectedExpense(expense as any);
           setShowExpenseViewModal(true);
         }}
-        onCreateExpense={handleCreateExpenseFromSupplier}
+        onCreateExpense={handleCreateExpenseFromSupplier as any}
       />
 
       {deleteWarningData && (

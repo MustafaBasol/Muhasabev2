@@ -4,21 +4,27 @@
 export interface Customer {
   id: string;
   name: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   address?: string;
   taxNumber?: string;
   company?: string;
+  balance?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Supplier {
   id: string;
   name: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   address?: string;
   taxNumber?: string;
   company?: string;
+  balance?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Product {
@@ -54,16 +60,21 @@ export interface ProductCategory {
 export interface Invoice {
   id: string;
   invoiceNumber: string;
-  customerName: string;
-  customerEmail: string;
+  customerId?: string;
+  customerName?: string;
+  customerEmail?: string;
   customerAddress?: string;
-  total: number;
-  subtotal: number;
-  taxAmount: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
+  total?: number;
+  amount?: number;
+  subtotal?: number;
+  taxAmount?: number;
+  status?: string;
   issueDate: string;
-  dueDate: string;
-  items: InvoiceItem[];
+  dueDate?: string;
+  // Eski frontend alanı
+  items?: InvoiceItem[];
+  // Backend alanı
+  lineItems?: InvoiceItem[];
   notes?: string;
   type?: 'product' | 'service';
   // Satış-fatura bağlantısı için opsiyonel alan
@@ -74,41 +85,51 @@ export interface InvoiceItem {
   id?: string;
   productId?: string | number;
   productName?: string;
-  description: string;
+  description?: string;
   quantity: number;
   unitPrice: number;
-  total: number;
+  total?: number;
   taxRate?: number; // Her ürünün kendi KDV oranı
 }
 
 export interface Expense {
   id: string;
-  expenseNumber: string;
+  expenseNumber?: string;
   description: string;
-  supplier: string;
+  supplier?: string | { id?: string; name?: string; email?: string } | null;
   amount: number;
   category: string;
-  status: 'draft' | 'approved' | 'paid';
-  expenseDate: string;
-  dueDate: string;
+  status?: string;
+  date?: string;
+  expenseDate?: string | Date;
+  dueDate?: string;
   receiptUrl?: string;
+  notes?: string;
+  isVoided?: boolean;
+  voidReason?: string;
+  voidedAt?: string;
+  voidedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Sale {
   id: string;
   saleNumber?: string;
-  customerName: string;
+  customerId?: string;
+  customerName?: string;
   customerEmail?: string;
-  productName: string; // Eski sistem için (tek ürün) veya çoklu ürün için özet
+  productName?: string; // Eski sistem için (tek ürün) veya çoklu ürün için özet
   quantity?: number;
   unitPrice?: number;
-  amount: number;
+  amount?: number;
   total?: number; // Toplam tutar (amount ile aynı olabilir)
   subtotal?: number; // KDV hariç toplam
   taxAmount?: number;
   discountAmount?: number;
-  status: 'completed' | 'pending' | 'cancelled';
-  date: string;
+  status?: string;
+  date?: string;
+  saleDate?: string;
   paymentMethod?: 'cash' | 'card' | 'transfer' | 'check';
   notes?: string;
   productId?: string;
@@ -116,13 +137,17 @@ export interface Sale {
   invoiceId?: string; // Fatura ID'si (fatura oluşturulduysa)
   items?: Array<{ // Çoklu ürün desteği
     productId?: string;
-    productName: string;
+    productName?: string;
     description?: string;
     quantity: number;
     unitPrice: number;
-    total: number;
+    total?: number;
     taxRate?: number;
   }>;
+  createdAt?: string;
+  updatedAt?: string;
+  createdByName?: string;
+  updatedByName?: string;
 }
 
 export interface Bank {
@@ -130,12 +155,13 @@ export interface Bank {
   bankName: string;
   accountName: string;
   accountNumber: string;
-  iban?: string;
+  iban: string;
   balance: number;
   currency: string;
-  accountType: 'checking' | 'savings' | 'credit';
+  accountType: 'checking' | 'savings' | 'business';
   isActive: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ChartAccount {
