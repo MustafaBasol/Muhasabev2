@@ -4039,10 +4039,13 @@ const AppContent: React.FC = () => {
         unit: productData.unit || 'adet',
         category: categoryName,
         taxRate: Number(productData.taxRate ?? DEFAULT_TAX_RATE),
+        // null => override temizle
         categoryTaxRateOverride:
-          productData.categoryTaxRateOverride !== null && productData.categoryTaxRateOverride !== undefined
-            ? Number(productData.categoryTaxRateOverride)
-            : undefined,
+          productData.categoryTaxRateOverride === null
+            ? null
+            : (productData.categoryTaxRateOverride !== undefined
+                ? Number(productData.categoryTaxRateOverride)
+                : undefined),
       };
 
       logger.debug('app.products.upsert.payload', {
