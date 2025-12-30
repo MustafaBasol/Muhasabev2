@@ -184,10 +184,11 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
         ];
       case 'US':
         return [
-          row('EIN', c.einNumber),
-          row('Tax ID', c.taxId),
-          row('Business License', c.businessLicenseNumber),
-          row('State', c.stateOfIncorporation),
+          row('Federal Tax ID (EIN)', c.einNumber),
+          row('State Tax ID / Sales Tax Permit No', c.taxId),
+          row('Sales Tax Permit / Reseller Permit / State Tax Registration No', c.salesTaxPermitNumber),
+          row('Business License No', c.businessLicenseNumber),
+          row('State of Incorporation', c.stateOfIncorporation),
         ];
       default:
         return [

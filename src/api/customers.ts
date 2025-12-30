@@ -7,6 +7,7 @@ export interface Customer {
   phone?: string;
   address?: string;
   taxNumber?: string;
+  siretNumber?: string;
   company?: string;
   balance: number;
   createdAt: string;
@@ -19,6 +20,7 @@ export interface CreateCustomerDto {
   phone?: string;
   address?: string;
   taxNumber?: string;
+  siretNumber?: string;
   company?: string;
 }
 
@@ -28,6 +30,7 @@ export interface UpdateCustomerDto {
   phone?: string;
   address?: string;
   taxNumber?: string;
+  siretNumber?: string;
   company?: string;
 }
 

@@ -22,6 +22,7 @@ export interface CreateTenantDto {
 
   // Türkiye
   taxOffice?: string;
+  tradeRegistryNumber?: string;
   mersisNumber?: string;
   kepAddress?: string;
 
@@ -31,6 +32,10 @@ export interface CreateTenantDto {
   apeCode?: string;
   tvaNumber?: string;
   rcsNumber?: string;
+  companyType?: string;
+  capitalSocial?: string;
+  latePaymentInterest?: string;
+  fixedRecoveryFee?: string;
 
   // Almanya
   steuernummer?: string;
@@ -41,6 +46,7 @@ export interface CreateTenantDto {
   // Amerika
   einNumber?: string;
   taxId?: string;
+  salesTaxPermitNumber?: string;
   businessLicenseNumber?: string;
   stateOfIncorporation?: string;
 }
@@ -59,6 +65,7 @@ export interface UpdateTenantDto {
 
   // Türkiye
   taxOffice?: string;
+  tradeRegistryNumber?: string;
   mersisNumber?: string;
   kepAddress?: string;
 
@@ -68,6 +75,10 @@ export interface UpdateTenantDto {
   apeCode?: string;
   tvaNumber?: string;
   rcsNumber?: string;
+  companyType?: string;
+  capitalSocial?: string;
+  latePaymentInterest?: string;
+  fixedRecoveryFee?: string;
 
   // Almanya
   steuernummer?: string;
@@ -78,6 +89,7 @@ export interface UpdateTenantDto {
   // Amerika
   einNumber?: string;
   taxId?: string;
+  salesTaxPermitNumber?: string;
   businessLicenseNumber?: string;
   stateOfIncorporation?: string;
 }

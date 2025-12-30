@@ -1693,6 +1693,8 @@
     "enterCustomerInfo": "Saisir les informations client",
     "editCustomer": "Modifier le Client",
     "taxNumber": "Numéro de TVA",
+    "siretNumber": "SIRET",
+    "siretNumberPlaceholder": "12345678901234",
     "company": "Nom de l'Entreprise",
     "namePlaceholder": "Jean Dupont",
     "companyPlaceholder": "Technologie ABC Ltd.",
@@ -2798,8 +2800,13 @@
       "items": {
         "description": "Description",
         "quantity": "Quantité",
+        "unit": "Unité",
         "unitPrice": "Prix Unitaire",
-        "total": "Total"
+        "unitPriceHt": "Prix unitaire HT",
+        "vatRate": "% TVA",
+        "vatTotal": "Total TVA",
+        "total": "Total",
+        "totalTtc": "Total TTC"
       },
       "totals": {
         "subtotal": "Sous-total",

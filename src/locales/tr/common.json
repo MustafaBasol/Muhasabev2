@@ -813,6 +813,7 @@
   "customer.companyInfo": "Firma Bilgileri",
   "customer.company": "Firma",
   "customer.taxNumber": "Vergi Numarası",
+  "customer.siretNumber": "SIRET",
   "customer.addressInfo": "Adres Bilgileri",
   "customer.quickActions": "Hızlı İşlemler",
   "customer.createInvoice": "Fatura Oluştur",
@@ -1205,6 +1206,8 @@
     "emailPlaceholder": "musteri@example.com",
     "addressPlaceholder": "Tam adres bilgisi...",
     "taxNumber": "Vergi Numarası",
+    "siretNumber": "SIRET",
+    "siretNumberPlaceholder": "12345678901234",
     "company": "Şirket Adı",
     "namePlaceholder": "Ahmet Yılmaz",
     "companyPlaceholder": "ABC Teknoloji Ltd.",
@@ -2428,8 +2431,13 @@
       "items": {
         "description": "Açıklama",
         "quantity": "Miktar",
+        "unit": "Birim",
         "unitPrice": "Birim Fiyat",
-        "total": "Toplam"
+        "unitPriceHt": "Birim Fiyat (KDV Hariç)",
+        "vatRate": "KDV %",
+        "vatTotal": "KDV Toplam",
+        "total": "Toplam",
+        "totalTtc": "Toplam (KDV Dahil)"
       },
       "totals": {
         "subtotal": "Ara Toplam",

@@ -32,6 +32,7 @@ type TenantPublicProfile = {
   geschaeftsfuehrer: string;
   einNumber: string;
   taxId: string;
+  salesTaxPermitNumber: string;
   businessLicenseNumber: string;
   stateOfIncorporation: string;
   logoDataUrl?: string;
@@ -355,6 +356,7 @@ export class QuotesService {
           geschaeftsfuehrer: tenant.geschaeftsfuehrer || '',
           einNumber: tenant.einNumber || '',
           taxId: tenant.taxId || '',
+          salesTaxPermitNumber: tenant.salesTaxPermitNumber || '',
           businessLicenseNumber: tenant.businessLicenseNumber || '',
           stateOfIncorporation: tenant.stateOfIncorporation || '',
           logoDataUrl: brand.logoDataUrl || '',

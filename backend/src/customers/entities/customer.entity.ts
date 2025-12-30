@@ -30,6 +30,9 @@ export class Customer {
   @Column({ nullable: true })
   taxNumber: string | null;
 
+  @Column({ nullable: true, comment: 'SIRET Numarası (FR, 14 haneli)' })
+  siretNumber: string | null;
+
   @Column({ nullable: true })
   company: string | null;
 

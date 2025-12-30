@@ -162,6 +162,12 @@ const defaultCompany: CompanyProfile = {
   iban: "",
   bankAccountId: undefined,
   currency: "TRY",
+  tradeRegistryNumber: "",
+  // FR ek yasal/ödeme alanları (opsiyonel ama state stabilitesi için varsayılan veriyoruz)
+  companyType: "",
+  capitalSocial: "",
+  latePaymentInterest: "",
+  fixedRecoveryFee: "",
 };
 
 type Nullable<T> = T | null | undefined;
@@ -626,16 +632,20 @@ const AppContent: React.FC = () => {
           const backendHasBrand = Boolean(brand?.logoDataUrl || brand?.bankAccountId || brand?.country);
           const backendHasLegal = Boolean(
             me?.taxNumber || me?.taxOffice || me?.address || me?.phone || me?.email || me?.website ||
+            (me as any)?.tradeRegistryNumber ||
             (me as any)?.siretNumber || (me as any)?.sirenNumber || (me as any)?.tvaNumber || (me as any)?.apeCode || (me as any)?.rcsNumber ||
+            (me as any)?.companyType || (me as any)?.capitalSocial || (me as any)?.latePaymentInterest || (me as any)?.fixedRecoveryFee ||
             (me as any)?.steuernummer || (me as any)?.umsatzsteuerID || (me as any)?.handelsregisternummer || (me as any)?.geschaeftsfuehrer ||
-            (me as any)?.einNumber || (me as any)?.taxId || (me as any)?.businessLicenseNumber || (me as any)?.stateOfIncorporation
+            (me as any)?.einNumber || (me as any)?.taxId || (me as any)?.salesTaxPermitNumber || (me as any)?.businessLicenseNumber || (me as any)?.stateOfIncorporation
           );
 
           const localHasUseful = Boolean(localRich && (
             localRich.logoDataUrl || localRich.taxNumber || localRich.taxOffice || localRich.address || localRich.phone || localRich.email || localRich.website ||
+            (localRich as any).tradeRegistryNumber ||
             (localRich as any).siretNumber || (localRich as any).sirenNumber || (localRich as any).tvaNumber || (localRich as any).apeCode || (localRich as any).rcsNumber ||
+            (localRich as any).companyType || (localRich as any).capitalSocial || (localRich as any).latePaymentInterest || (localRich as any).fixedRecoveryFee ||
             (localRich as any).steuernummer || (localRich as any).umsatzsteuerID || (localRich as any).handelsregisternummer || (localRich as any).geschaeftsfuehrer ||
-            (localRich as any).einNumber || (localRich as any).taxId || (localRich as any).businessLicenseNumber || (localRich as any).stateOfIncorporation
+            (localRich as any).einNumber || (localRich as any).taxId || (localRich as any).salesTaxPermitNumber || (localRich as any).businessLicenseNumber || (localRich as any).stateOfIncorporation
           ));
 
           if (localHasUseful && !backendHasBrand && !backendHasLegal) {
@@ -646,6 +656,7 @@ const AppContent: React.FC = () => {
                 address: localRich!.address || undefined,
                 taxNumber: localRich!.taxNumber || undefined,
                 taxOffice: localRich!.taxOffice || undefined,
+                tradeRegistryNumber: (localRich as any).tradeRegistryNumber || undefined,
                 phone: localRich!.phone || undefined,
                 email: localRich!.email || undefined,
                 website: localRich!.website || undefined,
@@ -654,12 +665,17 @@ const AppContent: React.FC = () => {
                 apeCode: (localRich as any).apeCode || undefined,
                 tvaNumber: (localRich as any).tvaNumber || undefined,
                 rcsNumber: (localRich as any).rcsNumber || undefined,
+                companyType: (localRich as any).companyType || undefined,
+                capitalSocial: (localRich as any).capitalSocial || undefined,
+                latePaymentInterest: (localRich as any).latePaymentInterest || undefined,
+                fixedRecoveryFee: (localRich as any).fixedRecoveryFee || undefined,
                 steuernummer: (localRich as any).steuernummer || undefined,
                 umsatzsteuerID: (localRich as any).umsatzsteuerID || undefined,
                 handelsregisternummer: (localRich as any).handelsregisternummer || undefined,
                 geschaeftsfuehrer: (localRich as any).geschaeftsfuehrer || undefined,
                 einNumber: (localRich as any).einNumber || undefined,
                 taxId: (localRich as any).taxId || undefined,
+                salesTaxPermitNumber: (localRich as any).salesTaxPermitNumber || undefined,
                 businessLicenseNumber: (localRich as any).businessLicenseNumber || undefined,
                 stateOfIncorporation: (localRich as any).stateOfIncorporation || undefined,
                 settings: {
@@ -674,7 +690,7 @@ const AppContent: React.FC = () => {
               const me2 = await tenantsApi.getMyTenant();
               if (me2) {
                 (me as any).settings = me2.settings;
-                (me as any).address = me2.address; (me as any).taxNumber = me2.taxNumber; (me as any).taxOffice = me2.taxOffice;
+                (me as any).address = me2.address; (me as any).taxNumber = me2.taxNumber; (me as any).taxOffice = me2.taxOffice; (me as any).tradeRegistryNumber = (me2 as any).tradeRegistryNumber;
                 (me as any).phone = me2.phone; (me as any).email = me2.email; (me as any).website = me2.website;
                 Object.assign(me, {
                   siretNumber: (me2 as any).siretNumber,
@@ -682,12 +698,17 @@ const AppContent: React.FC = () => {
                   apeCode: (me2 as any).apeCode,
                   tvaNumber: (me2 as any).tvaNumber,
                   rcsNumber: (me2 as any).rcsNumber,
+                  companyType: (me2 as any).companyType,
+                  capitalSocial: (me2 as any).capitalSocial,
+                  latePaymentInterest: (me2 as any).latePaymentInterest,
+                  fixedRecoveryFee: (me2 as any).fixedRecoveryFee,
                   steuernummer: (me2 as any).steuernummer,
                   umsatzsteuerID: (me2 as any).umsatzsteuerID,
                   handelsregisternummer: (me2 as any).handelsregisternummer,
                   geschaeftsfuehrer: (me2 as any).geschaeftsfuehrer,
                   einNumber: (me2 as any).einNumber,
                   taxId: (me2 as any).taxId,
+                  salesTaxPermitNumber: (me2 as any).salesTaxPermitNumber,
                   businessLicenseNumber: (me2 as any).businessLicenseNumber,
                   stateOfIncorporation: (me2 as any).stateOfIncorporation,
                 });
@@ -709,6 +730,7 @@ const AppContent: React.FC = () => {
           currency: (me as any).currency || (brand as any).currency || 'TRY',
           country: brand.country || undefined,
           // Legal fields
+          tradeRegistryNumber: (me as any).tradeRegistryNumber || '',
           mersisNumber: (me as any).mersisNumber || '',
           kepAddress: (me as any).kepAddress || '',
           siretNumber: (me as any).siretNumber || '',
@@ -716,12 +738,17 @@ const AppContent: React.FC = () => {
           apeCode: (me as any).apeCode || '',
           tvaNumber: (me as any).tvaNumber || '',
           rcsNumber: (me as any).rcsNumber || '',
+          companyType: (me as any).companyType || '',
+          capitalSocial: (me as any).capitalSocial || '',
+          latePaymentInterest: (me as any).latePaymentInterest || '',
+          fixedRecoveryFee: (me as any).fixedRecoveryFee || '',
           steuernummer: (me as any).steuernummer || '',
           umsatzsteuerID: (me as any).umsatzsteuerID || '',
           handelsregisternummer: (me as any).handelsregisternummer || '',
           geschaeftsfuehrer: (me as any).geschaeftsfuehrer || '',
           einNumber: (me as any).einNumber || '',
           taxId: (me as any).taxId || '',
+          salesTaxPermitNumber: (me as any).salesTaxPermitNumber || '',
           businessLicenseNumber: (me as any).businessLicenseNumber || '',
           stateOfIncorporation: (me as any).stateOfIncorporation || '',
         } as any;
@@ -5718,6 +5745,7 @@ const AppContent: React.FC = () => {
             closeCustomerModal();
           }}
           customer={selectedCustomer}
+          companyCountry={(company as any)?.country}
         />
       )}
 

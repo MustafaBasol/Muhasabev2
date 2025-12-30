@@ -1664,6 +1664,9 @@ type SettingsTranslations = {
       countryOptions?: { TR: string; US: string; DE: string; FR: string; OTHER: string };
       turkey: {
         title: string;
+        vknTckn: string;
+        taxOffice: string;
+        tradeRegistryNumber: string;
         mersisNumber: string;
         kepAddress: string;
       };
@@ -1674,6 +1677,10 @@ type SettingsTranslations = {
         apeCode: string;
         tvaNumber: string;
         rcsNumber: string;
+        companyType: string;
+        capitalSocial: string;
+        latePaymentInterest: string;
+        fixedRecoveryFee: string;
       };
       germany: {
         title: string;
@@ -1686,6 +1693,7 @@ type SettingsTranslations = {
         title: string;
         einNumber: string;
         taxId: string;
+        salesTaxPermitNumber: string;
         businessLicenseNumber: string;
         stateOfIncorporation: string;
       };
@@ -1874,6 +1882,9 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         countryOptions: { TR: 'Türkiye', US: 'Amerika', DE: 'Almanya', FR: 'Fransa', OTHER: 'Diğer' },
         turkey: {
           title: 'Türkiye',
+          vknTckn: 'VKN/TCKN',
+          taxOffice: 'Vergi Dairesi',
+          tradeRegistryNumber: 'Ticaret Sicil No',
           mersisNumber: 'Mersis Numarası',
           kepAddress: 'KEP Adresi',
         },
@@ -1884,6 +1895,10 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
           apeCode: 'APE/NAF Kodu',
           tvaNumber: 'TVA Numarası',
           rcsNumber: 'RCS Numarası',
+          companyType: 'Şirket Türü',
+          capitalSocial: 'Sermaye (Capital social)',
+          latePaymentInterest: 'Gecikme faizi/cezası',
+          fixedRecoveryFee: 'Tahsilat masrafı sabiti',
         },
         germany: {
           title: 'Almanya',
@@ -1894,8 +1909,9 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         },
         usa: {
           title: 'Amerika',
-          einNumber: 'EIN Numarası',
-          taxId: 'Tax ID',
+          einNumber: 'Federal Tax ID (EIN)',
+          taxId: 'State Tax ID / Sales Tax Permit No',
+          salesTaxPermitNumber: 'Sales Tax Permit / Reseller Permit / State Tax Registration No',
           businessLicenseNumber: 'Business License No',
           stateOfIncorporation: 'Kuruluş Eyaleti',
         },
@@ -2089,6 +2105,9 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         countryOptions: { TR: 'Turkey', US: 'United States', DE: 'Germany', FR: 'France', OTHER: 'Other' },
         turkey: {
           title: 'Turkey',
+          vknTckn: 'Tax No (VKN/TCKN)',
+          taxOffice: 'Tax Office',
+          tradeRegistryNumber: 'Trade Registry No',
           mersisNumber: 'Mersis Number',
           kepAddress: 'KEP Address',
         },
@@ -2099,6 +2118,10 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
           apeCode: 'APE/NAF Code',
           tvaNumber: 'TVA Number',
           rcsNumber: 'RCS Number',
+          companyType: 'Company Type',
+          capitalSocial: 'Share Capital (Capital social)',
+          latePaymentInterest: 'Late payment interest/penalty',
+          fixedRecoveryFee: 'Fixed recovery fee',
         },
         germany: {
           title: 'Germany',
@@ -2109,8 +2132,9 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         },
         usa: {
           title: 'USA',
-          einNumber: 'EIN Number',
-          taxId: 'Tax ID',
+          einNumber: 'Federal Tax ID (EIN)',
+          taxId: 'State Tax ID / Sales Tax Permit No',
+          salesTaxPermitNumber: 'Sales Tax Permit / Reseller Permit / State Tax Registration No',
           businessLicenseNumber: 'Business License No',
           stateOfIncorporation: 'State of Incorporation',
         },
@@ -2304,6 +2328,9 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         countryOptions: { TR: 'Turquie', US: 'États-Unis', DE: 'Allemagne', FR: 'France', OTHER: 'Autre' },
         turkey: {
           title: 'Turquie',
+          vknTckn: 'Numéro fiscal (VKN/TCKN)',
+          taxOffice: 'Centre des impôts',
+          tradeRegistryNumber: 'N° registre du commerce',
           mersisNumber: 'Numéro Mersis',
           kepAddress: 'Adresse KEP',
         },
@@ -2314,6 +2341,10 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
           apeCode: 'Code APE/NAF',
           tvaNumber: 'Numéro TVA',
           rcsNumber: 'Numéro RCS',
+          companyType: 'Forme juridique',
+          capitalSocial: 'Capital social',
+          latePaymentInterest: 'Pénalités/Intérêts de retard',
+          fixedRecoveryFee: 'Indemnité forfaitaire de recouvrement',
         },
         germany: {
           title: 'Allemagne',
@@ -2324,8 +2355,9 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         },
         usa: {
           title: 'États-Unis',
-          einNumber: 'Numéro EIN',
-          taxId: 'Tax ID',
+          einNumber: 'Federal Tax ID (EIN)',
+          taxId: 'State Tax ID / Sales Tax Permit No',
+          salesTaxPermitNumber: 'Sales Tax Permit / Reseller Permit / State Tax Registration No',
           businessLicenseNumber: 'N° de licence commerciale',
           stateOfIncorporation: 'État de constitution',
         },
@@ -2519,6 +2551,9 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         countryOptions: { TR: 'Türkei', US: 'USA', DE: 'Deutschland', FR: 'Frankreich', OTHER: 'Andere' },
         turkey: {
           title: 'Türkei',
+          vknTckn: 'Steuernr. (VKN/TCKN)',
+          taxOffice: 'Finanzamt',
+          tradeRegistryNumber: 'Handelsregisternr.',
           mersisNumber: 'Mersis-Nummer',
           kepAddress: 'KEP-Adresse',
         },
@@ -2529,6 +2564,10 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
           apeCode: 'APE/NAF-Code',
           tvaNumber: 'TVA-Nummer',
           rcsNumber: 'RCS-Nummer',
+          companyType: 'Rechtsform',
+          capitalSocial: 'Stammkapital (Capital social)',
+          latePaymentInterest: 'Verzugszinsen/Strafe',
+          fixedRecoveryFee: 'Pauschale Inkassokosten',
         },
         germany: {
           title: 'Deutschland',
@@ -2539,8 +2578,9 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
         },
         usa: {
           title: 'USA',
-          einNumber: 'EIN-Nummer',
-          taxId: 'Tax ID',
+          einNumber: 'Federal Tax ID (EIN)',
+          taxId: 'State Tax ID / Sales Tax Permit No',
+          salesTaxPermitNumber: 'Sales Tax Permit / Reseller Permit / State Tax Registration No',
           businessLicenseNumber: 'Gewerbelizenznummer',
           stateOfIncorporation: 'Gründungsstaat',
         },
@@ -3104,6 +3144,7 @@ export default function SettingsPage({
     logoFile: null,
     
     // Türkiye yasal alanları
+    tradeRegistryNumber: company?.tradeRegistryNumber ?? '',
     mersisNumber: company?.mersisNumber ?? '',
     kepAddress: company?.kepAddress ?? '',
     
@@ -3113,6 +3154,10 @@ export default function SettingsPage({
     apeCode: company?.apeCode ?? '',
     tvaNumber: company?.tvaNumber ?? '',
     rcsNumber: company?.rcsNumber ?? '',
+    companyType: company?.companyType ?? '',
+    capitalSocial: company?.capitalSocial ?? '',
+    latePaymentInterest: company?.latePaymentInterest ?? '',
+    fixedRecoveryFee: company?.fixedRecoveryFee ?? '',
     
     // Almanya yasal alanları
     steuernummer: company?.steuernummer ?? '',
@@ -3123,6 +3168,7 @@ export default function SettingsPage({
     // Amerika yasal alanları
     einNumber: company?.einNumber ?? '',
     taxId: company?.taxId ?? '',
+    salesTaxPermitNumber: company?.salesTaxPermitNumber ?? '',
     businessLicenseNumber: company?.businessLicenseNumber ?? '',
     stateOfIncorporation: company?.stateOfIncorporation ?? '',
 
@@ -3165,6 +3211,7 @@ export default function SettingsPage({
         country: company?.country ?? prev.country,
 
         // Yasal alanları da güncelle
+        tradeRegistryNumber: company?.tradeRegistryNumber ?? prev.tradeRegistryNumber,
         mersisNumber: company?.mersisNumber ?? prev.mersisNumber,
         kepAddress: company?.kepAddress ?? prev.kepAddress,
         siretNumber: company?.siretNumber ?? prev.siretNumber,
@@ -3172,12 +3219,17 @@ export default function SettingsPage({
         apeCode: company?.apeCode ?? prev.apeCode,
         tvaNumber: company?.tvaNumber ?? prev.tvaNumber,
         rcsNumber: company?.rcsNumber ?? prev.rcsNumber,
+        companyType: company?.companyType ?? prev.companyType,
+        capitalSocial: company?.capitalSocial ?? prev.capitalSocial,
+        latePaymentInterest: company?.latePaymentInterest ?? prev.latePaymentInterest,
+        fixedRecoveryFee: company?.fixedRecoveryFee ?? prev.fixedRecoveryFee,
         steuernummer: company?.steuernummer ?? prev.steuernummer,
         umsatzsteuerID: company?.umsatzsteuerID ?? prev.umsatzsteuerID,
         handelsregisternummer: company?.handelsregisternummer ?? prev.handelsregisternummer,
         geschaeftsfuehrer: company?.geschaeftsfuehrer ?? prev.geschaeftsfuehrer,
         einNumber: company?.einNumber ?? prev.einNumber,
         taxId: company?.taxId ?? prev.taxId,
+        salesTaxPermitNumber: company?.salesTaxPermitNumber ?? prev.salesTaxPermitNumber,
         businessLicenseNumber: company?.businessLicenseNumber ?? prev.businessLicenseNumber,
         stateOfIncorporation: company?.stateOfIncorporation ?? prev.stateOfIncorporation,
 
@@ -3581,8 +3633,13 @@ export default function SettingsPage({
           phone: companyData.phone || undefined,
           email: companyData.email || undefined,
           website: companyData.website || undefined,
+          companyType: companyData.companyType || undefined,
+          capitalSocial: companyData.capitalSocial || undefined,
+          latePaymentInterest: companyData.latePaymentInterest || undefined,
+          fixedRecoveryFee: companyData.fixedRecoveryFee || undefined,
           currency: effectiveCurrency, // Para birimi ayarını kaydet
           // Yasal alanlar
+          tradeRegistryNumber: companyData.tradeRegistryNumber || undefined,
           mersisNumber: companyData.mersisNumber || undefined,
           kepAddress: companyData.kepAddress || undefined,
           siretNumber: companyData.siretNumber || undefined,
@@ -3596,6 +3653,7 @@ export default function SettingsPage({
           geschaeftsfuehrer: companyData.geschaeftsfuehrer || undefined,
           einNumber: companyData.einNumber || undefined,
           taxId: companyData.taxId || undefined,
+          salesTaxPermitNumber: companyData.salesTaxPermitNumber || undefined,
           businessLicenseNumber: companyData.businessLicenseNumber || undefined,
           stateOfIncorporation: companyData.stateOfIncorporation || undefined,
           // Settings blob: logo, default bank, country
@@ -3635,6 +3693,7 @@ export default function SettingsPage({
           country: companyData.country || undefined,
           currency: appliedCurrency, // Para birimini de kaydet
           // Yasal alanlar
+          tradeRegistryNumber: companyData.tradeRegistryNumber,
           mersisNumber: companyData.mersisNumber,
           kepAddress: companyData.kepAddress,
           siretNumber: companyData.siretNumber,
@@ -3642,12 +3701,17 @@ export default function SettingsPage({
           apeCode: companyData.apeCode,
           tvaNumber: companyData.tvaNumber,
           rcsNumber: companyData.rcsNumber,
+          companyType: companyData.companyType,
+          capitalSocial: companyData.capitalSocial,
+          latePaymentInterest: companyData.latePaymentInterest,
+          fixedRecoveryFee: companyData.fixedRecoveryFee,
           steuernummer: companyData.steuernummer,
           umsatzsteuerID: companyData.umsatzsteuerID,
           handelsregisternummer: companyData.handelsregisternummer,
           geschaeftsfuehrer: companyData.geschaeftsfuehrer,
           einNumber: companyData.einNumber,
           taxId: companyData.taxId,
+          salesTaxPermitNumber: companyData.salesTaxPermitNumber,
           businessLicenseNumber: companyData.businessLicenseNumber,
           stateOfIncorporation: companyData.stateOfIncorporation,
           // Diğer (genel)
@@ -3944,6 +4008,36 @@ export default function SettingsPage({
                 <h4 className="font-medium text-gray-900 mb-3 flex items-center">🇹🇷 {text.company.legalFields.turkey.title}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.vknTckn}</label>
+                    <input
+                      type="text"
+                      value={companyData.taxNumber}
+                      onChange={e => handleCompanyChange('taxNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="1234567890"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.taxOffice}</label>
+                    <input
+                      type="text"
+                      value={companyData.taxOffice}
+                      onChange={e => handleCompanyChange('taxOffice', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Kadıköy Vergi Dairesi"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.tradeRegistryNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.tradeRegistryNumber}
+                      onChange={e => handleCompanyChange('tradeRegistryNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="123456"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.turkey.mersisNumber}</label>
                     <input
                       type="text"
@@ -3972,6 +4066,36 @@ export default function SettingsPage({
               <div className="border border-gray-200 rounded-lg p-4 mb-4">
                 <h4 className="font-medium text-gray-900 mb-3 flex items-center">🇫🇷 {text.company.legalFields.france.title}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.companyType}</label>
+                    <select
+                      value={companyData.companyType}
+                      onChange={e => handleCompanyChange('companyType', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value=""></option>
+                      <option value="SAS">SAS</option>
+                      <option value="SARL">SARL</option>
+                      <option value="SA">SA</option>
+                      <option value="SASU">SASU</option>
+                      <option value="EURL">EURL</option>
+                      <option value="EI">EI</option>
+                      <option value="SNC">SNC</option>
+                      <option value="SCI">SCI</option>
+                      <option value="Auto-entrepreneur">Auto-entrepreneur</option>
+                      <option value="Autre">Autre</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.capitalSocial}</label>
+                    <input
+                      type="text"
+                      value={companyData.capitalSocial}
+                      onChange={e => handleCompanyChange('capitalSocial', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="10 000 €"
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.siretNumber}</label>
                     <input
@@ -4020,6 +4144,27 @@ export default function SettingsPage({
                       onChange={e => handleCompanyChange('rcsNumber', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="123 456 789 RCS Paris"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.latePaymentInterest}</label>
+                    <input
+                      type="text"
+                      value={companyData.latePaymentInterest}
+                      onChange={e => handleCompanyChange('latePaymentInterest', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Ex: 3x taux d’intérêt légal"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.france.fixedRecoveryFee}</label>
+                    <input
+                      type="text"
+                      value={companyData.fixedRecoveryFee}
+                      onChange={e => handleCompanyChange('fixedRecoveryFee', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Ex: 40 €"
                     />
                   </div>
                 </div>
@@ -4098,6 +4243,16 @@ export default function SettingsPage({
                       onChange={e => handleCompanyChange('taxId', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="123-45-6789"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.usa.salesTaxPermitNumber}</label>
+                    <input
+                      type="text"
+                      value={companyData.salesTaxPermitNumber}
+                      onChange={e => handleCompanyChange('salesTaxPermitNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Permit No"
                     />
                   </div>
                   <div>

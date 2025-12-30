@@ -92,6 +92,9 @@ export class Tenant {
   @Column({ nullable: true, comment: 'KEP Adresi (e-fatura)', type: 'varchar' })
   kepAddress: string | null;
 
+  @Column({ nullable: true, comment: 'Ticaret Sicil No', type: 'varchar' })
+  tradeRegistryNumber: string | null;
+
   // === Fransa Yasal Alanları ===
   @Column({
     nullable: true,
@@ -127,6 +130,34 @@ export class Tenant {
     type: 'varchar',
   })
   rcsNumber: string | null;
+
+  @Column({
+    nullable: true,
+    comment: 'Forme juridique / Şirket türü (SAS/SARL/EI vb.)',
+    type: 'varchar',
+  })
+  companyType: string | null;
+
+  @Column({
+    nullable: true,
+    comment: 'Capital social',
+    type: 'varchar',
+  })
+  capitalSocial: string | null;
+
+  @Column({
+    nullable: true,
+    comment: 'Gecikme faizi/cezası (FR payment terms)',
+    type: 'varchar',
+  })
+  latePaymentInterest: string | null;
+
+  @Column({
+    nullable: true,
+    comment: 'Tahsilat masrafı sabiti (FR fixed recovery fee)',
+    type: 'varchar',
+  })
+  fixedRecoveryFee: string | null;
 
   // === Almanya Yasal Alanları ===
   @Column({
@@ -167,6 +198,13 @@ export class Tenant {
 
   @Column({ nullable: true, comment: 'Tax ID Numarası', type: 'varchar' })
   taxId: string | null;
+
+  @Column({
+    nullable: true,
+    comment: 'Sales Tax Permit / Reseller Permit / State Tax Registration No',
+    type: 'varchar',
+  })
+  salesTaxPermitNumber: string | null;
 
   @Column({
     nullable: true,

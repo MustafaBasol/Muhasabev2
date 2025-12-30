@@ -16,6 +16,7 @@ export interface UpdateTenantDto {
   website?: string;
   currency?: string; // Para birimi (TRY|USD|EUR|GBP)
   taxOffice?: string;
+  tradeRegistryNumber?: string;
   mersisNumber?: string;
   kepAddress?: string;
   siretNumber?: string;
@@ -23,12 +24,17 @@ export interface UpdateTenantDto {
   apeCode?: string;
   tvaNumber?: string;
   rcsNumber?: string;
+  companyType?: string;
+  capitalSocial?: string;
+  latePaymentInterest?: string;
+  fixedRecoveryFee?: string;
   steuernummer?: string;
   umsatzsteuerID?: string;
   handelsregisternummer?: string;
   geschaeftsfuehrer?: string;
   einNumber?: string;
   taxId?: string;
+  salesTaxPermitNumber?: string;
   businessLicenseNumber?: string;
   stateOfIncorporation?: string;
   // Free-form settings blob to store brand/logo, default bank, country etc.

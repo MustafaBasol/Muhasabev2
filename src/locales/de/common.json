@@ -1588,6 +1588,8 @@
     "enterCustomerInfo": "Kundeninformationen eingeben",
     "editCustomer": "Kunde Bearbeiten",
     "taxNumber": "Steuernummer",
+    "siretNumber": "SIRET",
+    "siretNumberPlaceholder": "12345678901234",
     "company": "Firmenname",
     "namePlaceholder": "Max Mustermann",
     "companyPlaceholder": "ABC Technologie GmbH",
@@ -2773,8 +2775,13 @@
       "items": {
         "description": "Beschreibung",
         "quantity": "Menge",
+        "unit": "Einheit",
         "unitPrice": "Einzelpreis",
-        "total": "Summe"
+        "unitPriceHt": "Einzelpreis (netto)",
+        "vatRate": "MwSt. %",
+        "vatTotal": "MwSt. Summe",
+        "total": "Summe",
+        "totalTtc": "Summe (brutto)"
       },
       "totals": {
         "subtotal": "Zwischensumme",

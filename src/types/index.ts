@@ -8,6 +8,7 @@ export interface Customer {
   phone?: string;
   address?: string;
   taxNumber?: string;
+  siretNumber?: string;
   company?: string;
   balance?: number;
   createdAt?: string;

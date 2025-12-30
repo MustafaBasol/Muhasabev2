@@ -77,6 +77,7 @@ export interface TenantPublicProfile {
   geschaeftsfuehrer?: string;
   einNumber?: string;
   taxId?: string;
+  salesTaxPermitNumber?: string;
   businessLicenseNumber?: string;
   stateOfIncorporation?: string;
   registrationNumber?: string;

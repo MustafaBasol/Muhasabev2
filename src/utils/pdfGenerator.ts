@@ -5,7 +5,7 @@ import DOMPurify from 'dompurify';
 import i18n from '../i18n/config';
 import { logger } from '../utils/logger';
 import { secureStorage } from '../utils/storage';
-import { readLegacyTenantId, readLegacyUserProfile, readTenantScopedValue, safeLocalStorage } from '../utils/localStorageSafe';
+import { readLegacyTenantId, readLegacyUserProfile, readTenantScopedArray, readTenantScopedValue, safeLocalStorage } from '../utils/localStorageSafe';
 import type { Invoice, Expense, Sale, InvoiceItem } from '../types';
 
 // Para birimi tipini uygulamanın CurrencyContext'inden alalım (TRY | USD | EUR | GBP)
@@ -18,6 +18,7 @@ export type CountryCode = 'TR' | 'FR' | 'DE' | 'US' | 'OTHER';
 export interface CompanyProfile extends BaseCompanyProfile {
   country?: CountryCode;
   // TR
+  tradeRegistryNumber?: string;
   mersisNumber?: string;
   kepAddress?: string;
   // FR
@@ -26,6 +27,10 @@ export interface CompanyProfile extends BaseCompanyProfile {
   apeCode?: string;
   tvaNumber?: string;
   rcsNumber?: string;
+  companyType?: string; // SAS/SARL/EI vb.
+  capitalSocial?: string;
+  latePaymentInterest?: string;
+  fixedRecoveryFee?: string;
   // DE
   steuernummer?: string;
   umsatzsteuerID?: string;
@@ -34,6 +39,7 @@ export interface CompanyProfile extends BaseCompanyProfile {
   // US/genel
   einNumber?: string;
   taxId?: string;
+  salesTaxPermitNumber?: string;
   businessLicenseNumber?: string;
   stateOfIncorporation?: string;
   // OTHER/genel
@@ -99,6 +105,106 @@ const escapeHtml = (s?: string): string => {
 const formatIban = (iban?: string): string => {
   if (!iban) return '';
   return String(iban).replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
+};
+
+type PdfBankAccount = {
+  id?: string | number;
+  bankName?: string;
+  iban?: string;
+  swiftBic?: string;
+  accountNumber?: string;
+  accountType?: 'checking' | 'savings' | 'business' | string;
+  routingNumber?: string;
+};
+
+const getCachedBankAccounts = (): PdfBankAccount[] => {
+  try {
+    const tenantId = (readLegacyTenantId() || '').toString();
+    const scoped = readTenantScopedArray<any>('bankAccounts', { tenantId, fallbackToBase: true }) ?? [];
+    if (Array.isArray(scoped) && scoped.length) return scoped as PdfBankAccount[];
+    const base = readTenantScopedArray<any>('bankAccounts', { tenantId: undefined, fallbackToBase: true }) ?? [];
+    return Array.isArray(base) ? (base as PdfBankAccount[]) : [];
+  } catch (error) {
+    pdfWarn('Failed to read bankAccounts cache for PDF.', error);
+    return [];
+  }
+};
+
+const formatAccountTypeLabel = (raw?: string, lang: SettingsLanguage = 'en'): string => {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  const key = value.toLowerCase();
+  const labels = {
+    tr: { checking: 'Vadesiz', savings: 'Tasarruf', business: 'Ticari' },
+    en: { checking: 'Checking', savings: 'Savings', business: 'Business' },
+    fr: { checking: 'Courant', savings: 'Épargne', business: 'Professionnel' },
+    de: { checking: 'Girokonto', savings: 'Sparkonto', business: 'Geschäftskonto' },
+  } as const;
+  const table = labels[lang] || labels.en;
+  return (table as any)[key] || value;
+};
+
+const buildBankDetailsHtml = (c: Partial<CompanyProfile> = {}, lang: SettingsLanguage = 'en'): string => {
+  const selectedId = (c.bankAccountId ?? '').toString().trim();
+  const cached = getCachedBankAccounts();
+  const selected = selectedId
+    ? cached.find(b => String((b as any)?.id ?? '') === selectedId)
+    : null;
+
+  const bankName = String((selected as any)?.bankName ?? '').trim();
+  const iban = String((selected as any)?.iban ?? c.iban ?? '').trim();
+  const swiftBic = String((selected as any)?.swiftBic ?? '').trim();
+  const accountNumber = String((selected as any)?.accountNumber ?? '').trim();
+  const accountType = String((selected as any)?.accountType ?? '').trim();
+  const routingNumber = String((selected as any)?.routingNumber ?? '').trim();
+
+  if (!bankName && !iban && !swiftBic && !accountNumber && !accountType && !routingNumber) return '';
+
+  const labels = {
+    tr: {
+      bankName: 'Banka Adı',
+      iban: 'IBAN',
+      swiftBic: 'SWIFT/BIC',
+      accountNumber: 'Hesap No',
+      accountType: 'Hesap Türü',
+      routingNumber: 'Routing No (ABA)',
+    },
+    en: {
+      bankName: 'Bank Name',
+      iban: 'IBAN',
+      swiftBic: 'SWIFT/BIC',
+      accountNumber: 'Account No',
+      accountType: 'Account Type',
+      routingNumber: 'Routing Number (ABA)',
+    },
+    fr: {
+      bankName: 'Banque',
+      iban: 'IBAN',
+      swiftBic: 'SWIFT/BIC',
+      accountNumber: 'N° de compte',
+      accountType: 'Type de compte',
+      routingNumber: 'N° ABA (Routing)',
+    },
+    de: {
+      bankName: 'Bankname',
+      iban: 'IBAN',
+      swiftBic: 'SWIFT/BIC',
+      accountNumber: 'Kontonummer',
+      accountType: 'Kontotyp',
+      routingNumber: 'Routing-Nummer (ABA)',
+    },
+  }[lang];
+
+  const lines: string[] = [];
+  if (bankName) lines.push(`<div style="font-size:11px;color:#111827;margin-top:4px;"><strong>${labels.bankName}:</strong> ${escapeHtml(bankName)}</div>`);
+  if (iban) lines.push(`<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>${labels.iban}:</strong> ${formatIban(iban)}</div>`);
+  if (swiftBic) lines.push(`<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>${labels.swiftBic}:</strong> ${escapeHtml(swiftBic)}</div>`);
+  if (accountNumber) lines.push(`<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>${labels.accountNumber}:</strong> ${escapeHtml(accountNumber)}</div>`);
+  if (accountType) lines.push(`<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>${labels.accountType}:</strong> ${escapeHtml(formatAccountTypeLabel(accountType, lang))}</div>`);
+  if (routingNumber) lines.push(`<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>${labels.routingNumber}:</strong> ${escapeHtml(routingNumber)}</div>`);
+
+  // Seçim yapılmışsa mümkün olduğunca tek bir blokta tut (sayfa kırılımında parçalanmasın)
+  return `<div data-avoid-split="true">${lines.join('')}</div>`;
 };
 
 const CURRENCY_PREF_BASE_KEY = 'currency_preference';
@@ -402,8 +508,9 @@ const buildLegalFieldsHtml = (c: Partial<CompanyProfile>, country: CountryCode) 
   switch (country) {
     case 'TR':
       return [
-        row('VKN', c.taxNumber),
+        row('VKN/TCKN', c.taxNumber),
         row('Vergi Dairesi', c.taxOffice),
+        row('Ticaret Sicil No', c.tradeRegistryNumber),
         row('Mersis', c.mersisNumber),
         row('KEP', c.kepAddress),
       ].join('');
@@ -414,6 +521,8 @@ const buildLegalFieldsHtml = (c: Partial<CompanyProfile>, country: CountryCode) 
         row('APE', c.apeCode),
         row('TVA', c.tvaNumber),
         row('RCS', c.rcsNumber),
+        row('Forme juridique', c.companyType),
+        row('Capital social', c.capitalSocial),
       ].join('');
     case 'DE':
       return [
@@ -425,10 +534,11 @@ const buildLegalFieldsHtml = (c: Partial<CompanyProfile>, country: CountryCode) 
     case 'US':
     default:
       return [
-        row('EIN', c.einNumber),
-        row('Tax ID', c.taxId),
-        row('Business License', c.businessLicenseNumber),
-        row('State', c.stateOfIncorporation),
+        row('Federal Tax ID (EIN)', c.einNumber),
+        row('State Tax ID / Sales Tax Permit No', c.taxId),
+        row('Sales Tax Permit / Reseller Permit / State Tax Registration No', c.salesTaxPermitNumber),
+        row('Business License No', c.businessLicenseNumber),
+        row('State of Incorporation', c.stateOfIncorporation),
       ].join('');
     case 'OTHER':
       return [
@@ -540,7 +650,11 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
   const dloc = localeFromLang(activeLang);
 
   // Toplamları güvenli biçimde hesapla
-  const items = Array.isArray(invoice.items) ? invoice.items : [];
+  const items = ((): InvoiceItem[] => {
+    const primary = (invoice as any).lineItems;
+    if (Array.isArray(primary) && primary.length) return primary as InvoiceItem[];
+    return Array.isArray(invoice.items) ? invoice.items : [];
+  })();
   const computedSubtotal = items.reduce((sum, it: InvoiceItem) => {
     const lineTotal = toNum(it.total) || (toNum(it.unitPrice) * toNum(it.quantity));
     return sum + (Number.isFinite(lineTotal) ? lineTotal : 0);
@@ -556,7 +670,7 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
 
       ${buildLegalFieldsHtml(c, country)}
 
-      ${c.iban ? `<div style="font-size:11px;color:#111827;margin-top:4px;"><strong>IBAN:</strong> ${formatIban(c.iban)}</div>` : ''}
+      ${buildBankDetailsHtml(c, activeLang)}
       ${c.phone ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Tel:</strong> ${c.phone}</div>` : ''}
       ${c.email ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Email:</strong> ${c.email}</div>` : ''}
       ${c.website ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Web:</strong> ${c.website}</div>` : ''}
@@ -569,6 +683,22 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
   let invCustomerAddress = invoice.customerAddress ? formatMultilineAddress(invoice.customerAddress) : '';
   let invCustomerCompany = '' as string;
   let invCustomerTaxNumber = '' as string;
+  let invCustomerSiretNumber = '' as string;
+  try {
+    const fromInvoiceCustomer = (invoice as any)?.customer;
+    if (fromInvoiceCustomer && typeof fromInvoiceCustomer === 'object') {
+      invCustomerSiretNumber = String((fromInvoiceCustomer as any).siretNumber || '').trim();
+      invCustomerTaxNumber = String((fromInvoiceCustomer as any).taxNumber || invCustomerTaxNumber || '').trim();
+      if (!invCustomerEmail) invCustomerEmail = String((fromInvoiceCustomer as any).email || '').trim();
+      invCustomerPhone = String((fromInvoiceCustomer as any).phone || invCustomerPhone || '').trim();
+      if (!invCustomerCompany) invCustomerCompany = String((fromInvoiceCustomer as any).company || '').trim();
+      if (!invCustomerAddress) {
+        invCustomerAddress = formatMultilineAddress(String((fromInvoiceCustomer as any).address || '').trim());
+      }
+    }
+  } catch {
+    /* ignore */
+  }
   try {
     const tid = (readLegacyTenantId() || '') as string;
     const key = tid ? `customers_cache_${tid}` : 'customers_cache';
@@ -595,7 +725,8 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
           }
         }
       invCustomerCompany = found.company || '';
-      invCustomerTaxNumber = found.taxNumber || '';
+      if (!invCustomerTaxNumber) invCustomerTaxNumber = found.taxNumber || '';
+      if (!invCustomerSiretNumber) invCustomerSiretNumber = found.siretNumber || '';
     }
   } catch (error) {
     pdfWarn('Failed to hydrate invoice customer metadata from cache.', error);
@@ -613,17 +744,34 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
 
   // Çok dilli alan etiketleri
   const invoiceFieldLabels = {
-    tr: { company: 'Şirket', email: 'E-posta', phone: 'Tel', address: 'Adres', tax: 'Vergi No' },
-    en: { company: 'Company', email: 'Email', phone: 'Phone', address: 'Address', tax: 'Tax Number' },
-    fr: { company: 'Société', email: 'Email', phone: 'Téléphone', address: 'Adresse', tax: 'Numéro TVA' },
-    de: { company: 'Firma', email: 'Email', phone: 'Telefon', address: 'Adresse', tax: 'Steuernummer' },
+    tr: { company: 'Şirket', email: 'E-posta', phone: 'Tel', address: 'Adres', tax: 'Vergi No', siret: 'SIRET' },
+    en: { company: 'Company', email: 'Email', phone: 'Phone', address: 'Address', tax: 'Tax Number', siret: 'SIRET' },
+    fr: { company: 'Société', email: 'Email', phone: 'Téléphone', address: 'Adresse', tax: 'Numéro TVA', siret: 'SIRET' },
+    de: { company: 'Firma', email: 'Email', phone: 'Telefon', address: 'Adresse', tax: 'Steuernummer', siret: 'SIRET' },
   }[activeLang];
+
+  const paymentTermsHtml = (() => {
+    if (country !== 'FR') return '';
+    const late = (c.latePaymentInterest || '').toString().trim();
+    const fee = (c.fixedRecoveryFee || '').toString().trim();
+    if (!late && !fee) return '';
+    return `
+      <div style="margin-top:8px;" data-avoid-split="true">
+        <div style="font-size:11px;color:#111827;font-weight:700;margin-bottom:4px;">Conditions de paiement</div>
+        <div style="font-size:11px;color:#111827;">
+          ${late ? `<div style="margin-top:2px;"><strong>Intérêts/ pénalités de retard:</strong> ${escapeHtml(late)}</div>` : ''}
+          ${fee ? `<div style="margin-top:2px;"><strong>Indemnité forfaitaire de recouvrement:</strong> ${escapeHtml(fee)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  })();
 
   const invoiceCustomerFields: { key: keyof typeof invoiceFieldLabels; value: string; preLine?: boolean }[] = [
     invCustomerCompany ? { key: 'company', value: invCustomerCompany } : null,
     invCustomerEmail ? { key: 'email', value: invCustomerEmail } : null,
     invCustomerPhone ? { key: 'phone', value: invCustomerPhone } : null,
     invCustomerAddress ? { key: 'address', value: invCustomerAddressHtml } : null,
+    country === 'FR' && invCustomerSiretNumber ? { key: 'siret', value: invCustomerSiretNumber } : null,
     invCustomerTaxNumber ? { key: 'tax', value: invCustomerTaxNumber } : null,
   ].filter(Boolean) as any;
 
@@ -688,21 +836,60 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
       <table style="width:100%; border-collapse:collapse; margin-bottom:24px;">
         <thead>
           <tr style="background-color:#F3F4F6;">
-            <th style="border:1px solid #D1D5DB; padding:10px; text-align:left;">${tf('pdf.invoice.items.description')}</th>
-            <th style="border:1px solid #D1D5DB; padding:10px; text-align:center;">${tf('pdf.invoice.items.quantity')}</th>
-            <th style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${tf('pdf.invoice.items.unitPrice')}</th>
-            <th style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${tf('pdf.invoice.items.total')}</th>
+            <th style="border:1px solid #D1D5DB; padding:8px; text-align:left;">${tf('pdf.invoice.items.description')}</th>
+            <th style="border:1px solid #D1D5DB; padding:8px; text-align:center;">${tf('pdf.invoice.items.quantity')}</th>
+            <th style="border:1px solid #D1D5DB; padding:8px; text-align:center;">${tf('pdf.invoice.items.unit')}</th>
+            <th style="border:1px solid #D1D5DB; padding:8px; text-align:right;">${tf('pdf.invoice.items.unitPriceHt')}</th>
+            <th style="border:1px solid #D1D5DB; padding:8px; text-align:center;">${tf('pdf.invoice.items.vatRate')}</th>
+            <th style="border:1px solid #D1D5DB; padding:8px; text-align:right;">${tf('pdf.invoice.items.vatTotal')}</th>
+            <th style="border:1px solid #D1D5DB; padding:8px; text-align:right;">${tf('pdf.invoice.items.totalTtc')}</th>
           </tr>
         </thead>
         <tbody>
-          ${(invoice.items ?? []).map((item: InvoiceItem) => `
-            <tr>
-              <td style="border:1px solid #D1D5DB; padding:10px;">${item.description ?? ''}</td>
-              <td style="border:1px solid #D1D5DB; padding:10px; text-align:center;">${item.quantity ?? ''}</td>
-              <td style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${fmt(item.unitPrice)}</td>
-              <td style="border:1px solid #D1D5DB; padding:10px; text-align:right;">${fmt(toNum(item.total) || (toNum(item.unitPrice) * toNum(item.quantity)))}</td>
-            </tr>
-          `).join('')}
+          ${items.map((item: InvoiceItem) => {
+            const qty = toNum(item.quantity);
+            const unitPriceHt = toNum(item.unitPrice);
+            const lineHt = toNum(item.total) || (unitPriceHt * qty);
+            const rate = toNum((item as any).taxRate);
+            const vat = lineHt * ((Number.isFinite(rate) ? rate : 0) / 100);
+            const ttc = lineHt + vat;
+
+            const unit = (() => {
+              const direct = String((item as any).unit || (item as any).productUnit || '').trim();
+              if (direct) return direct;
+              try {
+                const tid = (readLegacyTenantId() || '') as string;
+                const key = tid ? `products_cache_${tid}` : 'products_cache';
+                const raw = safeLocalStorage.getItem(key);
+                const arr = raw ? (JSON.parse(raw) as any[]) : [];
+                const found = Array.isArray(arr)
+                  ? arr.find((p: any) => ((item as any).productId && String(p.id) === String((item as any).productId))
+                      || ((item as any).productName && String(p.name) === String((item as any).productName)))
+                  : null;
+                const u = String(found?.unit || '').trim();
+                return u || '-';
+              } catch {
+                return '-';
+              }
+            })();
+
+            const pct = Number.isFinite(rate) && rate !== 0
+              ? `${Number.isInteger(rate) ? rate : rate.toFixed(2)}%`
+              : '0%';
+
+            const desc = String(item.description || (item as any).productName || '').trim();
+            return `
+              <tr>
+                <td style="border:1px solid #D1D5DB; padding:8px;">${escapeHtml(desc)}</td>
+                <td style="border:1px solid #D1D5DB; padding:8px; text-align:center;">${Number.isFinite(qty) ? qty : ''}</td>
+                <td style="border:1px solid #D1D5DB; padding:8px; text-align:center;">${escapeHtml(unit)}</td>
+                <td style="border:1px solid #D1D5DB; padding:8px; text-align:right;">${fmt(unitPriceHt)}</td>
+                <td style="border:1px solid #D1D5DB; padding:8px; text-align:center;">${pct}</td>
+                <td style="border:1px solid #D1D5DB; padding:8px; text-align:right;">${fmt(vat)}</td>
+                <td style="border:1px solid #D1D5DB; padding:8px; text-align:right;">${fmt(ttc)}</td>
+              </tr>
+            `;
+          }).join('')}
         </tbody>
       </table>
 
@@ -720,6 +907,8 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
           </div>
         </div>
       </div>
+
+      ${paymentTermsHtml}
 
       ${invoice.notes ? `
       <!-- Notlar -->
@@ -875,7 +1064,31 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
 
 // ——— DIŞA AÇIK API ———————————————————————————————
 export const generateInvoicePDF = async (invoice: Invoice, opts: OpenOpts = {}) => {
-  const html = buildInvoiceHtml(invoice, opts.company ?? {}, opts.lang, opts.currency);
+  let company: Partial<CompanyProfile> | undefined = opts.company;
+  if (!company) {
+    try {
+      const tid = (readLegacyTenantId() || '').toString();
+      const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+      company = await secureStorage.getJSON<CompanyProfile>(secureKey) ?? undefined;
+      if (!company) {
+        const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+        const raw = safeLocalStorage.getItem(baseKey)
+          || safeLocalStorage.getItem(`${baseKey}_plain`)
+          || safeLocalStorage.getItem('company');
+        if (raw) company = JSON.parse(raw);
+      }
+    } catch (error) {
+      pdfWarn('Secure company profile lookup failed; attempting plain localStorage fallback.', error);
+      try {
+        const raw = safeLocalStorage.getItem('companyProfile') || safeLocalStorage.getItem('company');
+        if (raw) company = JSON.parse(raw);
+      } catch (fallbackError) {
+        pdfWarn('Plain company profile fallback parsing failed.', fallbackError);
+      }
+    }
+  }
+
+  const html = buildInvoiceHtml(invoice, company ?? {}, opts.lang, opts.currency);
   const blob = await htmlToPdfBlob(html);
   openPdfInWindow(blob, `${opts.filename ?? invoice.invoiceNumber ?? 'Invoice'}.pdf`, opts.targetWindow);
 };
@@ -962,7 +1175,7 @@ const buildQuoteHtml = (
       <div style="font-size:18px;font-weight:700;color:#111827;">${c.name ?? ''}</div>
       ${c.address ? `<div style="font-size:12px;color:#4B5563;white-space:pre-line;margin-top:2px;">${c.address}</div>` : ''}
       ${buildLegalFieldsHtml(c, country)}
-      ${c.iban ? `<div style="font-size:11px;color:#111827;margin-top:4px;"><strong>IBAN:</strong> ${formatIban(c.iban)}</div>` : ''}
+      ${buildBankDetailsHtml(c, activeLang)}
       ${c.phone ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Tel:</strong> ${c.phone}</div>` : ''}
       ${c.email ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Email:</strong> ${c.email}</div>` : ''}
       ${c.website ? `<div style="font-size:11px;color:#111827;margin-top:2px;"><strong>Web:</strong> ${c.website}</div>` : ''}
@@ -974,6 +1187,7 @@ const buildQuoteHtml = (
   let customerPhone = '';
   let customerAddress = '';
   let customerTaxNumber = '';
+  let customerSiretNumber = '';
   let customerCompany = '';
   try {
     const tid = (readLegacyTenantId() || '') as string;
@@ -986,6 +1200,7 @@ const buildQuoteHtml = (
       customerPhone = found.phone || '';
       customerAddress = formatMultilineAddress(found.address || '');
       customerTaxNumber = found.taxNumber || '';
+      customerSiretNumber = found.siretNumber || '';
       customerCompany = found.company || '';
     }
   } catch (error) {
@@ -996,7 +1211,7 @@ const buildQuoteHtml = (
   const fieldLabels = {
     tr: { company: 'Şirket', email: 'E-posta', phone: 'Tel', address: 'Adres', tax: 'Vergi No' },
     en: { company: 'Company', email: 'Email', phone: 'Phone', address: 'Address', tax: 'Tax Number' },
-    fr: { company: 'Société', email: 'Email', phone: 'Téléphone', address: 'Adresse', tax: 'Numéro TVA' },
+    fr: { company: 'Société', email: 'Email', phone: 'Téléphone', address: 'Adresse', siret: 'SIRET', tax: 'Numéro TVA' },
     de: { company: 'Firma', email: 'Email', phone: 'Telefon', address: 'Adresse', tax: 'Steuernummer' },
   }[activeLang];
 
@@ -1006,6 +1221,7 @@ const buildQuoteHtml = (
     customerEmail ? { key: 'email', value: customerEmail } : null,
     customerPhone ? { key: 'phone', value: customerPhone } : null,
     customerAddress ? { key: 'address', value: customerAddress, preLine: true } : null,
+    country === 'FR' && customerSiretNumber ? ({ key: 'siret', value: customerSiretNumber } as any) : null,
     customerTaxNumber ? { key: 'tax', value: customerTaxNumber } : null,
   ].filter(Boolean) as any;
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, User, Mail, Phone, MapPin, Building2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Customer as CustomerModel } from '../api/customers';
+import type { CountryCode } from '../utils/pdfGenerator';
 
 type CustomerDraft = Partial<CustomerModel>;
 
@@ -11,6 +12,7 @@ type CustomerFormState = {
   phone: string;
   address: string;
   taxNumber: string;
+  siretNumber: string;
   company: string;
 };
 
@@ -19,9 +21,10 @@ interface CustomerModalProps {
   onClose: () => void;
   onSave: (customer: CustomerDraft) => void;
   customer?: CustomerDraft | null;
+  companyCountry?: CountryCode;
 }
 
-export default function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerModalProps) {
+export default function CustomerModal({ isOpen, onClose, onSave, customer, companyCountry }: CustomerModalProps) {
   const { t } = useTranslation();
   const tx = (key: string, fallback: string): string => {
     const value = t(key, { defaultValue: fallback });
@@ -36,6 +39,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
     phone: customer?.phone || '',
     address: customer?.address || '',
     taxNumber: customer?.taxNumber || '',
+    siretNumber: (customer as any)?.siretNumber || '',
     company: customer?.company || ''
   });
 
@@ -49,6 +53,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
         phone: customer.phone || '',
         address: customer.address || '',
         taxNumber: customer.taxNumber || '',
+        siretNumber: (customer as any).siretNumber || '',
         company: customer.company || ''
       });
     } else if (isOpen && !customer) {
@@ -59,6 +64,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
         phone: '',
         address: '',
         taxNumber: '',
+        siretNumber: '',
         company: ''
       });
     }
@@ -85,6 +91,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
       phone: '',
       address: '',
       taxNumber: '',
+      siretNumber: '',
       company: ''
     });
   };
@@ -191,6 +198,22 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer }: Cus
               placeholder="1234567890"
             />
           </div>
+
+          {/* SIRET (FR) */}
+          {companyCountry === 'FR' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {tx('customers.siretNumber', 'SIRET')}
+              </label>
+              <input
+                type="text"
+                value={customerData.siretNumber}
+                onChange={(e) => setCustomerData({...customerData, siretNumber: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder={tx('customers.siretNumberPlaceholder', '12345678901234')}
+              />
+            </div>
+          )}
 
           {/* Address */}
           <div>

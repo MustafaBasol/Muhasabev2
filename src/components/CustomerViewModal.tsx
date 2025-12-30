@@ -177,6 +177,15 @@ export default function CustomerViewModal({
                     </div>
                   </div>
                 )}
+                {(customer as any).siretNumber && (
+                  <div className="flex items-center text-sm">
+                    <span className="w-4 h-4 text-gray-400 mr-3 text-xs font-bold flex items-center justify-center">FR</span>
+                    <div>
+                      <span className="text-gray-600">{te('customers.siretNumber', te('customer.siretNumber', 'SIRET'))}:</span>
+                      <span className="ml-2 font-medium text-gray-900">{(customer as any).siretNumber}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

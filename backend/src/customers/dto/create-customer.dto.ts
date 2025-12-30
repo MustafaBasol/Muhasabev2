@@ -26,6 +26,11 @@ export class CreateCustomerDto {
   @IsString()
   taxNumber?: string;
 
+  @ApiProperty({ required: false, description: 'SIRET (FR, 14 haneli)' })
+  @IsOptional()
+  @IsString()
+  siretNumber?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()

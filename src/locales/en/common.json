@@ -1096,6 +1096,8 @@
     "enterCustomerInfo": "Enter customer information",
     "editCustomer": "Edit Customer",
     "taxNumber": "Tax Number",
+    "siretNumber": "SIRET",
+    "siretNumberPlaceholder": "12345678901234",
     "company": "Company Name",
     "namePlaceholder": "John Smith",
     "companyPlaceholder": "ABC Technology Ltd.",
@@ -2358,8 +2360,13 @@
       "items": {
         "description": "Description",
         "quantity": "Quantity",
+        "unit": "Unit",
         "unitPrice": "Unit Price",
-        "total": "Total"
+        "unitPriceHt": "Unit price (excl. VAT)",
+        "vatRate": "VAT %",
+        "vatTotal": "VAT total",
+        "total": "Total",
+        "totalTtc": "Total (incl. VAT)"
       },
       "totals": {
         "subtotal": "Subtotal",
