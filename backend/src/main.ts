@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { json, urlencoded, raw } from 'express';
 import type {
+  Request,
   Response,
   ErrorRequestHandler,
   RequestHandler,
@@ -21,6 +22,7 @@ import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import type { CompressionOptions } from 'compression';
 import { randomBytes } from 'crypto';
+import { existsSync } from 'fs';
 
 type ResponseWithLocals = Response & { locals: Record<string, unknown> };
 type BodyParserError = Error & { type?: string };
@@ -210,6 +212,42 @@ async function bootstrap() {
       }
     },
   }); // Gelişmiş CORS yapılandırması - Codespaces ve prod için güvenli
+
+  // SPA deep-link fallback (ör: /public/quote/:id)
+  // Not: Static middleware bir dosya bulamazsa next() ile devam eder; burada index.html'e düşürüyoruz.
+  const spaIndexCandidates = [
+    join(process.cwd(), 'public', 'dist', 'index.html'),
+    join(__dirname, '..', 'public', 'dist', 'index.html'),
+    join(process.cwd(), 'public', 'index.html'),
+    join(__dirname, '..', 'public', 'index.html'),
+  ];
+  const spaIndexPath = spaIndexCandidates.find((candidate) =>
+    existsSync(candidate),
+  );
+  if (!spaIndexPath) {
+    console.warn(
+      '⚠️ SPA index.html bulunamadı; deep-link route’lar 404 dönebilir.',
+      {
+        candidates: spaIndexCandidates,
+      },
+    );
+  } else {
+    app.use((req: Request, res: Response, next) => {
+      if (req.method !== 'GET') return next();
+
+      const path = req.path || req.url || '';
+
+      // API ve swagger gibi backend route'larını bozma
+      if (path.startsWith('/api')) return next();
+
+      // Statik dosya isteklerini (uzantılı) bozma
+      if (path.includes('.')) return next();
+
+      return res.sendFile(spaIndexPath, (err) => {
+        if (err) return next(err);
+      });
+    });
+  }
 
   const allowedOrigins = (process.env.CORS_ORIGINS || '')
     .split(',')
