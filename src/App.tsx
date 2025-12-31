@@ -1001,6 +1001,19 @@ const AppContent: React.FC = () => {
       const match = path.match(/\/public\/quote\/(.+)$/);
       if (match && match[1]) {
         setPublicQuoteId(decodeURIComponent(match[1]));
+
+        // Optional language override for shared links: /public/quote/:id?lang=en
+        try {
+          const params = new URLSearchParams(window.location.search || '');
+          const rawLang = String(params.get('lang') || '').trim();
+          const lang = (rawLang.split('-')[0] || '').toLowerCase();
+          const supported = new Set(['tr', 'en', 'de', 'fr']);
+          if (lang && supported.has(lang) && i18n.language !== lang) {
+            void i18n.changeLanguage(lang);
+          }
+        } catch (langError) {
+          reportSilentError('app.publicQuote.langParseFailed', langError);
+        }
       }
     } catch (error) {
       reportSilentError('app.publicQuote.decodeFailed', error);
@@ -1251,7 +1264,7 @@ const AppContent: React.FC = () => {
     };
 
     loadData();
-  }, [isAuthenticated, tenant, authUserSnapshot, persistSalesState, showToast, t]); // isAuthenticated veya tenant değiştiğinde tekrar yükle
+  }, [isAuthenticated, tenant, authUserSnapshot, persistSalesState, showToast, t, i18n]); // isAuthenticated veya tenant değiştiğinde tekrar yükle
 
   // Save Bank accounts cache to localStorage (tenant-scoped)
   useEffect(() => {

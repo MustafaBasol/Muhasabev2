@@ -321,6 +321,12 @@ export class QuotesService {
     if (typeof dto.scopeOfWorkHtml !== 'undefined')
       q.scopeOfWorkHtml = dto.scopeOfWorkHtml || null;
     if (typeof dto.status !== 'undefined') q.status = dto.status;
+    if (typeof dto.publicLocale !== 'undefined') {
+      const raw = String(dto.publicLocale || '').trim();
+      const normalized = raw ? raw.split('-')[0].toLowerCase() : '';
+      const supported = new Set(['tr', 'en', 'de', 'fr']);
+      q.publicLocale = normalized && supported.has(normalized) ? normalized : null;
+    }
     // Not: version ve revisions alanları sunucu tarafından yönetilir; DTO üzerinden güncellenmez
 
     return this.repo.save(q);

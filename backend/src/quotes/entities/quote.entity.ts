@@ -33,6 +33,10 @@ export class Quote {
   @Column({ type: 'uuid', unique: true })
   publicId: string;
 
+  // Public link görüntüleme dili (örn: 'en', 'tr'); linki paylaşan kullanıcının o anki dili
+  @Column({ type: 'varchar', length: 8, nullable: true })
+  publicLocale: string | null;
+
   @Column({ type: 'varchar', length: 32, unique: true })
   quoteNumber: string;
 

@@ -7,11 +7,12 @@ import ConfirmModal from './ConfirmModal';
 import { logger } from '../utils/logger';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
-import type {
-  Quote as QuoteApiModel,
-  QuoteStatus as QuoteApiStatus,
-  QuoteItemDto,
-  QuoteRevision,
+import {
+  updateQuote,
+  type Quote as QuoteApiModel,
+  type QuoteStatus as QuoteApiStatus,
+  type QuoteItemDto,
+  type QuoteRevision,
 } from '../api/quotes';
 
 export type QuoteStatus = QuoteApiStatus;
@@ -403,7 +404,22 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                 onClick={async () => {
                   try {
                     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                    const url = `${origin}/public/quote/${encodeURIComponent(String(quote.publicId))}`;
+                    const rawLang = String(i18n?.language || '').trim();
+                    const lang = (rawLang.split('-')[0] || '').toLowerCase();
+                    const langParam = ['tr', 'en', 'de', 'fr'].includes(lang)
+                      ? `?lang=${encodeURIComponent(lang)}`
+                      : '';
+                    const url = `${origin}/public/quote/${encodeURIComponent(String(quote.publicId))}${langParam}`;
+
+                    // Daha garanti: dili teklife kaydet (link param'ı olmasa bile public sayfa doğru dilde açılır)
+                    try {
+                      if (quote?.id && ['tr', 'en', 'de', 'fr'].includes(lang)) {
+                        await updateQuote(String(quote.id), { publicLocale: lang });
+                      }
+                    } catch (persistError) {
+                      logger.debug('Public quote locale persist failed', persistError);
+                    }
+
                     await navigator.clipboard.writeText(url);
                     try {
                       window.dispatchEvent(
@@ -425,7 +441,12 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                     console.warn('Clipboard copy failed, showing fallback', err);
                     try {
                       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                      const url = `${origin}/public/quote/${encodeURIComponent(String(quote.publicId))}`;
+                      const rawLang = String(i18n?.language || '').trim();
+                      const lang = (rawLang.split('-')[0] || '').toLowerCase();
+                      const langParam = ['tr', 'en', 'de', 'fr'].includes(lang)
+                        ? `?lang=${encodeURIComponent(lang)}`
+                        : '';
+                      const url = `${origin}/public/quote/${encodeURIComponent(String(quote.publicId))}${langParam}`;
                       alert(url);
                     } catch (fallbackError) {
                       logger.debug('Public quote link alert fallback failed', fallbackError);

@@ -64,4 +64,13 @@ export class CreateQuoteDto {
   @IsString()
   @MaxLength(255)
   customerName?: string;
+
+  @ApiPropertyOptional({
+    description: "Public paylaşım dili (örn: 'en', 'tr', 'de', 'fr')",
+    maxLength: 8,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  publicLocale?: string;
 }

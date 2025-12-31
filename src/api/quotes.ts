@@ -23,6 +23,7 @@ export interface CreateQuoteDto {
   status?: QuoteStatus;
   items?: QuoteItemDto[];
   scopeOfWorkHtml?: string;
+  publicLocale?: string;
 }
 
 export interface UpdateQuoteDto extends Partial<CreateQuoteDto> {
@@ -46,6 +47,7 @@ export interface Quote extends CreateQuoteDto {
   quoteNumber: string;
   status: QuoteStatus;
   publicId?: string;
+  publicLocale?: string;
   version?: number;
   revisions?: QuoteRevision[];
   createdAt?: string;

@@ -56,6 +56,22 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
     return () => { cancelled = true; };
   }, [quoteId]);
 
+  // Dil: URL'de ?lang yoksa, teklif üzerinde kaydedilen publicLocale'ü uygula
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = String(quote?.publicLocale || '').trim();
+    if (!saved) return;
+
+    const params = new URLSearchParams(window.location.search || '');
+    if (params.get('lang')) return;
+
+    const lang = (saved.split('-')[0] || '').toLowerCase();
+    const supported = new Set(['tr', 'en', 'de', 'fr']);
+    if (lang && supported.has(lang) && i18n.language !== lang) {
+      void i18n.changeLanguage(lang);
+    }
+  }, [quote, i18n]);
+
   // Bu sayfa görüntülendiğinde, durum 'draft' veya 'sent' ise otomatik olarak 'viewed' yap
   useEffect(() => {
     if (!quote) return;
