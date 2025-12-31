@@ -1299,6 +1299,14 @@
     "editAccount": "Edit Account",
     "enterAccountInfo": "Enter bank account information",
     "selectBank": "Select bank",
+    "accountCountry": "Account country",
+    "countries": {
+      "TR": "Turkey",
+      "US": "United States",
+      "DE": "Germany",
+      "FR": "France",
+      "OTHER": "Other"
+    },
     "accountNamePlaceholder": "Company Name or Person Name",
     "accountType": "Account Type",
     "accountTypes": {
@@ -1441,7 +1449,18 @@
       "createSuccess": "Bank account added",
       "deleteSuccess": "Bank account deleted",
       "operationFailed": "Bank operation failed",
-      "deleteError": "Bank account could not be deleted"
+      "deleteError": "Bank account could not be deleted",
+      "validation": {
+        "ibanMinLength": "IBAN must be at least {{min}} characters.",
+        "ibanRequired": "IBAN is required.",
+        "bankNameRequired": "Bank name is required.",
+        "accountNameRequired": "Account name is required.",
+        "accountNumberRequired": "Account number is required.",
+        "routingNumberRequired": "Routing number is required.",
+        "routingNumberInvalid": "Routing number must be 9 digits.",
+        "swiftBicInvalid": "SWIFT/BIC format is invalid.",
+        "branchCodeInvalid": "Branch code format is invalid."
+      }
     },
     "quotes": {
       "createSuccess": "Quote created",

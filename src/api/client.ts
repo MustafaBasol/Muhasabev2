@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosHead
 import type { RawAxiosRequestHeaders, RawAxiosResponseHeaders } from 'axios';
 import { logger } from '../utils/logger';
 import { adminAuthStorage } from '../utils/adminAuthStorage';
-import { safeLocalStorage, readLegacyAuthToken, clearLegacySessionCaches } from '../utils/localStorageSafe';
+import { safeLocalStorage, readLegacyAuthToken, writeLegacyAuthToken, clearLegacySessionCaches } from '../utils/localStorageSafe';
 
 // Use proxy in Codespaces (more reliable)
 // Use proxy in Codespaces (more reliable)
@@ -99,6 +99,45 @@ const apiClient: AxiosInstance = axios.create({
   },
   validateStatus: (status) => status >= 200 && status < 300, // Sadece 2xx başarılı sayılır
 });
+
+type RefreshResult = { token?: string };
+let refreshInFlight: Promise<string | null> | null = null;
+
+const refreshAccessToken = async (): Promise<string | null> => {
+  const token = readLegacyAuthToken();
+  if (!token) return null;
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const endpoints = ['/auth/refresh-token', '/auth/refresh'];
+    for (const path of endpoints) {
+      try {
+        const res = await fetch(`${API_BASE_URL}${path}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: '{}',
+        });
+        if (!res.ok) continue;
+        const json = (await res.json().catch(() => null)) as RefreshResult | null;
+        const nextToken = typeof json?.token === 'string' && json.token.trim() ? json.token : null;
+        if (nextToken) {
+          writeLegacyAuthToken(nextToken);
+          return nextToken;
+        }
+      } catch (e) {
+        logger.debug('Token refresh request failed', e);
+      }
+    }
+    return null;
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
+};
 
 // Request interceptor - Add auth token
 apiClient.interceptors.request.use(
@@ -213,6 +252,25 @@ apiClient.interceptors.response.use(
     // Handle authentication errors (user JWT)
     if (error.response?.status === 401) {
       const url = error.config?.url || '';
+
+      // Aktif kullanımda: 401 alındığında otomatik logout'a gitmeden önce 1 kez refresh + retry dene.
+      // (refresh endpoint'leri 401 sayacından muaf; burada ayrıca circular import yapmıyoruz)
+      const config = error.config as (InternalAxiosRequestConfig & { __retriedAfterRefresh?: boolean }) | undefined;
+      const hasToken = Boolean(readLegacyAuthToken());
+      const isAuthPath = typeof url === 'string' && url.includes('/auth/');
+      if (hasToken && !isAuthPath && config && !config.__retriedAfterRefresh) {
+        try {
+          const nextToken = await refreshAccessToken();
+          if (nextToken) {
+            config.__retriedAfterRefresh = true;
+            config.headers = setHeaderValue(config.headers, 'Authorization', `Bearer ${nextToken}`);
+            return apiClient.request(config);
+          }
+        } catch (refreshError) {
+          logger.debug('401 refresh+retry failed', refreshError);
+        }
+      }
+
       // Admin endpoints: admin-token iptal
       if (url.startsWith('/admin')) {
         try {

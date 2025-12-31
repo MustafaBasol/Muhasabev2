@@ -1815,6 +1815,14 @@
   "banks": {
     "title": "Comptes Bancaires",
     "newAccount": "Nouveau Compte",
+    "accountCountry": "Pays du compte",
+    "countries": {
+      "TR": "Turquie",
+      "US": "États-Unis",
+      "DE": "Allemagne",
+      "FR": "France",
+      "OTHER": "Autre"
+    },
     "search": "Rechercher nom de banque, nom de compte ou numéro...",
     "filterAll": "Tous les Comptes",
     "accountsRegistered": "comptes enregistrés",
@@ -3124,7 +3132,18 @@
       "createSuccess": "Compte bancaire ajouté",
       "deleteSuccess": "Compte bancaire supprimé",
       "operationFailed": "L’opération bancaire a échoué",
-      "deleteError": "Le compte bancaire n’a pas pu être supprimé"
+      "deleteError": "Le compte bancaire n’a pas pu être supprimé",
+      "validation": {
+        "ibanMinLength": "L’IBAN doit contenir au moins {{min}} caractères.",
+        "ibanRequired": "L’IBAN est obligatoire.",
+        "bankNameRequired": "Le nom de la banque est obligatoire.",
+        "accountNameRequired": "Le nom du compte est obligatoire.",
+        "accountNumberRequired": "Le numéro de compte est obligatoire.",
+        "routingNumberRequired": "Le numéro ABA (routing) est obligatoire.",
+        "routingNumberInvalid": "Le numéro ABA (routing) doit contenir 9 chiffres.",
+        "swiftBicInvalid": "Le format SWIFT/BIC est invalide.",
+        "branchCodeInvalid": "Le format du code d’agence est invalide."
+      }
     },
     "quotes": {
       "createSuccess": "Devis créé",

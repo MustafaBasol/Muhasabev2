@@ -1406,6 +1406,14 @@
     "editAccount": "Hesabı Düzenle",
     "enterAccountInfo": "Banka hesap bilgilerini girin",
     "selectBank": "Banka seçin",
+    "accountCountry": "Hesap ülkesi",
+    "countries": {
+      "TR": "Türkiye",
+      "US": "Amerika Birleşik Devletleri",
+      "DE": "Almanya",
+      "FR": "Fransa",
+      "OTHER": "Diğer"
+    },
     "accountNamePlaceholder": "Şirket Adı veya Kişi Adı",
     "accountType": "Hesap Türü",
     "accountTypes": {
@@ -1548,7 +1556,18 @@
       "createSuccess": "Banka hesabı eklendi",
       "deleteSuccess": "Banka hesabı silindi",
       "operationFailed": "Banka işlemi başarısız",
-      "deleteError": "Banka silinemedi"
+      "deleteError": "Banka silinemedi",
+      "validation": {
+        "ibanMinLength": "IBAN en az {{min}} karakter olmalı.",
+        "ibanRequired": "IBAN zorunludur.",
+        "bankNameRequired": "Banka adı zorunludur.",
+        "accountNameRequired": "Hesap adı zorunludur.",
+        "accountNumberRequired": "Hesap numarası zorunludur.",
+        "routingNumberRequired": "Routing numarası zorunludur.",
+        "routingNumberInvalid": "Routing numarası 9 haneli olmalı.",
+        "swiftBicInvalid": "SWIFT/BIC formatı geçersiz.",
+        "branchCodeInvalid": "Şube kodu formatı geçersiz."
+      }
     },
     "quotes": {
       "createSuccess": "Teklif oluşturuldu",

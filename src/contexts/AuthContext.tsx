@@ -189,6 +189,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // 3) Token varsa backend'den güncel profili çek (storedUser olsa da olmasa da)
         if (token) {
+          // Session manager'ı sadece login anında değil; uygulama açılışında da başlat.
+          // Böylece kullanıcı aktifken token yenileme çalışır ve "kayıt anında" 401 ile logout yaşanmaz.
+          try {
+            sessionRef.current?.stop();
+            sessionRef.current = createSessionManager(
+              () => readAuthToken(),
+              (t: string) => persistAuthToken(t),
+              () => { void logout(); },
+              { idleTimeoutMinutes: getIdleTimeoutMinutes() }
+            );
+            sessionRef.current.start();
+          } catch (sessionError) {
+            logger.warn('Session manager (boot) başlatılırken hata oluştu', sessionError);
+          }
+
           try {
             logger.info("🔄 Backend'den güncel user bilgisi çekiliyor...");
             const res = await authService.getProfile();

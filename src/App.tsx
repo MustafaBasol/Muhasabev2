@@ -1072,6 +1072,27 @@ const AppContent: React.FC = () => {
         const safeExpensesData = Array.isArray(expensesData) ? expensesData : [];
         const safeCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];
 
+        const tenantScopedId = resolveTenantScopedId(tenant, authUserSnapshot.tenantId);
+        const supplierUiMap: Record<string, any> = tenantScopedId
+          ? (readTenantScopedObject<Record<string, any>>('supplierUi', { tenantId: tenantScopedId, fallbackToBase: false }) || {})
+          : {};
+        const cachedSuppliersForCategory: any[] = tenantScopedId
+          ? (readTenantScopedArray<any>('suppliers_cache', { tenantId: tenantScopedId, fallbackToBase: true }) ?? [])
+          : [];
+        const cachedCategoryById = new Map<string, string>();
+        for (const s of Array.isArray(cachedSuppliersForCategory) ? cachedSuppliersForCategory : []) {
+          const id = String(s?.id ?? '');
+          const category = typeof s?.category === 'string' ? s.category : '';
+          if (id && category) cachedCategoryById.set(id, category);
+        }
+        const mergedSuppliersData = safeSuppliersData.map((s: any) => {
+          const id = String(s?.id ?? '');
+          const uiCategory = id ? supplierUiMap?.[id]?.category : undefined;
+          const cachedCategory = id ? cachedCategoryById.get(id) : undefined;
+          const category = uiCategory || cachedCategory || s?.category;
+          return category ? { ...s, id, category } : { ...s, id };
+        });
+
         logger.info('app.bootstrap.safeSizes', {
           customers: safeCustomersData.length,
           suppliers: safeSuppliersData.length,
@@ -1082,7 +1103,7 @@ const AppContent: React.FC = () => {
         });
 
         setCustomers(safeCustomersData);
-        setSuppliers(safeSuppliersData);
+        setSuppliers(mergedSuppliersData);
         
         // Kategori objelerini state'e kaydet
         setProductCategoryObjects(safeCategoriesData);
@@ -1210,10 +1231,9 @@ const AppContent: React.FC = () => {
           sample: mappedExpenses.slice(0, 10).map(e => ({ id: e.id, amount: e.amount, status: e.status, expenseDate: e.expenseDate })),
         });
         
-        const tenantScopedId = resolveTenantScopedId(tenant, authUserSnapshot.tenantId);
         const tenantWriteOptions = { tenantId: tenantScopedId, mirrorToBase: true } as const;
         writeTenantScopedArray('customers_cache', safeCustomersData, tenantWriteOptions);
-        writeTenantScopedArray('suppliers_cache', safeSuppliersData, tenantWriteOptions);
+        writeTenantScopedArray('suppliers_cache', mergedSuppliersData, tenantWriteOptions);
         writeTenantScopedArray('products_cache', mappedProducts, tenantWriteOptions);
         writeTenantScopedArray('invoices_cache', safeInvoicesData, tenantWriteOptions);
         writeTenantScopedArray('expenses_cache', safeExpensesData, tenantWriteOptions);
@@ -1418,6 +1438,7 @@ const AppContent: React.FC = () => {
             isActive: (local?.isActive !== undefined) ? local.isActive : (extra?.isActive !== undefined ? extra.isActive : true),
             accountType: local?.accountType || extra?.accountType || 'checking',
             balance: Number((local?.balance ?? extra?.balance) ?? 0),
+            accountCountry: local?.accountCountry || extra?.accountCountry || '',
             branchCode: local?.branchCode || extra?.branchCode || '',
             routingNumber: local?.routingNumber || extra?.routingNumber || '',
             swiftBic: local?.swiftBic || extra?.swiftBic || '',
@@ -3067,21 +3088,59 @@ const AppContent: React.FC = () => {
 
   const upsertSupplier = async (supplierData: any) => {
     try {
+      const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);
+      const category = (typeof supplierData?.category === 'string' && supplierData.category.trim()) ? supplierData.category.trim() : 'Diğer';
+
       const cleanData = {
         name: supplierData.name || '',
         email: supplierData.email?.trim() || undefined,
         phone: supplierData.phone?.trim() || undefined,
         address: supplierData.address?.trim() || undefined,
         taxNumber: supplierData.taxNumber?.trim() || undefined,
+        company: supplierData.company?.trim() || undefined,
       };
       
       if (supplierData.id) {
         const updated = await suppliersApi.updateSupplier(String(supplierData.id), cleanData);
-        setSuppliers(prev => prev.map(s => s.id === updated.id ? updated : s));
+        const enriched = { ...updated, id: String(updated?.id ?? supplierData.id), category };
+
+        if (tenantScopedId) {
+          const uiMap: Record<string, any> = readTenantScopedObject<Record<string, any>>('supplierUi', {
+            tenantId: tenantScopedId,
+            fallbackToBase: false,
+          }) || {};
+          uiMap[String(enriched.id)] = { ...(uiMap[String(enriched.id)] || {}), category };
+          writeTenantScopedObject('supplierUi', uiMap, { tenantId: tenantScopedId, mirrorToBase: false });
+        }
+
+        setSuppliers(prev => {
+          const next = prev.map(s => String(s.id) === String(enriched.id) ? enriched : s);
+          if (tenantScopedId) {
+            writeTenantScopedArray('suppliers_cache', next, { tenantId: tenantScopedId, mirrorToBase: true });
+          }
+          return next;
+        });
         showToast(t('toasts.suppliers.updateSuccess'), 'success');
       } else {
         const created = await suppliersApi.createSupplier(cleanData);
-        setSuppliers(prev => [...prev, created]);
+        const enriched = { ...created, id: String(created?.id ?? ''), category };
+
+        if (tenantScopedId && enriched.id) {
+          const uiMap: Record<string, any> = readTenantScopedObject<Record<string, any>>('supplierUi', {
+            tenantId: tenantScopedId,
+            fallbackToBase: false,
+          }) || {};
+          uiMap[String(enriched.id)] = { ...(uiMap[String(enriched.id)] || {}), category };
+          writeTenantScopedObject('supplierUi', uiMap, { tenantId: tenantScopedId, mirrorToBase: false });
+        }
+
+        setSuppliers(prev => {
+          const next = [...prev, enriched];
+          if (tenantScopedId) {
+            writeTenantScopedArray('suppliers_cache', next, { tenantId: tenantScopedId, mirrorToBase: true });
+          }
+          return next;
+        });
         showToast(t('toasts.suppliers.createSuccess'), 'success');
         
         // 🔔 Bildirim ekle
@@ -4326,7 +4385,7 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const upsertBank = async (bankData: any) => {
+  const upsertBank = async (bankData: any): Promise<boolean> => {
     try {
       const { bankAccountsApi } = await import('./api/bank-accounts');
       if (bankData.id) {
@@ -4368,6 +4427,7 @@ const AppContent: React.FC = () => {
               isActive: bankData.isActive !== false,
               accountType: bankData.accountType || 'checking',
               balance: Number(bankData.balance) || 0,
+              accountCountry: (bankData as any).accountCountry || '',
               branchCode: (bankData as any).branchCode || '',
               routingNumber: (bankData as any).routingNumber || '',
               swiftBic: (bankData as any).swiftBic || '',
@@ -4379,6 +4439,7 @@ const AppContent: React.FC = () => {
           return next;
         });
         showToast(t('toasts.bank.updateSuccess'), 'success');
+        return true;
       } else {
         const created = await bankAccountsApi.create({
           name: bankData.accountName,
@@ -4415,6 +4476,7 @@ const AppContent: React.FC = () => {
               isActive: bankData.isActive !== false,
               accountType: bankData.accountType || 'checking',
               balance: Number(bankData.balance) || 0,
+              accountCountry: (bankData as any).accountCountry || '',
               branchCode: (bankData as any).branchCode || '',
               routingNumber: (bankData as any).routingNumber || '',
               swiftBic: (bankData as any).swiftBic || '',
@@ -4426,10 +4488,41 @@ const AppContent: React.FC = () => {
           return next;
         });
         showToast(t('toasts.bank.createSuccess'), 'success');
+        return true;
       }
     } catch (e: any) {
       console.error('Bank upsert failed:', e);
-      showToast(e?.response?.data?.message || t('toasts.bank.operationFailed'), 'error');
+      const raw = e?.response?.data?.message;
+      const messages: string[] = Array.isArray(raw)
+        ? raw.filter((x: any) => typeof x === 'string')
+        : (typeof raw === 'string' ? [raw] : []);
+      const msg = messages[0] || (typeof raw === 'string' ? raw : '');
+
+      const normalized = (msg || '').toLowerCase();
+      const mapped = (
+        normalized.includes('iban must be longer than or equal to')
+          ? t('toasts.bank.validation.ibanMinLength', { min: 16 })
+          : normalized.includes('iban should not be empty')
+            ? t('toasts.bank.validation.ibanRequired')
+            : normalized.includes('bankname should not be empty')
+              ? t('toasts.bank.validation.bankNameRequired')
+              : normalized.includes('name should not be empty')
+                ? t('toasts.bank.validation.accountNameRequired')
+                : normalized.includes('routingnumber should not be empty')
+                  ? t('toasts.bank.validation.routingNumberRequired')
+                  : normalized.includes('routingnumber must be')
+                    ? t('toasts.bank.validation.routingNumberInvalid')
+                    : normalized.includes('swiftbic must be')
+                      ? t('toasts.bank.validation.swiftBicInvalid')
+                      : normalized.includes('branchcode must be')
+                        ? t('toasts.bank.validation.branchCodeInvalid')
+                : normalized.includes('accountnumber should not be empty')
+                  ? t('toasts.bank.validation.accountNumberRequired')
+                  : ''
+      );
+
+      showToast(mapped || msg || t('toasts.bank.operationFailed'), 'error');
+      return false;
     }
   };
 
@@ -4442,7 +4535,12 @@ const AppContent: React.FC = () => {
       showToast(t('toasts.bank.deleteSuccess'), 'success');
     } catch (e: any) {
       console.error('Bank delete failed:', e);
-      showToast(e?.response?.data?.message || t('toasts.bank.deleteError'), 'error');
+      const raw = e?.response?.data?.message;
+      const messages: string[] = Array.isArray(raw)
+        ? raw.filter((x: any) => typeof x === 'string')
+        : (typeof raw === 'string' ? [raw] : []);
+      const msg = messages[0] || (typeof raw === 'string' ? raw : '');
+      showToast(msg || t('toasts.bank.deleteError'), 'error');
     }
   };
 
@@ -4623,6 +4721,7 @@ const AppContent: React.FC = () => {
             productId: item.productId != null ? String(item.productId) : undefined,
             productName: item.productName || fallbackDescription,
             description: fallbackDescription,
+              accountCountry: (bankData as any).accountCountry || '',
             quantity,
             unitPrice,
             total: normalizedTotal,
@@ -5850,9 +5949,9 @@ const AppContent: React.FC = () => {
         <BankModal
           isOpen={showBankModal}
           onClose={closeBankModal}
-          onSave={bank => {
-            upsertBank(bank);
-            closeBankModal();
+          onSave={async (bank) => {
+            const ok = await upsertBank(bank);
+            if (ok) closeBankModal();
           }}
           bank={selectedBank as any}
           bankAccount={selectedBank as any}

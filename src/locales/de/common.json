@@ -1714,6 +1714,14 @@
     "editAccount": "Konto Bearbeiten",
     "enterAccountInfo": "Bankkontoinformationen eingeben",
     "selectBank": "Bank auswählen",
+    "accountCountry": "Kontoland",
+    "countries": {
+      "TR": "Türkei",
+      "US": "Vereinigte Staaten",
+      "DE": "Deutschland",
+      "FR": "Frankreich",
+      "OTHER": "Andere"
+    },
     "accountNamePlaceholder": "Firmenname oder Personenname",
     "accountType": "Kontotyp",
     "accountTypes": {
@@ -1919,7 +1927,18 @@
       "createSuccess": "Bankkonto hinzugefügt",
       "deleteSuccess": "Bankkonto gelöscht",
       "operationFailed": "Bankvorgang fehlgeschlagen",
-      "deleteError": "Bank konnte nicht gelöscht werden"
+      "deleteError": "Bank konnte nicht gelöscht werden",
+      "validation": {
+        "ibanMinLength": "IBAN muss mindestens {{min}} Zeichen lang sein.",
+        "ibanRequired": "IBAN ist erforderlich.",
+        "bankNameRequired": "Bankname ist erforderlich.",
+        "accountNameRequired": "Kontoname ist erforderlich.",
+        "accountNumberRequired": "Kontonummer ist erforderlich.",
+        "routingNumberRequired": "Routing-Nummer ist erforderlich.",
+        "routingNumberInvalid": "Die Routing-Nummer muss 9 Ziffern haben.",
+        "swiftBicInvalid": "SWIFT/BIC-Format ist ungültig.",
+        "branchCodeInvalid": "Filialcode-Format ist ungültig."
+      }
     },
     "quotes": {
       "createSuccess": "Angebot erstellt",

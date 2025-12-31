@@ -21,7 +21,7 @@ export class SessionManager {
   private getToken: () => string | null;
   private setToken: (t: string) => void;
   private onLogout: () => void;
-  private boundActivityHandler: () => void;
+  private boundActivityHandler: (ev: Event) => void;
   private stopped = true;
 
   constructor(
@@ -45,7 +45,13 @@ export class SessionManager {
       checkIntervalSeconds: 60, // every minute
       ...(options || {}),
     };
-    this.boundActivityHandler = this.recordActivity.bind(this);
+    this.boundActivityHandler = (ev: Event) => {
+      // visibilitychange fires both on hide/show; don't count "tab hidden" as activity
+      if (typeof document !== 'undefined' && ev.type === 'visibilitychange' && document.visibilityState === 'hidden') {
+        return;
+      }
+      this.recordActivity();
+    };
   }
 
   start() {
@@ -94,7 +100,11 @@ export class SessionManager {
     try {
       const parts = token.split('.');
       if (parts.length !== 3) return null;
-      const payload = JSON.parse(decoder(parts[1]));
+      // JWT payload is base64url encoded; normalize to base64 for atob.
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+      const payload = JSON.parse(decoder(padded));
       if (!payload || typeof payload.exp !== 'number') return null;
       return payload.exp * 1000; // ms
     } catch {

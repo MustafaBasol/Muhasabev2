@@ -19,7 +19,7 @@ interface Bank {
 interface BankModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (bank: Bank) => void;
+  onSave: (bank: Bank) => void | Promise<boolean | void>;
   bank?: Bank | null;
   bankAccount?: Bank | null;
   // Şirket ayarlarındaki seçili ülke: TR | US | DE | FR | OTHER
@@ -88,15 +88,6 @@ const bankNamesByCountry: Record<string, string[]> = {
   OTHER: ['Other']
 };
 
-const resolveCountryByLanguage = (language?: string): keyof typeof bankNamesByCountry => {
-  const ln = (language || '').toLowerCase();
-  if (ln.startsWith('tr')) return 'TR';
-  if (ln.startsWith('fr')) return 'FR';
-  if (ln.startsWith('de')) return 'DE';
-  if (ln.startsWith('en')) return 'US';
-  return 'OTHER';
-};
-
 const normalizeSupportedCountry = (value?: string, fallback: keyof typeof bankNamesByCountry = 'OTHER'): keyof typeof bankNamesByCountry => {
   if (!value) return fallback;
   const upper = value.toUpperCase();
@@ -106,25 +97,13 @@ const normalizeSupportedCountry = (value?: string, fallback: keyof typeof bankNa
   return fallback;
 };
 
+const normalizeRoutingNumber = (value: unknown): string => String(value ?? '').replace(/\s+/g, '').trim();
+const normalizeSwiftBic = (value: unknown): string => String(value ?? '').replace(/\s+/g, '').toUpperCase().trim();
+const normalizeBranchCode = (value: unknown): string => String(value ?? '').replace(/\s+/g, '').trim();
+
 export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, country }: BankModalProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { currency: defaultCurrency } = useCurrency();
-  const languageCountry = useMemo(() => resolveCountryByLanguage(i18n.language), [i18n.language]);
-  const normalizedCountry = useMemo(() => {
-    const companyCountry = normalizeSupportedCountry(country);
-    if (!country || companyCountry === 'OTHER') {
-      return languageCountry;
-    }
-    if (languageCountry !== companyCountry) {
-      return languageCountry;
-    }
-    return companyCountry;
-  }, [country, languageCountry]);
-  const bankNames = bankNamesByCountry[normalizedCountry] || bankNamesByCountry['OTHER'];
-  const showIBAN = normalizedCountry !== 'US';
-  const showRoutingNumber = normalizedCountry === 'US';
-  const showSwiftBic = normalizedCountry === 'DE' || normalizedCountry === 'FR';
-  const showBranchCode = normalizedCountry === 'TR';
   
   // Dynamic currency list with translations
   const currencies = [
@@ -136,8 +115,11 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
   
   // Use bankAccount if provided, otherwise use bank
   const initialBankData = bankAccount || bank;
+
+  const initialAccountCountry = normalizeSupportedCountry((initialBankData as any)?.accountCountry || country, 'OTHER');
   
   const [bankData, setBankData] = useState({
+    accountCountry: initialAccountCountry,
     bankName: initialBankData?.bankName || '',
     accountName: initialBankData?.accountName || '',
     accountNumber: initialBankData?.accountNumber || '',
@@ -152,10 +134,23 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
     isActive: initialBankData?.isActive !== undefined ? initialBankData.isActive : true
   });
 
+  const [formError, setFormError] = useState<string>('');
+
+  const normalizedCountry = useMemo(
+    () => normalizeSupportedCountry((bankData as any).accountCountry || country, 'OTHER'),
+    [bankData, country]
+  );
+  const bankNames = bankNamesByCountry[normalizedCountry] || bankNamesByCountry['OTHER'];
+  const showIBAN = normalizedCountry !== 'US';
+  const showRoutingNumber = normalizedCountry === 'US';
+  const showSwiftBic = normalizedCountry === 'DE' || normalizedCountry === 'FR';
+  const showBranchCode = normalizedCountry === 'TR';
+
   // Değişiklik takibi (dirty check)
   const baseline = useMemo(() => {
     if (!initialBankData) return null;
     return {
+      accountCountry: normalizeSupportedCountry((initialBankData as any)?.accountCountry || country, 'OTHER'),
       bankName: initialBankData.bankName || '',
       accountName: initialBankData.accountName || '',
       accountNumber: initialBankData.accountNumber || '',
@@ -170,9 +165,15 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
     };
   }, [initialBankData, defaultCurrency]);
 
-  const requiredOk = Boolean(
-    bankData.bankName && bankData.accountName && (showIBAN ? bankData.iban : (bankData as any).routingNumber)
-  );
+  const requiredOk = useMemo(() => {
+    const routing = normalizeRoutingNumber((bankData as any).routingNumber);
+    const acctNo = String((bankData as any).accountNumber ?? '').trim();
+    const iban = String((bankData as any).iban ?? '').trim();
+    const baseOk = Boolean(bankData.bankName && bankData.accountName);
+    if (!baseOk) return false;
+    if (showRoutingNumber) return Boolean(routing) && Boolean(acctNo);
+    return Boolean(iban);
+  }, [bankData, showRoutingNumber]);
 
   const isDirty = useMemo(() => {
     if (!baseline) {
@@ -180,6 +181,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
       return requiredOk;
     }
     const current = {
+      accountCountry: normalizeSupportedCountry((bankData as any).accountCountry || country, 'OTHER'),
       bankName: bankData.bankName || '',
       accountName: bankData.accountName || '',
       accountNumber: bankData.accountNumber || '',
@@ -193,13 +195,14 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
       isActive: bankData.isActive !== undefined ? bankData.isActive : true,
     };
     return JSON.stringify(current) !== JSON.stringify(baseline);
-  }, [baseline, bankData, defaultCurrency, requiredOk]);
+  }, [baseline, bankData, defaultCurrency, requiredOk, country]);
 
   // Reset form when modal opens
   React.useEffect(() => {
     if (isOpen && initialBankData) {
       // Editing existing bank - load data
       setBankData({
+        accountCountry: normalizeSupportedCountry((initialBankData as any)?.accountCountry || country, 'OTHER'),
         bankName: initialBankData.bankName,
         accountName: initialBankData.accountName,
         accountNumber: initialBankData.accountNumber,
@@ -212,9 +215,11 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
         accountType: initialBankData.accountType,
         isActive: initialBankData.isActive
       });
+      setFormError('');
     } else if (isOpen && !initialBankData) {
       // New bank - reset form
       setBankData({
+        accountCountry: normalizeSupportedCountry(country, 'OTHER'),
         bankName: '',
         accountName: '',
         accountNumber: '',
@@ -227,10 +232,63 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
         accountType: 'checking',
         isActive: true
       });
+      setFormError('');
     }
   }, [isOpen, initialBankData, defaultCurrency]);
 
-    const handleSave = () => {
+  React.useEffect(() => {
+    if (!formError) return;
+    setFormError('');
+  }, [
+    (bankData as any).accountCountry,
+    (bankData as any).bankName,
+    (bankData as any).accountName,
+    (bankData as any).accountNumber,
+    (bankData as any).iban,
+    (bankData as any).routingNumber,
+    (bankData as any).swiftBic,
+    (bankData as any).branchCode,
+  ]);
+
+  const validateBeforeSave = (): string => {
+    if (!bankData.bankName) return t('toasts.bank.validation.bankNameRequired') as string;
+    if (!bankData.accountName) return t('toasts.bank.validation.accountNameRequired') as string;
+
+    const acctNo = String((bankData as any).accountNumber ?? '').trim();
+    const routing = normalizeRoutingNumber((bankData as any).routingNumber);
+    const swift = normalizeSwiftBic((bankData as any).swiftBic);
+    const branch = normalizeBranchCode((bankData as any).branchCode);
+
+    if (showRoutingNumber) {
+      if (!acctNo) return t('toasts.bank.validation.accountNumberRequired') as string;
+      if (!routing) return t('toasts.bank.validation.routingNumberRequired') as string;
+      if (!/^\d{9}$/.test(routing)) return t('toasts.bank.validation.routingNumberInvalid') as string;
+    }
+
+    if (showIBAN) {
+      const ibanRaw = String((bankData as any).iban ?? '');
+      const cleaned = ibanRaw.replace(/\s+/g, '').trim();
+      if (!cleaned) return t('toasts.bank.validation.ibanRequired') as string;
+      if (cleaned.length < 16) return t('toasts.bank.validation.ibanMinLength', { min: 16 }) as string;
+    }
+
+    if (showSwiftBic && swift) {
+      if (!/^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(swift)) return t('toasts.bank.validation.swiftBicInvalid') as string;
+    }
+
+    if (showBranchCode && branch) {
+      if (!/^\d{3,8}$/.test(branch)) return t('toasts.bank.validation.branchCodeInvalid') as string;
+    }
+
+    return '';
+  };
+
+  const handleSave = async () => {
+    const err = validateBeforeSave();
+    if (err) {
+      setFormError(err);
+      return;
+    }
     const newBank: any = {
       ...bankData,
     };
@@ -241,8 +299,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
       newBank.createdAt = initialBankData.createdAt;
     }
     
-    onSave(newBank);
-    onClose();
+    await onSave(newBank);
   };
 
   const formatIban = (value: string) => {
@@ -288,6 +345,23 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Globe className="w-4 h-4 inline mr-2" />
+                {t('banks.accountCountry')}
+              </label>
+              <select
+                value={(bankData as any).accountCountry}
+                onChange={(e) => setBankData({ ...bankData, accountCountry: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="TR">{t('banks.countries.TR')}</option>
+                <option value="US">{t('banks.countries.US')}</option>
+                <option value="DE">{t('banks.countries.DE')}</option>
+                <option value="FR">{t('banks.countries.FR')}</option>
+                <option value="OTHER">{t('banks.countries.OTHER')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Building2 className="w-4 h-4 inline mr-2" />
                 {t('banks.bankName')} *
               </label>
@@ -324,7 +398,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Hash className="w-4 h-4 inline mr-2" />
-                {t('banks.accountNumber')} *
+                {t('banks.accountNumber')}{showRoutingNumber ? ' *' : ''}
               </label>
               <input
                 type="text"
@@ -332,6 +406,7 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
                 onChange={(e) => setBankData({...bankData, accountNumber: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="1234567890"
+                required={showRoutingNumber}
               />
             </div>
             <div>
@@ -468,6 +543,12 @@ export default function BankModal({ isOpen, onClose, onSave, bank, bankAccount, 
               {t('banks.accountActive')}
             </label>
           </div>
+
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
