@@ -186,6 +186,31 @@ export class QuotesService {
     return `${prefix}${String(next).padStart(4, '0')}`;
   }
 
+  // Fallback: bazı ortamlarda quoteNumber üzerinde global UNIQUE kalmış olabilir.
+  // Bu durumda tenantId'ye göre hesaplanan numara başka tenant ile çakışır ve
+  // retry döngüsü aynı numarayı üretmeye devam eder. Global en yüksek seq'i baz al.
+  private async generateQuoteNumberGlobal(dateStr: string) {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const prefix = `Q-${year}-`;
+
+    const existing = await this.repo.find({
+      where: {
+        quoteNumber: Like(`${prefix}%`),
+      },
+      select: { quoteNumber: true },
+    });
+
+    let next = 1;
+    if (existing.length > 0) {
+      const seqs = existing
+        .map((q) => Number((q.quoteNumber || '').split('-').pop() || 0))
+        .filter((n) => Number.isFinite(n));
+      if (seqs.length > 0) next = Math.max(...seqs) + 1;
+    }
+    return `${prefix}${String(next).padStart(4, '0')}`;
+  }
+
   async create(tenantId: string, dto: CreateQuoteDto) {
     const safeCustomerId = await this.ensureCustomerExistsOrNull(
       dto.customerId ?? null,
@@ -211,11 +236,16 @@ export class QuotesService {
       this.logWarning('quotes.generatePublicId.queryFailed', error);
       // pgcrypto yoksa DB sorgusu patlayabilir; Node tarafında ürettiğimiz UUID ile devam et.
     }
-    while (attempts < 5) {
+    let lastTriedQuoteNumber: string | undefined;
+    while (attempts < 10) {
       attempts++;
-      const quoteNumber =
-        dto.quoteNumber ||
-        (await this.generateQuoteNumber(tenantId, dto.issueDate));
+      const quoteNumber = dto.quoteNumber
+        ? dto.quoteNumber
+        : attempts === 1
+          ? await this.generateQuoteNumber(tenantId, dto.issueDate)
+          : await this.generateQuoteNumberGlobal(dto.issueDate);
+
+      lastTriedQuoteNumber = quoteNumber;
       const q = this.repo.create({
         tenantId,
         publicId: generatedPublicId,
@@ -251,7 +281,7 @@ export class QuotesService {
     }
     // Buraya düştüyse 5 deneme başarısız olmuştur
     throw new Error(
-      'Teklif numarası üretimi tekrarlı denemelerde başarısız oldu',
+      `Teklif numarası üretimi tekrarlı denemelerde başarısız oldu${lastTriedQuoteNumber ? ` (son deneme: ${lastTriedQuoteNumber})` : ''}`,
     );
   }
 
