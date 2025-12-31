@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomUUID } from 'crypto';
 import { Like, Repository } from 'typeorm';
 import { Quote, QuoteStatus } from './entities/quote.entity';
 import { CreateQuoteDto } from './dto/create-quote.dto';
@@ -194,7 +195,8 @@ export class QuotesService {
     // Benzersiz teklif numarası üretimi: olası yarış koşullarına karşı birkaç kez dene
     let attempts = 0;
     // publicId'yi her denemede yeniden üretmek yerine tek sefer üretelim
-    let generatedPublicId: string | undefined;
+    // DB'de pgcrypto/gen_random_uuid() yoksa bile güvenli bir UUID üretelim
+    let generatedPublicId: string | undefined = randomUUID();
     try {
       const uuidRowsUnknown: unknown = await this.repo.query(
         'SELECT gen_random_uuid() as id',
@@ -207,8 +209,7 @@ export class QuotesService {
       }
     } catch (error) {
       this.logWarning('quotes.generatePublicId.queryFailed', error);
-      // publicId üretilemezse TypeORM save sırasında DB default/trigger yoksa undefined kalır
-      generatedPublicId = undefined;
+      // pgcrypto yoksa DB sorgusu patlayabilir; Node tarafında ürettiğimiz UUID ile devam et.
     }
     while (attempts < 5) {
       attempts++;
