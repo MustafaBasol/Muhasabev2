@@ -1759,6 +1759,13 @@
     "totalCredit": "Total Credit",
     "totalDebit": "Total Debit",
     "netBalance": "Net Balance",
+    "referenceShort": "Ref",
+    "empty": "No records found.",
+    "typeAbbrev": {
+      "invoice": "I",
+      "expense": "E",
+      "sale": "S"
+    },
     "entry": {
       "invoicePrefix": "Invoice",
       "expensePrefix": "Expense",

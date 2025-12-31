@@ -2119,6 +2119,13 @@
     "totalCredit": "Gesamtgutschrift",
     "totalDebit": "Gesamtbelastung",
     "netBalance": "Nettosaldo",
+    "referenceShort": "Ref.",
+    "empty": "Keine Einträge gefunden.",
+    "typeAbbrev": {
+      "invoice": "R",
+      "expense": "A",
+      "sale": "V"
+    },
     "entry": {
       "invoicePrefix": "Rechnung",
       "expensePrefix": "Ausgabe",

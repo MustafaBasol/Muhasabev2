@@ -2139,6 +2139,13 @@
     "totalCredit": "Crédit Total",
     "totalDebit": "Débit Total",
     "netBalance": "Solde Net",
+    "referenceShort": "Réf.",
+    "empty": "Aucun enregistrement trouvé.",
+    "typeAbbrev": {
+      "invoice": "F",
+      "expense": "D",
+      "sale": "V"
+    },
     "entry": {
       "invoicePrefix": "Facture",
       "expensePrefix": "Dépense",

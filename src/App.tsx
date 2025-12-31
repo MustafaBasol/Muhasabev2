@@ -4388,11 +4388,32 @@ const AppContent: React.FC = () => {
   const upsertBank = async (bankData: any): Promise<boolean> => {
     try {
       const { bankAccountsApi } = await import('./api/bank-accounts');
+
+      const effectiveIban = (() => {
+        const country = String((bankData as any)?.accountCountry || '').toUpperCase();
+        const rawIban = String((bankData as any)?.iban ?? '').replace(/\s+/g, '').trim();
+        if (country !== 'US') return rawIban;
+
+        // Backend currently requires `iban` (16-34 chars). For US accounts we persist a synthetic
+        // identifier so users can save using Routing+Account Number fields.
+        const routing = String((bankData as any)?.routingNumber ?? '').replace(/\D+/g, '').trim();
+        const account = String((bankData as any)?.accountNumber ?? '').replace(/\s+/g, '').trim();
+        const prefix = `US${routing}`;
+        const maxAccountLen = Math.max(0, 34 - prefix.length);
+        const normalizedAccount = account.slice(-maxAccountLen);
+        const minTotal = 16;
+        const minAccountLen = Math.max(0, minTotal - prefix.length);
+        const paddedAccount = normalizedAccount.length >= minAccountLen
+          ? normalizedAccount
+          : normalizedAccount.padStart(minAccountLen, '0');
+        return `${prefix}${paddedAccount}`;
+      })();
+
       if (bankData.id) {
         const updated = await bankAccountsApi.update(String(bankData.id), {
           // Backend 'name' alanını frontend'deki 'accountName' ile eşle
           name: bankData.accountName,
-          iban: bankData.iban,
+          iban: effectiveIban,
           bankName: bankData.bankName,
           currency: bankData.currency,
         });
@@ -4406,7 +4427,7 @@ const AppContent: React.FC = () => {
               bankName: bankData.bankName || (updated as any).bankName || bank.bankName,
               accountName: updated.name,
               accountNumber: (bank as any).accountNumber || bankData.accountNumber || '',
-              iban: bankData.iban || (updated as any).iban || (bank as any).iban || '',
+              iban: effectiveIban || (updated as any).iban || (bank as any).iban || '',
               // UI'ya özel alanları KALICI olarak sakla (localStorage ile)
               isActive: bankData.isActive !== false,
               accountType: bankData.accountType || 'checking',
@@ -4443,7 +4464,7 @@ const AppContent: React.FC = () => {
       } else {
         const created = await bankAccountsApi.create({
           name: bankData.accountName,
-          iban: bankData.iban,
+          iban: effectiveIban,
           bankName: bankData.bankName,
           currency: bankData.currency,
         });
@@ -4456,7 +4477,7 @@ const AppContent: React.FC = () => {
               bankName: bankData.bankName || created.bankName || '',
               accountName: created.name,
               accountNumber: bankData.accountNumber || '',
-              iban: bankData.iban || created.iban || '',
+              iban: effectiveIban || created.iban || '',
               isActive: bankData.isActive !== false,
               accountType: bankData.accountType || 'checking',
               balance: Number(bankData.balance) || 0,

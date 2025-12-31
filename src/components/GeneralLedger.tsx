@@ -85,6 +85,7 @@ export default function GeneralLedger({
   const { t, i18n } = useTranslation();
   
   const [searchTerm] = useState('');
+  const [startDate] = useState('');
   const [endDate] = useState('');
   const [customerSearch] = useState('');
   const [categoryFilter] = useState('');
@@ -405,19 +406,19 @@ export default function GeneralLedger({
     if (type === 'invoice') {
       return (
         <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-          <span className="text-blue-600 text-xs font-bold">F</span>
+          <span className="text-blue-600 text-xs font-bold">{t('ledger.typeAbbrev.invoice')}</span>
         </div>
       );
     } else if (type === 'expense') {
       return (
         <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
-          <span className="text-red-600 text-xs font-bold">G</span>
+          <span className="text-red-600 text-xs font-bold">{t('ledger.typeAbbrev.expense')}</span>
         </div>
       );
     } else if (type === 'sale') {
       return (
         <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
-          <span className="text-green-600 text-xs font-bold">S</span>
+          <span className="text-green-600 text-xs font-bold">{t('ledger.typeAbbrev.sale')}</span>
         </div>
       );
     }
@@ -465,7 +466,7 @@ export default function GeneralLedger({
                 <div>
                   <div className="text-sm font-medium text-gray-900">{entry.description}</div>
                   <div className="text-xs text-gray-500">
-                    {entry.reference ? `Ref: ${entry.reference} • ` : ''}{entry.customer || '-'}
+                    {entry.reference ? `${t('ledger.referenceShort')}: ${entry.reference} • ` : ''}{entry.customer || '-'}
                   </div>
                 </div>
               </div>
@@ -484,7 +485,7 @@ export default function GeneralLedger({
             </div>
           ))}
           {filteredEntries.length === 0 && (
-            <div className="p-6 text-center text-sm text-gray-500">Kayıt bulunamadı.</div>
+            <div className="p-6 text-center text-sm text-gray-500">{t('ledger.empty')}</div>
           )}
         </div>
         <div className="p-3 border-t border-gray-200 bg-white">

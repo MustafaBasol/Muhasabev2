@@ -3,6 +3,7 @@ import { json, urlencoded } from 'express';
 import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -71,6 +72,27 @@ async function bootstrap() {
   app.setGlobalPrefix('api', {
     exclude: [{ path: 'health/(.*)', method: RequestMethod.ALL }], // Health check without prefix for all subpaths
   });
+
+  // Run pending migrations in production too (critical for schema consistency)
+  try {
+    const dataSource: DataSource = app.get(DataSource);
+    if (!dataSource.isInitialized) {
+      await dataSource.initialize();
+    }
+    const pendingMigrations = await dataSource.showMigrations();
+    if (pendingMigrations) {
+      console.log('🚀 Pending migration(lar) bulundu. Çalıştırılıyor...');
+      await dataSource.runMigrations();
+      console.log('✅ Migration(lar) başarıyla uygulandı.');
+    } else {
+      console.log('✅ Uygulanacak migration yok.');
+    }
+  } catch (error) {
+    console.error('❌ Migration çalıştırma hatası:', error);
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
+  }
 
   // Swagger documentation (only in development)
   if (process.env.NODE_ENV !== 'production') {

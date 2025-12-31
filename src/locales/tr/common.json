@@ -1769,6 +1769,13 @@
     "totalCredit": "Toplam Alacak",
     "totalDebit": "Toplam Borç",
     "netBalance": "Net Bakiye",
+    "referenceShort": "Ref",
+    "empty": "Kayıt bulunamadı.",
+    "typeAbbrev": {
+      "invoice": "F",
+      "expense": "G",
+      "sale": "S"
+    },
     "entry": {
       "invoicePrefix": "Fatura",
       "expensePrefix": "Gider",
