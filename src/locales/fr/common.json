@@ -1381,6 +1381,7 @@
   "products": {
     "title": "Produits",
     "newProduct": "Nouveau Produit",
+    "exportCsv": "Exporter CSV",
     "search": "Rechercher des produits...",
     "filterCategory": "Toutes les Catégories",
     "name": "Nom du Produit",
@@ -1729,6 +1730,7 @@
     "actions": "Actions",
     "importCSV": "Importer CSV/Excel",
     "downloadTemplate": "Télécharger Modèle",
+    "exportCsv": "Exporter CSV",
     "address": "Adresse",
     "emailPlaceholder": "client@example.com",
     "phonePlaceholder": "+33 6 12 34 56 78",
@@ -1785,6 +1787,7 @@
     "totalExpenses": "Total Dépenses",
     "totalAmount": "Montant Total",
     "actions": "Actions",
+    "exportCsv": "Exporter CSV",
     "categories": {
       "officeSupplies": "Fournitures de bureau",
       "technology": "Technologie",
@@ -2008,6 +2011,7 @@
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette vente?",
     "createInvoice": "Créer une Facture",
     "download": "Télécharger",
+    "exportCsv": "Exporter CSV",
     "subtitle": "Gérez vos enregistrements de ventes",
     "saleCompleted": "Vente Terminée!",
     "saleCompletedDesc": "La vente a été enregistrée avec succès.",

@@ -30,6 +30,7 @@ const loadProductCategoriesApi = async () => (await import('../api/product-categ
 import type { ProductCategory } from '../types';
 import { logger } from '../utils/logger';
 import { safeLocalStorage } from '../utils/localStorageSafe';
+import { buildCsv, downloadCsvFile } from '../utils/csv';
 
 const PRODUCT_PAGE_SIZES = [20, 50, 100] as const;
 const DEFAULT_CATEGORY_NAME = 'Genel';
@@ -774,6 +775,41 @@ export default function ProductList({
     }
   };
 
+  const exportCsv = () => {
+    try {
+      const headers = [
+        'Name',
+        'SKU',
+        'Category',
+        'Unit',
+        'UnitPrice',
+        'CostPrice',
+        'TaxRate',
+        'StockQuantity',
+        'ReorderLevel',
+        'Status',
+        'CreatedAt',
+      ];
+      const rows = filteredProducts.map((product) => [
+        product?.name ?? '',
+        product?.sku ?? '',
+        product?.category ?? '',
+        product?.unit ?? '',
+        product?.unitPrice ?? product?.price ?? '',
+        product?.costPrice ?? '',
+        product?.taxRate ?? '',
+        product?.stockQuantity ?? product?.stock ?? '',
+        product?.reorderLevel ?? '',
+        product?.status ?? '',
+        product?.createdAt ?? '',
+      ]);
+      const csv = buildCsv(headers, rows);
+      downloadCsvFile('products.csv', csv);
+    } catch (error) {
+      logger.error('ProductList: export CSV failed', error);
+    }
+  };
+
   const handleCategorySelect = (value: string) => {
     setCategoryFilter(value);
     if (activeFilterMenu === 'category') {
@@ -1214,6 +1250,14 @@ export default function ProductList({
                   </button>
                   <button
                     type="button"
+                    onClick={exportCsv}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 px-3 py-2 text-sm font-semibold text-indigo-600 transition-colors hover:bg-indigo-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    {t('products.exportCsv')}
+                  </button>
+                  <button
+                    type="button"
                     onClick={onAddProduct}
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
                   >
@@ -1221,97 +1265,100 @@ export default function ProductList({
                     {t('products.newProduct')}
                   </button>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {filterDefinitions.map(({ id, label, display, value, options, onChange, defaultValue, menuRef }) => {
-                    const isActive = value !== defaultValue;
-                    return (
-                      <div key={id} ref={menuRef} className="relative flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setActiveFilterMenu(prev => (prev === id ? null : id))}
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                            isActive
-                              ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800'
-                          }`}
-                        >
-                          <span className="whitespace-nowrap">
-                            {label}: {display}
-                          </span>
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </button>
-                        {isActive && (
+                <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {filterDefinitions.map(({ id, label, display, value, options, onChange, defaultValue, menuRef }) => {
+                      const isActive = value !== defaultValue;
+                      return (
+                        <div key={id} ref={menuRef} className="relative flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={() => {
-                              onChange(defaultValue);
-                              if (activeFilterMenu === id) {
-                                setActiveFilterMenu(null);
-                              }
-                            }}
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700"
+                            onClick={() => setActiveFilterMenu(prev => (prev === id ? null : id))}
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                              isActive
+                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800'
+                            }`}
                           >
-                            <X className="h-3.5 w-3.5" />
+                            <span className="whitespace-nowrap">
+                              {label}: {display}
+                            </span>
+                            <ChevronDown className="h-3.5 w-3.5" />
                           </button>
-                        )}
-                        {activeFilterMenu === id && (
-                          <div className="absolute left-0 top-[calc(100%+0.5rem)] z-20 w-56 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
-                            {options.map(option => {
-                              const optionActive = option.value === value;
-                              return (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  onClick={() => {
-                                    onChange(option.value);
-                                    setActiveFilterMenu(null);
-                                  }}
-                                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
-                                    optionActive
-                                      ? 'bg-indigo-50 text-indigo-700'
-                                      : 'text-gray-600 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  <span>{option.label}</span>
-                                  {optionActive && <Check className="h-4 w-4" />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {activeFilterCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleClearFilters}
-                      className="ml-auto text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-700"
-                    >
-                      {t('archive.clearFilters')}
-                    </button>
-                  )}
-                </div>
-                <div className="mt-3 flex items-center justify-end">
-                  <SavedViewsBar<ProductListViewState>
-                    listType="products"
-                    getState={() => ({ searchTerm, categoryFilter, stockFilter, sortOption, pageSize })}
-                    applyState={(state) => {
-                      setSearchTerm(state.searchTerm ?? '');
-                      setCategoryFilter(state.categoryFilter ?? 'all');
-                      setStockFilter(state.stockFilter ?? 'all');
-                      setSortOption(state.sortOption ?? 'recent');
-                      if (state.pageSize && isValidPageSize(state.pageSize)) {
-                        handlePageSizeChange(state.pageSize);
-                      }
-                    }}
-                    presets={[
-                      { id: 'low-stock', label: t('products.lowStockFilter'), apply: () => setStockFilter('low') },
-                      { id: 'out-of-stock', label: t('products.outOfStock'), apply: () => setStockFilter('out') },
-                      { id: 'price-high', label: t('products.priceHighLow'), apply: () => setSortOption('price-desc') },
-                      { id: 'price-low', label: t('products.priceLowHigh'), apply: () => setSortOption('price-asc') },
-                    ]}
-                  />
+                          {isActive && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onChange(defaultValue);
+                                if (activeFilterMenu === id) {
+                                  setActiveFilterMenu(null);
+                                }
+                              }}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {activeFilterMenu === id && (
+                            <div className="absolute left-0 top-[calc(100%+0.5rem)] z-20 w-56 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
+                              {options.map(option => {
+                                const optionActive = option.value === value;
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => {
+                                      onChange(option.value);
+                                      setActiveFilterMenu(null);
+                                    }}
+                                    className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
+                                      optionActive
+                                        ? 'bg-indigo-50 text-indigo-700'
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <span>{option.label}</span>
+                                    {optionActive && <Check className="h-4 w-4" />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3">
+                    {activeFilterCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearFilters}
+                        className="text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-700"
+                      >
+                        {t('archive.clearFilters')}
+                      </button>
+                    )}
+                    <SavedViewsBar<ProductListViewState>
+                      listType="products"
+                      getState={() => ({ searchTerm, categoryFilter, stockFilter, sortOption, pageSize })}
+                      applyState={(state) => {
+                        setSearchTerm(state.searchTerm ?? '');
+                        setCategoryFilter(state.categoryFilter ?? 'all');
+                        setStockFilter(state.stockFilter ?? 'all');
+                        setSortOption(state.sortOption ?? 'recent');
+                        if (state.pageSize && isValidPageSize(state.pageSize)) {
+                          handlePageSizeChange(state.pageSize);
+                        }
+                      }}
+                      presets={[
+                        { id: 'low-stock', label: t('products.lowStockFilter'), apply: () => setStockFilter('low') },
+                        { id: 'out-of-stock', label: t('products.outOfStock'), apply: () => setStockFilter('out') },
+                        { id: 'price-high', label: t('products.priceHighLow'), apply: () => setSortOption('price-desc') },
+                        { id: 'price-low', label: t('products.priceLowHigh'), apply: () => setSortOption('price-asc') },
+                      ]}
+                    />
+                  </div>
                 </div>
                 {hasSelection && (
                   <div className="mt-3 flex flex-col gap-3 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 md:flex-row md:items-center md:justify-between">

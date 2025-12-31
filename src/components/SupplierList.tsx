@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Edit, Trash2, Mail, Phone, Building2 } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Mail, Phone, Building2, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Pagination from './Pagination';
 import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
+import { buildCsv, downloadCsvFile } from '../utils/csv';
 import type { Supplier as SupplierModel } from '../api/suppliers';
 // preset etiketleri i18n'den alınır
 
@@ -131,6 +132,26 @@ export default function SupplierList({
     setPage(1);
   };
 
+  const exportCsv = () => {
+    try {
+      const headers = ['Name', 'Email', 'Phone', 'Address', 'Company', 'TaxNumber', 'Category', 'CreatedAt'];
+      const rows = filteredSuppliers.map((supplier) => [
+        supplier?.name ?? '',
+        supplier?.email ?? '',
+        supplier?.phone ?? '',
+        supplier?.address ?? '',
+        supplier?.company ?? '',
+        (supplier as any)?.taxNumber ?? '',
+        supplier?.category ?? '',
+        (supplier as any)?.createdAt ?? '',
+      ]);
+      const csv = buildCsv(headers, rows);
+      downloadCsvFile('suppliers.csv', csv);
+    } catch (error) {
+      logger.error('SupplierList: export CSV failed', error);
+    }
+  };
+
   return (
     <div className="w-full overflow-x-auto">
       <div className="bg-white rounded-xl border border-gray-200 min-w-full lg:min-w-[920px]">
@@ -146,53 +167,63 @@ export default function SupplierList({
             </p>
           </div>
           {!selectionMode && (
-            <button
-              onClick={onAddSupplier}
-              className="flex items-center gap-2 self-start rounded-lg bg-orange-600 px-4 py-2 text-white transition-colors hover:bg-orange-700"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{t('suppliers.newSupplier')}</span>
-            </button>
+            <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+              <button
+                type="button"
+                onClick={exportCsv}
+                className="flex items-center gap-2 rounded-lg border border-orange-200 px-4 py-2 text-orange-600 transition-colors hover:bg-orange-50"
+              >
+                <Download className="w-4 h-4" />
+                <span>{t('suppliers.exportCsv')}</span>
+              </button>
+              <button
+                onClick={onAddSupplier}
+                className="flex items-center gap-2 self-start rounded-lg bg-orange-600 px-4 py-2 text-white transition-colors hover:bg-orange-700"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{t('suppliers.newSupplier')}</span>
+              </button>
+            </div>
           )}
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-            <div className="relative flex-1">
+        <div className="mt-3 flex flex-wrap items-center gap-3 lg:flex-nowrap">
+          <div className="relative flex-1 min-w-[220px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 transform text-gray-400 w-4 h-4" />
             <input
               type="text"
               placeholder={t('suppliers.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
-            </div>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 md:w-56"
-            >
-              <option value="all">
-                {t('allCategories')}
-              </option>
-              {categories.map(category => (
-                <option key={category} value={category}>{getCategoryLabel(category)}</option>
-              ))}
-            </select>
           </div>
-          {/* Tarih filtreleri */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-700 whitespace-nowrap">{t('startDate')}</span>
+
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 md:w-56"
+          >
+            <option value="all">
+              {t('allCategories')}
+            </option>
+            {categories.map(category => (
+              <option key={category} value={category}>{getCategoryLabel(category)}</option>
+            ))}
+          </select>
+
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <span className="text-sm text-gray-700">{t('startDate')}</span>
             <input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500" />
-            <span className="text-sm text-gray-700 whitespace-nowrap">{t('endDate')}</span>
+            <span className="text-sm text-gray-700">{t('endDate')}</span>
             <input type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500" />
             {(startDate || endDate) && (
               <button onClick={()=>{setStartDate(''); setEndDate('');}} className="rounded-lg bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200">{t('archive.clearFilters')}</button>
             )}
           </div>
-          <div className="flex w-full flex-wrap justify-start sm:justify-end">
+
+          <div className="flex w-full flex-wrap justify-start lg:w-auto lg:justify-end lg:ml-auto">
             <SavedViewsBar
               listType="suppliers"
               getState={() => ({ searchTerm, categoryFilter, startDate, endDate, pageSize })}

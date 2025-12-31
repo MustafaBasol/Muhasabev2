@@ -842,6 +842,7 @@
   "products": {
     "title": "Products",
     "newProduct": "New Product",
+    "exportCsv": "Export CSV",
     "search": "Search products...",
     "filterCategory": "All Categories",
     "name": "Product Name",
@@ -1195,6 +1196,7 @@
     "actions": "Actions",
     "importCSV": "Import CSV/Excel",
     "downloadTemplate": "Download Template",
+    "exportCsv": "Export CSV",
     "address": "Address",
     "emailPlaceholder": "customer@example.com",
     "phonePlaceholder": "+1 555 123 4567",
@@ -1251,6 +1253,7 @@
     "totalExpenses": "Total Expenses",
     "totalAmount": "Total Amount",
     "actions": "Actions",
+    "exportCsv": "Export CSV",
     "categories": {
       "officeSupplies": "Office Supplies",
       "technology": "Technology",
@@ -1531,6 +1534,7 @@
     "deleteConfirm": "Are you sure you want to delete this sale?",
     "createInvoice": "Create Invoice",
     "download": "Download",
+    "exportCsv": "Export CSV",
     "subtitle": "Manage your sales records",
     "saleCompleted": "Sale Completed!",
     "saleCompletedDesc": "The sale was successfully recorded.",

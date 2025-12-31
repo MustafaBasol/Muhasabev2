@@ -11,6 +11,7 @@ import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
+import { buildCsv, downloadCsvFile } from '../utils/csv';
 import { formatAppDate } from '../utils/dateFormat';
 // preset etiketleri i18n'den alınır
 
@@ -367,6 +368,37 @@ export default function InvoiceList({
     }
   };
 
+  const exportCsv = () => {
+    try {
+      const headers = [
+        'InvoiceNumber',
+        'CustomerName',
+        'CustomerEmail',
+        'Status',
+        'IssueDate',
+        'DueDate',
+        'Total',
+        'Currency',
+        'IsVoided',
+      ];
+      const rows = filteredInvoices.map((invoice) => [
+        invoice?.invoiceNumber ?? '',
+        (invoice as any)?.customer?.name ?? invoice?.customerName ?? '',
+        (invoice as any)?.customer?.email ?? invoice?.customerEmail ?? '',
+        invoice?.status ?? '',
+        invoice?.issueDate ?? '',
+        invoice?.dueDate ?? '',
+        (invoice as any)?.total ?? invoice?.amount ?? '',
+        (invoice as any)?.currency ?? '',
+        Boolean((invoice as any)?.isVoided),
+      ]);
+      const csv = buildCsv(headers, rows);
+      downloadCsvFile('invoices.csv', csv);
+    } catch (error) {
+      logger.error('InvoiceList: export CSV failed', error);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl border border-gray-200">
       {/* Header */}
@@ -378,15 +410,25 @@ export default function InvoiceList({
               {currentInvoices.length} {t('invoices.invoicesRegistered')} • {invoices.length - currentInvoices.length} {t('invoices.inArchive')}
             </p>
           </div>
-          <button
-            onClick={onAddInvoice}
-            disabled={atLimit}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${atLimit ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-            title={atLimit ? t('invoices.planLimitReachedTitle', { limit: MONTHLY_MAX }) : undefined}
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('invoices.newInvoice')}</span>
-          </button>
+          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors border border-blue-200 text-blue-600 hover:bg-blue-50"
+            >
+              <Download className="w-4 h-4" />
+              <span>{t('invoices.exportCsv')}</span>
+            </button>
+            <button
+              onClick={onAddInvoice}
+              disabled={atLimit}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${atLimit ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+              title={atLimit ? t('invoices.planLimitReachedTitle', { limit: MONTHLY_MAX }) : undefined}
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('invoices.newInvoice')}</span>
+            </button>
+          </div>
         </div>
 
         {/* Search and Filter */}

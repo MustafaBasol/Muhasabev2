@@ -16,6 +16,7 @@ import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
+import { buildCsv, downloadCsvFile } from '../utils/csv';
 import type { Customer as CustomerModel } from '../types';
 // preset etiketleri i18n'den alınır
 
@@ -37,7 +38,6 @@ interface CustomerListProps {
 
 type CustomerListViewState = {
   searchTerm: string;
-  hasEmailOnly?: boolean;
   hasPhoneOnly?: boolean;
   hasCompanyOnly?: boolean;
   startDate?: string;
@@ -76,7 +76,6 @@ export default function CustomerList({
   const toLocale = (l: string) => (l === 'tr' ? 'tr-TR' : l === 'de' ? 'de-DE' : l === 'fr' ? 'fr-FR' : 'en-US');
   const lang = getActiveLang();
   const L = {
-    emailExists: { tr: 'E-posta var', en: 'Has email', fr: 'E-mail présent', de: 'E-Mail vorhanden' }[lang as 'tr'|'en'|'fr'|'de'] || 'Has email',
     phoneExists: { tr: 'Telefon var', en: 'Has phone', fr: 'Téléphone présent', de: 'Telefon vorhanden' }[lang as 'tr'|'en'|'fr'|'de'] || 'Has phone',
     companyExists: { tr: 'Şirketi olanlar', en: 'Has company', fr: 'A une entreprise', de: 'Hat Firma' }[lang as 'tr'|'en'|'fr'|'de'] || 'Has company',
     from: { tr: 'Başlangıç', en: 'From', fr: 'De', de: 'Von' }[lang as 'tr'|'en'|'fr'|'de'] || 'From',
@@ -85,7 +84,6 @@ export default function CustomerList({
   };
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [hasEmailOnly, setHasEmailOnly] = useState<boolean>(false);
   const [hasPhoneOnly, setHasPhoneOnly] = useState<boolean>(false);
   const [hasCompanyOnly, setHasCompanyOnly] = useState<boolean>(false);
   const [startDate, setStartDate] = useState<string>('');
@@ -100,7 +98,6 @@ export default function CustomerList({
     if (def && def.state) {
       try {
         setSearchTerm(def.state.searchTerm ?? '');
-        setHasEmailOnly(Boolean(def.state.hasEmailOnly));
         setHasPhoneOnly(Boolean(def.state.hasPhoneOnly));
         setHasCompanyOnly(Boolean(def.state.hasCompanyOnly));
         setStartDate(def.state.startDate ?? '');
@@ -126,16 +123,15 @@ export default function CustomerList({
       const email = toSafeLower(customer?.email);
       const company = toSafeLower(customer?.company);
       const matchesSearch = !lookup || name.includes(lookup) || email.includes(lookup) || company.includes(lookup);
-      const matchesEmail = !hasEmailOnly || !!(customer?.email && customer.email.trim());
       const matchesPhone = !hasPhoneOnly || !!(customer?.phone && customer.phone.trim());
       const matchesCompany = !hasCompanyOnly || !!(customer?.company && customer.company.trim());
       const created = customer?.createdAt ? new Date(customer.createdAt) : null;
       let matchesDate = true;
       if (startDate && created) matchesDate = matchesDate && created >= new Date(startDate);
       if (endDate && created) matchesDate = matchesDate && created <= new Date(endDate);
-      return matchesSearch && matchesEmail && matchesPhone && matchesCompany && matchesDate;
+      return matchesSearch && matchesPhone && matchesCompany && matchesDate;
     });
-  }, [safeCustomers, searchTerm, hasEmailOnly, hasPhoneOnly, hasCompanyOnly, startDate, endDate]);
+  }, [safeCustomers, searchTerm, hasPhoneOnly, hasCompanyOnly, startDate, endDate]);
 
   const paginatedCustomers = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -144,7 +140,7 @@ export default function CustomerList({
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, hasEmailOnly, hasPhoneOnly, hasCompanyOnly, startDate, endDate]);
+  }, [searchTerm, hasPhoneOnly, hasCompanyOnly, startDate, endDate]);
 
   const handlePageSizeChange = (size: number) => {
     const nextSize = isValidCustomerPageSize(size) ? size : CUSTOMER_PAGE_SIZES[0];
@@ -201,6 +197,25 @@ export default function CustomerList({
     }
   };
 
+  const exportCsv = () => {
+    try {
+      const headers = ['Name', 'Email', 'Phone', 'Address', 'Company', 'TaxNumber', 'CreatedAt'];
+      const rows = filteredCustomers.map((customer) => [
+        customer?.name ?? '',
+        customer?.email ?? '',
+        customer?.phone ?? '',
+        customer?.address ?? '',
+        customer?.company ?? '',
+        (customer as any)?.taxNumber ?? '',
+        customer?.createdAt ?? '',
+      ]);
+      const csv = buildCsv(headers, rows);
+      downloadCsvFile('customers.csv', csv);
+    } catch (error) {
+      logger.error('CustomerList: export CSV failed', error);
+    }
+  };
+
   const renderHeader = () => (
     <div className="p-6 border-b border-gray-200">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-4">
@@ -241,6 +256,14 @@ export default function CustomerList({
             </button>
             <button
               type="button"
+              onClick={exportCsv}
+              className="flex items-center gap-2 rounded-lg border border-purple-200 px-4 py-2 text-purple-600 transition-colors hover:bg-purple-50"
+            >
+              <Download className="h-4 w-4" />
+              <span>{t('customers.exportCsv')}</span>
+            </button>
+            <button
+              type="button"
               onClick={onAddCustomer}
               className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700"
             >
@@ -252,69 +275,63 @@ export default function CustomerList({
       </div>
 
       <div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={event => setSearchTerm(event.target.value)}
-            placeholder={t('customers.search')}
-            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-        </div>
-        {/* Filters row */}
-        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="text-sm text-gray-700 inline-flex items-center gap-2">
-              <input type="checkbox" className="rounded" checked={hasEmailOnly} onChange={(e)=>setHasEmailOnly(e.target.checked)} />
-              {L.emailExists}
-            </label>
-            <label className="text-sm text-gray-700 inline-flex items-center gap-2">
-              <input type="checkbox" className="rounded" checked={hasPhoneOnly} onChange={(e)=>setHasPhoneOnly(e.target.checked)} />
-              {L.phoneExists}
-            </label>
-            <label className="text-sm text-gray-700 inline-flex items-center gap-2">
-              <input type="checkbox" className="rounded" checked={hasCompanyOnly} onChange={(e)=>setHasCompanyOnly(e.target.checked)} />
-              {L.companyExists}
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">{L.from}</span>
-              <input type="date" lang={toLocale(lang)} value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
-              <span className="text-sm text-gray-700">{L.to}</span>
-              <input type="date" lang={toLocale(lang)} value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
-              {(startDate || endDate) && (
-                <button onClick={()=>{setStartDate(''); setEndDate('');}} className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200">{L.clear}</button>
-              )}
-            </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3 lg:flex-nowrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={event => setSearchTerm(event.target.value)}
+              placeholder={t('customers.search')}
+              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
           </div>
-          <div className="flex w-full flex-wrap justify-start gap-2 sm:justify-end">
-          <SavedViewsBar
-            listType="customers"
-            getState={() => ({ searchTerm, hasEmailOnly, hasPhoneOnly, hasCompanyOnly, startDate, endDate, pageSize })}
-            applyState={(s) => {
-              const st: Partial<CustomerListViewState> = s ?? {};
-              setSearchTerm(st.searchTerm ?? '');
-              setHasEmailOnly(Boolean(st.hasEmailOnly));
-              setHasPhoneOnly(Boolean(st.hasPhoneOnly));
-              setHasCompanyOnly(Boolean(st.hasCompanyOnly));
-              setStartDate(st.startDate ?? '');
-              setEndDate(st.endDate ?? '');
-              if (st.pageSize && isValidCustomerPageSize(st.pageSize)) {
-                handlePageSizeChange(st.pageSize);
-              }
-            }}
-            presets={[
-              { id:'with-email', label:t('presets.withEmail'), apply:()=>{ setHasEmailOnly(true); setHasPhoneOnly(false); setHasCompanyOnly(false); }},
-              { id:'with-phone', label:t('presets.withPhone'), apply:()=>{ setHasPhoneOnly(true); setHasEmailOnly(false); setHasCompanyOnly(false); }},
-              { id:'with-company', label:t('presets.withCompany'), apply:()=>{ setHasCompanyOnly(true); setHasEmailOnly(false); setHasPhoneOnly(false); }},
-              { id:'added-this-month', label:t('presets.addedThisMonth'), apply:()=>{
-                const d = new Date();
-                const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
-                const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
-                setStartDate(s); setEndDate(e);
-              }},
-            ]}
-          />
+
+          <label className="text-sm text-gray-700 inline-flex items-center gap-2 whitespace-nowrap">
+            <input type="checkbox" className="rounded" checked={hasPhoneOnly} onChange={(e)=>setHasPhoneOnly(e.target.checked)} />
+            {L.phoneExists}
+          </label>
+          <label className="text-sm text-gray-700 inline-flex items-center gap-2 whitespace-nowrap">
+            <input type="checkbox" className="rounded" checked={hasCompanyOnly} onChange={(e)=>setHasCompanyOnly(e.target.checked)} />
+            {L.companyExists}
+          </label>
+
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <span className="text-sm text-gray-700">{L.from}</span>
+            <input type="date" lang={toLocale(lang)} value={startDate} onChange={(e)=>setStartDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
+            <span className="text-sm text-gray-700">{L.to}</span>
+            <input type="date" lang={toLocale(lang)} value={endDate} onChange={(e)=>setEndDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded" />
+            {(startDate || endDate) && (
+              <button onClick={()=>{setStartDate(''); setEndDate('');}} className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200">{L.clear}</button>
+            )}
+          </div>
+
+          <div className="flex w-full flex-wrap justify-start gap-2 lg:w-auto lg:justify-end lg:ml-auto">
+            <SavedViewsBar
+              listType="customers"
+              getState={() => ({ searchTerm, hasPhoneOnly, hasCompanyOnly, startDate, endDate, pageSize })}
+              applyState={(s) => {
+                const st: Partial<CustomerListViewState> = s ?? {};
+                setSearchTerm(st.searchTerm ?? '');
+                setHasPhoneOnly(Boolean(st.hasPhoneOnly));
+                setHasCompanyOnly(Boolean(st.hasCompanyOnly));
+                setStartDate(st.startDate ?? '');
+                setEndDate(st.endDate ?? '');
+                if (st.pageSize && isValidCustomerPageSize(st.pageSize)) {
+                  handlePageSizeChange(st.pageSize);
+                }
+              }}
+              presets={[
+                { id:'with-phone', label:t('presets.withPhone'), apply:()=>{ setHasPhoneOnly(true); setHasCompanyOnly(false); }},
+                { id:'with-company', label:t('presets.withCompany'), apply:()=>{ setHasCompanyOnly(true); setHasPhoneOnly(false); }},
+                { id:'added-this-month', label:t('presets.addedThisMonth'), apply:()=>{
+                  const d = new Date();
+                  const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+                  const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+                  setStartDate(s); setEndDate(e);
+                }},
+              ]}
+            />
           </div>
         </div>
       </div>

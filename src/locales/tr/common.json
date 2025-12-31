@@ -929,6 +929,7 @@
   "products": {
     "title": "Ürünler",
     "newProduct": "Yeni Ürün",
+    "exportCsv": "CSV Dışa Aktar",
     "search": "Ürün ara...",
     "filterCategory": "Tüm Kategoriler",
     "name": "Ürün Adı",
@@ -1302,6 +1303,7 @@
     "actions": "İşlemler",
     "importCSV": "CSV/Excel İçe Aktar",
     "downloadTemplate": "Şablon İndir",
+    "exportCsv": "CSV Dışa Aktar",
     "editCustomer": "Müşteriyi Düzenle",
     "addCustomer": "Müşteri Ekle",
     "selectFromList": "Listeden müşteri seçin",
@@ -1358,6 +1360,7 @@
     "totalExpenses": "Toplam Gider",
     "totalAmount": "Toplam Tutar",
     "actions": "İşlemler",
+    "exportCsv": "CSV Dışa Aktar",
     "categories": {
       "officeSupplies": "Ofis Malzemeleri",
       "technology": "Teknoloji",
@@ -1638,6 +1641,7 @@
     "deleteConfirm": "Bu satışı silmek istediğinizden emin misiniz?",
     "createInvoice": "Fatura Oluştur",
     "download": "İndir",
+    "exportCsv": "CSV Dışa Aktar",
     "subtitle": "Satış kayıtlarınızı yönetin",
     "saleCompleted": "Satış Tamamlandı!",
     "saleCompletedDesc": "Satış başarıyla kaydedildi.",
