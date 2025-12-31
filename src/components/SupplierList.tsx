@@ -53,17 +53,21 @@ export default function SupplierList({
   selectionMode = false
 }: SupplierListProps) {
   const { t, i18n } = useTranslation();
-  const lang = (i18n.resolvedLanguage || i18n.language || 'en').split('-')[0];
-  // Kategori çok-dilli etiketleri
-  const categoryLabels: Record<string, Record<string, string>> = {
-    'Ofis Malzemeleri': { tr: 'Ofis Malzemeleri', en: 'Office Supplies', fr: 'Fournitures de bureau', de: 'Büromaterial' },
-    'Teknoloji': { tr: 'Teknoloji', en: 'Technology', fr: 'Technologie', de: 'Technologie' },
-    'Hizmet': { tr: 'Hizmet', en: 'Services', fr: 'Services', de: 'Dienstleistungen' },
-    'Üretim': { tr: 'Üretim', en: 'Manufacturing', fr: 'Production', de: 'Fertigung' },
-    'Lojistik': { tr: 'Lojistik', en: 'Logistics', fr: 'Logistique', de: 'Logistik' },
-    'Diğer': { tr: 'Diğer', en: 'Other', fr: 'Autre', de: 'Sonstiges' },
+  const supplierCategoryKeyByName: Record<string, string> = {
+    'Ofis Malzemeleri': 'officeSupplies',
+    'Teknoloji': 'technology',
+    'Hizmet': 'services',
+    'Üretim': 'manufacturing',
+    'Lojistik': 'logistics',
+    'Diğer': 'other',
   };
-  const getCategoryLabel = (value: string) => categoryLabels[value]?.[lang] || value;
+
+  const getCategoryLabel = (value: string) => {
+    const mappedKey = supplierCategoryKeyByName[value];
+    if (!mappedKey) return value;
+    const i18nKey = `suppliers.categories.${mappedKey}`;
+    return i18n.exists(i18nKey) ? t(i18nKey) : value;
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
@@ -171,10 +175,7 @@ export default function SupplierList({
               className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 md:w-56"
             >
               <option value="all">
-                {i18n.language === 'tr' ? 'Tüm kategoriler' : 
-                 i18n.language === 'en' ? 'All categories' :
-                 i18n.language === 'de' ? 'Alle Kategorien' :
-                 i18n.language === 'fr' ? 'Toutes les catégories' : 'All categories'}
+                {t('allCategories')}
               </option>
               {categories.map(category => (
                 <option key={category} value={category}>{getCategoryLabel(category)}</option>
@@ -247,10 +248,10 @@ export default function SupplierList({
           </div>
         ) : (
           paginatedSuppliers.map((supplier, index) => {
-            const displayName = supplier.name?.trim() || t('suppliers.unnamed', { defaultValue: 'İsimsiz Tedarikçi' });
+            const displayName = supplier.name?.trim() || t('suppliers.unnamed');
             const initials = displayName.charAt(0).toUpperCase();
             const companyName = supplier.company?.trim();
-            const emailLabel = supplier.email || t('suppliers.noEmail', { defaultValue: 'E-posta yok' });
+            const emailLabel = supplier.email || t('suppliers.noEmail');
             const phoneLabel = supplier.phone || '';
             const supplierKey = supplier.id || `supplier-${index}`;
             const categoryToken = supplier.category || 'Diğer';

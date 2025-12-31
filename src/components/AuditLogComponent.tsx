@@ -3,6 +3,7 @@ import { User, Filter, ChevronLeft, ChevronRight, Clock, Activity } from 'lucide
 import auditApi, { type AuditLogEntry, type AuditLogResponse, type AuditEntitiesResponse } from '../api/audit';
 import { readLegacyAuthToken } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
+import { formatAppDateTime } from '../utils/dateFormat';
 
 interface AuditLogFilters {
   entity?: string;
@@ -101,7 +102,7 @@ export const AuditLogComponent: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return formatAppDateTime(dateString);
   };
 
   const getActionColor = (action: string) => {

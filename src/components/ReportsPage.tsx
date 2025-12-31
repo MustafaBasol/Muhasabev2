@@ -21,6 +21,7 @@ import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { logger } from '../utils/logger';
 import { listLocalStorageKeys, readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
 import { toNumberSafe } from '../utils/sortAndSearch';
+import { formatAppDate } from '../utils/dateFormat';
 
 type NumericInput = number | string | null | undefined;
 
@@ -694,26 +695,22 @@ export default function ReportsPage({
     if (!value) return '—';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString(i18n.language, {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  }, [i18n.language]);
+    return formatAppDate(date);
+  }, []);
 
   const getSupplierDisplay = useCallback((name?: string | null) => {
     const trimmed = (name || '').trim();
     if (!trimmed) {
-      return t('common:noSupplier', { defaultValue: 'No Supplier' });
+      return t('common.noSupplier');
     }
     return trimmed;
   }, [t]);
 
   const getCategoryLabel = useCallback((category?: string | null) => {
-    if (!category) return t('expenses.category', { defaultValue: 'Category' });
-    const translated = t(`expenseCategories.${category}`, { defaultValue: category });
-    return translated || category;
-  }, [t]);
+    if (!category) return t('expenses.category');
+    const key = `expenseCategories.${category}`;
+    return i18n.exists(key) ? t(key) : category;
+  }, [i18n, t]);
 
   const handleExportExpenses = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -725,13 +722,13 @@ export default function ReportsPage({
 
     try {
       const headers = [
-        t('expenses.expenseNumber', { defaultValue: 'Expense Number' }),
-        t('common.description', { defaultValue: 'Description' }),
-        t('expenses.supplier', { defaultValue: 'Supplier' }),
-        t('expenses.category', { defaultValue: 'Category' }),
-        t('common.statusLabel', { defaultValue: 'Status' }),
-        t('expenses.expenseDate', { defaultValue: 'Expense Date' }),
-        t('expenses.amount', { defaultValue: 'Amount' }),
+        t('expenses.expenseNumber'),
+        t('common.description'),
+        t('expenses.supplier'),
+        t('expenses.category'),
+        t('common.statusLabel'),
+        t('expenses.expenseDate'),
+        t('expenses.amount'),
       ];
 
       const rows = paidExpenses.map((expense, index) => {
@@ -841,7 +838,7 @@ export default function ReportsPage({
           <div className="text-right">
             <p className="text-sm text-gray-500">{t('reports.reportDate')}</p>
             <p className="text-lg font-semibold text-gray-900">
-              {currentDate.toLocaleDateString('tr-TR')}
+              {formatAppDate(currentDate)}
             </p>
           </div>
         </div>
@@ -1283,7 +1280,7 @@ export default function ReportsPage({
           <div className="p-6 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-gray-500">
-                {t('reports.expenseExportHint', { defaultValue: 'Includes paid expenses only.' })}
+                {t('reports.expenseExportHint')}
               </p>
               <button
                 type="button"
@@ -1291,7 +1288,7 @@ export default function ReportsPage({
                 className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
               >
                 <FileDown className="w-4 h-4" />
-                <span>{t('reports.exportExpensesCsv', { defaultValue: 'Export CSV' })}</span>
+                <span>{t('reports.exportExpensesCsv')}</span>
               </button>
             </div>
 
@@ -1570,7 +1567,7 @@ export default function ReportsPage({
                   <div key={idx} className="flex flex-wrap items-center justify-between gap-3 p-2 hover:bg-gray-50 rounded">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{q.quoteNumber || '—'}</div>
-                      <div className="text-xs text-gray-500">{resolveStatusLabel(t, normalizeStatusKey(q.status))} • {getQuoteDate(q).toLocaleDateString('tr-TR')}</div>
+                      <div className="text-xs text-gray-500">{resolveStatusLabel(t, normalizeStatusKey(q.status))} • {formatAppDate(getQuoteDate(q))}</div>
                     </div>
                     <div className="text-sm font-semibold text-indigo-600">
                       {formatAmount(getQuoteTotal(q))}

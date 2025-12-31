@@ -311,8 +311,8 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
     }
     // Kayıt öncesi onay al
     setConfirmData({
-      title: t('common.confirm', { defaultValue: 'Onay' }),
-      message: t('quotes.createConfirm', { defaultValue: 'Teklifi kaydetmek istediğinize emin misiniz?' }),
+      title: t('common.confirm'),
+      message: t('quotes.createConfirm'),
       onConfirm: () => {
         onCreate({
           customer: selectedCustomer,
@@ -355,7 +355,7 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
               </div>
               {showCustomerDropdown && filteredCustomers.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-56 overflow-y-auto">
-                  <div className="p-2 text-xs text-gray-500 border-b">{filteredCustomers.length} müşteri bulundu</div>
+                  <div className="p-2 text-xs text-gray-500 border-b">{t('quotes.createModal.customersFound', { count: filteredCustomers.length })}</div>
                   {filteredCustomers.map(c => (
                     <button
                       key={c.id}
@@ -410,7 +410,7 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.validityDays', { defaultValue: 'Geçerlilik (gün)' })}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.validityDays')}</label>
               <input
                 type="number"
                 min={1}
@@ -436,8 +436,8 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '44%' }}>{t('invoices.description')}</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '12%' }}>{t('invoices.quantity')}</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('invoices.unitPriceExclVAT', { defaultValue: 'Birim Fiyat (KDV Hariç)' })}</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('common.totalExclVAT', { defaultValue: 'Toplam (KDV Hariç)' })}</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('invoices.unitPriceExclVAT')}</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-700" style={{ width: '18%' }}>{t('common.totalExclVAT')}</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700" style={{ width: '8%' }}>{t('invoices.actions')}</th>
                   </tr>
                 </thead>
@@ -465,7 +465,7 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
                                 <div className="sticky top-0 bg-indigo-50 p-2 text-xs font-medium text-indigo-700 border-b border-indigo-200">
                                   <span className="flex items-center">
                                     <Search className="w-3 h-3 mr-1" />
-                                    {productMatches.length} ürün bulundu
+                                    {t('quotes.createModal.productsFound', { count: productMatches.length })}
                                   </span>
                                 </div>
                                 {productMatches.map(p => (
@@ -487,7 +487,7 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
                             )}
                           </div>
                           {it.unit && (
-                            <p className="mt-1 text-xs text-gray-500">Birim: {it.unit}</p>
+                            <p className="mt-1 text-xs text-gray-500">{t('common.unit')}: {it.unit}</p>
                           )}
                         </td>
                         <td className="px-4 py-2">
@@ -545,37 +545,37 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
 
           <div className="bg-gray-50 rounded-lg p-3 flex justify-end">
             <div className="w-64 flex justify-between text-lg font-semibold">
-              <span>{t('invoices.grandTotalExclVAT', { defaultValue: 'Genel Toplam (KDV Hariç)' })}:</span>
+              <span>{t('invoices.grandTotalExclVAT')}:</span>
               <span>{formatCurrency(itemsTotal, form.currency)}</span>
             </div>
           </div>
 
           {/* İşin Kapsamı */}
           <div className="mt-4" ref={scopeRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.scopeOfWork.title')}</label>
             {/* Şablon araç çubuğu */}
             {enableTemplates && templates.length > 0 && (
               <div className="flex items-center gap-2 mb-2">
                 <select value={selectedTemplateId} onChange={(e)=>setSelectedTemplateId(e.target.value)} className="px-2 py-1 border rounded text-sm">
-                  <option value="">{t('quotes.templates.selectPlaceholder', { defaultValue: 'Şablon seçin…' })}</option>
+                  <option value="">{t('quotes.templates.selectPlaceholder')}</option>
                   {templates.map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}
                 </select>
-                <button onClick={applyTemplate} disabled={!selectedTemplateId} className="px-2.5 py-1.5 text-xs rounded bg-indigo-600 text-white disabled:opacity-50">{t('quotes.templates.apply', { defaultValue: 'Uygula' })}</button>
-                <button onClick={onOpenTemplatesManager} className="px-2.5 py-1.5 text-xs rounded border">{t('quotes.templates.manage', { defaultValue: 'Şablonları Yönet' })}</button>
+                <button onClick={applyTemplate} disabled={!selectedTemplateId} className="px-2.5 py-1.5 text-xs rounded bg-indigo-600 text-white disabled:opacity-50">{t('quotes.templates.apply')}</button>
+                <button onClick={onOpenTemplatesManager} className="px-2.5 py-1.5 text-xs rounded border">{t('quotes.templates.manage')}</button>
               </div>
             )}
             {enableTemplates && templates.length === 0 && (
               <div className="mb-2">
-                <button onClick={onOpenTemplatesManager} className="px-2.5 py-1.5 text-xs rounded border">{t('quotes.templates.create', { defaultValue: 'Şablon Oluştur' })}</button>
+                <button onClick={onOpenTemplatesManager} className="px-2.5 py-1.5 text-xs rounded border">{t('quotes.templates.create')}</button>
               </div>
             )}
             <RichTextEditor
               value={scopeHtml}
               onChange={(val) => { setScopeHtml(val); setScopeDirty(true); }}
-              placeholder={t('quotes.scopeOfWork.placeholder', { defaultValue: 'Proje kapsamı, teslimatlar, varsayımlar ve hariçler...' })}
+              placeholder={t('quotes.scopeOfWork.placeholder')}
               height={240}
             />
-            <p className="text-xs text-gray-500 mt-1">{t('quotes.scopeOfWork.note', { defaultValue: 'Bu içerik teklif PDF’inde mevcut bölümden sonra yeni bir sayfa olarak eklenecek ve genel linkte görünecek.' })}</p>
+            <p className="text-xs text-gray-500 mt-1">{t('quotes.scopeOfWork.note')}</p>
           </div>
 
         </div>
@@ -613,8 +613,8 @@ const QuoteCreateModal: React.FC<QuoteCreateModalProps> = ({ isOpen, onClose, cu
         isOpen={true}
         title={confirmData!.title}
         message={confirmData!.message}
-        confirmText={t('common.yes', { defaultValue: 'Evet' })}
-        cancelText={t('common.no', { defaultValue: 'Hayır' })}
+        confirmText={t('common.yes')}
+        cancelText={t('common.no')}
         onConfirm={confirmData!.onConfirm}
         onCancel={() => setConfirmData(null)}
       />

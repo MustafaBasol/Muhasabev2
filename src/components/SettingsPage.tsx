@@ -36,11 +36,14 @@ import {
   updateSeats as billingUpdateSeats,
 } from '../api/billing';
 import { logger } from '../utils/logger';
+import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 import { getEffectiveTenantMaxUsers } from '../utils/tenantLimits';
 import {
   getCachedTenantId,
   getCachedUserId,
   safeLocalStorage,
+  readTenantScopedValue,
+  writeTenantScopedValue,
   readNotificationPrefsCache as readNotificationPrefsCacheSafe,
   writeNotificationPrefsCache,
   readLegacyAuthToken,
@@ -456,7 +459,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState<boolean>(!!tenant?.cancelAtPeriodEnd);
 
   const renewalDate = tenant?.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt) : null;
-  const renewalStr = renewalDate ? renewalDate.toLocaleDateString() : '—';
+  const renewalStr = renewalDate ? formatAppDate(renewalDate) : '—';
   const renewalLabel = cancelAtPeriodEnd
     ? t('common:planTab.currentPlan.cancellationDate')
     : t('common:planTab.currentPlan.renewalDate');
@@ -685,7 +688,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
           const cancelDateStr = (() => {
             const s = res?.subscriptionExpiresAt;
             if (s) {
-              try { return new Date(s).toLocaleDateString(); } catch (error) {
+              try { return formatAppDate(s); } catch (error) {
                 logger.warn('Subscription expiry parse failed', error);
                 return renewalStr;
               }
@@ -1286,7 +1289,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
               </thead>
               <tbody>
                 {history.map((ev, idx) => {
-                  const at = ev.at ? new Date(ev.at).toLocaleDateString() : '—';
+                  const at = ev.at ? formatAppDate(ev.at) : '—';
                   const typeLabel = (() => {
                     const map: Record<string, Record<string, string>> = {
                       tr: {
@@ -1455,7 +1458,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
                 {(() => {
                   const list = getFilteredInvoices();
                   return list.map(inv => {
-                  const dateStr = inv.created ? new Date(inv.created).toLocaleDateString() : '—';
+                  const dateStr = inv.created ? formatAppDate(inv.created) : '—';
                   const amount = typeof inv.total === 'number'
                     ? (inv.total / 100).toFixed(2) + ' ' + String(inv.currency || '').toUpperCase()
                     : '—';
@@ -3352,14 +3355,32 @@ export default function SettingsPage({
   }, [authUser, notificationSettings]);
 
   // System (currency context'ten geliyor, burada tutmuyoruz)
-  const [systemSettings, setSystemSettings] = useState({
-    language: 'tr',
-    dateFormat: 'DD/MM/YYYY',
-    theme: 'light',
-    // TODO: Otomatik yedekleme - Backend servisi eklendiğinde aktif edilecek
-    // autoBackup: true,
-    // backupFrequency: 'daily',
+  const [systemSettings, setSystemSettings] = useState(() => {
+    const tenantId = (readLegacyTenantId() || getCachedTenantId() || '').toString();
+    const stored = readTenantScopedValue('date_format', { tenantId, fallbackToBase: true });
+    const dateFormat = (stored === 'DD/MM/YYYY' || stored === 'MM/DD/YYYY' || stored === 'YYYY-MM-DD')
+      ? stored
+      : 'DD/MM/YYYY';
+    return {
+      language: 'tr',
+      dateFormat,
+      theme: 'light',
+    };
   });
+
+  // Tenant değişirse date format tercihini tekrar oku
+  useEffect(() => {
+    try {
+      const tenantId = (readLegacyTenantId() || getCachedTenantId() || '').toString();
+      const stored = readTenantScopedValue('date_format', { tenantId, fallbackToBase: true });
+      const next = (stored === 'DD/MM/YYYY' || stored === 'MM/DD/YYYY' || stored === 'YYYY-MM-DD')
+        ? stored
+        : 'DD/MM/YYYY';
+      setSystemSettings(prev => (prev.dateFormat === next ? prev : { ...prev, dateFormat: next }));
+    } catch {
+      /* ignore */
+    }
+  }, [tenant?.id]);
 
   // Sekmeler: Üyeler sadece Güvenlik sekmesini görsün; yöneticiler tüm sekmeleri görür
   const tabs = (() => {
@@ -3481,6 +3502,18 @@ export default function SettingsPage({
         return { ...prev, currency: normalized };
       });
       return;
+    }
+
+    // Date format tercihini tenant-scoped localStorage'a yaz
+    if (field === 'dateFormat') {
+      try {
+        const v = String(value);
+        const normalized = (v === 'DD/MM/YYYY' || v === 'MM/DD/YYYY' || v === 'YYYY-MM-DD') ? v : 'DD/MM/YYYY';
+        const tenantId = (readLegacyTenantId() || getCachedTenantId() || '').toString();
+        writeTenantScopedValue('date_format', normalized, { tenantId, mirrorToBase: true });
+      } catch (e) {
+        logger.debug('Failed to persist date_format preference', e);
+      }
     }
 
     setSystemSettings(prev => {
@@ -3732,6 +3765,16 @@ export default function SettingsPage({
       }
 
       if (tenantUpdateOk) {
+        // Date format tercihini kaydet (güvence)
+        try {
+          const v = String(systemSettings.dateFormat || 'DD/MM/YYYY');
+          const normalized = (v === 'DD/MM/YYYY' || v === 'MM/DD/YYYY' || v === 'YYYY-MM-DD') ? v : 'DD/MM/YYYY';
+          const tenantId = (readLegacyTenantId() || getCachedTenantId() || '').toString();
+          writeTenantScopedValue('date_format', normalized, { tenantId, mirrorToBase: true });
+        } catch (e) {
+          logger.debug('Failed to persist date_format on save', e);
+        }
+
         resetUnsavedChanges();
         currencyTouchedRef.current = false;
         setShowSaveSuccess(true);
@@ -3787,7 +3830,7 @@ export default function SettingsPage({
                 const d = new Date(at);
                 if (Number.isNaN(d.getTime())) return '—';
                 const locale = (typeof i18n?.language === 'string' && i18n.language) ? i18n.language : (currentLanguage || 'tr');
-                return d.toLocaleString(locale);
+                  return formatAppDateTime(d, { locale });
               } catch { return '—'; }
             })()}
           </div>

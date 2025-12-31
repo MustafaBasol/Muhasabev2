@@ -9,7 +9,7 @@ import { safeLocalStorage, safeSessionStorage } from '../utils/localStorageSafe'
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState(() => {
     const prefill = safeSessionStorage.getItem('prefill_email')
       || safeLocalStorage.getItem('prefill_email')
@@ -28,21 +28,9 @@ export default function LoginPage() {
   const [resending, setResending] = useState(false);
   const [captchaRequired, setCaptchaRequired] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const securityFallbacks: Record<string, string> = {
-    en: 'Security verification required. Please complete the verification.',
-    de: 'Sicherheitsüberprüfung erforderlich. Bitte schließen Sie die Verifizierung ab.',
-    fr: 'Vérification de sécurité requise. Merci de finaliser la vérification.',
-    tr: 'Güvenlik doğrulaması gerekli. Lütfen doğrulamayı tamamlayın.'
-  };
-  const currentLang = (i18n.language || 'en').split('-')[0];
-  const securityVerificationMessage = t(
-    'auth.securityVerificationRequired',
-    securityFallbacks[currentLang] || securityFallbacks.en
-  );
-  const verificationMessage = t(
-    'auth.emailNotVerified',
-    'E-posta doğrulanmadı. Lütfen giriş yapmadan önce e-postanızı doğrulayın.'
-  );
+  const securityVerificationMessage = t('auth.securityVerificationRequired');
+  const verificationMessage = t('auth.emailNotVerified');
+  const mfaRequiredMessage = t('auth.mfaRequired');
   const setErrorWithCode = (message: string, code?: string | null) => {
     setError(message);
     setErrorCode(code ?? null);
@@ -51,6 +39,15 @@ export default function LoginPage() {
     if (!error) return '';
     if (typeof error === 'string') {
       const normalized = error.toLowerCase();
+      if (errorCode === 'MFA_REQUIRED' || normalized.includes('mfa required') || normalized.includes('mfa_required')) {
+        return mfaRequiredMessage;
+      }
+      if (errorCode === 'CAPTCHA_REQUIRED' || normalized.includes('security verification required')) {
+        return securityVerificationMessage;
+      }
+      if (errorCode === 'EMAIL_NOT_VERIFIED' || normalized.includes('email not verified') || normalized.includes('email_not_verified')) {
+        return verificationMessage;
+      }
       if (normalized.includes('security verification required')) {
         return securityVerificationMessage;
       }
@@ -58,11 +55,11 @@ export default function LoginPage() {
         return verificationMessage;
       }
       if (normalized.includes('mfa required') || normalized.includes('mfa_required')) {
-        return 'İki faktörlü doğrulama gerekli. Lütfen doğrulama kodunu girin.';
+        return mfaRequiredMessage;
       }
     }
     return error;
-  }, [error, securityVerificationMessage, verificationMessage]);
+  }, [error, errorCode, securityVerificationMessage, verificationMessage, mfaRequiredMessage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +94,7 @@ export default function LoginPage() {
       setErrorWithCode('', null);
     } catch (error: any) {
       // MFA adımında yanlış kod girdiyse daha net mesaj ver
-      const msg = error?.message || 'Giriş sırasında bir hata oluştu';
+      const msg = error?.message || t('auth.loginErrorGeneric');
       const normalized = msg?.toLowerCase?.() || '';
       if (msg === 'MFA_REQUIRED' || normalized.includes('mfa required')) {
         setMfaRequired(true);
@@ -120,11 +117,11 @@ export default function LoginPage() {
     try {
       await authService.resendVerification(formData.email);
       setErrorWithCode(
-        t('auth.verificationEmailSent', 'Doğrulama e-postası gönderildi. Lütfen e-postanızı kontrol edin.'),
+        t('auth.verificationEmailSent'),
         'VERIFICATION_EMAIL_SENT'
       );
     } catch (e: any) {
-      setErrorWithCode(e?.message || t('common.error', 'Hata'));
+      setErrorWithCode(e?.message || t('common.error'));
     } finally {
       setResending(false);
     }
@@ -149,13 +146,13 @@ export default function LoginPage() {
                 <img src="/ikon-2.png" alt="Comptario" className="h-12 w-12" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('auth.welcomeTitle', 'Hoş Geldiniz')}</h1>
-            <p className="text-gray-600">{t('auth.welcomeSubtitle', 'Hesabınıza giriş yaparak devam edin')}</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('auth.welcomeTitle')}</h1>
+            <p className="text-gray-600">{t('auth.welcomeSubtitle')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.emailAddress', 'E-posta Adresi')}</label>
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.emailAddress')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400" />
@@ -168,13 +165,13 @@ export default function LoginPage() {
                   value={formData.email}
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder={t('auth.emailPlaceholder', 'ornek@email.com')}
+                  placeholder={t('auth.emailPlaceholder')}
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.password', 'Şifre')}</label>
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.password')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-gray-400" />
@@ -187,7 +184,7 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={handleChange}
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder={t('auth.passwordPlaceholder', '••••••••')}
+                  placeholder={t('auth.passwordPlaceholder')}
                 />
                 <button
                   type="button"
@@ -205,7 +202,7 @@ export default function LoginPage() {
 
             {mfaRequired && (
               <div>
-                <label htmlFor="totp" className="block text-sm font-semibold text-gray-700 mb-2">2FA Kodu</label>
+                <label htmlFor="totp" className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.mfaCodeLabel')}</label>
                 <input
                   id="totp"
                   name="totp"
@@ -215,10 +212,10 @@ export default function LoginPage() {
                   value={mfaToken}
                   onChange={(e) => setMfaToken(e.target.value.toUpperCase())}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="6 haneli TOTP veya 8 karakter yedek kod"
+                  placeholder={t('auth.mfaCodePlaceholder')}
                   autoFocus
                 />
-                <p className="mt-1 text-xs text-gray-500">Google Authenticator / 1Password kodunu girin.</p>
+                <p className="mt-1 text-xs text-gray-500">{t('auth.mfaCodeHelp')}</p>
               </div>
             )}
 
@@ -228,21 +225,21 @@ export default function LoginPage() {
                   type="checkbox"
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <span className="ml-2 text-sm text-gray-600">{t('auth.rememberMe', 'Beni hatırla')}</span>
+                <span className="ml-2 text-sm text-gray-600">{t('auth.rememberMe')}</span>
               </label>
               <button
                 type="button"
                 onClick={() => (window.location.hash = 'forgot-password')}
                 className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
               >
-                {t('auth.forgotPassword', 'Şifremi unuttum')}
+                {t('auth.forgotPassword')}
               </button>
             </div>
 
             {captchaRequired && (
               <div>
                 <TurnstileCaptcha onToken={(t) => setCaptchaToken(t)} />
-                <p className="text-xs text-gray-500 mt-1">{t('auth.captchaHint', 'Birden fazla başarısız giriş denemesi algılandı - lütfen insan doğrulamasını tamamlayın.')}</p>
+                <p className="text-xs text-gray-500 mt-1">{t('auth.captchaHint')}</p>
               </div>
             )}
 
@@ -255,7 +252,7 @@ export default function LoginPage() {
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>{mfaRequired ? 'Doğrula ve Giriş Yap' : t('auth.signIn', 'Giriş Yap')}</span>
+                  <span>{mfaRequired ? t('auth.verifyAndSignIn') : t('auth.signIn')}</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
@@ -273,7 +270,7 @@ export default function LoginPage() {
                   onClick={handleResendVerification}
                   className="ml-auto text-blue-700 underline disabled:opacity-50"
                 >
-                  {resending ? t('common.loading', 'Yükleniyor...') : t('auth.resendVerification', 'Doğrulama e-postasını tekrar gönder')}
+                  {resending ? t('common.loading') : t('auth.resendVerification')}
                 </button>
               )}
             </div>
@@ -287,7 +284,7 @@ export default function LoginPage() {
                 <div className="w-full border-t border-gray-200" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">{t('auth.or', 'veya')}</span>
+                <span className="bg-white px-2 text-gray-500">{t('auth.or')}</span>
               </div>
             </div>
             
@@ -297,18 +294,18 @@ export default function LoginPage() {
               className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2"
             >
               <Building2 className="h-5 w-5" />
-              {t('auth.adminLogin', 'Yönetici Girişi')}
+              {t('auth.adminLogin')}
             </button>
           </div>
 
           <div className="text-center mt-8">
             <p className="text-sm text-gray-600">
-              {t('auth.noAccount', 'Hesabınız yok mu?')}{' '}
+              {t('auth.noAccount')}{' '}
               <button 
                 onClick={() => window.location.href = '#register'}
                 className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
               >
-                {t('auth.createFreeAccount', 'Ücretsiz hesap oluşturun')}
+                {t('auth.createFreeAccount')}
               </button>
             </p>
           </div>

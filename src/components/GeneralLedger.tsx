@@ -85,7 +85,6 @@ export default function GeneralLedger({
   const { t, i18n } = useTranslation();
   
   const [searchTerm] = useState('');
-  const [startDate] = useState('');
   const [endDate] = useState('');
   const [customerSearch] = useState('');
   const [categoryFilter] = useState('');
@@ -142,7 +141,6 @@ export default function GeneralLedger({
         // Sessiz geç: sayfayı bozmasın
       }
     };
-
     void refresh();
     return () => {
       cancelled = true;
@@ -237,7 +235,7 @@ export default function GeneralLedger({
         const extraCount = Math.max(0, items.length - 1);
         return extraCount > 0 ? `${firstName} +${extraCount}` : firstName;
       }
-      return t('common.generic.sale', { defaultValue: 'Satış' }) as unknown as string;
+      return t('common.generic.sale') as unknown as string;
     };
 
     // Add invoices
@@ -309,13 +307,16 @@ export default function GeneralLedger({
           runningBalance -= expAmount;
         }
 
+        const expenseCategoryKey = `expenseCategories.${expense.category}`;
+        const expenseCategoryLabel = i18n.exists(expenseCategoryKey) ? t(expenseCategoryKey) : expense.category;
+
         entries.push({
           id: `exp-${expense.id}`,
           date: expense.expenseDate,
           description: `${t('ledger.entry.expensePrefix')} - ${expense.description}`,
           reference: expense.expenseNumber,
           customer: expense.supplier?.name || expense.supplier || '',
-          category: t(`expenseCategories.${expense.category}`, { defaultValue: expense.category }),
+          category: expenseCategoryLabel,
           debit: expense.status === 'paid' ? expAmount : 0,
           credit: 0,
           displayDebit: expAmount,

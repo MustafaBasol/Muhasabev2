@@ -11,6 +11,7 @@ import SavedViewsBar from './SavedViewsBar';
 import { useSavedListViews } from '../hooks/useSavedListViews';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
+import { formatAppDate } from '../utils/dateFormat';
 // preset etiketleri i18n'den alınır
 
 // Archive threshold: invoices older than this many days will only appear in archive
@@ -247,27 +248,8 @@ export default function InvoiceList({
     return filteredInvoices.reduce((sum, inv) => sum + toNumberSafe(inv.total), 0);
   }, [filteredInvoices]);
 
-  const totalLabel = (() => {
-    const lang = String(i18n?.language || '').toLowerCase();
-    if (lang.startsWith('tr')) return 'Toplam';
-    if (lang.startsWith('de')) return 'Summe';
-    if (lang.startsWith('fr')) return 'Total';
-    return 'Total';
-  })();
-
-  const shownLabel = (() => {
-    const lang = String(i18n?.language || '').toLowerCase();
-    if (filtersActive) {
-      if (lang.startsWith('tr')) return 'Filtreli';
-      if (lang.startsWith('de')) return 'Gefiltert';
-      if (lang.startsWith('fr')) return 'Filtré';
-      return 'Filtered';
-    }
-    if (lang.startsWith('tr')) return 'Gösterilen';
-    if (lang.startsWith('de')) return 'Angezeigt';
-    if (lang.startsWith('fr')) return 'Affiché';
-    return 'Shown';
-  })();
+  const totalLabel = t('summary.total');
+  const shownLabel = filtersActive ? t('summary.filtered') : t('summary.shown');
 
   const paginatedInvoices = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -332,8 +314,7 @@ export default function InvoiceList({
   };
 
   const formatDate = (dateString: string) => {
-    const locale = (i18n?.language || 'en').toString();
-    return new Date(dateString).toLocaleDateString(locale);
+    return formatAppDate(dateString);
   };
 
   const formatAmount = (amount: number) => {
@@ -618,7 +599,7 @@ export default function InvoiceList({
                       <div className="mt-3 space-y-2 text-xs text-gray-600 md:hidden">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-gray-500 font-medium">{t('invoices.customer')}:</span>
-                          <span className="text-gray-900">{invoice.customer?.name || t('invoices.noCustomer', { defaultValue: 'Müşteri Yok' })}</span>
+                          <span className="text-gray-900">{invoice.customer?.name || t('noCustomer')}</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-gray-500 font-medium">{t('invoices.status')}:</span>
@@ -651,7 +632,7 @@ export default function InvoiceList({
                               ? 'text-gray-300 cursor-not-allowed' 
                               : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                           }`}
-                          title={invoice.isVoided ? t('invoices.cannotEditVoided', { defaultValue: 'İptal edilmiş fatura düzenlenemez' }) : t('invoices.edit')}
+                          title={invoice.isVoided ? t('invoices.cannotEditVoided') : t('invoices.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -666,7 +647,7 @@ export default function InvoiceList({
                           <button 
                             onClick={() => handleRestoreInvoice(invoice.id)}
                             className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title={t('invoices.restore', { defaultValue: 'Geri Yükle' })}
+                            title={t('invoices.restore')}
                           >
                             <RotateCcw className="w-4 h-4" />
                           </button>
@@ -674,7 +655,7 @@ export default function InvoiceList({
                           <button 
                             onClick={() => handleVoidInvoice(invoice)}
                             className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-                            title={t('invoices.void', { defaultValue: 'Faturayı İptal Et' })}
+                            title={t('invoices.void')}
                           >
                             <Ban className="w-4 h-4" />
                           </button>
@@ -691,7 +672,7 @@ export default function InvoiceList({
                     <td className="hidden md:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {invoice.customer?.name || 'Müşteri Yok'}
+                          {invoice.customer?.name || t('noCustomer')}
                         </div>
                         <div className="text-xs text-gray-500 hidden lg:block">
                           {invoice.customer?.email || ''}
@@ -710,7 +691,7 @@ export default function InvoiceList({
                                   <div key={idx} className="flex items-start">
                                     <span className="text-gray-400 mr-1">•</span>
                                     <span className="line-clamp-1">
-                                      {item.productName || item.description || 'Ürün'} 
+                                      {item.productName || item.description || '—'} 
                                       {item.quantity && ` (${item.quantity}x)`}
                                     </span>
                                   </div>
@@ -819,7 +800,7 @@ export default function InvoiceList({
                               ? 'text-gray-300 cursor-not-allowed' 
                               : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                           }`}
-                          title={invoice.isVoided ? t('invoices.cannotEditVoided', { defaultValue: 'İptal edilmiş fatura düzenlenemez' }) : t('invoices.edit')}
+                          title={invoice.isVoided ? t('invoices.cannotEditVoided') : t('invoices.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -838,7 +819,7 @@ export default function InvoiceList({
                           <button 
                             onClick={() => handleRestoreInvoice(invoice.id)}
                             className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title={t('invoices.restore', { defaultValue: 'Geri Yükle' })}
+                            title={t('invoices.restore')}
                           >
                             <RotateCcw className="w-4 h-4" />
                           </button>
@@ -846,7 +827,7 @@ export default function InvoiceList({
                           <button 
                             onClick={() => handleVoidInvoice(invoice)}
                             className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-                            title={t('invoices.void', { defaultValue: 'Faturayı İptal Et' })}
+                            title={t('invoices.void')}
                           >
                             <Ban className="w-4 h-4" />
                           </button>
@@ -883,23 +864,23 @@ export default function InvoiceList({
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              {t('invoices.void', { defaultValue: 'Faturayı İptal Et' })}
+              {t('invoices.void')}
             </h3>
             
             <p className="text-sm text-gray-600 mb-4">
-              {t('invoices.voidConfirm', { defaultValue: '{{invoiceNumber}} numaralı faturayı iptal etmek istediğinizden emin misiniz?', invoiceNumber: voidingInvoice.invoiceNumber })}
+              {t('invoices.voidConfirm', { invoiceNumber: voidingInvoice.invoiceNumber })}
             </p>
             
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('invoices.voidReason', { defaultValue: 'İptal Nedeni' })} *
+                {t('invoices.voidReason')} *
               </label>
               <textarea
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 rows={3}
-                placeholder={t('invoices.voidReasonPlaceholder', { defaultValue: 'İptal nedenini açıklayın...' })}
+                placeholder={t('invoices.voidReasonPlaceholder')}
                 required
               />
             </div>
@@ -920,7 +901,7 @@ export default function InvoiceList({
                 disabled={!voidReason.trim()}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {t('invoices.void', { defaultValue: 'Faturayı İptal Et' })}
+                {t('invoices.void')}
               </button>
             </div>
           </div>

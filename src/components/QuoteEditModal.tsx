@@ -115,8 +115,8 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
       ...(scopeHtml ? { scopeOfWorkHtml: scopeHtml } : { scopeOfWorkHtml: '' as any }),
     };
     setConfirmData({
-      title: t('common.confirm', { defaultValue: 'Onay' }),
-      message: t('quotes.saveConfirm', { defaultValue: 'Değişiklikleri kaydetmek istiyor musunuz?' }),
+      title: t('common.confirm'),
+      message: t('quotes.saveConfirm'),
       onConfirm: () => {
         onSave(updated);
         onClose();
@@ -210,8 +210,8 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
                 onChange={(e) => setForm({ ...form, status: e.target.value as QuoteStatus })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
               >
-                <option value="draft">{t('common:status.draft', { defaultValue: L.draft })}</option>
-                <option value="sent">{t('common:status.sent', { defaultValue: L.sent })}</option>
+                <option value="draft">{t('quotes.statusLabels.draft')}</option>
+                <option value="sent">{t('quotes.statusLabels.sent')}</option>
                 <option value="viewed">{t('quotes.statusLabels.viewed')}</option>
                 <option value="accepted">{t('quotes.statusLabels.accepted')}</option>
                 <option value="declined">{t('quotes.statusLabels.declined')}</option>
@@ -264,7 +264,7 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
                               <div className="sticky top-0 bg-indigo-50 p-2 text-xs font-medium text-indigo-700 border-b border-indigo-200">
                                 <span className="flex items-center">
                                   <Search className="w-3 h-3 mr-1" />
-                                  {productMatches.length} ürün bulundu
+                                  {t('quotes.createModal.productsFound', { count: productMatches.length })}
                                 </span>
                               </div>
                               {productMatches.map(p => (
@@ -326,14 +326,14 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
 
           {/* İşin Kapsamı */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('quotes.scopeOfWork.title')}</label>
             <RichTextEditor
               value={scopeHtml}
               onChange={setScopeHtml}
-              placeholder={t('quotes.scopeOfWork.placeholder', { defaultValue: 'Proje kapsamı, teslimatlar, varsayımlar ve hariçler...' })}
+              placeholder={t('quotes.scopeOfWork.placeholder')}
               height={220}
             />
-            <p className="text-xs text-gray-500 mt-1">{t('quotes.scopeOfWork.note', { defaultValue: 'Bu içerik teklif PDF’inde mevcut bölümden sonra yeni bir sayfa olarak eklenecek ve genel linkte görünecek.' })}</p>
+            <p className="text-xs text-gray-500 mt-1">{t('quotes.scopeOfWork.note')}</p>
           </div>
         </div>
 
@@ -348,8 +348,8 @@ const QuoteEditModal: React.FC<QuoteEditModalProps> = ({ isOpen, onClose, quote,
         isOpen={true}
         title={confirmData!.title}
         message={confirmData!.message}
-        confirmText={t('common.yes', { defaultValue: 'Evet' })}
-        cancelText={t('common.no', { defaultValue: 'Hayır' })}
+        confirmText={t('common.yes')}
+        cancelText={t('common.no')}
         onConfirm={confirmData!.onConfirm}
         onCancel={() => setConfirmData(null)}
       />

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTranslation } from 'react-i18next';
+import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 
 export interface HeaderNotification {
   id: string;
@@ -390,7 +391,7 @@ const Header: React.FC<HeaderProps> = ({
                         {t('header.notifications')}
                       </span>
                       <span className="text-xs text-gray-400">
-                        {new Date().toLocaleDateString(currentLanguage)}
+                        {formatAppDate(new Date())}
                       </span>
                     </div>
                     {notifications.length === 0 ? (
@@ -502,7 +503,7 @@ const Header: React.FC<HeaderProps> = ({
                                 </p>
                                 <span className="mt-1 block text-xs text-gray-400">
                                   {notification.firstSeenAt
-                                    ? new Date(notification.firstSeenAt).toLocaleString(currentLanguage)
+                                    ? formatAppDateTime(notification.firstSeenAt, { locale: currentLanguage })
                                     : notification.time}
                                 </span>
                               </div>

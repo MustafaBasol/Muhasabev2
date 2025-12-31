@@ -16,6 +16,7 @@ import {
   Settings
 } from 'lucide-react';
 import { adminApi } from '../../api/admin';
+import { formatAppDateTime } from '../../utils/dateFormat';
 
 interface RetentionConfig {
   retentionPolicies: {
@@ -164,7 +165,7 @@ export default function DataRetentionPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('tr-TR');
+    return formatAppDateTime(dateString);
   };
 
   const getPolicyStatusIcon = (policy: { legalHold?: boolean }) => {

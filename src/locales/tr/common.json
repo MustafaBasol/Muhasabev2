@@ -22,6 +22,8 @@
     "withCompany": "Şirketi olanlar"
   },
   "landing": {
+    "copied": "Kopyalandı",
+    "copyFailed": "Kopyalama başarısız",
     "nav.features": "Özellikler",
     "nav.pricing": "Fiyatlar",
     "nav.faq": "SSS",
@@ -301,8 +303,35 @@
     "resendCooldown": "Güvenlik için 60 saniye bekleme uygulanır",
     "securityVerificationRequired": "Güvenlik doğrulaması gerekli. Lütfen doğrulamayı tamamlayın.",
     "emailNotVerified": "E-posta henüz doğrulanmadı. Lütfen devam etmeden önce e-postanızı doğrulayın.",
+    "mfaRequired": "İki faktörlü doğrulama gerekli. Lütfen doğrulama kodunu girin.",
+    "mfaCodeLabel": "2FA Kodu",
+    "mfaCodePlaceholder": "6 haneli TOTP veya 8 karakter yedek kod",
+    "mfaCodeHelp": "Google Authenticator / 1Password kodunu girin.",
+    "verifyAndSignIn": "Doğrula ve Giriş Yap",
+    "loginErrorGeneric": "Giriş sırasında bir hata oluştu.",
     "verificationEmailSent": "Doğrulama e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.",
     "resendVerification": "Doğrulama e-postasını tekrar gönder",
+    "verificationTokenMissing": "Doğrulama anahtarı bulunamadı.",
+    "emailVerified": "E-posta doğrulandı",
+    "redirectingToLogin": "Giriş sayfasına yönlendiriliyorsunuz...",
+    "verificationFailed": "Doğrulama başarısız",
+    "backToStart": "Başa dön",
+    "registerSuccessVerifyRequired": "Hesabınız oluşturuldu. Lütfen gelen kutunuzu kontrol edin ve doğrulama bağlantısına tıklayın.",
+    "registerSuccess": "Hesabınız başarıyla oluşturuldu! Giriş yapabilirsiniz.",
+    "registerErrorGeneric": "Kayıt sırasında bir hata oluştu.",
+    "requiredFieldsError": "Lütfen tüm zorunlu alanları doldurun.",
+    "passwordTooShort6": "Şifre en az 6 karakter olmalıdır.",
+    "mustAcceptTerms": "Hizmet Şartları ve Gizlilik Politikasını kabul etmelisiniz.",
+    "emailConflict": {
+      "title": "Bu e-posta ile zaten bir hesap var: {{email}}",
+      "prompt": "Nasıl devam etmek istersiniz?",
+      "optionSignInPrefix": "Şifrenizi biliyorsanız",
+      "optionSignInAction": "giriş yapın",
+      "optionResetPrefix": "Şifrenizi hatırlamıyorsanız",
+      "optionResetAction": "şifre sıfırlama bağlantısı isteyin",
+      "optionTryOther": "Farklı bir hesap oluşturmak istiyorsanız başka bir e-posta adresiyle tekrar deneyin.",
+      "securityNote": "Güvenlik için hangi e-postaların kayıtlı olduğunu açıkça göstermiyoruz; bu uyarı sizin girdinizden yola çıkarak gösterilir."
+    },
     "registerCta": "Hesap Oluştur",
     "alreadyHaveAccount": "Zaten hesabınız var mı?",
     "goToLogin": "Giriş yapın"
@@ -371,7 +400,8 @@
       "loadFailed": "Mali dönemler yüklenemedi",
       "periodLocked": "Bu mali dönem kilitli ve değiştirilemez",
       "periodNotFound": "Mali dönem bulunamadı",
-      "operationNotAllowed": "Bu işlem için mali dönem kilitli"
+      "operationNotAllowed": "Bu işlem için mali dönem kilitli",
+      "operationNotAllowedWithPeriod": "{{periodName}} kilitli olduğu için işlem yapılamaz. Önce dönem kilidini açınız."
     },
     "success": {
       "created": "Mali dönem başarıyla oluşturuldu",
@@ -433,14 +463,49 @@
     "add": "Ekle",
     "search": "Ara",
     "close": "Kapat",
+    "unit": "Birim",
+    "totalExclVAT": "Toplam (KDV Hariç)",
     "backToHome": "Anasayfaya Dön",
     "yes": "Evet",
     "no": "Hayır",
     "loading": "Yükleniyor...",
+    "creating": "Oluşturuluyor...",
     "error": "Hata",
+    "networkError": "Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.",
+    "unexpectedError": "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
+    "operationFailed": "İşlem başarısız oldu. Lütfen tekrar deneyin.",
+    "notSpecified": "Belirtilmemiş",
     "success": "Başarılı",
     "warning": "Uyarı",
     "ok": "Tamam",
+    "noSupplier": "Tedarikçi Yok",
+    "audit": {
+      "createdBy": "Oluşturan",
+      "createdAt": "Oluşturulma",
+      "updatedBy": "Son güncelleyen",
+      "updatedAt": "Son güncelleme"
+    },
+    "summary": {
+      "shown": "Gösterilen",
+      "filtered": "Filtreli",
+      "total": "Toplam"
+    },
+    "apiErrors": {
+      "nameAlreadyExists": "Bu isim zaten kullanılıyor. Lütfen farklı bir isim seçin.",
+      "invalidDateRange": "Geçersiz tarih aralığı. Bitiş tarihi başlangıç tarihinden sonra olmalıdır.",
+      "startDatePast": "Başlangıç tarihi geçmişte olamaz.",
+      "endDateAfterStart": "Bitiş tarihi başlangıç tarihinden sonra olmalıdır.",
+      "unauthorized": "Bu işlem için yetkiniz bulunmuyor. Lütfen giriş yapın.",
+      "forbidden": "Bu işlemi gerçekleştirme yetkiniz yok.",
+      "invalidCredentials": "Kullanıcı adı veya şifre hatalı.",
+      "tokenExpired": "Oturumunuz sona erdi. Lütfen tekrar giriş yapın.",
+      "requestTimeout": "İstek zaman aşımına uğradı. Lütfen tekrar deneyin.",
+      "serverError": "Sunucu hatası. Lütfen daha sonra tekrar deneyin.",
+      "notFound": "Aradığınız kayıt bulunamadı.",
+      "badRequest": "Geçersiz istek. Lütfen girdiğiniz bilgileri kontrol edin.",
+      "internalServerError": "Sunucu hatası. Lütfen tekrar deneyin.",
+      "serviceUnavailable": "Servis şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin."
+    },
     "periodLockedError": "Bu kayıt kilitli mali dönemde yer aldığı için silinemez",
     "monthlyIncomeExpense": "Aylık Gelir/Gider",
     "last6MonthsPerformance": "Son 6 ay performansı (en yeni → en eski)",
@@ -509,7 +574,8 @@
       "declined": "Reddedildi",
       "viewed": "Görüntülendi",
       "expired": "Süresi Doldu",
-      "completed": "Tamamlandı"
+      "completed": "Tamamlandı",
+      "unknown": "Bilinmiyor"
     },
     "notes": "Notlar"
 },
@@ -640,17 +706,23 @@
       "details": "Teklif Detayları"
     },
     "validUntil": "Geçerlilik Tarihi",
+    "validityDays": "Geçerlilik (gün)",
     "expiresIn": "({{days}} gün içinde sona erer)",
     "expiredOn": "({{date}} tarihinde sona erdi)",
   "version": "v{{n}}",
-  "confirmAccept": "Teklifi kabul etmek istediğinizden emin misiniz?",
+  "confirmAccept": "Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
   "acceptedThanks": "Teşekkürler, teklif kabul edildi.",
   "confirmDecline": "Teklifi reddetmek istediğinizden emin misiniz?",
   "declinedInfo": "Teklif reddedildi.",
     "duplicateConfirm": "Yinele işlemine devam edilsin mi?",
     "reviseConfirm": "Bu teklifi revize etmek istiyor musunuz? Mevcut sürüm geçmişe taşınacak ve yeni bir sürüm oluşturulacak.",
     "createConfirm": "Bu teklifi kaydetmek istediğinizden emin misiniz?",
+    "deleteConfirm": "{{quoteNumber}} numaralı teklifi silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
     "saveConfirm": "Değişiklikleri kaydetmek istediğinizden emin misiniz?",
+    "locked": "Kilitli",
+    "lockedHint": "Kabul edildi. Bu teklif kilitli.",
+    "lockedBanner": "Bu teklif kabul edildi ve kilitlidir. Düzenleme veya silme yapılamaz.",
+    "revisionHistory": "Revizyon Geçmişi",
     "actions": {
       "send": "Gönder",
       "accept": "Kabul Et",
@@ -698,6 +770,8 @@
       "customerPlaceholder": "Müşteri adı girin",
       "currency": "Para Birimi",
       "date": "Düzenleme Tarihi",
+      "customersFound": "{{count}} müşteri bulundu",
+      "productsFound": "{{count}} ürün bulundu",
       "amount": "Tutar",
       "create": "Oluştur"
     },
@@ -875,10 +949,18 @@
     "actions": "İşlemler",
     "noProducts": "Henüz ürün yok",
     "addFirstProduct": "İlk ürününüzü ekleyin",
+    "noProductsYetDescription": "Ürün ekleyerek envanterinizi takip etmeye başlayın. Fiyat, stok ve kategori bilgileriniz burada görünecek.",
+    "bulkSelectionInfo": "Toplu işlem için {{count}} ürün seçildi",
+    "clearSelections": "Seçimi temizle",
+    "selectProductAriaLabel": "Ürünü seç: {{name}}",
     "edit": "Düzenle",
     "delete": "Sil",
     "deleteConfirm": "Bu ürünü silmek istediğinizden emin misiniz?",
     "manageCategories": "Kategorileri Yönet",
+    "import": {
+      "success": "{{count}} ürün başarıyla içe aktarıldı!",
+      "partial": "{{created}} ürün içe aktarıldı, {{failed}} kayıt başarısız."
+    },
     "totalProducts": "Toplam Ürün",
     "stockValue": "Stok Değeri",
     "totalStock": "Toplam Stok",
@@ -997,6 +1079,14 @@
     "addAccountTip": "Yeni hesap eklemek için yukarıdaki düğmeyi kullanın",
     "active": "Aktif",
     "passive": "Pasif",
+    "dateFilters": {
+      "thisMonth": "Bu Ay",
+      "thisQuarter": "Bu Çeyrek",
+      "thisYear": "Bu Yıl",
+      "lastYear": "Geçen Yıl",
+      "all": "Tümü",
+      "custom": "Özel Tarih"
+    },
     "allSummed": "tümü toplandı",
     "accountTypes": {
       "all": "Tümü",
@@ -1018,8 +1108,14 @@
       "inactive": "Pasif"
     },
     "tooltips": {
-      "editHint": "Düzenlemek için hesap satırına tıklayın"
+      "editHint": "Düzenlemek için hesap satırına tıklayın",
+      "toggleStatus": "Durumu değiştirmek için tıklayın",
+      "addSubAccount": "Alt hesap ekle",
+      "deleteAccount": "Hesabı sil"
     },
+    "activeDateRangeLabel": "Tarih filtresi:",
+    "deleteConfirm": "Bu hesabı silmek istediğinizden emin misiniz?",
+    "deleteHasChildrenError": "Bu hesabın alt hesapları var. Önce alt hesapları silin.",
     "accountNames": {
       "100": "DÖNEN VARLIKLAR",
       "101": "Kasa",
@@ -1047,9 +1143,11 @@
   },
   "invoices": {
     "title": "Faturalar",
+    "unnamed": "Fatura",
     "newInvoice": "Yeni Fatura",
     "deleteConfirm": "Bu faturayı silmek istediğinizden emin misiniz?",
     "deleteSuccess": "Fatura silindi",
+    "noLineItemsError": "Faturaya aktarılacak satır bulunamadı.",
     "search": "Fatura numarası veya müşteri ara...",
     "filterAll": "Tüm Durumlar",
     "invoicesRegistered": "fatura kayıtlı",
@@ -1070,6 +1168,12 @@
     "view": "Görüntüle",
     "edit": "Düzenle",
     "download": "İndir",
+    "cannotEditVoided": "İptal edilmiş fatura düzenlenemez",
+    "restore": "Geri Yükle",
+    "void": "Faturayı İptal Et",
+    "voidConfirm": "{{invoiceNumber}} numaralı faturayı iptal etmek istediğinizden emin misiniz?",
+    "voidReason": "İptal Nedeni",
+    "voidReasonPlaceholder": "İptal nedenini açıklayın...",
     "exportCsv": "CSV Dışa Aktar",
     "delete": "Sil",
     "viewInvoice": "Faturayı görüntüle",
@@ -1125,6 +1229,7 @@
   },
   "expenses": {
     "title": "Giderler",
+    "unnamed": "Gider",
     "newExpense": "Yeni Gider",
     "deleteConfirm": "Bu gideri silmek istediğinizden emin misiniz?",
     "deleteSuccess": "Gider silindi",
@@ -1150,6 +1255,9 @@
     "exportCsv": "CSV Dışa Aktar",
     "delete": "Sil",
     "viewExpense": "Gideri görüntüle",
+    "information": "Gider Bilgileri",
+    "receipt": "Fiş/Fatura",
+    "viewReceipt": "Fiş/Faturayı Görüntüle",
     "enterExpenseDetails": "Gider bilgilerini girin",
     "editExpense": "Gideri Düzenle",
     "addExpense": "Gider Ekle",
@@ -1179,9 +1287,13 @@
     "validPriceRequired": "Geçerli bir fiyat girin",
     "validStockRequired": "Geçerli stok adedi girin"
   },
+  "help": {
+    "searchPlaceholder": "Yardımda ara..."
+  },
   "customers": {
     "title": "Müşteriler",
     "newCustomer": "Yeni Müşteri",
+    "deleteConfirm": "Bu müşteriyi silmek istediğinizden emin misiniz?",
     "search": "Müşteri ara...",
     "customersRegistered": "müşteri kayıtlı",
     "noCustomers": "Henüz müşteri yok",
@@ -1204,6 +1316,7 @@
     "enterCustomerInfo": "Müşteri bilgilerini girin",
     "address": "Adres",
     "emailPlaceholder": "musteri@example.com",
+    "phonePlaceholder": "+90 555 123 45 67",
     "addressPlaceholder": "Tam adres bilgisi...",
     "taxNumber": "Vergi Numarası",
     "siretNumber": "SIRET",
@@ -1221,11 +1334,24 @@
       "noCustomersFound": "Dosyada aktarılacak müşteri bulunamadı.",
       "success": "{{count}} müşteri başarıyla içe aktarıldı!",
       "error": "İçe aktarma sırasında hata oluştu."
+    },
+    "view": {
+      "subtitle": "Müşteri detayları",
+      "personalInfo": "Kişisel Bilgiler",
+      "companyInfo": "Şirket Bilgileri",
+      "addressInfo": "Adres Bilgileri",
+      "registeredAt": "Kayıt tarihi",
+      "quickActions": "Hızlı işlemler",
+      "createInvoice": "Fatura oluştur",
+      "viewHistory": "Geçmişi görüntüle"
     }
   },
   "suppliers": {
     "title": "Tedarikçiler",
     "newSupplier": "Yeni Tedarikçi",
+    "unnamed": "Tedarikçi",
+    "noEmail": "E-posta yok",
+    "deleteConfirm": "Bu tedarikçiyi silmek istediğinizden emin misiniz?",
     "search": "Tedarikçi ara...",
     "suppliersRegistered": "tedarikçi kayıtlı",
     "noSuppliers": "Henüz tedarikçi yok",
@@ -1239,6 +1365,14 @@
     "totalExpenses": "Toplam Gider",
     "totalAmount": "Toplam Tutar",
     "actions": "İşlemler",
+    "categories": {
+      "officeSupplies": "Ofis Malzemeleri",
+      "technology": "Teknoloji",
+      "services": "Hizmet",
+      "manufacturing": "Üretim",
+      "logistics": "Lojistik",
+      "other": "Diğer"
+    },
     "modal": {
       "newTitle": "Yeni Tedarikçi Ekle",
       "editTitle": "Tedarikçiyi Düzenle",
@@ -1288,6 +1422,13 @@
     },
     "ibanAutoFormat": "IBAN otomatik olarak formatlanacaktır",
     "currentBalance": "Mevcut Bakiye",
+    "viewDetails": "Banka hesap detayları",
+    "accountInformation": "Hesap Bilgileri",
+    "bankInformation": "Banka Bilgileri",
+    "openingDate": "Açılış Tarihi",
+    "quickActions": "Hızlı İşlemler",
+    "copyIban": "IBAN Kopyala",
+    "ibanCopied": "IBAN kopyalandı!",
     "currency": "Para Birimi",
     "accountActive": "Hesap aktif",
     "addAccount": "Hesap Ekle",
@@ -1333,12 +1474,15 @@
     }
   },
   "common.remindMeLater": "Daha Sonra Hatırlat",
+  "common.details": "Detay",
   "common.now": "Şimdi",
   "common.generic": {
     "customer": "Müşteri",
     "supplier": "Tedarikçi",
     "expense": "Gider",
-    "quote": "Teklif"
+    "quote": "Teklif",
+    "product": "Ürün",
+    "sale": "Satış"
   },
   "toasts": {
     "common": {
@@ -1347,6 +1491,7 @@
     "invoices": {
       "updateSuccess": "Fatura güncellendi",
       "updateError": "Fatura güncellenemedi",
+      "createError": "Fatura oluşturulamadı",
       "createPartialError": "Fatura oluşturuldu, ancak satış kaydı oluşturulamadı",
       "createWithSaleSuccess": "Fatura ve satış oluşturuldu",
       "cancelSuccess": "Fatura iptal edildi",
@@ -1370,7 +1515,7 @@
     "sales": {
       "customerNotSelected": "Müşteri seçilmedi! Lütfen geçerli bir müşteri seçin.",
       "insufficientStock": "❌ Yetersiz stok! {{name}} - Mevcut: {{available}}, İstenen: {{requested}}",
-      "createSuccess": "Satış kaydedildi",
+        "MEMBER": "Üye",
       "updateSuccess": "Satış güncellendi",
       "localSaved": "Satış yerel olarak kaydedildi (offline)",
       "stockUpdateFailed": "Satış kaydedildi ancak stok güncellenemedi",
@@ -1406,6 +1551,10 @@
       "assignmentInfo": "Kategori ataması için sol paneldeki kategori düzenini kullanabilirsiniz."
     },
     "bank": {
+      "updateSuccess": "Banka hesabı güncellendi",
+      "createSuccess": "Banka hesabı eklendi",
+      "deleteSuccess": "Banka hesabı silindi",
+      "operationFailed": "Banka işlemi başarısız",
       "deleteError": "Banka silinemedi"
     },
     "quotes": {
@@ -1453,6 +1602,7 @@
     "title": "Satışlar",
     "newSale": "Yeni Satış",
     "totalSales": "Toplam Satış",
+    "netSuffix": " (KDV Hariç)",
     "totalSalesCount": "Toplam Satış Adedi",
     "completed": "Tamamlandı",
     "salesList": "Satış Listesi",
@@ -1557,6 +1707,8 @@
     "avg": "Ort",
     "monthlyRevenueTrend": "Aylık Gelir Trendi",
     "expenseAnalysis": "Gider Analizi",
+    "expenseExportHint": "Yalnızca ödenmiş giderleri içerir.",
+    "exportExpensesCsv": "CSV Dışa Aktar",
     "categoryBasedExpenses": "Kategori Bazlı Giderler",
     "expenses": "gider",
     "monthlyExpenseTrend": "Aylık Gider Trendi",

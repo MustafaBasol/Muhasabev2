@@ -14,6 +14,7 @@ const AdminSecurityPageLazy = React.lazy(() => import('./admin/AdminSecurityPage
 import { BillingInvoiceDTO, listInvoices as userListInvoices } from '../api/billing';
 import { adminAuthStorage } from '../utils/adminAuthStorage';
 import { readLegacyTenantProfile } from '../utils/localStorageSafe';
+import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 import type { TenantOverview } from '../types/admin';
 
 interface User {
@@ -113,7 +114,7 @@ const AdminPage: React.FC = () => {
   const closeEditUser = () => setEditingUser(null);
   const saveEditUser = async () => {
     if (!editingUser) return;
-    if (!window.confirm(t('admin.users.updateConfirm', 'Bu kullanıcıyı güncellemek istediğinize emin misiniz?'))) return;
+    if (!window.confirm(t('admin.users.updateConfirm'))) return;
     try {
       setLoading(true);
       await adminApi.updateUserDetails(editingUser.id, editForm);
@@ -131,7 +132,7 @@ const AdminPage: React.FC = () => {
   };
   const sendPasswordResetEmail = async () => {
     if (!editingUser) return;
-    if (!window.confirm(t('admin.users.passwordResetConfirm', 'Şifre sıfırlama e-postası gönderilsin mi?'))) return;
+    if (!window.confirm(t('admin.users.passwordResetConfirm'))) return;
     try {
       setLoading(true);
       await adminApi.sendPasswordReset(editingUser.id);
@@ -145,7 +146,7 @@ const AdminPage: React.FC = () => {
   };
 
   const markUserVerified = async (userId: string) => {
-    if (!window.confirm(t('admin.users.markVerifiedConfirm', 'Bu kullanıcıyı doğrulanmış olarak işaretlemek istediğinize emin misiniz?'))) return;
+    if (!window.confirm(t('admin.users.markVerifiedConfirm'))) return;
     try {
       setVerifyingUserId(userId);
       await adminApi.markUserVerified(userId);
@@ -518,8 +519,8 @@ const AdminPage: React.FC = () => {
     try {
       setLoading(true);
       const confirmMsg = isActive
-        ? t('admin.users.deactivateConfirm', 'Kullanıcıyı pasifleştirmek istediğinize emin misiniz?')
-        : t('admin.users.activateConfirm', 'Kullanıcıyı aktifleştirmek istediğinize emin misiniz?');
+          ? t('admin.users.deactivateConfirm')
+          : t('admin.users.activateConfirm');
       if (!window.confirm(confirmMsg)) return;
       await adminApi.updateUserStatus(userId, !isActive);
       // Mevcut filtre ile kullanıcıları tazele
@@ -866,7 +867,7 @@ const AdminPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : '—'}
+                          {user.lastLoginAt ? formatAppDateTime(user.lastLoginAt) : '—'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {(() => {
@@ -886,7 +887,7 @@ const AdminPage: React.FC = () => {
                           </span>
                           {user.isEmailVerified && user.emailVerifiedAt && (
                             <div className="text-[11px] text-gray-500 mt-1">
-                              {new Date(user.emailVerifiedAt).toLocaleDateString()}
+                              {formatAppDate(user.emailVerifiedAt)}
                             </div>
                           )}
                         </td>
@@ -1071,7 +1072,7 @@ const AdminPage: React.FC = () => {
                             onChange={async (e) => {
                               const displayPlan = e.target.value;
                               const apiPlan = planDisplayToApi(displayPlan);
-                              if (!window.confirm(t('admin.tenants.updatePlanConfirm', { name: tenant.companyName || tenant.name, plan: displayPlan, defaultValue: `${tenant.companyName || tenant.name} için planı '${displayPlan}' olarak güncellemek istediğinize emin misiniz?` }))) return;
+                              if (!window.confirm(t('admin.tenants.updatePlanConfirm', { name: tenant.companyName || tenant.name, plan: displayPlan }))) return;
                               try {
                                 await adminApi.updateTenantSubscription(tenant.id, { plan: apiPlan });
                                 // Güncel tenant bilgisini backend'den çek
@@ -1110,7 +1111,7 @@ const AdminPage: React.FC = () => {
                             onBlur={() => toggleEditSet(setEditingStatusIds, tenant.id, false)}
                             onChange={(e) => {
                               const newStatus = e.target.value;
-                              if (!window.confirm(t('admin.tenants.updateStatusConfirm', { name: tenant.companyName || tenant.name, status: newStatus, defaultValue: `${tenant.companyName || tenant.name} için durumu '${newStatus}' olarak güncellemek istediğinize emin misiniz?` }))) return;
+                              if (!window.confirm(t('admin.tenants.updateStatusConfirm', { name: tenant.companyName || tenant.name, status: newStatus }))) return;
                               adminApi.updateTenantSubscription(tenant.id, { status: newStatus })
                                 .then(() => {
                                   setTenants(prev => prev.map(x => x.id === tenant.id ? { ...x, status: newStatus } : x));
@@ -1131,7 +1132,7 @@ const AdminPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-800">Başlangıç</h3>
-                        <p className="text-gray-600">{tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '-'}</p>
+                        <p className="text-gray-600">{tenant.createdAt ? formatAppDate(tenant.createdAt) : '-'}</p>
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-800">Sonraki Ödeme</h3>
@@ -1141,7 +1142,7 @@ const AdminPage: React.FC = () => {
                             className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200"
                             title="Düzenlemek için tıklayın"
                           >
-                            {tenant.subscriptionExpiresAt ? new Date(tenant.subscriptionExpiresAt).toLocaleDateString() : '-'}
+                            {tenant.subscriptionExpiresAt ? formatAppDate(tenant.subscriptionExpiresAt) : '-'}
                           </button>
                         ) : (
                           <input
@@ -1153,7 +1154,7 @@ const AdminPage: React.FC = () => {
                             onChange={(e) => {
                               const val = e.target.value;
                               if (!val) return;
-                              if (!window.confirm(t('admin.tenants.updateNextPaymentConfirm', { name: tenant.companyName || tenant.name, date: val, defaultValue: `${tenant.companyName || tenant.name} için sonraki ödeme tarihini ${val} olarak ayarlamak istediğinize emin misiniz?` }))) return;
+                              if (!window.confirm(t('admin.tenants.updateNextPaymentConfirm', { name: tenant.companyName || tenant.name, date: val }))) return;
                               adminApi.updateTenantSubscription(tenant.id, { nextBillingAt: val })
                                 .then(() => {
                                   setActionMessage('Sonraki ödeme tarihi güncellendi');
@@ -1170,7 +1171,7 @@ const AdminPage: React.FC = () => {
                         <h3 className="font-semibold text-gray-800">Abonelik</h3>
                         <button
                           onClick={() => {
-                            if (!window.confirm(t('admin.tenants.cancelSubscriptionConfirm', { name: tenant.companyName || tenant.name, defaultValue: `${tenant.companyName || tenant.name} için aboneliği iptal etmek istediğinize emin misiniz?` }))) return;
+                            if (!window.confirm(t('admin.tenants.cancelSubscriptionConfirm', { name: tenant.companyName || tenant.name })) ) return;
                             adminApi.updateTenantSubscription(tenant.id, { cancel: true })
                               .then(() => {
                                 setActionMessage('Abonelik iptal edildi');
@@ -1189,7 +1190,7 @@ const AdminPage: React.FC = () => {
                           <button
                             onClick={async () => {
                               const name = tenant.companyName || tenant.name;
-                              const confirmed = window.confirm(t('admin.tenants.dangerDeleteTenantConfirm', { name, defaultValue: `DİKKAT: '${name}' hesabını ve tüm verilerini KALICI olarak silmek üzeresiniz. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?` }));
+                              const confirmed = window.confirm(t('admin.tenants.dangerDeleteTenantConfirm', { name }));
                               if (!confirmed) return;
                               try {
                                 setLoading(true);
@@ -1317,7 +1318,7 @@ const AdminPage: React.FC = () => {
                                           return (
                                             <tr key={inv.id} className="border-t">
                                               <td className="py-1 pr-4">{inv.number || inv.id}</td>
-                                              <td className="py-1 pr-4">{inv.created ? new Date(inv.created).toLocaleDateString() : '-'}</td>
+                                              <td className="py-1 pr-4">{inv.created ? formatAppDate(inv.created) : '-'}</td>
                                               <td className="py-1 pr-4">{typeof inv.total === 'number' ? `${(inv.total / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })} ${inv.currency?.toUpperCase()}` : '-'}</td>
                                               <td className="py-1 pr-4">
                                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-block ${statusClass}`}>{status}</span>

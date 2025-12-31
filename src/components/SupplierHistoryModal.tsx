@@ -3,6 +3,7 @@ import { X, Receipt, Calendar } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { formatAppDate } from '../utils/dateFormat';
 import type { Expense } from '../api/expenses';
 import type { Supplier as SupplierModel } from '../api/suppliers';
 
@@ -43,8 +44,7 @@ export default function SupplierHistoryModal({
 
   const formatDate = (value?: string | Date) => {
     if (!value) return '—';
-    const date = value instanceof Date ? value : new Date(value);
-    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString(i18n.language === 'tr' ? 'tr-TR' : undefined);
+    return formatAppDate(value);
   };
 
   const formatAmount = (amount?: number) => {
@@ -132,7 +132,7 @@ export default function SupplierHistoryModal({
                           className="font-medium text-red-600 hover:text-red-800 transition-colors cursor-pointer"
                           title={t('supplier.viewExpense')}
                         >
-                          {expense.expenseNumber || t('expenses.unnamed', { defaultValue: 'Gider' })}
+                          {expense.expenseNumber || t('expenses.unnamed')}
                         </button>
                         <p className="text-sm text-gray-600">{expense.description}</p>
                         <div className="flex items-center text-sm text-gray-500">

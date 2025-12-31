@@ -13,6 +13,7 @@ import {
 } from '../api/organizations';
 import { logger } from '../utils/logger';
 import { getEffectiveTenantMaxUsers } from '../utils/tenantLimits';
+import { formatAppDateTime } from '../utils/dateFormat';
 
 const OrganizationMembersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -216,7 +217,7 @@ const OrganizationMembersPage: React.FC = () => {
     if (!currentOrganization) return;
 
     const confirmed = window.confirm(
-      t('org.members.pendingInvites.cancelConfirm', { email: invite.email, defaultValue: `${invite.email} adresine gönderilen daveti iptal etmek istediğinizden emin misiniz?` })
+      t('org.members.pendingInvites.cancelConfirm', { email: invite.email })
     );
     if (!confirmed) return;
 
@@ -246,26 +247,20 @@ const OrganizationMembersPage: React.FC = () => {
     try {
       await navigator.clipboard.writeText(inviteUrl);
       const successEvent = new CustomEvent('showToast', {
-        detail: { message: t('common.copied', 'Kopyalandı'), tone: 'success' }
+        detail: { message: t('common.copied'), tone: 'success' }
       });
       window.dispatchEvent(successEvent);
     } catch (err) {
       logger.error('Failed to copy invite link', err);
       const errorEvent = new CustomEvent('showToast', {
-        detail: { message: t('common.copyFailed', 'Kopyalama başarısız'), tone: 'error' }
+        detail: { message: t('common.copyFailed'), tone: 'error' }
       });
       window.dispatchEvent(errorEvent);
     }
   };
 
   const formatExpiryDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatAppDateTime(dateString);
   };
 
   if (loading) {
@@ -290,7 +285,7 @@ const OrganizationMembersPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-6xl mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <h2 className="text-lg font-semibold text-red-800 mb-2">Hata</h2>
+            <h2 className="text-lg font-semibold text-red-800 mb-2">{t('common.error')}</h2>
             <p className="text-red-600 mb-4">{error}</p>
             <button
               onClick={loadData}
@@ -376,11 +371,11 @@ const OrganizationMembersPage: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleCopyInviteLink(invite)}
-                        title={t('common.actions.copyLink', { defaultValue: 'Bağlantıyı kopyala' }) as string}
+                        title={t('common.actions.copyLink') as string}
                         className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors"
                       >
                         <Copy className="w-3 h-3" />
-                        <span>{t('common.actions.copyLink', { defaultValue: 'Bağlantıyı kopyala' })}</span>
+                        <span>{t('common.actions.copyLink')}</span>
                       </button>
                       <button
                         onClick={() => handleResendInvite(invite)}

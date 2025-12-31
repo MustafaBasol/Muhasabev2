@@ -131,9 +131,9 @@ export default function BankList({
 
   const getAccountTypeBadge = (type: string) => {
     const typeConfig = {
-      checking: { label: t('banks.accountTypes.checking', { defaultValue: 'Vadesiz Hesap' }) as string, class: 'bg-blue-100 text-blue-800' },
-      savings: { label: t('banks.accountTypes.savings', { defaultValue: 'Vadeli Hesap' }) as string, class: 'bg-green-100 text-green-800' },
-      business: { label: t('banks.accountTypes.business', { defaultValue: 'Ticari Hesap' }) as string, class: 'bg-purple-100 text-purple-800' }
+      checking: { label: t('banks.accountTypes.checking') as string, class: 'bg-blue-100 text-blue-800' },
+      savings: { label: t('banks.accountTypes.savings') as string, class: 'bg-green-100 text-green-800' },
+      business: { label: t('banks.accountTypes.business') as string, class: 'bg-purple-100 text-purple-800' }
     };
     
     const config = typeConfig[type as keyof typeof typeConfig];
@@ -253,7 +253,7 @@ export default function BankList({
                       {getAccountTypeBadge(bank.accountType)}
                       {(() => { const active = bank?.isActive !== false; return (
                         <span className={`text-xs px-2 py-1 rounded-full ${active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {active ? (t('chartOfAccounts.active', { defaultValue: 'Aktif' }) as string) : (t('chartOfAccounts.passive', { defaultValue: 'Pasif' }) as string)}
+                          {active ? (t('chartOfAccounts.active') as string) : (t('chartOfAccounts.passive') as string)}
                         </span>
                       ); })()}
                     </div>

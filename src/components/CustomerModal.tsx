@@ -26,12 +26,6 @@ interface CustomerModalProps {
 
 export default function CustomerModal({ isOpen, onClose, onSave, customer, companyCountry }: CustomerModalProps) {
   const { t } = useTranslation();
-  const tx = (key: string, fallback: string): string => {
-    const value = t(key, { defaultValue: fallback });
-    if (typeof value !== 'string') return fallback;
-    const trimmed = value.trim();
-    return trimmed && value !== key ? trimmed : fallback;
-  };
   
   const [customerData, setCustomerData] = useState<CustomerFormState>({
     name: customer?.name || '',
@@ -109,9 +103,9 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer, compa
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {customer ? tx('customers.editCustomer', 'Edit Customer') : tx('customers.newCustomer', 'Add New Customer')}
+                {customer ? t('customers.editCustomer') : t('customers.newCustomer')}
               </h2>
-              <p className="text-sm text-gray-500">{tx('customers.enterCustomerInfo', 'Enter customer information')}</p>
+              <p className="text-sm text-gray-500">{t('customers.enterCustomerInfo')}</p>
             </div>
           </div>
           <button
@@ -159,28 +153,28 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer, compa
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Mail className="w-4 h-4 inline mr-2" />
-                {tx('customers.email', 'Email')} *
+                {t('customers.email')} *
               </label>
               <input
                 type="email"
                 value={customerData.email}
                 onChange={(e) => setCustomerData({...customerData, email: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder={tx('customers.emailPlaceholder', 'name@example.com')}
+                placeholder={t('customers.emailPlaceholder')}
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Phone className="w-4 h-4 inline mr-2" />
-                {tx('customers.phone', 'Phone')}
+                {t('customers.phone')}
               </label>
               <input
                 type="tel"
                 value={customerData.phone}
                 onChange={(e) => setCustomerData({...customerData, phone: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder={tx('customers.phonePlaceholder', '+1 555 123 4567')}
+                placeholder={t('customers.phonePlaceholder')}
               />
             </div>
           </div>
@@ -203,14 +197,14 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer, compa
           {companyCountry === 'FR' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {tx('customers.siretNumber', 'SIRET')}
+                {t('customers.siretNumber')}
               </label>
               <input
                 type="text"
                 value={customerData.siretNumber}
                 onChange={(e) => setCustomerData({...customerData, siretNumber: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder={tx('customers.siretNumberPlaceholder', '12345678901234')}
+                placeholder={t('customers.siretNumberPlaceholder')}
               />
             </div>
           )}
@@ -219,7 +213,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer, compa
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <MapPin className="w-4 h-4 inline mr-2" />
-              {tx('customers.address', 'Address')}
+              {t('customers.address')}
             </label>
             <textarea
               value={customerData.address}

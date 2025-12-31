@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { organizationsApi, Invite } from '../api/organizations';
 import TurnstileCaptcha from './TurnstileCaptcha';
 import { safeLocalStorage, safeSessionStorage } from '../utils/localStorageSafe';
+import { formatAppDateTime } from '../utils/dateFormat';
 
 type ApiErrorPayload = {
   response?: {
@@ -59,16 +60,11 @@ const InvitePasswordForm: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
-  const captchaRequiredMessage = t(
-    'auth.captchaRequired',
-    'Please complete the human verification.',
-  );
+  const captchaRequiredMessage = t('auth.captchaRequired');
 
   const handleSetPassword = async () => {
     if (!password || password.length < 6) {
-      setError(
-        t('auth.passwordTooShort', 'Password must be at least 8 characters.'),
-      );
+      setError(t('auth.passwordTooShort6'));
       return;
     }
     if (!captchaToken) {
@@ -116,7 +112,7 @@ const InvitePasswordForm: React.FC<{
         window.location.hash = 'login';
       }
     } catch (error: unknown) {
-      const msg = getErrorMessage(error, t('common.error', 'Operation failed'));
+      const msg = getErrorMessage(error, t('common.operationFailed'));
       setError(msg);
       const lowered = String(msg || '').toLowerCase();
       if (lowered.includes('human verification') || lowered.includes('captcha')) {
@@ -174,10 +170,7 @@ const InvitePasswordForm: React.FC<{
 
         <div className="mb-6">
           <p className="text-sm text-gray-600 mb-2">
-            {t(
-              'auth.captchaPrompt',
-              'Please complete the human verification before continuing.',
-            )}
+            {t('auth.captchaPrompt')}
           </p>
           <TurnstileCaptcha
             key={`invite-complete-${captchaResetKey}`}
@@ -218,10 +211,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const { user, isAuthenticated, logout } = useAuth();
-  const captchaRequiredMessage = t(
-    'auth.captchaRequired',
-    'Please complete the human verification.',
-  );
+  const captchaRequiredMessage = t('auth.captchaRequired');
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
   const isCodespaceHost = typeof window !== 'undefined' && (window.location.hostname?.endsWith('.github.dev') || window.location.hostname?.endsWith('.githubpreview.dev') || window.location.hostname?.includes('.app.github.dev'));
   const captchaBypassAllowed =
@@ -268,13 +258,13 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
         }
       } else {
         setStatus('invalid');
-        setError(result.error || 'Invalid invite token');
+        setError(result.error || t('org.join.invalid.subtitle'));
       }
     } catch (err: unknown) {
-      const message = getErrorMessage(err, 'Failed to validate invite token');
+      const message = getErrorMessage(err, t('org.join.error.subtitle'));
       const lowered = String(message || '').toLowerCase();
       if (lowered.includes('human verification') || lowered.includes('captcha')) {
-        setCaptchaError(t('auth.captchaVerificationFailed', 'İnsan doğrulaması doğrulanamadı. Lütfen tekrar deneyin.'));
+        setCaptchaError(t('auth.captchaVerificationFailed'));
         resetHumanCaptcha();
         return;
       }
@@ -308,7 +298,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
     } catch (error: unknown) {
       console.error('Failed to accept invite:', error);
       setStatus('error');
-      setError(getErrorMessage(error, 'Failed to accept invitation'));
+      setError(getErrorMessage(error, t('org.join.error.subtitle')));
     }
   };
 
@@ -334,17 +324,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
         i18n.language ||
         (typeof navigator !== 'undefined' && navigator.language) ||
         'en-US';
-      try {
-        return new Date(dateString).toLocaleString(locale, {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        } satisfies Intl.DateTimeFormatOptions);
-      } catch {
-        return new Date(dateString).toLocaleString(locale);
-      }
+      return formatAppDateTime(dateString, { locale });
     },
     [i18n.language],
   );
@@ -354,9 +334,9 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <Shield className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('auth.captchaRequired', 'Lütfen insan doğrulamasını tamamlayın')}</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('auth.captchaRequired')}</h2>
           <p className="text-gray-600 mb-6">
-            {t('auth.captchaPrompt', 'Daveti görmek için lütfen kısa doğrulamayı tamamlayın.')}
+            {t('auth.captchaPrompt')}
           </p>
           <TurnstileCaptcha
             key={`invite-validate-${captchaResetKey}`}
@@ -492,7 +472,7 @@ const JoinOrganizationPage: React.FC<JoinOrganizationPageProps> = ({
               onClick={onNavigateHome}
               className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
-              {t('common.backToHome', 'Back to Home')}
+              {t('common.backToHome')}
             </button>
           </div>
           

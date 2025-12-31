@@ -1100,7 +1100,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
             disabled={isSaving}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t('common.cancel') || 'Iptal'}
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -1110,10 +1110,10 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
             {isSaving ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>{t('common.creating', { defaultValue: 'Oluşturuluyor…' })}</span>
+                <span>{t('common.creating')}</span>
               </>
             ) : (
-              invoice ? (t('common.update') || 'Guncelle') : (t('invoices.createInvoice') || 'Fatura Olustur')
+              invoice ? t('common.update') : t('invoices.createInvoice')
             )}
           </button>
         </div>

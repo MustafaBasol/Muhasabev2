@@ -6,6 +6,7 @@ import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import type { Quote } from '../api/quotes';
 import { logger } from '../utils/logger';
 import { readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
+import { formatAppDate } from '../utils/dateFormat';
 
 interface InvoiceLike {
   invoiceNumber?: string;
@@ -159,8 +160,7 @@ export default function CustomerHistoryModal({
   
   const formatDate = (dateString?: string) => {
     if (!dateString) return '—';
-    const value = new Date(dateString);
-    return Number.isNaN(value.getTime()) ? '—' : value.toLocaleDateString('tr-TR');
+    return formatAppDate(dateString);
   };
 
   const formatAmount = (amount?: number | null) => {
@@ -228,7 +228,7 @@ export default function CustomerHistoryModal({
                           <button
                             onClick={() => onViewQuote?.(q)}
                             className="text-purple-600 hover:text-purple-800 transition-colors cursor-pointer"
-                            title={t('quotes.view') || 'Teklifi görüntüle'}
+                            title={t('quotes.view')}
                           >
                             {q.quoteNumber}
                           </button>
@@ -312,9 +312,9 @@ export default function CustomerHistoryModal({
                         <button
                           onClick={() => onViewInvoice?.(invoice)}
                           className="font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                          title={t('common.view', { defaultValue: 'Görüntüle' }) as string}
+                          title={t('common.view') as string}
                         >
-                          {invoice.invoiceNumber || t('invoices.unnamed', { defaultValue: 'Fatura' })}
+                          {invoice.invoiceNumber || t('invoices.unnamed')}
                         </button>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-3 h-3 mr-1" />

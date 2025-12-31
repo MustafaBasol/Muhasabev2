@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Crown, Shield, User, MoreVertical, UserMinus } from 'lucide-react';
 import { OrganizationMember, organizationsApi } from '../api/organizations';
+import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 
 interface MemberListProps {
   members: OrganizationMember[];
@@ -181,11 +182,7 @@ const MemberList: React.FC<MemberListProps> = ({
   }, [openMenus]);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(i18n.language === 'tr' ? 'tr-TR' : i18n.language === 'de' ? 'de-DE' : i18n.language === 'fr' ? 'fr-FR' : 'en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return formatAppDate(dateString);
   };
 
   if (members.length === 0) {
@@ -272,15 +269,7 @@ const MemberList: React.FC<MemberListProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                     {member.user.lastLoginAt
-                      ? new Date(member.user.lastLoginAt).toLocaleString(
-                          i18n.language === 'tr'
-                            ? 'tr-TR'
-                            : i18n.language === 'de'
-                            ? 'de-DE'
-                            : i18n.language === 'fr'
-                            ? 'fr-FR'
-                            : 'en-US',
-                        )
+                      ? formatAppDateTime(member.user.lastLoginAt, { locale: i18n.language || undefined })
                       : <span className="text-gray-400">-</span>}
                   </td>
                   {canManageMembers && (

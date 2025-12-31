@@ -47,9 +47,9 @@ export default function RegisterPage() {
     const verificationRequired = isEmailVerificationRequired();
     if (verificationRequired && pending) {
       setPendingVerificationEmail(pending);
-      setSuccess('Hesabınız oluşturuldu. Lütfen e-postanızı kontrol edin ve doğrulama bağlantısına tıklayın.');
+      setSuccess(t('auth.registerSuccessVerifyRequired'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -65,22 +65,22 @@ export default function RegisterPage() {
     
     // Form doğrulama
     if (!formData.name || !formData.email || !formData.password) {
-      setError({ message: 'Lütfen tüm zorunlu alanları doldurun' });
+      setError({ message: t('auth.requiredFieldsError') });
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError({ message: 'Şifreler eşleşmiyor' });
+      setError({ message: t('auth.passwordMismatch') });
       return;
     }
 
     if (formData.password.length < 6) {
-      setError({ message: 'Şifre en az 6 karakter olmalıdır' });
+      setError({ message: t('auth.passwordTooShort6') });
       return;
     }
 
     if (!agreedToTerms) {
-      setError({ message: 'Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz' });
+      setError({ message: t('auth.mustAcceptTerms') });
       return;
     }
 
@@ -106,10 +106,10 @@ export default function RegisterPage() {
       await register(userData);
       const verificationRequired = isEmailVerificationRequired();
       if (verificationRequired) {
-        setSuccess('Hesabınız oluşturuldu. Lütfen e-postanızı kontrol edin ve doğrulama bağlantısına tıklayın.');
+        setSuccess(t('auth.registerSuccessVerifyRequired'));
         setPendingVerificationEmail(formData.email);
       } else {
-        setSuccess('Hesabınız başarıyla oluşturuldu! Giriş yapabilirsiniz.');
+        setSuccess(t('auth.registerSuccess'));
       }
       
       // Eğer doğrulama gerekli değilse 2 saniye sonra login'e yönlendir
@@ -130,7 +130,7 @@ export default function RegisterPage() {
         setEmailConflict({ email: formData.email });
         // Kullanıcıya hata blokunu değil yönlendirici rehberi göstereceğiz
       } else {
-        setError({ message: messageRaw || 'Kayıt sırasında bir hata oluştu' });
+        setError({ message: messageRaw || t('auth.registerErrorGeneric') });
       }
     }
   };
@@ -153,33 +153,33 @@ export default function RegisterPage() {
                 <UserPlus className="h-8 w-8 text-white" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('auth.registerTitle', 'Hesap Oluştur')}</h1>
-            <p className="text-gray-600">{t('auth.registerSubtitle', 'Ücretsiz hesabınızı oluşturun ve hemen başlayın')}</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('auth.registerTitle')}</h1>
+            <p className="text-gray-600">{t('auth.registerSubtitle')}</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && !emailConflict && (
               <div className="flex items-center space-x-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                <span>{error.key ? t(error.key, 'Lütfen insan doğrulamasını tamamlayın') : error.message}</span>
+                <span>{error.key ? t(error.key) : error.message}</span>
               </div>
             )}
             {emailConflict && (
               <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                <p className="font-semibold">Bu e-posta ile zaten bir hesap var: <span className="underline">{emailConflict.email}</span></p>
-                <p>Nasıl devam etmek istersiniz?</p>
+                <p className="font-semibold">{t('auth.emailConflict.title', { email: emailConflict.email })}</p>
+                <p>{t('auth.emailConflict.prompt')}</p>
                 <ul className="list-disc pl-5 space-y-1">
                   <li>
-                    Şifrenizi biliyorsanız <button type="button" onClick={() => (window.location.hash = 'login')} className="text-blue-600 hover:text-blue-700 font-medium underline">Giriş yapın</button>
+                    {t('auth.emailConflict.optionSignInPrefix')} <button type="button" onClick={() => (window.location.hash = 'login')} className="text-blue-600 hover:text-blue-700 font-medium underline">{t('auth.emailConflict.optionSignInAction')}</button>
                   </li>
                   <li>
-                    Şifrenizi hatırlamıyorsanız <button type="button" onClick={() => (window.location.hash = 'forgot-password')} className="text-blue-600 hover:text-blue-700 font-medium underline">Şifre sıfırlama bağlantısı isteyin</button>
+                    {t('auth.emailConflict.optionResetPrefix')} <button type="button" onClick={() => (window.location.hash = 'forgot-password')} className="text-blue-600 hover:text-blue-700 font-medium underline">{t('auth.emailConflict.optionResetAction')}</button>
                   </li>
                   <li>
-                    Farklı bir hesap oluşturmak istiyorsanız başka bir e-posta adresiyle tekrar deneyin.
+                    {t('auth.emailConflict.optionTryOther')}
                   </li>
                 </ul>
-                <div className="text-xs text-amber-700 pt-1">Güvenlik için hangi e-postaların kayıtlı olduğunu açıkça göstermiyoruz; bu uyarı sizin girdinizden yola çıkarak gösterilir.</div>
+                <div className="text-xs text-amber-700 pt-1">{t('auth.emailConflict.securityNote')}</div>
               </div>
             )}
             
@@ -190,7 +190,7 @@ export default function RegisterPage() {
                   <div className="flex-1">
                     <p className="font-semibold">{success}</p>
                     {pendingVerificationEmail && (
-                      <p className="text-xs mt-1">Gönderilen adres: <span className="font-mono">{pendingVerificationEmail}</span></p>
+                      <p className="text-xs mt-1">{t('auth.verifySentTo')} <span className="font-mono">{pendingVerificationEmail}</span></p>
                     )}
                   </div>
                 </div>
@@ -201,7 +201,7 @@ export default function RegisterPage() {
                       onClick={() => (window.location.hash = 'verify-notice')}
                       className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
                     >
-                      Doğrulama Durumunu Gör
+                      {t('auth.verifyRequiredAction')}
                     </button>
                     <button
                       type="button"
@@ -218,7 +218,7 @@ export default function RegisterPage() {
                       className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed bg-white text-gray-700 hover:bg-gray-50 border-gray-300"
                     >
                       {resendLoading ? <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"/> : <RefreshCw className="h-4 w-4"/>}
-                      {resendCooldown>0 ? `Tekrar gönder (${resendCooldown}s)` : 'Tekrar Gönder'}
+                      {resendCooldown>0 ? t('auth.resendIn', { seconds: resendCooldown }) : t('auth.resend')}
                     </button>
                   </div>
                 )}
@@ -227,7 +227,7 @@ export default function RegisterPage() {
 
             {/* Ad Soyad */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.fullName', 'Ad Soyad')} *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.fullName')} *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <User className="h-5 w-5 text-gray-400" />
@@ -238,7 +238,7 @@ export default function RegisterPage() {
                   value={formData.name}
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder={t('auth.fullNamePlaceholder', 'Adınızı ve soyadınızı girin')}
+                  placeholder={t('auth.fullNamePlaceholder')}
                   required
                 />
               </div>
@@ -246,7 +246,7 @@ export default function RegisterPage() {
 
             {/* E-posta */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.emailAddress', 'E-posta Adresi')} *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.emailAddress')} *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400" />
@@ -258,7 +258,7 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   disabled={hasPendingInviteToken}
                   className={`w-full pl-10 pr-4 py-3 border ${hasPendingInviteToken ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'border-gray-300'} rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
-                  placeholder={t('auth.emailPlaceholder', 'ornek@email.com')}
+                  placeholder={t('auth.emailPlaceholder')}
                   required
                 />
               </div>
@@ -266,7 +266,7 @@ export default function RegisterPage() {
 
             {/* Şirket */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.companyName', 'Şirket Adı')}</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.companyName')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Building2 className="h-5 w-5 text-gray-400" />
@@ -277,14 +277,14 @@ export default function RegisterPage() {
                   value={formData.company}
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder={t('auth.companyPlaceholder', 'Şirket adınız (opsiyonel)')}
+                  placeholder={t('auth.companyPlaceholder')}
                 />
               </div>
             </div>
 
             {/* Telefon */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.phone', 'Telefon')}</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.phone')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Phone className="h-5 w-5 text-gray-400" />
@@ -295,14 +295,14 @@ export default function RegisterPage() {
                   value={formData.phone}
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder={t('auth.phonePlaceholder', '0555 123 45 67 (opsiyonel)')}
+                  placeholder={t('auth.phonePlaceholder')}
                 />
               </div>
             </div>
 
             {/* Şifre */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.password', 'Şifre')} *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.password')} *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-gray-400" />
@@ -313,7 +313,7 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={handleChange}
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder={t('auth.passwordHint', 'En az 6 karakter')}
+                  placeholder={t('auth.passwordHint')}
                   required
                 />
                 <button
@@ -328,7 +328,7 @@ export default function RegisterPage() {
 
             {/* Şifre Onay */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.passwordConfirm', 'Şifre Onayı')} *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.passwordConfirm')} *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-gray-400" />
@@ -339,7 +339,7 @@ export default function RegisterPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder={t('auth.passwordConfirmPlaceholder', 'Şifrenizi tekrar girin')}
+                  placeholder={t('auth.passwordConfirmPlaceholder')}
                   required
                 />
                 <button
@@ -367,15 +367,15 @@ export default function RegisterPage() {
                 className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="terms-checkbox" className="text-sm text-gray-600 leading-5">
-                {t('auth.termsText.prefix', 'Şunları kabul ederim: ')}
-                <a href="#legal/terms" target="_blank" className="text-blue-600 hover:text-blue-700 underline transition-colors">{t('footer.terms', 'Hizmet Şartları')}</a>
-                {t('auth.and', ' ve ')}
-                <a href="#legal/dpa" target="_blank" className="text-blue-600 hover:text-blue-700 underline transition-colors">{t('auth.dataProcessing', 'Veri İşleme Sözleşmesi')}</a>
-                {t('auth.and', ' ve ')}
-                <a href="#legal/privacy" target="_blank" className="text-blue-600 hover:text-blue-700 underline transition-colors">{t('footer.privacy', 'Gizlilik Politikası')}</a>
-                {t('auth.and', ' ve ')}
-                <a href="#legal/cookies" target="_blank" className="text-blue-600 hover:text-blue-700 underline transition-colors">{t('footer.cookies', 'Çerez Politikası')}</a>
-                {t('auth.termsText.suffix', ' belgelerini okudum.')}            
+                {t('auth.termsText.prefix')}
+                <a href="#legal/terms" target="_blank" className="text-blue-600 hover:text-blue-700 underline transition-colors">{t('footer.terms')}</a>
+                {t('auth.and')}
+                <a href="#legal/dpa" target="_blank" className="text-blue-600 hover:text-blue-700 underline transition-colors">{t('auth.dataProcessing')}</a>
+                {t('auth.and')}
+                <a href="#legal/privacy" target="_blank" className="text-blue-600 hover:text-blue-700 underline transition-colors">{t('footer.privacy')}</a>
+                {t('auth.and')}
+                <a href="#legal/cookies" target="_blank" className="text-blue-600 hover:text-blue-700 underline transition-colors">{t('footer.cookies')}</a>
+                {t('auth.termsText.suffix')}            
               </label>
             </div>
 
@@ -389,7 +389,7 @@ export default function RegisterPage() {
               ) : (
                 <>
                   <UserPlus className="h-4 w-4" />
-                  <span>{t('auth.registerCta', 'Hesap Oluştur')}</span>
+                  <span>{t('auth.registerCta')}</span>
                 </>
               )}
             </button>
@@ -397,12 +397,12 @@ export default function RegisterPage() {
 
           <div className="text-center mt-8">
             <p className="text-sm text-gray-600">
-              {t('auth.alreadyHaveAccount', 'Zaten hesabınız var mı?')}{' '}
+              {t('auth.alreadyHaveAccount')}{' '}
               <button 
                 onClick={() => window.location.href = '#login'}
                 className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
               >
-                {t('auth.goToLogin', 'Giriş yapın')}
+                {t('auth.goToLogin')}
               </button>
             </p>
           </div>

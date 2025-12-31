@@ -11,6 +11,7 @@ import type {
   TenantUser,
   TenantInvite,
 } from '../../types/admin';
+import { formatAppDate, formatAppDateTime } from '../../utils/dateFormat';
 
 // A unified admin console per-tenant
 const TenantConsolePage: React.FC = () => {
@@ -497,7 +498,7 @@ const TenantConsolePage: React.FC = () => {
                   Pasifleştirmeniz gereken kullanıcı sayısı: <span className="font-semibold">{remainingToReduce}</span>
                   {deadlineTs ? (
                     <>
-                      {' '}· Son tarih: <span className="font-mono">{new Date(deadlineTs).toLocaleString()}</span>
+                      {' '}· Son tarih: <span className="font-mono">{formatAppDateTime(deadlineTs)}</span>
                       {countdownSec > 0 && (<span> · Kalan: {formatDuration(countdownSec)}</span>)}
                     </>
                   ) : null}
@@ -811,8 +812,8 @@ const TenantConsolePage: React.FC = () => {
                             <td className="px-3 py-2">
                               <span className={`inline-flex items-center text-[10px] px-2 py-0.5 rounded-full ${badgeClass}`}>{status}</span>
                             </td>
-                            <td className="px-3 py-2">{createdAt ? createdAt.toLocaleString() : '—'}</td>
-                            <td className="px-3 py-2">{expiresAt ? expiresAt.toLocaleString() : '—'}</td>
+                            <td className="px-3 py-2">{createdAt ? formatAppDateTime(createdAt) : '—'}</td>
+                            <td className="px-3 py-2">{expiresAt ? formatAppDateTime(expiresAt) : '—'}</td>
                             <td className="px-3 py-2">{iv.organizationName || '—'}</td>
                           </tr>
                         );
@@ -857,7 +858,7 @@ const TenantConsolePage: React.FC = () => {
                       {(showAllInvoices ? invoices : invoices.slice(0,8)).map((inv) => (
                         <tr key={inv.id} className="border-t">
                           <td className="px-3 py-2">{inv.number || inv.id}</td>
-                          <td className="px-3 py-2">{inv.created ? new Date(inv.created).toLocaleDateString() : '-'}</td>
+                          <td className="px-3 py-2">{inv.created ? formatAppDate(inv.created) : '-'}</td>
                           <td className="px-3 py-2">{typeof inv.total === 'number' ? `${(inv.total/100).toLocaleString(undefined,{ minimumFractionDigits:2 })} ${String(inv.currency||'').toUpperCase()}` : '-'}</td>
                           <td className="px-3 py-2">
                             <span className={(() => {

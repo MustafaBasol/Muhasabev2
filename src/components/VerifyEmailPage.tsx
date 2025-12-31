@@ -39,18 +39,18 @@ export default function VerifyEmailPage() {
           // Legacy fallback (#verify-email?token=...)
           await authService.verifyEmail(token);
         } else {
-          throw new Error('Token bulunamadı');
+          throw new Error(t('auth.verificationTokenMissing'));
         }
         setStatus('success');
         // Doğrulama başarıyla tamamlandığında pending email bilgisini temizle
         safeSessionStorage.removeItem('pending_verification_email');
       } catch (err: any) {
         setStatus('error');
-        setMessage(err?.message || 'Doğrulama başarısız');
+        setMessage(err?.message || t('auth.verificationFailed'));
       }
     };
     if (token) run();
-  }, [token, userId]);
+  }, [token, userId, t]);
 
   // Başarılı doğrulama sonrası otomatik giriş sayfasına yönlendirme (5 sn)
   useEffect(() => {
@@ -72,25 +72,25 @@ export default function VerifyEmailPage() {
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 text-center">
             <button onClick={() => (window.location.hash = 'login')} className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1 mb-4">
-              <ArrowLeft className="h-4 w-4" /> {t('common.back', 'Geri')}
+              <ArrowLeft className="h-4 w-4" /> {t('common.back')}
             </button>
-            {status === 'loading' && <div>{t('common.loading', 'Yükleniyor...')}</div>}
+            {status === 'loading' && <div>{t('common.loading')}</div>}
             {status === 'success' && (
               <div className="flex flex-col items-center gap-2">
                 <CheckCircle className="h-12 w-12 text-emerald-600" />
-                <h1 className="text-2xl font-bold text-gray-900">{t('auth.emailVerified', 'E-posta doğrulandı')}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{t('auth.emailVerified')}</h1>
                 <p className="text-gray-600 text-sm">
-                  {t('auth.redirectingToLogin', 'Giriş sayfasına yönlendiriliyorsunuz...')} ({seconds})
+                  {t('auth.redirectingToLogin')} ({seconds})
                 </p>
                 <button onClick={() => (window.location.hash = 'login')} className="text-blue-600 underline">
-                  {t('auth.goToLogin', 'Girişe dön')}
+                  {t('auth.goToLogin')}
                 </button>
               </div>
             )}
             {status === 'error' && (
               <div className="flex flex-col items-center gap-2">
                 <XCircle className="h-12 w-12 text-red-600" />
-                <h1 className="text-2xl font-bold text-gray-900">{t('auth.verificationFailed', 'Doğrulama başarısız')}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{t('auth.verificationFailed')}</h1>
                 {message && <p className="text-gray-600">{message}</p>}
                 <button
                   onClick={() => {
@@ -102,7 +102,7 @@ export default function VerifyEmailPage() {
                   }}
                   className="text-sm text-blue-600 underline mt-2"
                 >
-                  {t('auth.backToStart', 'Başa dön')}
+                  {t('auth.backToStart')}
                 </button>
               </div>
             )}

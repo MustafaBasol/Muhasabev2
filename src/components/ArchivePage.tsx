@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { formatAppDate } from '../utils/dateFormat';
 import Pagination from './Pagination';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { readTenantScopedObject, safeLocalStorage, writeTenantScopedObject } from '../utils/localStorageSafe';
@@ -188,7 +189,7 @@ export default function ArchivePage({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+    return formatAppDate(dateString);
   };
 
   const safeNumber = (v: any): number => {

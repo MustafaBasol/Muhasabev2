@@ -189,11 +189,15 @@ export default function ProductList({
   const { formatCurrency } = useCurrency();
   const { t } = useTranslation();
   const lang = getPreferredLanguage();
-  const L = {
-    sort: { tr: 'Sıralama', en: 'Sort', fr: 'Tri', de: 'Sortierung' }[lang as 'tr'|'en'|'fr'|'de'] || 'Sort',
-    showArchived: { tr: 'Arşivlenmişleri göster', en: 'Show archived', fr: 'Afficher archivés', de: 'Archivierte anzeigen' }[lang as 'tr'|'en'|'fr'|'de'] || 'Show archived',
-    hideArchived: { tr: 'Arşivlenmişleri gizle', en: 'Hide archived', fr: 'Masquer archivés', de: 'Archivierte ausblenden' }[lang as 'tr'|'en'|'fr'|'de'] || 'Hide archived',
-  };
+  const numberLocale =
+    (
+      {
+        tr: 'tr-TR',
+        en: 'en-US',
+        fr: 'fr-FR',
+        de: 'de-DE',
+      } as const
+    )[lang as 'tr' | 'en' | 'fr' | 'de'] ?? undefined;
   const [infoModal, setInfoModal] = useState<{ title: string; message: string } | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -711,7 +715,7 @@ export default function ProductList({
     },
     {
       id: 'sort',
-      label: t('products.sort', { defaultValue: L.sort }),
+      label: t('products.sort'),
       value: sortOption,
       display: sortOptionLabels[sortOption] ?? sortOption,
       options: Object.entries(sortOptionLabels).map(([value, label]) => ({ value, label })),
@@ -752,8 +756,8 @@ export default function ProductList({
     // Ürün içe aktarma için kapsamlı CSV şablonu
     const csvContent = [
       'Name,SKU,UnitPrice,CostPrice,TaxRate,StockQuantity,ReorderLevel,Unit,Category,Description',
-      'Örnek Ürün A,SKU-001,199.90,120.00,18,50,10,adet,Genel,"Açıklama: örnek ürün A"',
-      'Örnek Ürün B,SKU-002,49.99,25.00,10,200,20,adet,Genel,"Açıklama: örnek ürün B"'
+      'Sample Product A,SKU-001,199.90,120.00,18,50,10,,,"Sample description for product A"',
+      'Sample Product B,SKU-002,49.99,25.00,10,200,20,,,"Sample description for product B"'
     ].join('\n');
 
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -900,7 +904,7 @@ export default function ProductList({
             <h3 className="text-sm font-medium text-gray-500">{t('products.totalStock')}</h3>
             <Layers className="h-5 w-5 text-blue-500" />
           </div>
-          <p className="mt-3 text-2xl font-semibold text-gray-900">{inventorySnapshot.totalStock.toLocaleString('tr-TR')} {t('products.unit')}</p>
+          <p className="mt-3 text-2xl font-semibold text-gray-900">{inventorySnapshot.totalStock.toLocaleString(numberLocale)} {t('products.unit')}</p>
           <p className="text-xs text-gray-500">{t('products.totalUnitsDesc')}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -956,8 +960,8 @@ export default function ProductList({
                   className="text-[11px] text-indigo-600 hover:text-indigo-700"
                 >
                   {showArchivedCategories
-                    ? t('products.hideArchived', { defaultValue: L.hideArchived })
-                    : t('products.showArchived', { defaultValue: L.showArchived })}
+                    ? t('products.hideArchived')
+                    : t('products.showArchived')}
                 </button>
               </div>
               {availableCategories.length === 0 ? (
@@ -1284,7 +1288,7 @@ export default function ProductList({
                       onClick={handleClearFilters}
                       className="ml-auto text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-700"
                     >
-                      {t('archive.clearFilters', { defaultValue: t('common.actions.clear') })}
+                      {t('archive.clearFilters')}
                     </button>
                   )}
                 </div>
@@ -1312,7 +1316,7 @@ export default function ProductList({
                 {hasSelection && (
                   <div className="mt-3 flex flex-col gap-3 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 md:flex-row md:items-center md:justify-between">
                     <span className="font-medium">
-                      Toplu islem icin {visibleSelectedIds.length} urun secildi
+                      {t('products.bulkSelectionInfo', { count: visibleSelectedIds.length })}
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
                       {bulkActions.map(({ action, label, tone }) => (
@@ -1336,7 +1340,7 @@ export default function ProductList({
                         }
                         className="rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:border-gray-300 hover:text-gray-800"
                       >
-                        Secimleri kaldir
+                        {t('products.clearSelections')}
                       </button>
                     </div>
                   </div>
@@ -1351,8 +1355,7 @@ export default function ProductList({
                     <Package className="h-12 w-12 text-gray-300" />
                     <h3 className="text-lg font-semibold text-gray-900">{t('products.noProductsYet')}</h3>
                     <p className="max-w-md text-center text-sm text-gray-500">
-                      Urun ekleyerek envanterinizi takip etmeye baslayin. Fiyat, stok ve kategori bilgileriniz burada
-                      gorunecek.
+                      {t('products.noProductsYetDescription')}
                     </p>
                     <button
                       type="button"
@@ -1374,7 +1377,7 @@ export default function ProductList({
                       onClick={handleClearFilters}
                       className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-100"
                     >
-                      {t('common.search')}
+                      {t('archive.clearFilters')}
                     </button>
                   </div>
                 )
@@ -1437,7 +1440,7 @@ export default function ProductList({
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => toggleSelectProduct(product.id)}
-                                aria-label={`Urunu sec: ${product.name}`}
+                                aria-label={t('products.selectProductAriaLabel', { name: product.name })}
                                 className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                               />
                             </td>
@@ -1460,7 +1463,7 @@ export default function ProductList({
                                         type="checkbox"
                                         checked={isSelected}
                                         onChange={() => toggleSelectProduct(product.id)}
-                                        aria-label={`Urunu sec: ${product.name}`}
+                                        aria-label={t('products.selectProductAriaLabel', { name: product.name })}
                                         className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                       />
                                     </div>

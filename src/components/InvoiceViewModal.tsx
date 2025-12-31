@@ -4,6 +4,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { safeLocalStorage } from '../utils/localStorageSafe';
+import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 
 interface InvoiceContact {
   id?: string;
@@ -78,14 +79,6 @@ export default function InvoiceViewModal({
     return activeLanguage.slice(0, 2).toLowerCase();
   };
   const lang = getActiveLang();
-  const toLocale = (l: string) =>
-    l === 'tr'
-      ? 'tr-TR'
-      : l === 'de'
-        ? 'de-DE'
-        : l === 'fr'
-          ? 'fr-FR'
-          : 'en-US';
   const labels: Record<string, Record<string, string>> = {
     tr: {
       createdBy: 'Oluşturan',
@@ -128,7 +121,7 @@ export default function InvoiceViewModal({
   if (!isOpen || !invoice) return null;
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(toLocale(lang));
+    return formatAppDate(dateString);
   };
 
   const formatAmount = (amount: number | string) => {
@@ -224,7 +217,7 @@ export default function InvoiceViewModal({
               </div>
               <div>
                 <span className="text-gray-500">{L.createdAt}:</span>{' '}
-                <span className="font-medium">{invoice.createdAt ? new Date(invoice.createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{invoice.createdAt ? formatAppDateTime(invoice.createdAt) : '—'}</span>
               </div>
             </div>
             <div>
@@ -240,7 +233,7 @@ export default function InvoiceViewModal({
               </div>
               <div>
                 <span className="text-gray-500">{L.updatedAt}:</span>{' '}
-                <span className="font-medium">{invoice.updatedAt ? new Date(invoice.updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{invoice.updatedAt ? formatAppDateTime(invoice.updatedAt) : '—'}</span>
               </div>
             </div>
           </div>
@@ -262,7 +255,7 @@ export default function InvoiceViewModal({
                       ? t('invoice.productSale')
                       : invoice.type === 'service'
                         ? t('invoice.serviceSale')
-                        : t('invoice.generalSale', 'Genel')}
+                        : t('invoice.generalSale')}
                   </span>
                 </div>
                 <div className="flex items-center text-sm">
@@ -281,7 +274,7 @@ export default function InvoiceViewModal({
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('invoice.customerInfo')}</h3>
               <div className="space-y-2">
-                <div className="font-medium text-gray-900">{invoice.customer?.name || invoice.customerName || t('common:noCustomer', { defaultValue: L.noCustomer })}</div>
+                <div className="font-medium text-gray-900">{invoice.customer?.name || invoice.customerName || t('noCustomer')}</div>
                 {(invoice.customer?.email || invoice.customerEmail) && (
                   <div className="flex items-center text-sm text-gray-600">
                     <Mail className="w-4 h-4 mr-2" />

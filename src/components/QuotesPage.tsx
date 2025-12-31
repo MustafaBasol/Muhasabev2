@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatAppDate } from '../utils/dateFormat';
 import { Search, Plus, Eye, Edit, Trash2, FileText, Calendar, Check, X, FileDown, Copy } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import QuoteViewModal, { type Quote as QuoteModel } from './QuoteViewModal';
@@ -246,29 +247,9 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
     return Array.from(map.entries());
   }, [filtered, defaultCurrency]);
 
-  const totalLabel = (() => {
-    const lang = String(i18n?.language || '').toLowerCase();
-    if (lang.startsWith('tr')) return 'Toplam';
-    if (lang.startsWith('de')) return 'Summe';
-    if (lang.startsWith('fr')) return 'Total';
-    return 'Total';
-  })();
-
-  const filteredLabel = (() => {
-    const lang = String(i18n?.language || '').toLowerCase();
-    if (lang.startsWith('tr')) return 'Filtreli';
-    if (lang.startsWith('de')) return 'Gefiltert';
-    if (lang.startsWith('fr')) return 'Filtré';
-    return 'Filtered';
-  })();
-
-  const shownLabel = (() => {
-    const lang = String(i18n?.language || '').toLowerCase();
-    if (lang.startsWith('tr')) return 'Gösterilen';
-    if (lang.startsWith('de')) return 'Angezeigt';
-    if (lang.startsWith('fr')) return 'Affiché';
-    return 'Shown';
-  })();
+  const totalLabel = t('summary.total');
+  const filteredLabel = t('summary.filtered');
+  const shownLabel = t('summary.shown');
 
   const formatMoney = (amount: number, currency: string) => {
     const locale = String(i18n?.language || 'tr-TR');
@@ -311,7 +292,7 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
     <span className="inline-block ml-1 text-gray-400">{active ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
   );
 
-  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('tr-TR');
+  const formatDate = (dateStr: string) => formatAppDate(dateStr);
   // Sistem para birimini kullanır; teklif özelinde override destekler
   const formatAmount = (amount: number, currencyCode: QuoteListItem['currency']) => formatCurrency(amount, currencyCode);
 
@@ -482,10 +463,10 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
       {duplicateTarget && (
         <ConfirmModal
           isOpen={true}
-          title={t('common.confirm', { defaultValue: 'Onay' })}
-          message={t('quotes.duplicateConfirm', { defaultValue: 'Yinele işlemine devam edilsin mi?' })}
-          confirmText={t('common.yes', { defaultValue: 'Evet' })}
-          cancelText={t('common.no', { defaultValue: 'Hayır' })}
+          title={t('common.confirm')}
+          message={t('quotes.duplicateConfirm')}
+          confirmText={t('common.yes')}
+          cancelText={t('common.no')}
           onCancel={() => setDuplicateTarget(null)}
           onConfirm={async () => {
             const src = duplicateTarget;
@@ -517,10 +498,10 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
       {reviseTarget && (
         <ConfirmModal
           isOpen={true}
-          title={t('common.confirm', { defaultValue: 'Onay' })}
+          title={t('common.confirm')}
           message={t('quotes.reviseConfirm')}
-          confirmText={t('common.yes', { defaultValue: 'Evet' })}
-          cancelText={t('common.no', { defaultValue: 'Hayır' })}
+          confirmText={t('common.yes')}
+          cancelText={t('common.no')}
           onCancel={() => setReviseTarget(null)}
           onConfirm={async () => {
             const target = reviseTarget;
@@ -585,9 +566,9 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
               type="button"
               onClick={openTemplates}
               className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              title={t('quotes.templates.manageTitle', { defaultValue: 'Teklif şablonlarını yönet' })}
+              title={t('quotes.templates.manageTitle')}
             >
-              {t('quotes.templates.manage', { defaultValue: 'Şablonları Yönet' })}
+              {t('quotes.templates.manage')}
             </button>
           )}
           <button
@@ -1040,10 +1021,10 @@ const QuotesPage: React.FC<QuotesPageProps> = ({ customers = [], products = [] }
       {deleteTarget && (
         <ConfirmModal
           isOpen={true}
-          title={t('common.confirm', { defaultValue: 'Onay' })}
-          message={t('quotes.deleteConfirm', { defaultValue: `${deleteTarget.quoteNumber} numaralı teklifi silmek istediğinize emin misiniz? Bu işlem geri alınamaz.` })}
-          confirmText={t('common.delete', { defaultValue: 'Sil' })}
-          cancelText={t('common.cancel', { defaultValue: 'Vazgeç' })}
+          title={t('common.confirm')}
+          message={t('quotes.deleteConfirm', { quoteNumber: deleteTarget.quoteNumber })}
+          confirmText={t('common.delete')}
+          cancelText={t('common.cancel')}
           onCancel={() => setDeleteTarget(null)}
           onConfirm={async () => {
             const id = deleteTarget?.id;

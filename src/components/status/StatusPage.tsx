@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, AlertTriangle, Database, Mail, FileText, Cloud } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { formatAppDateTime } from '../../utils/dateFormat';
 
 const StatusPage: React.FC = () => {
   const { t, i18n } = useTranslation('status');
@@ -29,7 +30,7 @@ const StatusPage: React.FC = () => {
   }
 
   const L = buildKeys();
-  const now = new Date().toLocaleString(i18n.language || undefined);
+  const now = formatAppDateTime(new Date(), { locale: i18n.language || undefined });
 
   return (
     <div className="min-h-screen bg-slate-50">

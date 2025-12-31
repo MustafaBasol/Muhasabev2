@@ -14,7 +14,7 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
       name: t('landing.pricing.planNames.starter'),
       price: t('landing.pricing.price.free'),
       priceMonthly: t('landing.pricing.price.free'),
-      annualLine: t('landing.pricing.annualLine.free', ''),
+      annualLine: t('landing.pricing.annualLine.free'),
       description: t('landing.pricing.plans.starter.desc'),
       features: [
         t('landing.pricing.features.users1'),
@@ -49,7 +49,7 @@ const Pricing: React.FC<PricingProps> = ({ loginUrl }) => {
       name: t('landing.pricing.planNames.business'),
       price: t('landing.pricing.price.biz'),
       priceMonthly: t('landing.pricing.price.biz'),
-      annualLine: t('landing.pricing.annualLine.biz', ''),
+      annualLine: t('landing.pricing.annualLine.biz'),
       description: t('landing.pricing.plans.business.desc'),
       features: [
         t('landing.pricing.features.everythingPro'),

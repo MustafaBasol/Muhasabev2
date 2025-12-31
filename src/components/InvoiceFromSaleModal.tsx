@@ -9,6 +9,7 @@ import { readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe'
 import type { Invoice, Sale, ProductCategory } from '../types';
 import { logger } from '../utils/logger';
 import { toNumberSafe } from '../utils/sortAndSearch';
+import { formatAppDate } from '../utils/dateFormat';
 import {
   DEFAULT_TAX_RATE,
   ensureLineItemTaxRate,
@@ -169,7 +170,6 @@ export default function InvoiceFromSaleModal({
   const resolveLineItemWithTax = useCallback(
     (item: InvoiceLineItemDraft): InvoiceLineItemDraft => {
       const primary = ensureLineItemTaxRate(item, {
-        products: productsCache ?? undefined,
         categories: (categoriesCache ?? undefined) as unknown as ProductCategory[] | undefined,
         defaultRate: DEFAULT_TAX_RATE,
         preferResolvedOverExisting: true,
@@ -224,7 +224,7 @@ export default function InvoiceFromSaleModal({
           const guess = resolveLineItemWithTax({
             productId: sale.productId,
             productName: sale.productName,
-            description: sale.productName || t('products.name', 'Product'),
+            description: sale.productName || t('products.name'),
             quantity: 1,
             unitPrice: 1,
             total: 1,
@@ -235,7 +235,7 @@ export default function InvoiceFromSaleModal({
       }
     }
 
-    const fallbackDescription = sale.productName || t('products.name', 'Product');
+    const fallbackDescription = sale.productName || t('products.name');
     const normalizedLineItems: InvoiceLineItemDraft[] = (saleItems.length > 0
       ? saleItems
       : [{
@@ -286,7 +286,7 @@ export default function InvoiceFromSaleModal({
 
     if (!pricingDetails.lineItems.length) {
       logger.warn('invoiceFromSale.noLineItems', { saleId: sale.id });
-      window.alert(t('invoices.noLineItemsError', { defaultValue: 'Faturaya aktarılacak satır bulunamadı.' }));
+      window.alert(t('invoices.noLineItemsError'));
       return;
     }
 
@@ -356,7 +356,7 @@ export default function InvoiceFromSaleModal({
     if (!value) return '—';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString(locale);
+    return formatAppDate(date);
   }, [locale]);
 
   if (!isOpen || !sale) return null;
@@ -404,12 +404,12 @@ export default function InvoiceFromSaleModal({
               
               <div className="flex items-center text-sm">
                 <Package className="w-4 h-4 text-gray-400 mr-2" />
-                <span className="text-gray-600">{t('sales.productService', { defaultValue: t('products.name', 'Product') })}:</span>
+                <span className="text-gray-600">{t('sales.productService')}:</span>
                 <span className="ml-2 font-medium">{sale.productName}</span>
               </div>
               
               <div className="flex items-center text-sm">
-                <span className="text-gray-600">{t('invoices.amountExclTax', { defaultValue: 'Tutar (KDV Hariç)' })}:</span>
+                <span className="text-gray-600">{t('invoices.amountExclTax')}:</span>
                 <span className="ml-2 font-bold text-green-600" title={`Orijinal satış tutarı (KDV dahil olabilir): ${formatCurrency(toNumberSafe(sale.amount))}`}>
                   {loadingMeta ? (
                     <span className="inline-flex items-center text-gray-500">
@@ -431,7 +431,7 @@ export default function InvoiceFromSaleModal({
 
           {/* Fatura Bilgileri */}
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-gray-900">{t('invoices.invoiceInfo', { defaultValue: 'Fatura Bilgileri' })}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t('invoices.invoiceInfo')}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -450,36 +450,36 @@ export default function InvoiceFromSaleModal({
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('invoices.invoiceStatus', { defaultValue: 'Invoice Status' })}
+                  {t('invoices.invoiceStatus')}
                 </label>
                 <select
                   value={invoiceData.status}
                   onChange={(e) => setInvoiceData((prev) => ({ ...prev, status: e.target.value as Invoice['status'] }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="draft">{t('status.draft', { defaultValue: 'Taslak' })}</option>
-                  <option value="sent">{t('status.sent', { defaultValue: 'Gönderildi' })}</option>
-                  <option value="paid">{t('status.paid', { defaultValue: 'Ödendi' })}</option>
+                  <option value="draft">{t('status.draft')}</option>
+                  <option value="sent">{t('status.sent')}</option>
+                  <option value="paid">{t('status.paid')}</option>
                 </select>
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('invoices.invoiceNotes', { defaultValue: 'Fatura Notları' })}
+                {t('invoices.invoiceNotes')}
               </label>
               <textarea
                 value={invoiceData.notes}
                 onChange={(e) => setInvoiceData((prev) => ({ ...prev, notes: e.target.value }))}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t('invoices.notesPlaceholder', { defaultValue: 'Fatura ile ilgili notlar...' })}
+                placeholder={t('invoices.notesPlaceholder')}
               />
             </div>
 
             {/* Fatura Tutarları */}
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <h4 className="font-medium text-gray-900 mb-3">{t('invoices.invoiceTotals', { defaultValue: 'Invoice Totals' })}</h4>
+              <h4 className="font-medium text-gray-900 mb-3">{t('invoices.invoiceTotals')}</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>{t('invoice.subtotal')}</span>

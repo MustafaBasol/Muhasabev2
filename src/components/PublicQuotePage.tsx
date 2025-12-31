@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BrandLogo } from './BrandLogo';
 import { FileDown, Link as LinkIcon, Check, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { formatAppDate } from '../utils/dateFormat';
 import { useCurrency } from '../contexts/CurrencyContext';
 // DOMPurify doğrudan kullanılmıyor; RTE içeriği için sanitizeRteHtml kullanıyoruz
 import { sanitizeRteHtml } from '../utils/security';
@@ -219,12 +220,12 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
 
   const handleAccept = async () => {
     if (!quote) return;
-    if (!window.confirm(t('quotes.confirmAccept', { defaultValue: 'Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.' }))) return;
+    if (!window.confirm(t('quotes.confirmAccept'))) return;
     setProcessing('accept');
     try {
       const updated = await acceptPublic(String(quoteId));
       setQuote(updated);
-      setInfo(t('quotes.acceptedThanks', { defaultValue: 'Teşekkürler, teklif kabul edildi.' }));
+      setInfo(t('quotes.acceptedThanks'));
     } finally {
       setProcessing(false);
     }
@@ -232,12 +233,12 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
 
   const handleDecline = async () => {
     if (!quote) return;
-    if (!window.confirm(t('quotes.confirmDecline', { defaultValue: 'Teklifi reddetmek istediğinizden emin misiniz?' }))) return;
+    if (!window.confirm(t('quotes.confirmDecline'))) return;
     setProcessing('decline');
     try {
       const updated = await declinePublic(String(quoteId));
       setQuote(updated);
-      setInfo(t('quotes.declinedInfo', { defaultValue: 'Teklif reddedildi.' }));
+      setInfo(t('quotes.declinedInfo'));
     } finally {
       setProcessing(false);
     }
@@ -247,8 +248,8 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
         <div className="bg-white border rounded-xl shadow p-8 max-w-lg w-full text-center">
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('quotes.title') || 'Teklif'}</h1>
-          <p className="text-gray-600">{t('quotes.noQuotesFound') || 'Teklif bulunamadı.'}</p>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('quotes.title')}</h1>
+          <p className="text-gray-600">{t('quotes.noQuotesFound')}</p>
         </div>
       </div>
     );
@@ -298,7 +299,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
               }}
               className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
             >
-              <FileDown className="w-4 h-4" /> <span className="text-sm">{t('quotes.actions.downloadPdf') || 'PDF İndir'}</span>
+              <FileDown className="w-4 h-4" /> <span className="text-sm">{t('quotes.actions.downloadPdf')}</span>
             </button>
             <button
               onClick={async () => {
@@ -314,7 +315,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
               }}
               className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
             >
-              <LinkIcon className="w-4 h-4" /> <span className="text-sm">{t('quotes.actions.copyLink') || 'Link Kopyala'}</span>
+              <LinkIcon className="w-4 h-4" /> <span className="text-sm">{t('quotes.actions.copyLink')}</span>
             </button>
           </div>
         </div>
@@ -343,9 +344,9 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div className="text-sm text-gray-700 space-y-1">
             <div><span className="text-gray-500 mr-2">{L.quoteNumber}:</span><span className="font-medium">{quote.quoteNumber}</span></div>
-            <div><span className="text-gray-500 mr-2">{L.issueDate}:</span><span className="font-medium">{new Date(quote.issueDate).toLocaleDateString(activeLang==='tr'?'tr-TR':activeLang==='fr'?'fr-FR':activeLang==='de'?'de-DE':'en-US')}</span></div>
+            <div><span className="text-gray-500 mr-2">{L.issueDate}:</span><span className="font-medium">{formatAppDate(quote.issueDate)}</span></div>
             {quote.validUntil ? (
-              <div><span className="text-gray-500 mr-2">{L.validUntil}:</span><span className="font-medium">{new Date(quote.validUntil).toLocaleDateString(activeLang==='tr'?'tr-TR':activeLang==='fr'?'fr-FR':activeLang==='de'?'de-DE':'en-US')}</span></div>
+              <div><span className="text-gray-500 mr-2">{L.validUntil}:</span><span className="font-medium">{formatAppDate(quote.validUntil)}</span></div>
             ) : null}
           </div>
           <div className="text-sm text-gray-700 space-y-1 sm:text-right">
@@ -403,7 +404,7 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
         {/* İşin Kapsamı (genel sayfada görünür) */}
         {Boolean(quote.scopeOfWorkHtml) && (
           <div className="mt-8">
-            <div className="text-base font-semibold text-gray-900 mb-2">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</div>
+            <div className="text-base font-semibold text-gray-900 mb-2">{t('quotes.scopeOfWork.title')}</div>
             <div
               className="prose prose-sm max-w-none text-gray-800"
               dangerouslySetInnerHTML={{ __html: sanitizeRteHtml(quote.scopeOfWorkHtml || '') }}
@@ -445,14 +446,14 @@ const PublicQuotePage: React.FC<PublicQuotePageProps> = ({ quoteId }) => {
               onClick={handleAccept}
               className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-white ${processing==="accept"? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'}`}
             >
-              <Check className="w-4 h-4" /> {t('quotes.actions.accept') || 'Kabul Et'}
+              <Check className="w-4 h-4" /> {t('quotes.actions.accept')}
             </button>
             <button
               disabled={processing !== false}
               onClick={handleDecline}
               className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-white ${processing==="decline"? 'bg-red-700' : 'bg-red-600 hover:bg-red-700'}`}
             >
-              <XCircle className="w-4 h-4" /> {t('quotes.actions.decline') || 'Reddet'}
+              <XCircle className="w-4 h-4" /> {t('quotes.actions.decline')}
             </button>
           </div>
         )}

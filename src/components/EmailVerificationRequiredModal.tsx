@@ -20,17 +20,13 @@ const EmailVerificationRequiredModal: React.FC<Props> = ({ email, onViewStatus, 
           <ShieldAlert className="w-9 h-9" />
         </div>
         <h2 className="text-2xl font-semibold text-gray-900 mb-3">
-          {t('auth.verifyRequiredTitle', 'E-posta doğrulaması gerekiyor')}
+          {t('auth.verifyRequiredTitle')}
         </h2>
         <p className="text-gray-600 mb-4">
-          {t('auth.verifyRequiredBody', {
-            defaultValue:
-              'Hesabınıza erişebilmek için e-postanızı doğrulamanız gerekiyor. Gelen kutunuzu kontrol edip bağlantıya tıklayın.',
-            email: resolvedEmail || '—',
-          })}
+          {t('auth.verifyRequiredBody', { email: resolvedEmail || '—' })}
         </p>
         <div className="text-sm text-gray-500 mb-6">
-          {t('auth.verifyRequiredHint', 'Doğrulama yapılana kadar uygulamadaki işlemler kilitlenmiştir.')}
+          {t('auth.verifyRequiredHint')}
         </div>
         <div className="flex flex-col gap-3">
           <button
@@ -38,14 +34,14 @@ const EmailVerificationRequiredModal: React.FC<Props> = ({ email, onViewStatus, 
             className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg bg-blue-600 text-white font-semibold shadow-sm hover:bg-blue-700 transition-colors"
           >
             <MailCheck className="w-5 h-5" />
-            {t('auth.verifyRequiredAction', 'Doğrulama Durumunu Aç')}
+            {t('auth.verifyRequiredAction')}
           </button>
           <button
             onClick={onLogout}
             className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
           >
             <LogOut className="w-5 h-5" />
-            {t('auth.verifyRequiredLogout', 'Çıkış Yap')}
+            {t('auth.verifyRequiredLogout')}
           </button>
         </div>
       </div>

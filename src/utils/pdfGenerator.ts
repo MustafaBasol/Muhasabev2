@@ -6,6 +6,7 @@ import i18n from '../i18n/config';
 import { logger } from '../utils/logger';
 import { secureStorage } from '../utils/storage';
 import { readLegacyTenantId, readLegacyUserProfile, readTenantScopedArray, readTenantScopedValue, safeLocalStorage } from '../utils/localStorageSafe';
+import { formatAppDate } from './dateFormat';
 import type { Invoice, Expense, Sale, InvoiceItem } from '../types';
 
 // Para birimi tipini uygulamanın CurrencyContext'inden alalım (TRY | USD | EUR | GBP)
@@ -273,9 +274,9 @@ const makeCurrencyFormatter = (currency: Currency) => (amount: number | string |
   }
 };
 
-const formatDate = (date: string | number | Date, locale?: string): string => {
+const formatDate = (date: string | number | Date): string => {
   try {
-    return new Date(date).toLocaleDateString(locale || undefined);
+    return formatAppDate(date, { fallback: String(date) });
   } catch (error) {
     pdfWarn('Date formatting failed; returning raw value.', error);
     return String(date);
@@ -825,8 +826,8 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
       <div style="display:flex; justify-content:space-between; margin-bottom:18px;">
         <div>
           <p style="margin:4px 0;"><strong>${tf('pdf.invoice.invoiceNumber')}:</strong> ${invoice.invoiceNumber}</p>
-          <p style="margin:4px 0;"><strong>${tf('pdf.invoice.issueDate')}:</strong> ${formatDate(invoice.issueDate, dloc)}</p>
-          <p style="margin:4px 0;"><strong>${tf('pdf.invoice.dueDate')}:</strong> ${formatDate(invoice.dueDate, dloc)}</p>
+          <p style="margin:4px 0;"><strong>${tf('pdf.invoice.issueDate')}:</strong> ${formatDate(invoice.issueDate)}</p>
+          <p style="margin:4px 0;"><strong>${tf('pdf.invoice.dueDate')}:</strong> ${formatDate(invoice.dueDate)}</p>
           <p style="margin:4px 0;"><strong>${tf('pdf.invoice.status')}:</strong> ${statusLabel}</p>
         </div>
         <div></div>
@@ -960,8 +961,8 @@ const buildExpenseHtml = (expense: Expense, lang?: string, currency?: Currency) 
       <div>
         <h2 style="color: #1F2937; font-size: 24px; margin: 0 0 10px 0;">${tf('pdf.expense.title')}</h2>
         <p style="margin: 5px 0;"><strong>${tf('pdf.expense.expenseNumber')}:</strong> ${expense.expenseNumber}</p>
-  <p style="margin: 5px 0;"><strong>${tf('pdf.expense.expenseDate')}:</strong> ${formatDate(expense.expenseDate, dloc)}</p>
-  ${expense.dueDate ? `<p style="margin: 5px 0;"><strong>${tf('pdf.expense.paymentDate')}:</strong> ${formatDate(expense.dueDate, dloc)}</p>` : ''}
+  <p style="margin: 5px 0;"><strong>${tf('pdf.expense.expenseDate')}:</strong> ${formatDate(expense.expenseDate)}</p>
+  ${expense.dueDate ? `<p style="margin: 5px 0;"><strong>${tf('pdf.expense.paymentDate')}:</strong> ${formatDate(expense.dueDate)}</p>` : ''}
         <p style="margin: 5px 0;"><strong>${tf('pdf.expense.status')}:</strong> ${statusLabel}</p>
       </div>
       <div style="text-align: right;">
@@ -1017,7 +1018,7 @@ const buildSaleHtml = (sale: Sale, lang?: string, currency?: Currency) => {
       <div>
         <h2 style="color: #1F2937; font-size: 24px; margin: 0 0 10px 0;">${tf('pdf.sale.title')}</h2>
         <p style="margin: 5px 0;"><strong>${tf('pdf.sale.saleNumber')}:</strong> ${sale.saleNumber || `SAL-${sale.id}`}</p>
-  <p style="margin: 5px 0;"><strong>${tf('pdf.sale.saleDate')}:</strong> ${formatDate(sale.date, dloc)}</p>
+  <p style="margin: 5px 0;"><strong>${tf('pdf.sale.saleDate')}:</strong> ${formatDate(sale.date)}</p>
         <p style="margin: 5px 0;"><strong>${tf('pdf.sale.status')}:</strong> ${statusLabel}</p>
   ${payName ? `<p style="margin: 5px 0;"><strong>${tf('pdf.sale.paymentMethod')}:</strong> ${payName}</p>` : ''}
       </div>
@@ -1293,8 +1294,8 @@ const buildQuoteHtml = (
       <div style="display:flex;justify-content:space-between;margin-bottom:18px;">
         <div>
           <p style="margin:4px 0;"><strong>${L.quoteNumber}:</strong> ${quote.quoteNumber}</p>
-          <p style="margin:4px 0;"><strong>${L.issueDate}:</strong> ${formatDate(quote.issueDate, dloc)}</p>
-          ${quote.validUntil ? `<p style="margin:4px 0;"><strong>${L.validUntil}:</strong> ${formatDate(quote.validUntil, dloc)}</p>` : ''}
+          <p style="margin:4px 0;"><strong>${L.issueDate}:</strong> ${formatDate(quote.issueDate)}</p>
+          ${quote.validUntil ? `<p style="margin:4px 0;"><strong>${L.validUntil}:</strong> ${formatDate(quote.validUntil)}</p>` : ''}
           ${quote.status ? `<p style="margin:4px 0;"><strong>${L.status}:</strong> ${statusLabel}</p>` : ''}
         </div>
         <div></div>

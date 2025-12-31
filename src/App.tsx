@@ -30,6 +30,7 @@ import { getErrorMessage } from "./utils/errorHandler";
 import { isEmailVerificationRequired } from "./utils/emailVerification";
 import { logger } from "./utils/logger";
 import { DEFAULT_TAX_RATE, resolveProductTaxRate as resolveProductTaxRateUtil } from "./utils/tax";
+import { formatAppDateTime } from "./utils/dateFormat";
 
 // API imports
 import * as customersApi from "./api/customers";
@@ -249,7 +250,7 @@ const normalizeStoredNotifications = (stored?: StoredNotificationInput[] | null)
     const firstSeenAt = coerceTimestamp(notif.firstSeenAt, guessedTs);
     const timeStr = typeof notif.time === 'string' && notif.time.trim()
       ? notif.time
-      : new Date(firstSeenAt).toLocaleString(locale);
+      : formatAppDateTime(firstSeenAt, { locale });
 
     return {
       ...notif,
@@ -1722,7 +1723,7 @@ const AppContent: React.FC = () => {
       ? `${options.relatedId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       : `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const nowTs = Date.now();
-    const timeStr = new Date(nowTs).toLocaleString((navigator.language || 'tr').slice(0, 2));
+    const timeStr = formatAppDateTime(nowTs, { locale: (navigator.language || 'tr').slice(0, 2) });
     const newNotification: HeaderNotification = {
       id: uniqueId,
       title,
@@ -1768,8 +1769,8 @@ const AppContent: React.FC = () => {
     }
 
     // 2FA etkin değilse: kalıcı/günlük tekrar eden bildirim ekle (kategori filtresine takılmaması için link vermiyoruz)
-    const title = tOrFirst(['security.twofa.reminderTitle','sales.security.twofa.reminderTitle'], 'İki Aşamalı Doğrulamayı Etkinleştirin');
-    const description = tOrFirst(['security.twofa.reminderDesc','sales.security.twofa.reminderDesc'], 'Hesabınızı korumak için 2FA’yı etkinleştirmeniz önerilir.');
+    const title = t('security.twofa.reminderTitle');
+    const description = t('security.twofa.reminderDesc');
     addNotification(title, description, 'warning', undefined, { persistent: true, repeatDaily: true, relatedId: 'twofa-reminder', i18nTitleKey: 'security.twofa.reminderTitle', i18nDescKey: 'security.twofa.reminderDesc' });
 
     // İlk açılış modali: kullanıcı/tenant bazlı, HER OTURUMDA bir kez göster (2FA etkinleşene kadar)
@@ -1785,12 +1786,12 @@ const AppContent: React.FC = () => {
       const shownThisSession = safeSessionStorage.getItem(key);
       if (!shownThisSession) {
         setInfoModal({
-          title: tOrFirst(['security.twofa.modalTitle','sales.security.twofa.modalTitle'], 'Hesabınızı Güvenceye Alın'),
-          message: tOrFirst(['security.twofa.modalMessage','sales.security.twofa.modalMessage'], 'İki Aşamalı Doğrulama (2FA) hesap güvenliğinizi önemli ölçüde artırır. Şimdi etkinleştirmek ister misiniz?'),
+          title: t('security.twofa.modalTitle'),
+          message: t('security.twofa.modalMessage'),
           tone: 'info',
-          confirmLabel: tOrFirst(['security.twofa.enableNow','sales.security.twofa.enableNow'], 'Şimdi Etkinleştir'),
-          cancelLabel: tOr('common.remindMeLater', 'Daha Sonra'),
-          extraLabel: tOrFirst(['security.twofa.neverRemind','sales.security.twofa.neverRemind'], 'Bir daha hatırlatma'),
+          confirmLabel: t('security.twofa.enableNow'),
+          cancelLabel: t('common.remindMeLater'),
+          extraLabel: t('security.twofa.neverRemind'),
           onConfirm: () => {
             safeSessionStorage.setItem(key, '1');
             openSettingsOn('security');
@@ -2546,10 +2547,10 @@ const AppContent: React.FC = () => {
           const existing = customers.find(c => (String(c?.email || '').trim().toLowerCase()) === normalizedEmail);
           if (existing) {
             setInfoModal({
-              title: t('customers.duplicate.title') || 'Müşteri zaten kayıtlı',
-              message: t('customers.duplicate.message', { email: cleanData.email, name: existing.name }) || `Bu e-posta (${cleanData.email}) ile bir müşteri zaten kayıtlı (${existing.name}). Lütfen listeden mevcut kaydı seçin.`,
+              title: t('customers.duplicate.title'),
+              message: t('customers.duplicate.message', { email: cleanData.email, name: existing.name }),
               tone: 'error',
-              confirmLabel: t('customers.duplicate.openExisting') || 'Mevcut müşteriyi aç',
+              confirmLabel: t('customers.duplicate.openExisting'),
               onConfirm: () => {
                 // Müşteriler sayfasına gidip ilgili kaydı aç
                 setSelectedCustomer(existing as any);
@@ -2588,10 +2589,10 @@ const AppContent: React.FC = () => {
         const existing = customers.find(c => (String(c?.email || '').trim().toLowerCase()) === attemptedEmail);
         if (existing) {
           setInfoModal({
-            title: t('customers.duplicate.title') || 'Müşteri zaten kayıtlı',
-            message: t('customers.duplicate.message', { email: customerData.email, name: existing.name }) || msg,
+            title: t('customers.duplicate.title'),
+            message: t('customers.duplicate.message', { email: customerData.email, name: existing.name }),
             tone: 'error',
-            confirmLabel: t('customers.duplicate.openExisting') || 'Mevcut müşteriyi aç',
+            confirmLabel: t('customers.duplicate.openExisting'),
             onConfirm: () => {
               setSelectedCustomer(existing as any);
               setShowCustomerViewModal(true);
@@ -2608,7 +2609,7 @@ const AppContent: React.FC = () => {
   };
 
   const deleteCustomer = async (customerId: string | number) => {
-    if (typeof window !== "undefined" && !window.confirm(t('customers.deleteConfirm', { defaultValue: 'Bu müşteriyi silmek istediğinizden emin misiniz?' }))) {
+    if (typeof window !== "undefined" && !window.confirm(t('customers.deleteConfirm'))) {
       return;
     }
     try {
@@ -2843,11 +2844,11 @@ const AppContent: React.FC = () => {
         }
       } catch (err) {
         logger.error('app.import.customers.persist.exception', err);
-        setInfoModal({ title: t('common.error'), message: t('customers.import.error') + '\n\nDetay: ' + (err instanceof Error ? err.message : String(err)) });
+        setInfoModal({ title: t('common.error'), message: `${t('customers.import.error')}\n\n${t('common.details')}: ${err instanceof Error ? err.message : String(err)}` });
       }
     } catch (error) {
       logger.error('app.import.customers.failed', error);
-      setInfoModal({ title: t('common.error'), message: t('customers.import.error') + "\n\nDetay: " + (error instanceof Error ? error.message : String(error)) });
+      setInfoModal({ title: t('common.error'), message: `${t('customers.import.error')}\n\n${t('common.details')}: ${error instanceof Error ? error.message : String(error)}` });
     }
   };
 
@@ -3049,18 +3050,18 @@ const AppContent: React.FC = () => {
         logger.info('app.import.products.persist.result', { created: created.length, failed: failed.length });
 
         if (failed.length === 0) {
-          setInfoModal({ title: t('common.success'), message: `${created.length} ürün başarıyla içe aktarıldı!` });
+          setInfoModal({ title: t('common.success'), message: t('products.import.success', { count: created.length }) });
         } else {
-          setInfoModal({ title: t('common.warning'), message: `${created.length} ürün içe aktarıldı, ${failed.length} kayıt başarısız.` });
+          setInfoModal({ title: t('common.warning'), message: t('products.import.partial', { created: created.length, failed: failed.length }) });
           logger.warn('app.import.products.persist.partialFailure', { failedCount: failed.length });
         }
       } catch (err) {
         logger.error('app.import.products.persist.exception', err);
-        setInfoModal({ title: t('common.error'), message: (t('customers.import.error') || 'İçe aktarma hatası') + '\n\nDetay: ' + (err instanceof Error ? err.message : String(err)) });
+        setInfoModal({ title: t('common.error'), message: `${t('customers.import.error')}\n\n${t('common.details')}: ${err instanceof Error ? err.message : String(err)}` });
       }
     } catch (error) {
       logger.error('app.import.products.failed', error);
-      setInfoModal({ title: t('common.error'), message: (t('customers.import.error') || 'İçe aktarma hatası') + '\n\nDetay: ' + (error instanceof Error ? error.message : String(error)) });
+      setInfoModal({ title: t('common.error'), message: `${t('customers.import.error')}\n\n${t('common.details')}: ${error instanceof Error ? error.message : String(error)}` });
     }
   };
 
@@ -3100,7 +3101,7 @@ const AppContent: React.FC = () => {
   };
 
   const deleteSupplier = async (supplierId: string | number) => {
-    if (typeof window !== "undefined" && !window.confirm(t('suppliers.deleteConfirm', { defaultValue: 'Bu tedarikçiyi silmek istediğinizden emin misiniz?' }))) {
+    if (typeof window !== "undefined" && !window.confirm(t('suppliers.deleteConfirm'))) {
       return;
     }
     try {
@@ -3252,8 +3253,8 @@ const AppContent: React.FC = () => {
         const MAX = 5;
         if (used >= MAX) {
           setInfoModal({
-            title: t('plans.limitExceeded.title', { defaultValue: 'Plan Limiti Aşıldı' }),
-            message: t('plans.limitExceeded.invoicesMessage', { defaultValue: 'Starter/Free planda bir ayda en fazla 5 fatura oluşturabilirsiniz. Daha fazla fatura için planınızı yükseltin.' })
+            title: t('plans.limitExceeded.title'),
+            message: t('plans.limitExceeded.invoicesMessage')
           });
           // İsteğe bağlı: Ayarlar sayfasını açmak isterseniz yorumdan çıkartın
           // openSettingsOn('organization');
@@ -3356,7 +3357,14 @@ const AppContent: React.FC = () => {
               const available = Number((prod as any).stock ?? (prod as any).stockQuantity ?? NaN);
               const requested = Number(it.quantity) || 0;
               if (Number.isFinite(available) && requested > available) {
-                showToast(t('validation.insufficientStock', { defaultValue: `Stok yetersiz: ${prod.name} (İstenen: ${requested}, Mevcut: ${available})` }), 'error');
+                showToast(
+                  t('toasts.sales.insufficientStock', {
+                    name: String(prod.name || '').trim() || t('common.notSpecified'),
+                    requested,
+                    available,
+                  }),
+                  'error'
+                );
                 return; // Fatura/satış oluşturmayı durdur
               }
             }
@@ -3534,7 +3542,7 @@ const AppContent: React.FC = () => {
         reportSilentError('app.invoices.delete.persistFailed', error);
       }
       logger.debug('app.invoices.cacheUpdated', { action: 'delete' });
-      showToast(t('invoices.deleteSuccess', { defaultValue: 'Fatura silindi' }), 'success');
+      showToast(t('invoices.deleteSuccess'), 'success');
     } catch (error: any) {
       console.error('Invoice delete error:', error);
       const errorMessage = error.response?.data?.message || '';
@@ -3639,8 +3647,8 @@ const AppContent: React.FC = () => {
         const MAX = 5;
         if (used >= MAX) {
           setInfoModal({
-            title: t('plans.limitExceeded.title', { defaultValue: 'Plan Limiti Aşıldı' }),
-            message: t('plans.limitExceeded.expensesMessage', { defaultValue: 'Starter/Free planda bir ayda en fazla 5 gider kaydı oluşturabilirsiniz. Daha fazlası için planınızı yükseltin.' })
+            title: t('plans.limitExceeded.title'),
+            message: t('plans.limitExceeded.expensesMessage')
           });
           // openSettingsOn('organization');
           return;
@@ -4032,7 +4040,7 @@ const AppContent: React.FC = () => {
 
   const handleDeleteSale = async (saleId: string, opts?: { skipConfirm?: boolean }) => {
     if (!opts?.skipConfirm) {
-      if (!confirm(t('sales.deleteConfirm', { defaultValue: 'Bu satışı silmek istediğinizden emin misiniz?' }))) {
+      if (!confirm(t('sales.deleteConfirm'))) {
         return;
       }
     }
@@ -4138,7 +4146,7 @@ const AppContent: React.FC = () => {
   };
 
   const deleteProduct = async (productId: string | number) => {
-    if (!confirmAction(t('products.deleteConfirm', { defaultValue: 'Bu ürünü silmek istediğinizden emin misiniz?' }))) {
+    if (!confirmAction(t('products.deleteConfirm'))) {
       return;
     }
     try {
@@ -4370,11 +4378,7 @@ const AppContent: React.FC = () => {
           }
           return next;
         });
-        const msgUpdated = i18n.language === 'tr' ? 'Banka hesabı güncellendi' :
-          i18n.language === 'en' ? 'Bank account updated' :
-          i18n.language === 'fr' ? 'Compte bancaire mis à jour' :
-          i18n.language === 'de' ? 'Bankkonto aktualisiert' : 'Bank account updated';
-        showToast(msgUpdated, 'success');
+        showToast(t('toasts.bank.updateSuccess'), 'success');
       } else {
         const created = await bankAccountsApi.create({
           name: bankData.accountName,
@@ -4421,33 +4425,21 @@ const AppContent: React.FC = () => {
           }
           return next;
         });
-        const msgAdded = i18n.language === 'tr' ? 'Banka hesabı eklendi' :
-          i18n.language === 'en' ? 'Bank account added' :
-          i18n.language === 'fr' ? 'Compte bancaire ajouté' :
-          i18n.language === 'de' ? 'Bankkonto hinzugefügt' : 'Bank account added';
-        showToast(msgAdded, 'success');
+        showToast(t('toasts.bank.createSuccess'), 'success');
       }
     } catch (e: any) {
       console.error('Bank upsert failed:', e);
-      const msgFailed = i18n.language === 'tr' ? 'Banka işlemi başarısız' :
-        i18n.language === 'en' ? 'Bank operation failed' :
-        i18n.language === 'fr' ? 'L’opération bancaire a échoué' :
-        i18n.language === 'de' ? 'Bankvorgang fehlgeschlagen' : 'Bank operation failed';
-      showToast(e?.response?.data?.message || msgFailed, 'error');
+      showToast(e?.response?.data?.message || t('toasts.bank.operationFailed'), 'error');
     }
   };
 
   const deleteBank = async (bankId: string | number) => {
-    if (!confirmAction(t('banks.deleteConfirm', { defaultValue: 'Bu banka hesabını silmek istediğinizden emin misiniz?' }))) return;
+    if (!confirmAction(t('banks.deleteConfirm'))) return;
     try {
       const { bankAccountsApi } = await import('./api/bank-accounts');
       await bankAccountsApi.remove(String(bankId));
       setBankAccounts(prev => prev.filter(bank => String(bank.id) !== String(bankId)));
-      const msgDeleted = i18n.language === 'tr' ? 'Banka hesabı silindi' :
-        i18n.language === 'en' ? 'Bank account deleted' :
-        i18n.language === 'fr' ? 'Compte bancaire supprimé' :
-        i18n.language === 'de' ? 'Bankkonto gelöscht' : 'Bank account deleted';
-      showToast(msgDeleted, 'success');
+      showToast(t('toasts.bank.deleteSuccess'), 'success');
     } catch (e: any) {
       console.error('Bank delete failed:', e);
       showToast(e?.response?.data?.message || t('toasts.bank.deleteError'), 'error');
@@ -4622,7 +4614,7 @@ const AppContent: React.FC = () => {
             const fallback = quantity * unitPrice;
             return Number.isFinite(fallback) ? fallback : 0;
           })();
-          const fallbackDescription = item.description || item.productName || t('products.name', 'Product');
+          const fallbackDescription = item.description || item.productName || t('common.generic.product');
           const parsedTaxRate = Number(item.taxRate);
           const taxRate = Number.isFinite(parsedTaxRate) && parsedTaxRate >= 0
             ? Math.round(parsedTaxRate * 100) / 100
@@ -4677,7 +4669,7 @@ const AppContent: React.FC = () => {
       const lineItems = normalizeInvoiceLineItems(invoiceData.items);
       if (!lineItems.length) {
         logger.warn('app.invoiceFromSale.noLineItems', { saleId: selectedSaleForInvoice?.id });
-        showToast(t('invoices.noLineItemsError', 'Faturaya aktarılacak satır bulunamadı.'), 'error');
+        showToast(t('invoices.noLineItemsError'), 'error');
         throw new Error('lineItems required');
       }
 
@@ -4685,7 +4677,7 @@ const AppContent: React.FC = () => {
       const dueDate = invoiceData.dueDate || issueDate;
       const backendLineItems: invoicesApi.InvoiceLineItem[] = lineItems.map(item => ({
         productId: item.productId ? String(item.productId) : undefined,
-        productName: String(item.productName || item.description || '').trim() || t('common.unknown', 'Bilinmiyor'),
+        productName: String(item.productName || item.description || '').trim() || t('common.notSpecified'),
         quantity: Number(item.quantity) || 0,
         unitPrice: Number(item.unitPrice) || 0,
         total: Number(item.total) || 0,
@@ -4756,7 +4748,7 @@ const AppContent: React.FC = () => {
     } catch (error) {
       logger.error('app.invoiceFromSale.failed', error);
       const err = error as { response?: { data?: { message?: string } }; message?: string };
-      const errorMsg = err.response?.data?.message || err.message || t('toasts.invoices.createError', 'Fatura oluşturulamadı');
+      const errorMsg = err.response?.data?.message || err.message || t('toasts.invoices.createError');
       showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
       throw error;
     }
@@ -6127,10 +6119,10 @@ const AppContent: React.FC = () => {
       {Boolean(invoiceToDelete) && (
         <ConfirmModal
           isOpen={true}
-          title={t('common.confirm', { defaultValue: 'Onay' })}
-          message={t('invoices.deleteConfirm', { defaultValue: 'Bu faturayı silmek istediğinizden emin misiniz?' })}
-          confirmText={t('common.delete', { defaultValue: 'Sil' })}
-          cancelText={t('common.cancel', { defaultValue: 'İptal' })}
+          title={t('common.confirm')}
+          message={t('invoices.deleteConfirm')}
+          confirmText={t('common.delete')}
+          cancelText={t('common.cancel')}
           danger
           onConfirm={async () => {
             const id = invoiceToDelete!;
@@ -6144,10 +6136,10 @@ const AppContent: React.FC = () => {
       {Boolean(saleToDelete) && (
         <ConfirmModal
           isOpen={true}
-          title={t('common.confirm', { defaultValue: 'Onay' })}
-          message={t('sales.deleteConfirm', { defaultValue: 'Bu satışı silmek istediğinizden emin misiniz?' })}
-          confirmText={t('common.delete', { defaultValue: 'Sil' })}
-          cancelText={t('common.cancel', { defaultValue: 'İptal' })}
+          title={t('common.confirm')}
+          message={t('sales.deleteConfirm')}
+          confirmText={t('common.delete')}
+          cancelText={t('common.cancel')}
           danger
           onConfirm={async () => {
             const id = saleToDelete!;

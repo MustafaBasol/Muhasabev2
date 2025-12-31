@@ -18,6 +18,12 @@ const Imprint: React.FC = () => {
       legal: 'Yasal Bilgiler',
       email: 'E-posta',
       responsible: 'Sorumlu Kişi',
+      infrastructureContactTitle: 'Altyapı ve İletişim',
+      hostingProviderLabel: 'Barındırma Sağlayıcı:',
+      emailInfrastructureLabel: 'E-posta Altyapısı:',
+      dataProtectionContactLabel: 'Veri Koruma İletişimi:',
+      identifiersTitle: 'Kimlik Bilgileri',
+      backToApp: 'Uygulamaya Geri Dön',
       responsibleValue: COMPANY_LEGAL.representative || 'Peaknova adına yönetim',
       companyValue: COMPANY_LEGAL.companyName || 'Peaknova',
       addressValue: COMPANY_LEGAL.address || 'Fransa',
@@ -34,6 +40,12 @@ const Imprint: React.FC = () => {
       legal: 'Legal Information',
       email: 'Email',
       responsible: 'Responsible Person',
+      infrastructureContactTitle: 'Infrastructure & Contact',
+      hostingProviderLabel: 'Hosting Provider:',
+      emailInfrastructureLabel: 'Email Infrastructure:',
+      dataProtectionContactLabel: 'Data Protection Contact:',
+      identifiersTitle: 'Identifiers',
+      backToApp: 'Back to App',
       responsibleValue: COMPANY_LEGAL.representative || 'Management on behalf of Peaknova',
       companyValue: COMPANY_LEGAL.companyName || 'Peaknova',
       addressValue: COMPANY_LEGAL.address || 'France',
@@ -50,6 +62,12 @@ const Imprint: React.FC = () => {
       legal: 'Rechtliche Informationen',
       email: 'E-Mail',
       responsible: 'Verantwortliche Person',
+      infrastructureContactTitle: 'Infrastruktur & Kontakt',
+      hostingProviderLabel: 'Hosting-Anbieter:',
+      emailInfrastructureLabel: 'E-Mail-Infrastruktur:',
+      dataProtectionContactLabel: 'Datenschutz Kontakt:',
+      identifiersTitle: 'Kennnummern',
+      backToApp: 'Zurück zur App',
       responsibleValue: COMPANY_LEGAL.representative || 'Geschäftsführung im Namen von Peaknova',
       companyValue: COMPANY_LEGAL.companyName || 'Peaknova',
       addressValue: COMPANY_LEGAL.address || 'Frankreich',
@@ -66,6 +84,12 @@ const Imprint: React.FC = () => {
       legal: 'Informations légales',
       email: 'Email',
       responsible: 'Responsable',
+      infrastructureContactTitle: 'Infrastructures & Contact',
+      hostingProviderLabel: 'Hébergeur :',
+      emailInfrastructureLabel: 'Infrastructure e-mail :',
+      dataProtectionContactLabel: 'Contact protection des données :',
+      identifiersTitle: 'Identifiants',
+      backToApp: "Retour à l'application",
       responsibleValue: COMPANY_LEGAL.representative || 'Direction au nom de Peaknova',
       companyValue: COMPANY_LEGAL.companyName || 'Peaknova',
       addressValue: COMPANY_LEGAL.address || 'France',
@@ -130,22 +154,22 @@ const Imprint: React.FC = () => {
             {(COMPANY_LEGAL.hostingProvider || COMPANY_LEGAL.emailInfrastructure || COMPANY_LEGAL.dataProtectionEmail) && (
               <section className="mt-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                  {lang === 'tr' ? 'Altyapı ve İletişim' : lang === 'de' ? 'Infrastruktur & Kontakt' : lang === 'fr' ? 'Infrastructures & Contact' : 'Infrastructure & Contact'}
+                  {t.infrastructureContactTitle}
                 </h3>
                 <ul className="text-gray-700 space-y-1">
                   {COMPANY_LEGAL.hostingProvider && (
                     <li>
-                      <strong>{lang === 'tr' ? 'Barındırma Sağlayıcı:' : lang === 'de' ? 'Hosting-Anbieter:' : lang === 'fr' ? 'Hébergeur :' : 'Hosting Provider:'}</strong> {COMPANY_LEGAL.hostingProvider}
+                      <strong>{t.hostingProviderLabel}</strong> {COMPANY_LEGAL.hostingProvider}
                     </li>
                   )}
                   {COMPANY_LEGAL.emailInfrastructure && (
                     <li>
-                      <strong>{lang === 'tr' ? 'E-posta Altyapısı:' : lang === 'de' ? 'E-Mail-Infrastruktur:' : lang === 'fr' ? 'Infrastructure e-mail :' : 'Email Infrastructure:'}</strong> {COMPANY_LEGAL.emailInfrastructure}
+                      <strong>{t.emailInfrastructureLabel}</strong> {COMPANY_LEGAL.emailInfrastructure}
                     </li>
                   )}
                   {COMPANY_LEGAL.dataProtectionEmail && (
                     <li>
-                      <strong>{lang === 'tr' ? 'Veri Koruma İletişimi:' : lang === 'de' ? 'Datenschutz Kontakt:' : lang === 'fr' ? 'Contact protection des données :' : 'Data Protection Contact:'}</strong> {COMPANY_LEGAL.dataProtectionEmail}
+                      <strong>{t.dataProtectionContactLabel}</strong> {COMPANY_LEGAL.dataProtectionEmail}
                     </li>
                   )}
                 </ul>
@@ -166,7 +190,7 @@ const Imprint: React.FC = () => {
               <section className="mt-8">
                 <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center">
                   <Info className="h-5 w-5 mr-2 text-gray-600" />
-                  {lang === 'fr' ? 'Identifiants' : lang === 'de' ? 'Kennnummern' : lang === 'tr' ? 'Kimlik Bilgileri' : 'Identifiers'}
+                  {t.identifiersTitle}
                 </h3>
                 <ul className="text-gray-700 space-y-1">
                   {COMPANY_LEGAL.identifiers?.siren && (
@@ -206,7 +230,7 @@ const Imprint: React.FC = () => {
             onClick={() => window.history.back()}
             className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
           >
-            ← {lang === 'tr' ? 'Uygulamaya Geri Dön' : lang === 'de' ? 'Zurück zur App' : lang === 'fr' ? "Retour à l'application" : 'Back to App'}
+            ← {t.backToApp}
           </a>
         </div>
       </div>

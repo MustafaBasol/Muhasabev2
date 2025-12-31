@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminApi } from '../../api/admin';
 import { Users, Shield, Crown, UserCog, Trash2, RefreshCw, Mail, type LucideIcon } from 'lucide-react';
+import { formatAppDate } from '../../utils/dateFormat';
 
 type Role = 'owner' | 'admin' | 'member' | 'viewer' | string;
 
@@ -229,7 +230,7 @@ export default function OrganizationManagementPage() {
                   <div className="text-sm text-gray-600">Rol: {inv.role}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">{new Date(inv.createdAt).toLocaleDateString('tr-TR')}</span>
+                  <span className="text-xs text-gray-500">{formatAppDate(inv.createdAt)}</span>
                   <button className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded-md border border-blue-200 text-sm flex items-center gap-1" disabled>
                     <Mail className="w-4 h-4" /> Yeniden Gönder (yakında)
                   </button>

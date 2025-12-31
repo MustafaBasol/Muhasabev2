@@ -53,15 +53,15 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setError(null);
     if (!password || password.length < 8) {
-      setError(t('auth.passwordTooShort', 'Şifre en az 8 karakter olmalı'));
+      setError(t('auth.passwordTooShort'));
       return;
     }
     if (score < 3) {
-      setError(t('auth.passwordTooWeak', 'Lütfen daha güçlü bir şifre belirleyin'));
+      setError(t('auth.passwordTooWeak'));
       return;
     }
     if (password !== confirm) {
-      setError(t('auth.passwordMismatch', 'Şifreler eşleşmiyor'));
+      setError(t('auth.passwordMismatch'));
       return;
     }
     setLoading(true);
@@ -73,7 +73,7 @@ export default function ResetPasswordPage() {
       }
       setDone(true);
     } catch (err: any) {
-      setError(err?.message || 'İşlem başarısız');
+      setError(err?.message || t('common.operationFailed'));
     } finally {
       setLoading(false);
     }
@@ -92,25 +92,25 @@ export default function ResetPasswordPage() {
               className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-4"
               data-lang={i18n.language}
             >
-              <ArrowLeft className="h-4 w-4" /> {t('back')}
+              <ArrowLeft className="h-4 w-4" /> {t('common.back')}
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('auth.resetPassword', 'Şifre Sıfırla')}</h1>
-            <p className="text-gray-600 mb-6">{t('auth.resetPasswordHelp', 'Yeni şifrenizi belirleyin.')}</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('auth.resetPassword')}</h1>
+            <p className="text-gray-600 mb-6">{t('auth.resetPasswordHelp')}</p>
 
             {done ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 flex items-center gap-2">
                 <CheckCircle className="h-5 w-5" />
                 <div>
-                  <div className="font-semibold">{t('auth.passwordResetSuccess', 'Şifreniz güncellendi')}</div>
+                  <div className="font-semibold">{t('auth.passwordResetSuccess')}</div>
                   <button onClick={() => (window.location.hash = 'login')} className="text-emerald-700 underline">
-                    {t('auth.goToLogin', 'Girişe dön')}
+                    {t('auth.goToLogin')}
                   </button>
                 </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.newPassword', 'Yeni Şifre')}</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.newPassword')}</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Lock className="h-5 w-5 text-gray-400" />
@@ -121,7 +121,7 @@ export default function ResetPasswordPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                      placeholder={t('auth.passwordPlaceholder', '••••••••')}
+                      placeholder={t('auth.passwordPlaceholder')}
                     />
                   </div>
                   {/* Strength meter */}
@@ -140,14 +140,14 @@ export default function ResetPasswordPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.confirmPassword', 'Şifreyi Doğrula')}</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.confirmPassword')}</label>
                   <input
                     type="password"
                     required
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     className="w-full pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder={t('auth.passwordPlaceholder', '••••••••')}
+                    placeholder={t('auth.passwordPlaceholder')}
                   />
                 </div>
                 {error && (
@@ -158,7 +158,7 @@ export default function ResetPasswordPage() {
                   disabled={loading}
                   className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? t('common.loading', 'Yükleniyor...') : t('auth.updatePassword', 'Şifreyi Güncelle')}
+                  {loading ? t('common.loading') : t('auth.updatePassword')}
                 </button>
               </form>
             )}

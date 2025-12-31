@@ -22,48 +22,48 @@ export const getErrorMessage = (error: unknown): string => {
     
     // Network error
     if (maybe.code === 'NETWORK_ERROR') {
-      return i18n.t('common.networkError', { defaultValue: 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.' });
+      return i18n.t('common.networkError');
     }
   }
   
   // Default error
-  return i18n.t('common.unexpectedError', { defaultValue: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
+  return i18n.t('common.unexpectedError');
 };
 
 // Error mesajlarını çevir
 const translateErrorMessage = (message: string): string => {
   // Mali dönem hataları için i18n kullan
   const fiscalPeriodErrors: Record<string, string> = {
-    'Fiscal period overlaps with existing period': i18n.t('fiscalPeriods.validation.periodOverlap', { defaultValue: 'Bu tarih aralığında zaten başka bir mali dönem tanımlı.' }),
-    'Period is already locked': i18n.t('fiscalPeriods.errors.periodLocked', { defaultValue: 'Bu dönem zaten kilitli durumda.' }),
-    'Period is not locked': i18n.t('fiscalPeriods.errors.unlockFailed', { defaultValue: 'Bu dönem zaten açık durumda.' }),
-    'Cannot delete a locked period': i18n.t('fiscalPeriods.errors.operationNotAllowed', { defaultValue: 'Kilitli dönem silinemez. Önce dönem kilidini açın.' }),
+    'Fiscal period overlaps with existing period': i18n.t('fiscalPeriods.validation.periodOverlap'),
+    'Period is already locked': i18n.t('fiscalPeriods.errors.periodLocked'),
+    'Period is not locked': i18n.t('fiscalPeriods.errors.unlockFailed'),
+    'Cannot delete a locked period': i18n.t('fiscalPeriods.errors.operationNotAllowed'),
   };
 
   const errorTranslations: Record<string, string> = {
     
     // Validation Errors
-    'Name already exists': 'Bu isim zaten kullanılıyor. Lütfen farklı bir isim seçin.',
-    'Invalid date range': 'Geçersiz tarih aralığı. Bitiş tarihi başlangıç tarihinden sonra olmalıdır.',
-    'Start date cannot be in the past': 'Başlangıç tarihi geçmişte olamaz.',
-    'End date must be after start date': 'Bitiş tarihi başlangıç tarihinden sonra olmalıdır.',
+    'Name already exists': i18n.t('common.apiErrors.nameAlreadyExists'),
+    'Invalid date range': i18n.t('common.apiErrors.invalidDateRange'),
+    'Start date cannot be in the past': i18n.t('common.apiErrors.startDatePast'),
+    'End date must be after start date': i18n.t('common.apiErrors.endDateAfterStart'),
     
     // Authentication Errors
-    'Unauthorized': 'Bu işlem için yetkiniz bulunmuyor. Lütfen giriş yapın.',
-    'Forbidden': 'Bu işlemi gerçekleştirme yetkiniz yok.',
-    'Invalid credentials': 'Kullanıcı adı veya şifre hatalı.',
-    'Token expired': 'Oturumunuz sona erdi. Lütfen tekrar giriş yapın.',
+    'Unauthorized': i18n.t('common.apiErrors.unauthorized'),
+    'Forbidden': i18n.t('common.apiErrors.forbidden'),
+    'Invalid credentials': i18n.t('common.apiErrors.invalidCredentials'),
+    'Token expired': i18n.t('common.apiErrors.tokenExpired'),
     
     // Network Errors
-    'Network Error': 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.',
-    'Request timeout': 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.',
-    'Server error': 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.',
+    'Network Error': i18n.t('common.networkError'),
+    'Request timeout': i18n.t('common.apiErrors.requestTimeout'),
+    'Server error': i18n.t('common.apiErrors.serverError'),
     
     // Generic Errors
-    'Not found': 'Aradığınız kayıt bulunamadı.',
-    'Bad request': 'Geçersiz istek. Lütfen girdiğiniz bilgileri kontrol edin.',
-    'Internal server error': 'Sunucu hatası. Lütfen tekrar deneyin.',
-    'Service unavailable': 'Servis şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
+    'Not found': i18n.t('common.apiErrors.notFound'),
+    'Bad request': i18n.t('common.apiErrors.badRequest'),
+    'Internal server error': i18n.t('common.apiErrors.internalServerError'),
+    'Service unavailable': i18n.t('common.apiErrors.serviceUnavailable')
   };
 
   // Check for fiscal period errors first
@@ -84,9 +84,7 @@ const translateErrorMessage = (message: string): string => {
   if (message.includes('Cannot modify records in locked period')) {
     const periodMatch = message.match(/"([^"]+)"/);
     const periodName = periodMatch ? periodMatch[1] : 'kilitli dönem';
-    return i18n.t('fiscalPeriods.errors.operationNotAllowed', { 
-      defaultValue: `${periodName} kilitli olduğu için işlem yapılamaz. Önce dönem kilidini açınız.` 
-    });
+    return i18n.t('fiscalPeriods.errors.operationNotAllowedWithPeriod', { periodName });
   }
 
   // Return original message if no translation found

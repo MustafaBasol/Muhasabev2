@@ -299,8 +299,35 @@
     "resendCooldown": "For security, a 60 second wait applies",
     "securityVerificationRequired": "Security verification required. Please complete the verification.",
     "emailNotVerified": "Email not verified yet. Please verify your email to continue.",
+    "mfaRequired": "Two-factor authentication required. Please enter your code.",
+    "mfaCodeLabel": "2FA Code",
+    "mfaCodePlaceholder": "6-digit TOTP or 8-character backup code",
+    "mfaCodeHelp": "Enter the code from Google Authenticator / 1Password.",
+    "verifyAndSignIn": "Verify and sign in",
+    "loginErrorGeneric": "An error occurred while signing in.",
     "verificationEmailSent": "Verification email sent. Please check your inbox.",
     "resendVerification": "Resend verification email",
+    "verificationTokenMissing": "Verification token not found.",
+    "emailVerified": "Email verified",
+    "redirectingToLogin": "Redirecting to the sign-in page...",
+    "verificationFailed": "Verification failed",
+    "backToStart": "Back to start",
+    "registerSuccessVerifyRequired": "Your account has been created. Please check your inbox and click the verification link.",
+    "registerSuccess": "Your account has been created successfully. You can sign in now.",
+    "registerErrorGeneric": "An error occurred during registration.",
+    "requiredFieldsError": "Please fill in all required fields.",
+    "passwordTooShort6": "Password must be at least 6 characters.",
+    "mustAcceptTerms": "You must accept the Terms of Service and Privacy Policy.",
+    "emailConflict": {
+      "title": "An account already exists for this email: {{email}}",
+      "prompt": "How would you like to continue?",
+      "optionSignInPrefix": "If you know your password,",
+      "optionSignInAction": "sign in",
+      "optionResetPrefix": "If you forgot your password,",
+      "optionResetAction": "request a password reset link",
+      "optionTryOther": "To create a new account, try a different email address.",
+      "securityNote": "For security reasons, we don't disclose which emails are registered; this notice is shown based on what you entered."
+    },
     "registerCta": "Create Account",
     "alreadyHaveAccount": "Already have an account?",
     "goToLogin": "Sign in",
@@ -319,14 +346,51 @@
     "add": "Add",
     "search": "Search",
     "close": "Close",
+    "unit": "Unit",
+    "totalExclVAT": "Total (Excl. VAT)",
     "backToHome": "Back to Home",
     "yes": "Yes",
     "no": "No",
     "loading": "Loading...",
+    "creating": "Creating...",
     "error": "Error",
+    "networkError": "Network error. Please check your internet connection.",
+    "unexpectedError": "An unexpected error occurred. Please try again.",
+    "operationFailed": "Operation failed. Please try again.",
+    "notSpecified": "Not specified",
     "success": "Success",
     "warning": "Warning",
     "ok": "OK",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
+    "noSupplier": "No supplier",
+    "audit": {
+      "createdBy": "Created by",
+      "createdAt": "Created at",
+      "updatedBy": "Last updated by",
+      "updatedAt": "Last updated"
+    },
+    "summary": {
+      "shown": "Shown",
+      "filtered": "Filtered",
+      "total": "Total"
+    },
+    "apiErrors": {
+      "nameAlreadyExists": "This name is already in use. Please choose a different name.",
+      "invalidDateRange": "Invalid date range. End date must be after start date.",
+      "startDatePast": "Start date cannot be in the past.",
+      "endDateAfterStart": "End date must be after start date.",
+      "unauthorized": "You are not authorized for this action. Please sign in.",
+      "forbidden": "You don't have permission to perform this action.",
+      "invalidCredentials": "Incorrect email or password.",
+      "tokenExpired": "Your session has expired. Please sign in again.",
+      "requestTimeout": "Request timed out. Please try again.",
+      "serverError": "Server error. Please try again later.",
+      "notFound": "The requested record was not found.",
+      "badRequest": "Invalid request. Please check your input.",
+      "internalServerError": "Server error. Please try again.",
+      "serviceUnavailable": "Service is currently unavailable. Please try again later."
+    },
     "periodLockedError": "This record cannot be deleted because it belongs to a locked fiscal period",
   "description": "Description",
   "dueDate": "Due Date",
@@ -417,7 +481,8 @@
       "expired": "Expired",
       "invoiced": "Invoiced",
       "created": "Created",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "unknown": "Unknown"
     },
     "notes": "Notes"
   },
@@ -549,17 +614,23 @@
       "details": "Quote Details"
     },
     "validUntil": "Valid Until",
+    "validityDays": "Validity (days)",
     "expiresIn": "(expires in {{days}} days)",
     "expiredOn": "(expired on {{date}})",
     "version": "v{{n}}",
-  "confirmAccept": "Are you sure you want to accept this quote?",
+  "confirmAccept": "Are you sure you want to accept this quote? This action cannot be undone.",
   "acceptedThanks": "Thanks, the quote has been accepted.",
   "confirmDecline": "Are you sure you want to decline this quote?",
   "declinedInfo": "The quote has been declined.",
     "duplicateConfirm": "Proceed with duplication?",
     "reviseConfirm": "Do you want to revise this quote? The current version will be archived and a new version will be created.",
     "createConfirm": "Are you sure you want to save this quote?",
+    "deleteConfirm": "Are you sure you want to delete quote {{quoteNumber}}? This action cannot be undone.",
     "saveConfirm": "Are you sure you want to save the changes?",
+    "locked": "Locked",
+    "lockedHint": "Accepted. This quote is locked.",
+    "lockedBanner": "This quote is accepted and locked. It cannot be edited or deleted.",
+    "revisionHistory": "Revision History",
     "actions": {
       "send": "Send",
       "accept": "Accept",
@@ -608,7 +679,9 @@
       "currency": "Currency",
       "date": "Issue Date",
       "amount": "Amount",
-      "create": "Create"
+      "create": "Create",
+      "customersFound": "{{count}} customers found",
+      "productsFound": "{{count}} products found"
     },
     "scopeOfWork": {
       "title": "Scope of Work",
@@ -782,10 +855,18 @@
     "actions": "Actions",
     "noProducts": "No products yet",
     "addFirstProduct": "Add your first product",
+    "noProductsYetDescription": "Start tracking your inventory by adding products. Your price, stock, and category information will appear here.",
+    "bulkSelectionInfo": "{{count}} products selected for bulk actions",
+    "clearSelections": "Clear selection",
+    "selectProductAriaLabel": "Select product: {{name}}",
     "edit": "Edit",
     "delete": "Delete",
     "deleteConfirm": "Are you sure you want to delete this product?",
     "manageCategories": "Manage Categories",
+    "import": {
+      "success": "{{count}} products imported successfully!",
+      "partial": "{{created}} products imported, {{failed}} failed."
+    },
     "totalProducts": "Total Products",
     "stockValue": "Stock Value",
     "totalStock": "Total Stock",
@@ -903,6 +984,14 @@
     "addAccountTip": "Use the button above to add a new account",
     "active": "Active",
     "passive": "Inactive",
+    "dateFilters": {
+      "thisMonth": "This month",
+      "thisQuarter": "This quarter",
+      "thisYear": "This year",
+      "lastYear": "Last year",
+      "all": "All",
+      "custom": "Custom range"
+    },
     "allSummed": "all summed",
     "accountTypes": {
       "all": "All",
@@ -924,8 +1013,14 @@
       "inactive": "Inactive"
     },
     "tooltips": {
-      "editHint": "Click on account row to edit"
+      "editHint": "Click on account row to edit",
+      "toggleStatus": "Click to change status",
+      "addSubAccount": "Add sub-account",
+      "deleteAccount": "Delete account"
     },
+    "activeDateRangeLabel": "Date filter:",
+    "deleteConfirm": "Are you sure you want to delete this account?",
+    "deleteHasChildrenError": "This account has sub-accounts. Delete sub-accounts first.",
     "accountNames": {
       "100": "CURRENT ASSETS",
       "101": "Cash",
@@ -953,11 +1048,13 @@
   },
   "invoices": {
     "title": "Invoices",
+    "unnamed": "Invoice",
     "newInvoice": "New Invoice",
     "editInvoice": "Edit Invoice",
     "enterInvoiceInfo": "Enter customer details and product details",
     "deleteConfirm": "Are you sure you want to delete this invoice?",
     "deleteSuccess": "Invoice deleted",
+    "noLineItemsError": "No line items found to transfer to the invoice.",
     "search": "Search invoice number or customer...",
     "filterAll": "All Statuses",
     "invoicesRegistered": "invoices registered",
@@ -978,6 +1075,12 @@
     "view": "View",
     "edit": "Edit",
     "download": "Download",
+    "cannotEditVoided": "Voided invoices cannot be edited",
+    "restore": "Restore",
+    "void": "Void Invoice",
+    "voidConfirm": "Are you sure you want to void invoice {{invoiceNumber}}?",
+    "voidReason": "Void Reason",
+    "voidReasonPlaceholder": "Explain the reason for voiding...",
     "delete": "Delete",
     "viewInvoice": "View invoice",
     "createInvoice": "Create Invoice",
@@ -1031,6 +1134,7 @@
   },
   "expenses": {
     "title": "Expenses",
+    "unnamed": "Expense",
     "newExpense": "New Expense",
     "deleteConfirm": "Are you sure you want to delete this expense?",
     "deleteSuccess": "Expense deleted",
@@ -1056,6 +1160,9 @@
     "delete": "Delete",
     "exportCsv": "Export CSV",
     "viewExpense": "View expense",
+    "information": "Expense information",
+    "receipt": "Receipt",
+    "viewReceipt": "View receipt",
     "enterExpenseDetails": "Enter expense details",
     "editExpense": "Edit Expense",
     "enterExpenseInfo": "Enter expense information",
@@ -1072,6 +1179,7 @@
   "customers": {
     "title": "Customers",
     "newCustomer": "New Customer",
+    "deleteConfirm": "Are you sure you want to delete this customer?",
     "search": "Search customers...",
     "customersRegistered": "customers registered",
     "noCustomers": "No customers yet",
@@ -1089,6 +1197,7 @@
     "downloadTemplate": "Download Template",
     "address": "Address",
     "emailPlaceholder": "customer@example.com",
+    "phonePlaceholder": "+1 555 123 4567",
     "addressPlaceholder": "Complete address information...",
     "addCustomer": "Add Customer",
     "selectFromList": "Select customer from list",
@@ -1111,11 +1220,24 @@
       "noCustomersFound": "No customers found to import in the file.",
       "success": "{{count}} customers imported successfully!",
       "error": "An error occurred during import."
+    },
+    "view": {
+      "subtitle": "Customer details",
+      "personalInfo": "Personal information",
+      "companyInfo": "Company information",
+      "addressInfo": "Address information",
+      "registeredAt": "Registered date",
+      "quickActions": "Quick actions",
+      "createInvoice": "Create invoice",
+      "viewHistory": "View history"
     }
   },
   "suppliers": {
     "title": "Suppliers",
     "newSupplier": "New Supplier",
+    "unnamed": "Supplier",
+    "noEmail": "No email",
+    "deleteConfirm": "Are you sure you want to delete this supplier?",
     "search": "Search suppliers...",
     "suppliersRegistered": "suppliers registered",
     "noSuppliers": "No suppliers yet",
@@ -1129,6 +1251,14 @@
     "totalExpenses": "Total Expenses",
     "totalAmount": "Total Amount",
     "actions": "Actions",
+    "categories": {
+      "officeSupplies": "Office Supplies",
+      "technology": "Technology",
+      "services": "Services",
+      "manufacturing": "Manufacturing",
+      "logistics": "Logistics",
+      "other": "Other"
+    },
     "modal": {
       "newTitle": "Add New Supplier",
       "editTitle": "Edit Supplier",
@@ -1178,6 +1308,13 @@
     },
     "ibanAutoFormat": "IBAN will be formatted automatically",
     "currentBalance": "Current Balance",
+    "viewDetails": "Bank account details",
+    "accountInformation": "Account Information",
+    "bankInformation": "Bank Information",
+    "openingDate": "Opening Date",
+    "quickActions": "Quick Actions",
+    "copyIban": "Copy IBAN",
+    "ibanCopied": "IBAN copied!",
     "currency": "Currency",
     "accountActive": "Account active",
     "addAccount": "Add Account",
@@ -1223,12 +1360,15 @@
     }
   },
   "common.remindMeLater": "Remind Me Later",
+  "common.details": "Details",
   "common.now": "Now",
   "common.generic": {
     "customer": "Customer",
     "supplier": "Supplier",
     "expense": "Expense",
-    "quote": "Quote"
+    "quote": "Quote",
+    "product": "Product",
+    "sale": "Sale"
   },
   "toasts": {
     "common": {
@@ -1237,6 +1377,7 @@
     "invoices": {
       "updateSuccess": "Invoice updated",
       "updateError": "Invoice could not be updated",
+      "createError": "Invoice could not be created",
       "createPartialError": "Invoice created, but sale record could not be created",
       "createWithSaleSuccess": "Invoice and sale created",
       "cancelSuccess": "Invoice voided",
@@ -1296,6 +1437,10 @@
       "assignmentInfo": "For category assignment, use the category layout on the left panel."
     },
     "bank": {
+      "updateSuccess": "Bank account updated",
+      "createSuccess": "Bank account added",
+      "deleteSuccess": "Bank account deleted",
+      "operationFailed": "Bank operation failed",
       "deleteError": "Bank account could not be deleted"
     },
     "quotes": {
@@ -1343,6 +1488,7 @@
     "title": "Sales",
     "newSale": "New Sale",
     "totalSales": "Total Sales",
+    "netSuffix": " (Net of VAT)",
     "totalSalesCount": "Total Sales Count",
     "completed": "Completed",
     "salesList": "Sales List",
@@ -1447,6 +1593,8 @@
     "avg": "Avg",
     "monthlyRevenueTrend": "Monthly Revenue Trend",
     "expenseAnalysis": "Expense Analysis",
+    "expenseExportHint": "Includes paid expenses only.",
+    "exportExpensesCsv": "Export CSV",
     "categoryBasedExpenses": "Category-Based Expenses",
     "expenses": "expenses",
     "monthlyExpenseTrend": "Monthly Expense Trend",
@@ -1519,6 +1667,9 @@
     "skuRequired": "SKU is required",
     "validPriceRequired": "Please enter a valid price",
     "validStockRequired": "Please enter a valid stock quantity"
+  },
+  "help": {
+    "searchPlaceholder": "Search help..."
   },
   "archive": {
     "title": "Archive",
@@ -2017,7 +2168,8 @@
       "loadFailed": "Failed to load fiscal periods",
       "periodLocked": "This fiscal period is locked and cannot be modified",
       "periodNotFound": "Fiscal period not found",
-      "operationNotAllowed": "This operation is not allowed for locked fiscal period"
+      "operationNotAllowed": "This operation is not allowed for locked fiscal period",
+      "operationNotAllowedWithPeriod": "This operation cannot be performed because {{periodName}} is locked. Please unlock the period first."
     },
     "success": {
       "created": "Fiscal period created successfully",

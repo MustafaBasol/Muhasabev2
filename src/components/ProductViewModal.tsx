@@ -12,6 +12,7 @@ import type { Product } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { safeLocalStorage } from '../utils/localStorageSafe';
+import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 
 type ProductWithMeta = Product & {
   createdByName?: string;
@@ -114,11 +115,11 @@ export default function ProductViewModal({ isOpen, onClose, product, onEdit }: P
             <div className="mt-3 grid gap-4 sm:grid-cols-2 text-xs text-gray-600">
               <div>
                 <div>{L.createdBy}: <span className="font-medium">{product.createdByName || '—'}</span></div>
-                <div>{L.createdAt}: <span className="font-medium">{product.createdAt ? new Date(product.createdAt).toLocaleString(toLocale(lang)) : '—'}</span></div>
+                <div>{L.createdAt}: <span className="font-medium">{product.createdAt ? formatAppDateTime(product.createdAt, { locale: toLocale(lang) }) : '—'}</span></div>
               </div>
               <div>
                 <div>{L.updatedBy}: <span className="font-medium">{product.updatedByName || '—'}</span></div>
-                <div>{L.updatedAt}: <span className="font-medium">{product.updatedAt ? new Date(product.updatedAt).toLocaleString(toLocale(lang)) : '—'}</span></div>
+                <div>{L.updatedAt}: <span className="font-medium">{product.updatedAt ? formatAppDateTime(product.updatedAt, { locale: toLocale(lang) }) : '—'}</span></div>
               </div>
             </div>
           </section>
@@ -128,7 +129,7 @@ export default function ProductViewModal({ isOpen, onClose, product, onEdit }: P
               <DetailItem icon={Tag} label={L.category} value={product.category || L.notSpecified} />
               <DetailItem icon={Barcode} label={L.sku} value={product.sku} />
               <DetailItem icon={Layers} label={L.unit} value={product.unit} />
-              <DetailItem icon={Calendar} label={L.registeredDate} value={new Date(product.createdAt).toLocaleDateString(toLocale(lang))} />
+              <DetailItem icon={Calendar} label={L.registeredDate} value={formatAppDate(product.createdAt)} />
             </div>
           </section>
 

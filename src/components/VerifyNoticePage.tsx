@@ -67,19 +67,19 @@ export default function VerifyNoticePage() {
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 text-center">
             <button onClick={() => (window.location.hash = 'login')} className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1 mb-4">
-              <ArrowLeft className="h-4 w-4" /> {t('common.back', 'Geri')}
+              <ArrowLeft className="h-4 w-4" /> {t('common.back')}
             </button>
             <div className="flex items-center justify-center mb-4">
               <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center">
                 <Mail className="h-8 w-8" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('auth.verifyYourEmail', 'E-postanızı doğrulayın')}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('auth.verifyYourEmail')}</h1>
             <p className="text-gray-600 mb-6">
               {email ? (
-                <>{t('auth.verifySentTo', 'Doğrulama bağlantısı e-posta adresinize gönderildi:')} <strong>{email}</strong></>
+                <>{t('auth.verifySentTo')} <strong>{email}</strong></>
               ) : (
-                t('auth.verifySent', 'E-posta adresinize doğrulama bağlantısı gönderdik.')
+                t('auth.verifySent')
               )}
             </p>
             <div className="flex flex-col items-center gap-3">
@@ -90,13 +90,10 @@ export default function VerifyNoticePage() {
               >
                 <RefreshCw className="h-4 w-4" />
                 {cooldown>0
-                  ? t('auth.resendIn', {
-                      seconds: cooldown,
-                      defaultValue: 'Tekrar göndermek için bekleyin: {{seconds}}s',
-                    })
-                  : t('auth.resend', 'Tekrar gönder')}
+                  ? t('auth.resendIn', { seconds: cooldown })
+                  : t('auth.resend')}
               </button>
-              <div className="text-xs text-gray-500 flex items-center gap-1"><Timer className="h-3 w-3" />{t('auth.resendCooldown', 'Güvenlik için 60 saniye bekleme uygulanır')}</div>
+              <div className="text-xs text-gray-500 flex items-center gap-1"><Timer className="h-3 w-3" />{t('auth.resendCooldown')}</div>
             </div>
           </div>
         </div>

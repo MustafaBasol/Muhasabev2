@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Edit, Mail, Phone, MapPin, Building2, User, Calendar, Tag } from 'lucide-react';
 import { safeLocalStorage } from '../utils/localStorageSafe';
+import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 
 interface Supplier {
   id: string;
@@ -66,7 +67,7 @@ export default function SupplierViewModal({
     edit: { tr:'Düzenle', en:'Edit', fr:'Modifier', de:'Bearbeiten' }[lang as 'tr'|'en'|'fr'|'de'] || 'Edit',
   };
 
-  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString(toLocale(lang));
+  const formatDate = (dateString: string) => formatAppDate(dateString);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -104,7 +105,7 @@ export default function SupplierViewModal({
               </div>
               <div>
                 <span className="text-gray-500">{L.createdAt}:</span>{' '}
-                <span className="font-medium">{supplier.createdAt ? new Date(supplier.createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{supplier.createdAt ? formatAppDateTime(supplier.createdAt, { locale: toLocale(lang) }) : '—'}</span>
               </div>
             </div>
             <div>
@@ -114,7 +115,7 @@ export default function SupplierViewModal({
               </div>
               <div>
                 <span className="text-gray-500">{L.updatedAt}:</span>{' '}
-                <span className="font-medium">{(supplier as any).updatedAt ? new Date((supplier as any).updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{(supplier as any).updatedAt ? formatAppDateTime((supplier as any).updatedAt, { locale: toLocale(lang) }) : '—'}</span>
               </div>
             </div>
           </div>

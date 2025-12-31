@@ -16,6 +16,7 @@ import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
 import { DEFAULT_TAX_RATE, resolveProductTaxRate } from '../utils/tax';
+import { formatAppDate } from '../utils/dateFormat';
 
 
 
@@ -362,15 +363,8 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     if (!dateString) return '—';
     const parsed = new Date(dateString);
     if (Number.isNaN(parsed.getTime())) return '—';
-    const language = i18n.language || 'en';
-    const locale = language.startsWith('tr') ? 'tr-TR' : language;
-    try {
-      return parsed.toLocaleDateString(locale);
-    } catch (error) {
-      logger.warn('Failed to format sale date', { dateString, error });
-      return parsed.toLocaleDateString('en-US');
-    }
-  }, [i18n.language]);
+    return formatAppDate(parsed);
+  }, []);
 
   const getPaymentMethodLabel = useCallback((method?: Sale['paymentMethod']) => {
     if (!method) return '';
@@ -392,12 +386,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
   const totalSales = sales.reduce((sum, sale) => sum + resolveSaleTotal(sale), 0);
   const completedSales = sales.filter(sale => sale.status === 'completed').length;
 
-  // Dil bazlı net satış etiketi suffix'i
-  const lang = (i18n.language || '').toLowerCase();
-  const netSuffix = lang.startsWith('tr') ? ' (KDV Hariç)' :
-    lang.startsWith('en') ? ' (Net of VAT)' :
-    lang.startsWith('fr') ? ' (HT)' :
-    lang.startsWith('de') ? ' (netto)' : '';
+  const netSuffix = t('sales.netSuffix');
 
   const filteredSales = sales
     .filter(sale => {
@@ -455,19 +444,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
     Boolean(startDate) ||
     Boolean(endDate);
 
-  const summaryPrefix = (() => {
-    const language = String(i18n.language || '').toLowerCase();
-    if (filtersActive) {
-      if (language.startsWith('tr')) return 'Filtreli';
-      if (language.startsWith('de')) return 'Gefiltert';
-      if (language.startsWith('fr')) return 'Filtré';
-      return 'Filtered';
-    }
-    if (language.startsWith('tr')) return 'Gösterilen';
-    if (language.startsWith('de')) return 'Angezeigt';
-    if (language.startsWith('fr')) return 'Affiché';
-    return 'Shown';
-  })();
+  const summaryPrefix = filtersActive ? t('summary.filtered') : t('summary.shown');
 
   const filteredTotalSales = useMemo(() => {
     return filteredSales.reduce((sum, sale) => sum + resolveSaleTotal(sale), 0);
@@ -487,13 +464,13 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
 
     try {
       const headers = [
-        t('sales.sale', { defaultValue: 'Sale' }),
-        t('sales.customer', { defaultValue: 'Customer' }),
-        t('sales.productService', { defaultValue: 'Product/Service' }),
-        t('sales.amount', { defaultValue: 'Amount' }),
-        t('sales.status', { defaultValue: 'Status' }),
-        t('sales.date', { defaultValue: 'Date' }),
-        t('sales.paymentMethod', { defaultValue: 'Payment Method' }),
+        t('sales.sale'),
+        t('sales.customer'),
+        t('sales.productService'),
+        t('sales.amount'),
+        t('sales.status'),
+        t('sales.date'),
+        t('sales.paymentMethod'),
       ];
 
       const rows = filteredSales.map((sale) => {
@@ -956,7 +933,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
               >
                 <Download className="w-4 h-4" />
-                <span>{t('sales.exportCsv', { defaultValue: 'Export CSV' })}</span>
+                <span>{t('sales.exportCsv')}</span>
               </button>
             </div>
           </div>
@@ -998,10 +975,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 xl:w-56"
               >
                 <option value="all">
-                  {i18n.language === 'tr' ? 'Tüm Durumlar' : 
-                   i18n.language === 'en' ? 'All Statuses' :
-                   i18n.language === 'de' ? 'Alle Status' :
-                   i18n.language === 'fr' ? 'Tous les Statuts' : 'All Statuses'}
+                  {t('common.allStatuses')}
                 </option>
                 <option value="completed">{resolveStatusLabel(t, 'completed')}</option>
                 <option value="pending">{resolveStatusLabel(t, 'pending')}</option>
@@ -1493,14 +1467,14 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 onClick={() => handleConfirmSale(false)}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                {t('sales.recordOnlySale', { defaultValue: 'Only Sale' })}
+                {t('sales.recordOnlySale')}
               </button>
               <button
                 onClick={() => handleConfirmSale(true)}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
               >
                 <FileText className="w-4 h-4" />
-                <span>{t('sales.recordSaleWithInvoice', { defaultValue: 'Sale with Invoice' })}</span>
+                <span>{t('sales.recordSaleWithInvoice')}</span>
               </button>
             </div>
           </div>
@@ -1528,7 +1502,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
             // PDF generator için customer bilgilerini tamamla
             const invoiceWithCustomer = {
               ...invoice,
-              customerName: invoice.customer?.name || invoice.customerName || 'Müşteri Yok',
+              customerName: invoice.customer?.name || invoice.customerName || t('noCustomer'),
               customerEmail: invoice.customer?.email || invoice.customerEmail || '',
               customerAddress: invoice.customer?.address || invoice.customerAddress || '',
             };
@@ -1615,12 +1589,12 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                 {isCreatingInvoice ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{t('sales.creatingInvoice', { defaultValue: 'Creating...' })}</span>
+                    <span>{t('sales.creatingInvoice')}</span>
                   </>
                 ) : (
                   <>
                     <FileText className="w-4 h-4" />
-                    <span>{t('sales.confirmInvoiceAction', { defaultValue: 'Yes, Create' })}</span>
+                    <span>{t('sales.confirmInvoiceAction')}</span>
                   </>
                 )}
               </button>

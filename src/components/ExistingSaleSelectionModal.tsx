@@ -6,6 +6,7 @@ import type { Invoice, Sale } from '../types';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
 import { normalizeText, toNumberSafe } from '../utils/sortAndSearch';
+import { formatAppDate } from '../utils/dateFormat';
 
 interface ExistingSaleSelectionModalProps {
   isOpen: boolean;
@@ -75,9 +76,7 @@ export default function ExistingSaleSelectionModal({
 
   const formatDate = (value?: string | number | Date | null) => {
     if (!value) return '—';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString(locale);
+    return formatAppDate(value);
   };
 
   if (!isOpen) return null;

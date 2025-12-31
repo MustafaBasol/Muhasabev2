@@ -41,7 +41,7 @@ const Pagination: React.FC<PaginationProps> = ({
   return (
     <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${className}`}>
       <div className="flex items-center gap-2 text-sm text-gray-700">
-        <span>{t('pagination.itemsPerPage', { defaultValue: 'Sayfa başına' })}:</span>
+        <span>{t('pagination.itemsPerPage')}:</span>
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
@@ -51,7 +51,7 @@ const Pagination: React.FC<PaginationProps> = ({
             <option key={opt} value={opt}>{opt}</option>
           ))}
         </select>
-        <span className="ml-2 text-gray-500">{t('pagination.range', { start, end, total, defaultValue: `${start}-${end} / ${total}` })}</span>
+        <span className="ml-2 text-gray-500">{t('pagination.range', { start, end, total })}</span>
       </div>
       <div className="flex items-center gap-1">
         <button
@@ -59,7 +59,7 @@ const Pagination: React.FC<PaginationProps> = ({
           disabled={page <= 1}
           className={`px-3 py-1.5 text-sm rounded-lg border ${page <= 1 ? 'text-gray-300 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
         >
-          {t('pagination.previous', { defaultValue: 'Önceki' })}
+          {t('pagination.previous')}
         </button>
         {startPage > 1 && (
           <>
@@ -93,7 +93,7 @@ const Pagination: React.FC<PaginationProps> = ({
           disabled={page >= totalPages}
           className={`px-3 py-1.5 text-sm rounded-lg border ${page >= totalPages ? 'text-gray-300 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
         >
-          {t('pagination.next', { defaultValue: 'Sonraki' })}
+          {t('pagination.next')}
         </button>
       </div>
     </div>

@@ -19,6 +19,10 @@
       "cancelSubscriptionConfirm": "Möchten Sie das Abonnement für {{name}} wirklich kündigen?",
       "dangerDeleteTenantConfirm": "Achtung! Möchten Sie den Mandanten '{{name}}' dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden."
     },
+    "noProductsYetDescription": "Fügen Sie Produkte hinzu, um Ihren Bestand zu verfolgen. Preis-, Lager- und Kategorieinformationen erscheinen hier.",
+    "bulkSelectionInfo": "{{count}} Produkte für Massenaktionen ausgewählt",
+    "clearSelections": "Auswahl aufheben",
+    "selectProductAriaLabel": "Produkt auswählen: {{name}}",
     "backups": {
       "deleteConfirm": "Möchten Sie dieses Backup wirklich löschen?",
       "deleteOlderThanConfirm": "Möchten Sie alle Backups löschen, die älter als {{days}} Tage sind?",
@@ -31,6 +35,8 @@
         "emailLabel": "E-Mail",
     "footer.product": "PRODUKT",
     "footer.company": "UNTERNEHMEN",
+      "copied": "Kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen",
     "footer.support": "SUPPORT",
     "footer.legal": "RECHTLICHES",
     "footer.features": "Funktionen",
@@ -828,8 +834,35 @@
       "resendCooldown": "Aus Sicherheitsgründen gilt eine Wartezeit von 60 Sekunden",
     "securityVerificationRequired": "Sicherheitsüberprüfung erforderlich. Bitte schließen Sie die Verifizierung ab.",
     "emailNotVerified": "E-Mail noch nicht verifiziert. Bitte bestätigen Sie Ihre E-Mail, bevor Sie sich anmelden.",
+    "mfaRequired": "Zwei-Faktor-Authentifizierung erforderlich. Bitte geben Sie Ihren Code ein.",
+    "mfaCodeLabel": "2FA-Code",
+    "mfaCodePlaceholder": "6-stelliger TOTP oder 8-stelliger Backup-Code",
+    "mfaCodeHelp": "Geben Sie den Code aus Google Authenticator / 1Password ein.",
+    "verifyAndSignIn": "Verifizieren und anmelden",
+    "loginErrorGeneric": "Beim Anmelden ist ein Fehler aufgetreten.",
     "verificationEmailSent": "Bestätigungs-E-Mail gesendet. Bitte prüfen Sie Ihr Postfach.",
     "resendVerification": "Bestätigungs-E-Mail erneut senden",
+    "verificationTokenMissing": "Bestätigungs-Token nicht gefunden.",
+    "emailVerified": "E-Mail bestätigt",
+    "redirectingToLogin": "Weiterleitung zur Anmeldeseite...",
+    "verificationFailed": "Bestätigung fehlgeschlagen",
+    "backToStart": "Zurück zum Start",
+    "registerSuccessVerifyRequired": "Ihr Konto wurde erstellt. Bitte prüfen Sie Ihr Postfach und klicken Sie auf den Bestätigungslink.",
+    "registerSuccess": "Ihr Konto wurde erfolgreich erstellt. Sie können sich jetzt anmelden.",
+    "registerErrorGeneric": "Bei der Registrierung ist ein Fehler aufgetreten.",
+    "requiredFieldsError": "Bitte füllen Sie alle Pflichtfelder aus.",
+    "passwordTooShort6": "Das Passwort muss mindestens 6 Zeichen lang sein.",
+    "mustAcceptTerms": "Sie müssen die Nutzungsbedingungen und die Datenschutzrichtlinie akzeptieren.",
+    "emailConflict": {
+      "title": "Für diese E-Mail existiert bereits ein Konto: {{email}}",
+      "prompt": "Wie möchten Sie fortfahren?",
+      "optionSignInPrefix": "Wenn Sie Ihr Passwort kennen,",
+      "optionSignInAction": "melden Sie sich an",
+      "optionResetPrefix": "Wenn Sie Ihr Passwort vergessen haben,",
+      "optionResetAction": "fordern Sie einen Zurücksetz-Link an",
+      "optionTryOther": "Um ein neues Konto zu erstellen, versuchen Sie es mit einer anderen E-Mail-Adresse.",
+      "securityNote": "Aus Sicherheitsgründen geben wir nicht preis, welche E-Mails registriert sind; dieser Hinweis basiert auf Ihrer Eingabe."
+    },
     "registerCta": "Konto erstellen",
     "alreadyHaveAccount": "Bereits ein Konto?",
     "goToLogin": "Anmelden",
@@ -847,15 +880,50 @@
     "add": "Hinzufügen",
     "search": "Suchen",
     "close": "Schließen",
+    "unit": "Einheit",
+    "totalExclVAT": "Summe (ohne MwSt.)",
     "back": "Zurück",
     "backToHome": "Zurück zur Startseite",
     "yes": "Ja",
     "no": "Nein",
     "loading": "Laden...",
+    "creating": "Wird erstellt...",
     "error": "Fehler",
+    "networkError": "Netzwerkfehler. Bitte prüfen Sie Ihre Internetverbindung.",
+    "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+    "operationFailed": "Vorgang fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "notSpecified": "Nicht angegeben",
     "success": "Erfolg",
     "warning": "Warnung",
     "ok": "OK",
+    "noSupplier": "Kein Lieferant",
+    "audit": {
+      "createdBy": "Erstellt von",
+      "createdAt": "Erstellt am",
+      "updatedBy": "Zuletzt aktualisiert von",
+      "updatedAt": "Zuletzt aktualisiert"
+    },
+    "summary": {
+      "shown": "Angezeigt",
+      "filtered": "Gefiltert",
+      "total": "Summe"
+    },
+    "apiErrors": {
+      "nameAlreadyExists": "Dieser Name wird bereits verwendet. Bitte wählen Sie einen anderen.",
+      "invalidDateRange": "Ungültiger Datumsbereich. Das Enddatum muss nach dem Startdatum liegen.",
+      "startDatePast": "Das Startdatum darf nicht in der Vergangenheit liegen.",
+      "endDateAfterStart": "Das Enddatum muss nach dem Startdatum liegen.",
+      "unauthorized": "Für diese Aktion sind Sie nicht autorisiert. Bitte melden Sie sich an.",
+      "forbidden": "Sie haben keine Berechtigung für diese Aktion.",
+      "invalidCredentials": "E‑Mail oder Passwort ist falsch.",
+      "tokenExpired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+      "requestTimeout": "Zeitüberschreitung der Anfrage. Bitte versuchen Sie es erneut.",
+      "serverError": "Serverfehler. Bitte versuchen Sie es später erneut.",
+      "notFound": "Der angeforderte Datensatz wurde nicht gefunden.",
+      "badRequest": "Ungültige Anfrage. Bitte prüfen Sie Ihre Eingaben.",
+      "internalServerError": "Serverfehler. Bitte versuchen Sie es erneut.",
+      "serviceUnavailable": "Der Dienst ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut."
+    },
     "periodLockedError": "Dieser Datensatz kann nicht gelöscht werden, da er zu einem gesperrten Geschäftsjahr gehört",
     "description": "Beschreibung",
     "dueDate": "Fälligkeitsdatum",
@@ -1061,15 +1129,21 @@
     "search": "Angebote suchen...",
     "filterAll": "Alle Status",
     "validUntil": "Gültig bis",
+    "validityDays": "Gültigkeit (Tage)",
     "expiresIn": "(läuft in {{days}} Tagen ab)",
     "expiredOn": "(abgelaufen am {{date}})",
     "version": "v{{n}}",
-    "confirmAccept": "Sind Sie sicher, dass Sie dieses Angebot annehmen möchten?",
+    "confirmAccept": "Sind Sie sicher, dass Sie dieses Angebot annehmen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
     "acceptedThanks": "Danke, das Angebot wurde angenommen.",
     "confirmDecline": "Sind Sie sicher, dass Sie dieses Angebot ablehnen möchten?",
     "declinedInfo": "Das Angebot wurde abgelehnt.",
     "createConfirm": "Möchten Sie dieses Angebot wirklich speichern?",
+    "deleteConfirm": "Möchten Sie das Angebot {{quoteNumber}} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
     "saveConfirm": "Möchten Sie die Änderungen wirklich speichern?",
+    "locked": "Gesperrt",
+    "lockedHint": "Angenommen. Dieses Angebot ist gesperrt.",
+    "lockedBanner": "Dieses Angebot wurde angenommen und ist gesperrt. Es kann nicht bearbeitet oder gelöscht werden.",
+    "revisionHistory": "Versionsverlauf",
     "duplicateConfirm": "Mit der Duplizierung fortfahren?",
     "reviseConfirm": "Möchten Sie dieses Angebot überarbeiten? Die aktuelle Version wird archiviert und eine neue Version wird erstellt.",
     "viewModal": {
@@ -1124,7 +1198,9 @@
       "date": "Ausstellungsdatum",
       "validUntil": "Gültig bis",
       "amount": "Betrag",
-      "create": "Erstellen"
+      "create": "Erstellen",
+      "customersFound": "{{count}} Kunden gefunden",
+      "productsFound": "{{count}} Produkte gefunden"
     },
     "scopeOfWork": {
       "title": "Leistungsumfang",
@@ -1174,7 +1250,8 @@
     "expired": "Abgelaufen",
     "invoiced": "Fakturiert",
     "created": "Erstellt",
-    "refunded": "Erstattet"
+    "refunded": "Erstattet",
+    "unknown": "Unbekannt"
   },
   "invoice": {
     "details": "Rechnungsdetails",
@@ -1279,6 +1356,10 @@
     "delete": "Löschen",
     "deleteConfirm": "Sind Sie sicher, dass Sie dieses Produkt löschen möchten?",
     "manageCategories": "Kategorien Verwalten",
+    "import": {
+      "success": "{{count}} Produkte wurden erfolgreich importiert!",
+      "partial": "{{created}} Produkte importiert, {{failed}} fehlgeschlagen."
+    },
     "totalProducts": "Produkte Gesamt",
     "stockValue": "Lagerwert",
     "totalStock": "Gesamtbestand",
@@ -1396,6 +1477,14 @@
     "addAccountTip": "Verwenden Sie die Schaltfläche oben, um ein neues Konto hinzuzufügen",
     "active": "Aktiv",
     "passive": "Inaktiv",
+    "dateFilters": {
+      "thisMonth": "Diesen Monat",
+      "thisQuarter": "Dieses Quartal",
+      "thisYear": "Dieses Jahr",
+      "lastYear": "Letztes Jahr",
+      "all": "Alle",
+      "custom": "Benutzerdefinierter Zeitraum"
+    },
     "allSummed": "alle summiert",
     "accountTypes": {
       "all": "Alle",
@@ -1417,8 +1506,14 @@
       "inactive": "Inaktiv"
     },
     "tooltips": {
-      "editHint": "Klicken Sie auf die Kontozeile zum Bearbeiten"
+      "editHint": "Klicken Sie auf die Kontozeile zum Bearbeiten",
+      "toggleStatus": "Klicken, um den Status zu ändern",
+      "addSubAccount": "Unterkonto hinzufügen",
+      "deleteAccount": "Konto löschen"
     },
+    "activeDateRangeLabel": "Datumsfilter:",
+    "deleteConfirm": "Möchten Sie dieses Konto wirklich löschen?",
+    "deleteHasChildrenError": "Dieses Konto hat Unterkonten. Löschen Sie zuerst die Unterkonten.",
     "accountNames": {
       "100": "UMLAUFVERMÖGEN",
       "101": "Kasse",
@@ -1446,11 +1541,13 @@
   },
   "invoices": {
     "title": "Rechnungen",
+    "unnamed": "Rechnung",
     "newInvoice": "Neue Rechnung",
     "editInvoice": "Rechnung Bearbeiten",
     "enterInvoiceInfo": "Geben Sie Kundendaten und Produktdetails ein",
     "deleteConfirm": "Sind Sie sicher, dass Sie diese Rechnung löschen möchten?",
     "deleteSuccess": "Rechnung gelöscht",
+    "noLineItemsError": "Keine Positionen zum Übertragen in die Rechnung gefunden.",
     "search": "Rechnungsnummer oder Kunde suchen...",
     "filterAll": "Alle Status",
     "invoicesRegistered": "Rechnungen registriert",
@@ -1471,6 +1568,12 @@
     "view": "Anzeigen",
     "edit": "Bearbeiten",
     "download": "Herunterladen",
+    "cannotEditVoided": "Stornierte Rechnung kann nicht bearbeitet werden",
+    "restore": "Wiederherstellen",
+    "void": "Rechnung stornieren",
+    "voidConfirm": "Möchten Sie die Rechnung {{invoiceNumber}} wirklich stornieren?",
+    "voidReason": "Stornogrund",
+    "voidReasonPlaceholder": "Bitte den Stornogrund erläutern...",
     "delete": "Löschen",
     "viewInvoice": "Rechnung anzeigen",
     "createInvoice": "Rechnung Erstellen",
@@ -1523,6 +1626,7 @@
   },
   "expenses": {
     "title": "Ausgaben",
+    "unnamed": "Ausgabe",
     "newExpense": "Neue Ausgabe",
     "deleteConfirm": "Sind Sie sicher, dass Sie diese Ausgabe löschen möchten?",
     "deleteSuccess": "Ausgabe gelöscht",
@@ -1547,6 +1651,9 @@
     "download": "Herunterladen",
     "delete": "Löschen",
     "viewExpense": "Ausgabe anzeigen",
+    "information": "Ausgabeninformationen",
+    "receipt": "Beleg",
+    "viewReceipt": "Beleg anzeigen",
     "enterExpenseDetails": "Ausgabedetails eingeben",
     "editExpense": "Ausgabe Bearbeiten",
     "enterExpenseInfo": "Ausgabeinformationen eingeben",
@@ -1564,6 +1671,7 @@
   "customers": {
     "title": "Kunden",
     "newCustomer": "Neuer Kunde",
+    "deleteConfirm": "Sind Sie sicher, dass Sie diesen Kunden löschen möchten?",
     "search": "Kunden suchen...",
     "customersRegistered": "Kunden registriert",
     "noCustomers": "Noch keine Kunden",
@@ -1581,6 +1689,7 @@
     "downloadTemplate": "Vorlage Herunterladen",
     "address": "Adresse",
     "emailPlaceholder": "kunde@example.com",
+    "phonePlaceholder": "+49 151 23456789",
     "addressPlaceholder": "Vollständige Adressinformationen...",
     "addCustomer": "Kunde Hinzufügen",
     "selectFromList": "Kunde aus Liste auswählen",
@@ -1603,11 +1712,24 @@
       "title": "Doppelte E‑Mail gefunden",
       "message": "Ein Kunde ist bereits mit dieser E‑Mail ({{email}}) registriert: {{name}}. Bitte wählen oder bearbeiten Sie den bestehenden Eintrag.",
       "openExisting": "Bestehenden Kunden öffnen"
+    },
+    "view": {
+      "subtitle": "Kundendetails",
+      "personalInfo": "Persönliche Informationen",
+      "companyInfo": "Unternehmensinformationen",
+      "addressInfo": "Adressinformationen",
+      "registeredAt": "Registrierungsdatum",
+      "quickActions": "Schnellaktionen",
+      "createInvoice": "Rechnung erstellen",
+      "viewHistory": "Verlauf anzeigen"
     }
   },
   "suppliers": {
     "title": "Lieferanten",
     "newSupplier": "Neuer Lieferant",
+    "unnamed": "Lieferant",
+    "noEmail": "Keine E-Mail",
+    "deleteConfirm": "Sind Sie sicher, dass Sie diesen Lieferanten löschen möchten?",
     "search": "Lieferanten suchen...",
     "suppliersRegistered": "Lieferanten registriert",
     "noSuppliers": "Noch keine Lieferanten",
@@ -1621,6 +1743,14 @@
     "totalExpenses": "Ausgaben Gesamt",
     "totalAmount": "Gesamtbetrag",
     "actions": "Aktionen",
+    "categories": {
+      "officeSupplies": "Büromaterial",
+      "technology": "Technologie",
+      "services": "Dienstleistungen",
+      "manufacturing": "Fertigung",
+      "logistics": "Logistik",
+      "other": "Sonstiges"
+    },
     "modal": {
       "newTitle": "Neuen Lieferanten hinzufügen",
       "editTitle": "Lieferanten bearbeiten",
@@ -1670,6 +1800,13 @@
     },
     "ibanAutoFormat": "IBAN wird automatisch formatiert",
     "currentBalance": "Aktueller Saldo",
+    "viewDetails": "Bankkontodetails",
+    "accountInformation": "Kontoinformationen",
+    "bankInformation": "Bankinformationen",
+    "openingDate": "Eröffnungsdatum",
+    "quickActions": "Schnellaktionen",
+    "copyIban": "IBAN kopieren",
+    "ibanCopied": "IBAN kopiert!",
     "currency": "Währung",
     "accountActive": "Konto aktiv",
     "addAccount": "Konto Hinzufügen",
@@ -1778,12 +1915,15 @@
     }
   },
   "common.remindMeLater": "Später Erinnern",
+  "common.details": "Details",
   "common.now": "Jetzt",
   "common.generic": {
     "customer": "Kunde",
     "supplier": "Lieferant",
     "expense": "Ausgabe",
-    "quote": "Angebot"
+    "quote": "Angebot",
+    "product": "Produkt",
+    "sale": "Verkauf"
   },
   "toasts": {
     "common": {
@@ -1792,6 +1932,7 @@
     "invoices": {
       "updateSuccess": "Rechnung aktualisiert",
       "updateError": "Rechnung konnte nicht aktualisiert werden",
+      "createError": "Rechnung konnte nicht erstellt werden",
       "createPartialError": "Rechnung erstellt, aber Verkauf konnte nicht erstellt werden",
       "createWithSaleSuccess": "Rechnung und Verkauf erstellt",
       "cancelSuccess": "Rechnung storniert",
@@ -1851,6 +1992,10 @@
       "assignmentInfo": "Für die Kategoriezuteilung verwenden Sie das Kategoriemenü im linken Bereich."
     },
     "bank": {
+      "updateSuccess": "Bankkonto aktualisiert",
+      "createSuccess": "Bankkonto hinzugefügt",
+      "deleteSuccess": "Bankkonto gelöscht",
+      "operationFailed": "Bankvorgang fehlgeschlagen",
       "deleteError": "Bank konnte nicht gelöscht werden"
     },
     "quotes": {
@@ -1981,6 +2126,8 @@
     "avg": "Ø",
     "monthlyRevenueTrend": "Monatlicher Umsatztrend",
     "expenseAnalysis": "Ausgabenanalyse",
+    "expenseExportHint": "Enthält nur bezahlte Ausgaben.",
+    "exportExpensesCsv": "CSV exportieren",
     "categoryBasedExpenses": "Kategoriebasierte Ausgaben",
     "expenses": "Ausgaben",
     "monthlyExpenseTrend": "Monatlicher Ausgabentrend",
@@ -2135,6 +2282,9 @@
     "validStockRequired": "Bitte geben Sie eine gültige Lagermenge ein",
     "descriptionRequired": "Bitte geben Sie eine Beschreibung ein",
     "amountRequired": "Bitte geben Sie einen gültigen Betrag ein"
+  },
+  "help": {
+    "searchPlaceholder": "Hilfe durchsuchen..."
   },
   "legal": {
     "terms": {
@@ -2552,7 +2702,8 @@
       "loadFailed": "Geschäftsjahre konnten nicht geladen werden",
       "periodLocked": "Dieses Geschäftsjahr ist gesperrt und kann nicht geändert werden",
       "periodNotFound": "Geschäftsjahr nicht gefunden",
-      "operationNotAllowed": "Diese Operation ist für gesperrte Geschäftsjahre nicht erlaubt"
+      "operationNotAllowed": "Diese Operation ist für gesperrte Geschäftsjahre nicht erlaubt",
+      "operationNotAllowedWithPeriod": "Diese Aktion ist nicht möglich, da {{periodName}} gesperrt ist. Bitte entsperren Sie die Periode zuerst."
     },
     "success": {
       "created": "Geschäftsjahr erfolgreich erstellt",
@@ -2623,6 +2774,7 @@
         "owner": "Inhaber",
         "admin": "Administrator",
         "member": "Mitglied",
+        "netSuffix": " (netto)",
         "viewer": "Betrachter",
         "OWNER": "Inhaber",
         "ADMIN": "Administrator",

@@ -23,9 +23,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onCancel,
 }) => {
   const { t } = useTranslation('common');
-  const titleText = title ?? t('confirm', { defaultValue: 'Onay' });
-  const confirmTextResolved = confirmText ?? t('yes', { defaultValue: 'Evet' });
-  const cancelTextResolved = cancelText ?? t('cancel', { defaultValue: 'İptal' });
+  const titleText = title ?? t('confirm');
+  const confirmTextResolved = confirmText ?? t('yes');
+  const cancelTextResolved = cancelText ?? t('cancel');
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

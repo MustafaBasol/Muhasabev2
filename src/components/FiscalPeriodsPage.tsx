@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Lock, Unlock, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { formatAppDate } from '../utils/dateFormat';
 import apiClient from '../api/client';
 
 interface FiscalPeriod {
@@ -192,7 +193,7 @@ const FiscalPeriodsPage: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+    return formatAppDate(dateString);
   };
 
   if (loading) {

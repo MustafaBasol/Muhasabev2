@@ -69,6 +69,7 @@ const CookiePolicy: React.FC = () => {
         email: "E-posta",
         cmp: "Çerez Yönetimi",
         cmpNote: "Yukarıdaki butonu kullanarak tercihlerinizi değiştirebilirsiniz",
+        dataProtection: "Veri Koruma",
         privacyEmail: COMPANY_LEGAL.dataProtectionEmail || 'privacy@comptario.com'
       },
       backToApp: "Uygulamaya Geri Dön"
@@ -118,6 +119,7 @@ const CookiePolicy: React.FC = () => {
         email: "Email",
         cmp: "Cookie Management",
         cmpNote: "You can change your preferences using the button above",
+        dataProtection: "Data Protection",
         privacyEmail: COMPANY_LEGAL.dataProtectionEmail || 'privacy@comptario.com'
       },
       backToApp: "Back to App"
@@ -167,6 +169,7 @@ const CookiePolicy: React.FC = () => {
         email: "E-Mail",
         cmp: "Cookie-Verwaltung",
         cmpNote: "Sie können Ihre Einstellungen über die obige Schaltfläche ändern",
+        dataProtection: "Datenschutz",
         privacyEmail: COMPANY_LEGAL.dataProtectionEmail || 'privacy@comptario.com'
       },
       backToApp: "Zurück zur App"
@@ -216,6 +219,7 @@ const CookiePolicy: React.FC = () => {
         email: "Email",
         cmp: "Gestion des cookies",
         cmpNote: "Vous pouvez modifier vos préférences en utilisant le bouton ci-dessus",
+        dataProtection: "Protection des données",
         privacyEmail: COMPANY_LEGAL.dataProtectionEmail || 'privacy@comptario.com'
       },
       backToApp: "Retour à l'application"
@@ -361,7 +365,7 @@ const CookiePolicy: React.FC = () => {
                   <strong>{activeContent.contact.cmp}:</strong> {activeContent.contact.cmpNote}
                 </p>
                 <p className="text-gray-700 mb-2">
-                  <strong>{currentLang.startsWith('tr') ? 'Veri Koruma:' : currentLang.startsWith('de') ? 'Datenschutz:' : currentLang.startsWith('fr') ? 'Protection des données :' : 'Data Protection:'}</strong> {activeContent.contact.privacyEmail}
+                  <strong>{activeContent.contact.dataProtection}:</strong> {activeContent.contact.privacyEmail}
                 </p>
               </div>
             </section>

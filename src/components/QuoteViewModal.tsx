@@ -6,6 +6,7 @@ import { sanitizeRteHtml } from '../utils/security';
 import ConfirmModal from './ConfirmModal';
 import { logger } from '../utils/logger';
 import { safeLocalStorage } from '../utils/localStorageSafe';
+import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 import type {
   Quote as QuoteApiModel,
   QuoteStatus as QuoteApiStatus,
@@ -98,12 +99,12 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
   } as const;
 
   const statusMap = {
-    draft: { label: t('quotes.statusLabels.draft', { defaultValue: L.status.draft }), className: 'bg-gray-100 text-gray-800' },
-    sent: { label: t('quotes.statusLabels.sent', { defaultValue: L.status.sent }), className: 'bg-blue-100 text-blue-800' },
-    viewed: { label: t('quotes.statusLabels.viewed', { defaultValue: L.status.viewed }), className: 'bg-indigo-100 text-indigo-800' },
-    accepted: { label: t('quotes.statusLabels.accepted', { defaultValue: L.status.accepted }), className: 'bg-green-100 text-green-800' },
-    declined: { label: t('quotes.statusLabels.declined', { defaultValue: L.status.declined }), className: 'bg-red-100 text-red-800' },
-    expired: { label: t('quotes.statusLabels.expired', { defaultValue: L.status.expired }), className: 'bg-yellow-100 text-yellow-800' },
+    draft: { label: t('quotes.statusLabels.draft'), className: 'bg-gray-100 text-gray-800' },
+    sent: { label: t('quotes.statusLabels.sent'), className: 'bg-blue-100 text-blue-800' },
+    viewed: { label: t('quotes.statusLabels.viewed'), className: 'bg-indigo-100 text-indigo-800' },
+    accepted: { label: t('quotes.statusLabels.accepted'), className: 'bg-green-100 text-green-800' },
+    declined: { label: t('quotes.statusLabels.declined'), className: 'bg-red-100 text-red-800' },
+    expired: { label: t('quotes.statusLabels.expired'), className: 'bg-yellow-100 text-yellow-800' },
   } as const;
 
   // Hooks must not be called conditionally across renders.
@@ -120,19 +121,18 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
 
   if (!isOpen || !quote) return null;
 
-  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString(toLocale(lang));
+  const formatDate = (dateStr: string) => formatAppDate(dateStr);
 
   // Revizyon tablosu için durum etiketi (yalnızca işaretlenen alan)
   const getStatusLabel = (status: string) => {
     const key = String(status) as keyof typeof L.status;
-    const defaults = L.status;
     switch (key) {
-      case 'draft': return t('quotes.statusLabels.draft', { defaultValue: defaults.draft });
-      case 'sent': return t('quotes.statusLabels.sent', { defaultValue: defaults.sent });
-      case 'viewed': return t('quotes.statusLabels.viewed', { defaultValue: defaults.viewed });
-      case 'accepted': return t('quotes.statusLabels.accepted', { defaultValue: defaults.accepted });
-      case 'declined': return t('quotes.statusLabels.declined', { defaultValue: defaults.declined });
-      case 'expired': return t('quotes.statusLabels.expired', { defaultValue: defaults.expired });
+      case 'draft': return t('quotes.statusLabels.draft');
+      case 'sent': return t('quotes.statusLabels.sent');
+      case 'viewed': return t('quotes.statusLabels.viewed');
+      case 'accepted': return t('quotes.statusLabels.accepted');
+      case 'declined': return t('quotes.statusLabels.declined');
+      case 'expired': return t('quotes.statusLabels.expired');
       default: return status;
     }
   };
@@ -159,9 +159,9 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
           <div className="flex items-center gap-2">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusMap[quote.status].className}`}>{statusMap[quote.status].label}</span>
             {isLocked && (
-              <span className="ml-1 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700" title={t('quotes.lockedHint') || 'Kabul edildi. Bu teklif kilitli.'}>
+              <span className="ml-1 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700" title={t('quotes.lockedHint')}>
                 <Lock className="w-3 h-3" />
-                {t('quotes.locked', { defaultValue: 'Kilitli' })}
+                {t('quotes.locked')}
               </span>
             )}
             {showExpired && (
@@ -234,7 +234,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
               </div>
               <div>
                 <span className="text-gray-500">{L.createdAt}:</span>{' '}
-                <span className="font-medium">{quote.createdAt ? new Date(quote.createdAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{quote.createdAt ? formatAppDateTime(quote.createdAt, { locale: toLocale(lang) }) : '—'}</span>
               </div>
             </div>
             <div className="text-xs text-gray-600">
@@ -244,7 +244,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
               </div>
               <div>
                 <span className="text-gray-500">{L.updatedAt}:</span>{' '}
-                <span className="font-medium">{quote.updatedAt ? new Date(quote.updatedAt).toLocaleString(toLocale(lang)) : '—'}</span>
+                <span className="font-medium">{quote.updatedAt ? formatAppDateTime(quote.updatedAt, { locale: toLocale(lang) }) : '—'}</span>
               </div>
             </div>
           </div>
@@ -252,7 +252,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
           {/* Kilit bilgisi */}
           {isLocked && (
             <div className="rounded-md border border-gray-200 bg-gray-50 text-gray-800 px-3 py-2 text-sm">
-              🔒 {t('quotes.lockedBanner', { defaultValue: 'Bu teklif kabul edildi ve kilitlidir. Düzenleme veya silme yapılamaz.' })}
+              🔒 {t('quotes.lockedBanner')}
             </div>
           )}
 
@@ -329,7 +329,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
           {/* Revizyon Geçmişi */}
           {Array.isArray(quote.revisions) && quote.revisions.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('quotes.revisionHistory', { defaultValue: 'Revizyon Geçmişi' })}</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('quotes.revisionHistory')}</h3>
               <div className="overflow-x-auto">
                 <table className="w-full border border-gray-200 rounded-lg">
                   <thead className="bg-gray-50">
@@ -360,7 +360,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
           {/* İşin Kapsamı */}
           {(quote.scopeOfWorkHtml && String(quote.scopeOfWorkHtml).trim().length > 0) && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('quotes.scopeOfWork.title', { defaultValue: 'İşin Kapsamı' })}</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('quotes.scopeOfWork.title')}</h3>
               <div className="prose max-w-none prose-sm text-gray-800 border border-gray-200 rounded-lg p-4 bg-white"
                    dangerouslySetInnerHTML={{ __html: sanitizeRteHtml(String(quote.scopeOfWorkHtml || '')) }} />
             </div>
@@ -409,7 +409,7 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                       window.dispatchEvent(
                         new CustomEvent('showToast', {
                           detail: {
-                            message: t('quotes.actions.copyPublicLinkSuccess', { defaultValue: 'Bağlantı kopyalandı.' }) as string,
+                            message: t('quotes.actions.copyPublicLinkSuccess') as string,
                             tone: 'success',
                           },
                         })
@@ -433,10 +433,10 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
                   }
                 }}
                 className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-                title={t('quotes.actions.copyPublicLink', { defaultValue: 'Public Link Kopyala' })}
+                title={t('quotes.actions.copyPublicLink')}
               >
                 <LinkIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">{t('quotes.actions.copyPublicLink', { defaultValue: 'Public Link Kopyala' })}</span>
+                <span className="text-sm font-medium">{t('quotes.actions.copyPublicLink')}</span>
               </button>
             )}
 
@@ -464,10 +464,10 @@ const QuoteViewModal: React.FC<QuoteViewModalProps> = ({ isOpen, onClose, quote,
     {confirmAccept && (
       <ConfirmModal
         isOpen={true}
-        title={t('common.confirm', { defaultValue: 'Onay' })}
-        message={t('quotes.confirmAccept', { defaultValue: 'Teklifi kabul etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.' })}
-        confirmText={t('common.yes', { defaultValue: 'Evet' })}
-        cancelText={t('common.no', { defaultValue: 'Hayır' })}
+        title={t('common.confirm')}
+        message={t('quotes.confirmAccept')}
+        confirmText={t('common.yes')}
+        cancelText={t('common.no')}
         onCancel={() => setConfirmAccept(false)}
         onConfirm={() => { setConfirmAccept(false); onChangeStatus && quote && onChangeStatus(quote, 'accepted'); }}
       />

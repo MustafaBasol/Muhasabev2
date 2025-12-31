@@ -12,6 +12,7 @@ import QuoteViewModal, { type Quote as QuoteModel } from './QuoteViewModal';
 import SaleViewModal from './SaleViewModal';
 import { readLegacyTenantId, safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
+import { formatAppDate } from '../utils/dateFormat';
 
 // Basit satır tipi birleşik görünüm için
 type RowType = 'invoice' | 'sale' | 'quote';
@@ -219,29 +220,13 @@ export default function CustomerHistoryPage() {
 
   const [loadingRowId, setLoadingRowId] = React.useState<string | null>(null);
 
-  // Çoklu anahtar denemesi + dil bazlı güvenli fallback
-  const tt = (keys: string[], fallbackId?: string): string => {
+  // Çoklu anahtar denemesi: ilk bulunan çeviriyi döndür
+  const tt = (keys: string[]): string => {
     for (const k of keys) {
       const out = String(t(k) || '');
       if (out && out !== k) return out;
     }
-    if (!fallbackId) return '';
-    const lang = (i18n?.language || 'en').toLowerCase();
-    const fb: Record<string, Record<string, string>> = {
-      'dateRanges.thisMonth': { tr: 'Bu ay', en: 'This month', fr: 'Ce mois-ci', de: 'Dieser Monat' },
-      'dateRanges.last30Days': { tr: 'Son 30 gün', en: 'Last 30 days', fr: '30 derniers jours', de: 'Letzte 30 Tage' },
-      'dateRanges.thisYear': { tr: 'Bu yıl', en: 'This year', fr: 'Cette année', de: 'Dieses Jahr' },
-      'exportCSV': { tr: 'CSV’e aktar', en: 'Export CSV', fr: 'Exporter en CSV', de: 'Als CSV exportieren' },
-      'filters.filterByStatus': { tr: 'Duruma göre filtrele', en: 'Filter by status', fr: 'Filtrer par statut', de: 'Nach Status filtern' },
-      'filters.status': { tr: 'Durum', en: 'Status', fr: 'Statut', de: 'Status' },
-      'total': { tr: 'Toplam', en: 'Total', fr: 'Total', de: 'Gesamt' },
-      'actions.view': { tr: 'Görüntüle', en: 'View', fr: 'Voir', de: 'Ansehen' },
-      'actions.copyLink': { tr: 'Bağlantıyı kopyala', en: 'Copy link', fr: 'Copier le lien', de: 'Link kopieren' },
-      'actions.downloadPDF': { tr: 'PDF indir', en: 'Download PDF', fr: 'Télécharger le PDF', de: 'PDF herunterladen' },
-      'actions.clear': { tr: 'Temizle', en: 'Clear', fr: 'Effacer', de: 'Löschen' },
-    };
-    const code = lang.startsWith('tr') ? 'tr' : lang.startsWith('fr') ? 'fr' : lang.startsWith('de') ? 'de' : 'en';
-    return fb[fallbackId]?.[code] || '';
+    return String(t(keys[keys.length - 1]) || '');
   };
 
   // Yardımcı: ISO yyyy-mm-dd formatlayıcı
@@ -510,7 +495,7 @@ export default function CustomerHistoryPage() {
     };
     const cls = colors[status] || 'bg-gray-100 text-gray-800';
     const translateStatus = () => {
-      if (!status) return t('status.unknown', { defaultValue: 'Bilinmiyor' }) as string;
+      if (!status) return t('status.unknown') as string;
       if (type === 'quote') {
         const quoteKey = `quotes.statusLabels.${status}`;
         const quoteLabel = t(quoteKey) as string;
@@ -671,7 +656,7 @@ export default function CustomerHistoryPage() {
       {/* Full-width container like other pages */}
       <div className="w-full px-6 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">{t('customer.historyPageTitle') || 'Müşteri Geçmişi'}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t('customer.historyPageTitle')}</h1>
           <p className="text-sm text-slate-500">{customer?.name ? (t('customer.historySubtitle', { name: customer.name }) as string) : (t('customer.historyPageTitle') as string)}</p>
         </div>
 
@@ -686,13 +671,13 @@ export default function CustomerHistoryPage() {
                 <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 <div className="flex items-center gap-1 ml-2">
                   <button onClick={() => applyQuickRange('thisMonth')} className="px-2 py-1 text-xs rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50">
-                    {tt(['common.dateRanges.thisMonth','dateRanges.thisMonth'], 'dateRanges.thisMonth')}
+                    {tt(['common.dateRanges.thisMonth','dateRanges.thisMonth'])}
                   </button>
                   <button onClick={() => applyQuickRange('last30')} className="px-2 py-1 text-xs rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50">
-                    {tt(['common.dateRanges.last30Days','dateRanges.last30Days'], 'dateRanges.last30Days')}
+                    {tt(['common.dateRanges.last30Days','dateRanges.last30Days'])}
                   </button>
                   <button onClick={() => applyQuickRange('thisYear')} className="px-2 py-1 text-xs rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50">
-                    {tt(['common.dateRanges.thisYear','dateRanges.thisYear'], 'dateRanges.thisYear')}
+                    {tt(['common.dateRanges.thisYear','dateRanges.thisYear'])}
                   </button>
                 </div>
               </div>
@@ -704,7 +689,13 @@ export default function CustomerHistoryPage() {
                     onClick={() => setTypeFilter(k)}
                     className={`px-3 py-1.5 text-sm rounded-full border ${typeFilter===k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
                   >
-                    {k === 'all' ? ((t('common.allCategories') as string) || 'Tümü') : k === 'invoice' ? ((t('transactions.invoice') as string) || 'Fatura') : k === 'sale' ? ((t('transactions.sale') as string) || 'Satış') : ((t('quotes.table.quote') as string) || 'Teklif')}
+                    {k === 'all'
+                      ? (t('allCategories') as string)
+                      : k === 'invoice'
+                        ? (t('transactions.invoice') as string)
+                        : k === 'sale'
+                          ? (t('transactions.sale') as string)
+                          : (t('quotes.table.quote') as string)}
                   </button>
                 ))}
                 {/* CSV Export */}
@@ -714,7 +705,7 @@ export default function CustomerHistoryPage() {
                       const header = ['name','date','status','createdBy','type','description','amount'];
                       const rowsCsv = filtered.map(r => [
                         r.name,
-                        new Date(r.date).toLocaleDateString(),
+                        formatAppDate(r.date),
                         r.status || '',
                         r.createdBy || currentUserName || '',
                         r.type,
@@ -738,19 +729,19 @@ export default function CustomerHistoryPage() {
                   }}
                   className="ml-2 px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700"
                 >
-                  {tt(['common.exportCSV','exportCSV'], 'exportCSV')}
+                  {tt(['common.exportCSV','exportCSV'])}
                 </button>
               </div>
             </div>
             {statusFilter !== 'all' && (
               <div className="mt-2">
-                <span className="text-xs text-slate-500 mr-2">{tt(['filters.status','common.filters.status'], 'filters.status')}:</span>
+                <span className="text-xs text-slate-500 mr-2">{tt(['filters.status','common.filters.status'])}:</span>
                 <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                   {String(statusFilter)}
                   <button
                     onClick={() => setStatusFilter('all')}
                     className="ml-1 text-blue-600 hover:text-blue-800"
-                    aria-label={tt(['actions.clear','common.actions.clear'], 'actions.clear')}
+                    aria-label={tt(['actions.clear','common.actions.clear'])}
                   >
                     ×
                   </button>
@@ -766,27 +757,27 @@ export default function CustomerHistoryPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'name') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return 'name'; })}>
-                  {t('customer.historyColumns.name') || 'İşlem Adı/No'}
+                  {t('customer.historyColumns.name')}
                   <span className="inline-block ml-1 text-gray-400">{sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'date') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('desc'); return 'date'; })}>
-                  {t('customer.historyColumns.date') || 'Tarih'}
+                  {t('customer.historyColumns.date')}
                   <span className="inline-block ml-1 text-gray-400">{sortBy === 'date' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'status') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return 'status'; })}>
-                  {t('customer.historyColumns.status') || 'Durum'}
+                  {t('customer.historyColumns.status')}
                   <span className="inline-block ml-1 text-gray-400">{sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'createdBy') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return 'createdBy'; })}>
-                  {t('customer.historyColumns.createdBy') || 'Oluşturan'}
+                  {t('customer.historyColumns.createdBy')}
                   <span className="inline-block ml-1 text-gray-400">{sortBy === 'createdBy' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none" onClick={() => setSortBy(prev => { if (prev === 'type') { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return 'type'; })}>
-                  {t('customer.historyColumns.type') || 'Tür'}
+                  {t('customer.historyColumns.type')}
                   <span className="inline-block ml-1 text-gray-400">{sortBy === 'type' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('customer.historyColumns.description') || (t('common.description') as string) || 'Açıklama'}</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{t('quotes.table.amount') || t('amount') || 'Tutar'}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('customer.historyColumns.description') || (t('common.description') as string)}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{t('quotes.table.amount') || (t('amount') as string)}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -795,7 +786,7 @@ export default function CustomerHistoryPage() {
                   key={`${row.type}:${row.id}`}
                   className={`group hover:bg-slate-50 cursor-pointer ${loadingRowId === `${row.type}-${row.id}` ? 'opacity-60' : ''}`}
                   onClick={() => openRow(row)}
-                  title={t('common.view', { defaultValue: 'Görüntüle' }) as string}
+                  title={t('common.view') as string}
                 >
                   <td className="px-4 py-3 text-sm font-medium">
                     <span className={`${typeColor(row.type)}`}>{row.name}</span>
@@ -835,7 +826,7 @@ export default function CustomerHistoryPage() {
                       )}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{new Date(row.date).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{formatAppDate(row.date)}</td>
                   <td className="px-4 py-3 text-sm text-slate-700">
                     {getStatusBadge(row.status, row.type)}
                   </td>
@@ -847,7 +838,7 @@ export default function CustomerHistoryPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">{t('customer.noHistory') || 'Geçmiş işlem bulunamadı.'}</td>
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">{t('customer.noHistory')}</td>
                 </tr>
               )}
             </tbody>

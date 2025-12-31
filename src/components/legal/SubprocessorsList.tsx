@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Server, Clock, CheckCircle, Globe } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { logger } from '../../utils/logger';
+import { formatAppDate } from '../../utils/dateFormat';
 
 interface Subprocessor {
   id: string;
@@ -348,7 +349,7 @@ const SubprocessorsList: React.FC = () => {
           </p>
           <div className="flex items-center justify-center mt-6 text-sm text-gray-500">
             <Clock className="h-4 w-4 mr-2" />
-            <span>{t.lastUpdated}: {new Date(subprocessorsData.lastModified).toLocaleDateString()}</span>
+            <span>{t.lastUpdated}: {formatAppDate(subprocessorsData.lastModified)}</span>
           </div>
         </div>
 
@@ -478,7 +479,7 @@ const SubprocessorsList: React.FC = () => {
         {/* Alt Bilgi */}
         <div className="mt-12 text-center text-sm text-gray-500">
           <p>
-            {t.lastUpdated}: {new Date(subprocessorsData.lastModified).toLocaleDateString()}
+            {t.lastUpdated}: {formatAppDate(subprocessorsData.lastModified)}
           </p>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Lock, Unlock, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { formatAppDate } from '../utils/dateFormat';
 import apiClient from '../api/client';
 
 interface FiscalPeriod {
@@ -134,8 +135,7 @@ const FiscalPeriodsWidget: React.FC<FiscalPeriodsWidgetProps> = ({ onNavigateToF
                 </div>
                 <div className="text-lg font-semibold text-blue-900">{stats.current.name}</div>
                 <div className="text-sm text-blue-700">
-                  {new Date(stats.current.periodStart).toLocaleDateString('tr-TR')} - 
-                  {new Date(stats.current.periodEnd).toLocaleDateString('tr-TR')}
+                  {formatAppDate(stats.current.periodStart)} - {formatAppDate(stats.current.periodEnd)}
                 </div>
                 {stats.current.isLocked && (
                   <div className="flex items-center mt-2">
@@ -174,8 +174,7 @@ const FiscalPeriodsWidget: React.FC<FiscalPeriodsWidgetProps> = ({ onNavigateToF
                       <div className="flex-1">
                         <div className="text-sm font-medium text-gray-900">{period.name}</div>
                         <div className="text-xs text-gray-500">
-                          {new Date(period.periodStart).toLocaleDateString('tr-TR')} - 
-                          {new Date(period.periodEnd).toLocaleDateString('tr-TR')}
+                          {formatAppDate(period.periodStart)} - {formatAppDate(period.periodEnd)}
                         </div>
                       </div>
                       <div className="flex items-center">

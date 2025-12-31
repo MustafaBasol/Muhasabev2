@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { backupsApi, type BackupMetadata, type BackupStatistics } from '../../api/backups';
 import { adminApi } from '../../api/admin';
+import { formatAppDateTime } from '../../utils/dateFormat';
 
 export default function BackupManagementPage() {
   const { t } = useTranslation('common');
@@ -139,7 +140,7 @@ export default function BackupManagementPage() {
   };
 
   const handleDelete = async (backupId: string) => {
-    if (!confirm(t('admin.backups.deleteConfirm', 'Bu yedeği silmek istediğinizden emin misiniz?'))) return;
+    if (!confirm(t('admin.backups.deleteConfirm'))) return;
 
     try {
       setLoading(true);
@@ -155,7 +156,7 @@ export default function BackupManagementPage() {
   };
 
   const handleCleanup = async () => {
-    if (!confirm(t('admin.backups.deleteOlderThanConfirm', '30 günden eski tüm yedekleri silmek istediğinizden emin misiniz?'))) return;
+    if (!confirm(t('admin.backups.deleteOlderThanConfirm', { days: 30 }))) return;
 
     try {
       setLoading(true);
@@ -184,7 +185,7 @@ export default function BackupManagementPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('tr-TR');
+    return formatAppDateTime(dateString);
   };
 
   const getBackupIcon = (type: string) => {

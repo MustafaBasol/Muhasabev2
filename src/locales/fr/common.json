@@ -28,8 +28,14 @@
     "cta.watchDemo": "Regarder la démo",
     "hero.title": "Gérez factures, dépenses et devis depuis un seul endroit.",
     "hero.sub": "Gérez vos factures, dépenses et devis dans un espace de travail simple et unique. Gardez votre pré‑comptabilité organisée grâce au support multi‑devises (EUR, USD, TRY), au suivi des taxes par catégorie et à la génération de factures/devis PDF. Avec des liens de devis partageables, vos clients peuvent consulter les devis en ligne et les accepter ou les refuser en un clic.",
+    "copied": "Copié",
+    "copyFailed": "Échec de la copie",
     "hero.features.pdf": "Factures et devis PDF",
     "hero.features.currency": "Multi‑devises (EUR / USD / TRY)",
+    "noProductsYetDescription": "Commencez à suivre votre inventaire en ajoutant des produits. Les informations de prix, stock et catégorie apparaîtront ici.",
+    "bulkSelectionInfo": "{{count}} produits sélectionnés pour les actions en masse",
+    "clearSelections": "Effacer la sélection",
+    "selectProductAriaLabel": "Sélectionner le produit : {{name}}",
     "hero.features.vat": "Gestion TVA / Taxes",
     "features.title": "Tout ce dont vous avez besoin pour maîtriser la pré-comptabilité",
     "features.inv.title": "Facturation",
@@ -867,8 +873,35 @@
     "resendCooldown": "Par sécurité, un délai de 60 secondes s’applique",
     "securityVerificationRequired": "Vérification de sécurité requise. Merci de finaliser la vérification.",
     "emailNotVerified": "E-mail non vérifié. Veuillez confirmer votre adresse e-mail avant de continuer.",
+    "mfaRequired": "Authentification à deux facteurs requise. Veuillez saisir votre code.",
+    "mfaCodeLabel": "Code 2FA",
+    "mfaCodePlaceholder": "TOTP à 6 chiffres ou code de secours à 8 caractères",
+    "mfaCodeHelp": "Saisissez le code depuis Google Authenticator / 1Password.",
+    "verifyAndSignIn": "Vérifier et se connecter",
+    "loginErrorGeneric": "Une erreur s'est produite lors de la connexion.",
     "verificationEmailSent": "E-mail de vérification envoyé. Merci de consulter votre boîte de réception.",
     "resendVerification": "Renvoyer l'e-mail de vérification",
+    "verificationTokenMissing": "Jeton de vérification introuvable.",
+    "emailVerified": "E-mail vérifié",
+    "redirectingToLogin": "Redirection vers la page de connexion...",
+    "verificationFailed": "Échec de la vérification",
+    "backToStart": "Retour au début",
+    "registerSuccessVerifyRequired": "Votre compte a été créé. Veuillez consulter votre boîte de réception et cliquer sur le lien de vérification.",
+    "registerSuccess": "Votre compte a été créé avec succès. Vous pouvez vous connecter.",
+    "registerErrorGeneric": "Une erreur s'est produite lors de l'inscription.",
+    "requiredFieldsError": "Veuillez remplir tous les champs obligatoires.",
+    "passwordTooShort6": "Le mot de passe doit contenir au moins 6 caractères.",
+    "mustAcceptTerms": "Vous devez accepter les Conditions d'utilisation et la Politique de confidentialité.",
+    "emailConflict": {
+      "title": "Un compte existe déjà pour cet e-mail : {{email}}",
+      "prompt": "Comment souhaitez-vous continuer ?",
+      "optionSignInPrefix": "Si vous connaissez votre mot de passe,",
+      "optionSignInAction": "connectez-vous",
+      "optionResetPrefix": "Si vous avez oublié votre mot de passe,",
+      "optionResetAction": "demandez un lien de réinitialisation",
+      "optionTryOther": "Pour créer un nouveau compte, essayez avec une autre adresse e-mail.",
+      "securityNote": "Pour des raisons de sécurité, nous ne divulguons pas quelles adresses e-mail sont enregistrées ; cet avis est basé sur votre saisie."
+    },
     "registerCta": "Créer un compte",
     "alreadyHaveAccount": "Vous avez déjà un compte ?",
     "goToLogin": "Se connecter",
@@ -885,17 +918,52 @@
     "add": "Ajouter",
     "search": "Rechercher",
     "close": "Fermer",
+    "unit": "Unité",
+    "totalExclVAT": "Total (HT)",
     "back": "Retour",
     "backToHome": "Retour à l'accueil",
     "confirm": "Confirmation",
     "yes": "Oui",
     "no": "Non",
     "loading": "Chargement...",
+    "creating": "Création en cours...",
     "error": "Erreur",
+    "networkError": "Erreur de connexion. Veuillez vérifier votre connexion Internet.",
+    "unexpectedError": "Une erreur inattendue s'est produite. Veuillez réessayer.",
+    "operationFailed": "Échec de l'opération. Veuillez réessayer.",
+    "notSpecified": "Non spécifié",
     "success": "Succès",
     "warning": "Avertissement",
     "ok": "OK",
     "now": "Maintenant",
+    "noSupplier": "Aucun fournisseur",
+    "audit": {
+      "createdBy": "Créé par",
+      "createdAt": "Créé le",
+      "updatedBy": "Dernière mise à jour par",
+      "updatedAt": "Dernière mise à jour"
+    },
+    "summary": {
+      "shown": "Affiché",
+      "filtered": "Filtré",
+      "total": "Total"
+    },
+    "apiErrors": {
+      "nameAlreadyExists": "Ce nom est déjà utilisé. Veuillez en choisir un autre.",
+      "invalidDateRange": "Plage de dates invalide. La date de fin doit être postérieure à la date de début.",
+      "startDatePast": "La date de début ne peut pas être dans le passé.",
+      "endDateAfterStart": "La date de fin doit être postérieure à la date de début.",
+      "unauthorized": "Vous n’êtes pas autorisé à effectuer cette action. Veuillez vous connecter.",
+      "forbidden": "Vous n’avez pas la permission d’effectuer cette action.",
+      "invalidCredentials": "E‑mail ou mot de passe incorrect.",
+      "tokenExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+      "requestTimeout": "Délai d’attente dépassé. Veuillez réessayer.",
+      "serverError": "Erreur serveur. Veuillez réessayer plus tard.",
+      "notFound": "L’élément demandé est introuvable.",
+      "badRequest": "Requête invalide. Veuillez vérifier vos informations.",
+      "internalServerError": "Erreur serveur. Veuillez réessayer.",
+      "serviceUnavailable": "Le service est actuellement indisponible. Veuillez réessayer plus tard."
+    },
     "periodLockedError": "Cet enregistrement ne peut pas être supprimé car il appartient à une période fiscale verrouillée",
     "description": "Description",
     "dueDate": "Date d'échéance",
@@ -1134,15 +1202,21 @@
       "details": "Détails du devis"
     },
     "validUntil": "Valable jusqu'au",
+    "validityDays": "Validité (jours)",
     "expiresIn": "(expire dans {{days}} jours)",
     "expiredOn": "(expiré le {{date}})",
     "version": "v{{n}}",
-    "confirmAccept": "Êtes-vous sûr de vouloir accepter ce devis ?",
+    "confirmAccept": "Êtes-vous sûr de vouloir accepter ce devis ? Cette action est irréversible.",
     "acceptedThanks": "Merci, le devis a été accepté.",
     "confirmDecline": "Êtes-vous sûr de vouloir refuser ce devis ?",
     "declinedInfo": "Le devis a été refusé.",
     "createConfirm": "Êtes-vous sûr de vouloir enregistrer ce devis ?",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer le devis {{quoteNumber}} ? Cette action est irréversible.",
     "saveConfirm": "Êtes-vous sûr de vouloir enregistrer les modifications ?",
+    "locked": "Verrouillé",
+    "lockedHint": "Accepté. Ce devis est verrouillé.",
+    "lockedBanner": "Ce devis est accepté et verrouillé. Il ne peut pas être modifié ni supprimé.",
+    "revisionHistory": "Historique des révisions",
     "duplicateConfirm": "Voulez-vous continuer l'opération de duplication ?",
     "reviseConfirm": "Voulez-vous réviser ce devis ? La version actuelle sera archivée et une nouvelle version sera créée.",
     "actions": {
@@ -1193,7 +1267,9 @@
       "currency": "Devise",
       "date": "Date d'Émission",
       "amount": "Montant",
-      "create": "Créer"
+      "create": "Créer",
+      "customersFound": "{{count}} clients trouvés",
+      "productsFound": "{{count}} produits trouvés"
     },
     "scopeOfWork": {
       "title": "Portée des travaux",
@@ -1275,7 +1351,8 @@
     "expired": "Expiré",
     "invoiced": "Facturé",
     "created": "Créé",
-    "refunded": "Remboursé"
+    "refunded": "Remboursé",
+    "unknown": "Inconnu"
   },
   "invoice": {
     "details": "Détails de la Facture",
@@ -1380,6 +1457,10 @@
     "delete": "Supprimer",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce produit ?",
     "manageCategories": "Gérer les Catégories",
+    "import": {
+      "success": "{{count}} produits importés avec succès !",
+      "partial": "{{created}} produits importés, {{failed}} échecs."
+    },
     "totalProducts": "Total Produits",
     "stockValue": "Valeur du Stock",
     "totalStock": "Stock Total",
@@ -1497,6 +1578,14 @@
     "addAccountTip": "Utilisez le bouton ci-dessus pour ajouter un nouveau compte",
     "active": "Actif",
     "passive": "Inactif",
+    "dateFilters": {
+      "thisMonth": "Ce mois-ci",
+      "thisQuarter": "Ce trimestre",
+      "thisYear": "Cette année",
+      "lastYear": "L’année dernière",
+      "all": "Tous",
+      "custom": "Période personnalisée"
+    },
     "allSummed": "tout additionné",
     "accountTypes": {
       "all": "Tous",
@@ -1523,7 +1612,9 @@
       "addSubAccount": "Ajouter un sous-compte",
       "deleteAccount": "Supprimer le compte"
     },
+    "activeDateRangeLabel": "Filtre de dates :",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce compte ?",
+    "deleteHasChildrenError": "Ce compte a des sous-comptes. Supprimez d’abord les sous-comptes.",
     "accountNames": {
       "100": "ACTIFS CIRCULANTS",
       "101": "Caisse",
@@ -1551,11 +1642,13 @@
   },
   "invoices": {
     "title": "Factures",
+    "unnamed": "Facture",
     "newInvoice": "Nouvelle Facture",
     "editInvoice": "Modifier la Facture",
     "enterInvoiceInfo": "Saisissez les informations client et les détails des produits",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette facture ?",
     "deleteSuccess": "Facture supprimée",
+    "noLineItemsError": "Aucune ligne à transférer sur la facture.",
     "search": "Rechercher numéro de facture ou client...",
     "filterAll": "Tous les Statuts",
     "invoicesRegistered": "factures enregistrées",
@@ -1576,6 +1669,12 @@
     "view": "Voir",
     "edit": "Modifier",
     "download": "Télécharger",
+    "cannotEditVoided": "Une facture annulée ne peut pas être modifiée",
+    "restore": "Restaurer",
+    "void": "Annuler la facture",
+    "voidConfirm": "Êtes-vous sûr de vouloir annuler la facture {{invoiceNumber}} ?",
+    "voidReason": "Motif d'annulation",
+    "voidReasonPlaceholder": "Expliquez le motif de l'annulation...",
     "delete": "Supprimer",
     "viewInvoice": "Voir la facture",
     "createInvoice": "Créer une Facture",
@@ -1628,6 +1727,7 @@
   },
   "expenses": {
     "title": "Dépenses",
+    "unnamed": "Dépense",
     "newExpense": "Nouvelle Dépense",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette dépense ?",
     "deleteSuccess": "Dépense supprimée",
@@ -1652,6 +1752,9 @@
     "download": "Télécharger",
     "delete": "Supprimer",
     "viewExpense": "Voir la dépense",
+    "information": "Informations sur la dépense",
+    "receipt": "Reçu",
+    "viewReceipt": "Voir le reçu",
     "enterExpenseDetails": "Entrez les détails de la dépense",
     "editExpense": "Modifier la Dépense",
     "enterExpenseInfo": "Entrez les informations de la dépense",
@@ -1669,6 +1772,7 @@
   "customers": {
     "title": "Clients",
     "newCustomer": "Nouveau Client",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce client ?",
     "search": "Rechercher des clients...",
     "customersRegistered": "clients enregistrés",
     "noCustomers": "Aucun client pour le moment",
@@ -1686,6 +1790,7 @@
     "downloadTemplate": "Télécharger Modèle",
     "address": "Adresse",
     "emailPlaceholder": "client@example.com",
+    "phonePlaceholder": "+33 6 12 34 56 78",
     "addressPlaceholder": "Informations complètes de l'adresse...",
     "addCustomer": "Ajouter Client",
     "selectFromList": "Sélectionner client dans la liste",
@@ -1708,11 +1813,24 @@
       "title": "E‑mail en double trouvé",
       "message": "Un client est déjà enregistré avec cet e‑mail ({{email}}) : {{name}}. Veuillez sélectionner ou modifier l'enregistrement existant.",
       "openExisting": "Ouvrir le client existant"
+    },
+    "view": {
+      "subtitle": "Détails du client",
+      "personalInfo": "Informations personnelles",
+      "companyInfo": "Informations sur l'entreprise",
+      "addressInfo": "Informations d'adresse",
+      "registeredAt": "Date d'inscription",
+      "quickActions": "Actions rapides",
+      "createInvoice": "Créer une facture",
+      "viewHistory": "Voir l'historique"
     }
   },
   "suppliers": {
     "title": "Fournisseurs",
     "newSupplier": "Nouveau Fournisseur",
+    "unnamed": "Fournisseur",
+    "noEmail": "Pas d'e-mail",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce fournisseur ?",
     "search": "Rechercher des fournisseurs...",
     "suppliersRegistered": "fournisseurs enregistrés",
     "noSuppliers": "Aucun fournisseur pour le moment",
@@ -1726,6 +1844,14 @@
     "totalExpenses": "Total Dépenses",
     "totalAmount": "Montant Total",
     "actions": "Actions",
+    "categories": {
+      "officeSupplies": "Fournitures de bureau",
+      "technology": "Technologie",
+      "services": "Services",
+      "manufacturing": "Production",
+      "logistics": "Logistique",
+      "other": "Autre"
+    },
     "modal": {
       "newTitle": "Ajouter un Fournisseur",
       "editTitle": "Modifier le Fournisseur",
@@ -1775,6 +1901,13 @@
     },
     "ibanAutoFormat": "L'IBAN sera formaté automatiquement",
     "currentBalance": "Solde Actuel",
+    "viewDetails": "Détails du compte bancaire",
+    "accountInformation": "Informations du compte",
+    "bankInformation": "Informations bancaires",
+    "openingDate": "Date d'ouverture",
+    "quickActions": "Actions rapides",
+    "copyIban": "Copier l’IBAN",
+    "ibanCopied": "IBAN copié !",
     "currency": "Devise",
     "accountActive": "Compte actif",
     "addAccount": "Ajouter Compte",
@@ -2006,6 +2139,8 @@
     "avg": "Moy",
     "monthlyRevenueTrend": "Tendance des Revenus Mensuels",
     "expenseAnalysis": "Analyse des Dépenses",
+    "expenseExportHint": "Inclut uniquement les dépenses payées.",
+    "exportExpensesCsv": "Exporter CSV",
     "categoryBasedExpenses": "Dépenses par Catégorie",
     "expenses": "dépenses",
     "monthlyExpenseTrend": "Tendance des Dépenses Mensuelles",
@@ -2160,6 +2295,9 @@
     "validStockRequired": "Veuillez entrer une quantité de stock valide",
     "descriptionRequired": "Veuillez saisir une description",
     "amountRequired": "Veuillez saisir un montant valide"
+  },
+  "help": {
+    "searchPlaceholder": "Rechercher dans l'aide..."
   },
   "legal": {
     "terms": {
@@ -2577,7 +2715,8 @@
       "loadFailed": "Échec du chargement des périodes fiscales",
       "periodLocked": "Cette période fiscale est verrouillée et ne peut pas être modifiée",
       "periodNotFound": "Période fiscale introuvable",
-      "operationNotAllowed": "Cette opération n'est pas autorisée pour une période fiscale verrouillée"
+      "operationNotAllowed": "Cette opération n'est pas autorisée pour une période fiscale verrouillée",
+      "operationNotAllowedWithPeriod": "Cette opération est impossible car {{periodName}} est verrouillée. Veuillez d’abord déverrouiller la période."
     },
     "success": {
       "created": "Période fiscale créée avec succès",
@@ -2648,6 +2787,7 @@
         "owner": "Propriétaire",
         "admin": "Administrateur",
         "member": "Membre",
+        "netSuffix": " (HT)",
         "viewer": "Observateur",
         "OWNER": "Propriétaire",
         "ADMIN": "Administrateur",
@@ -2963,13 +3103,16 @@
       "neverRemind": "Ne plus rappeler"
     }
   },
-  "common.remindMeLater": "Remind Me Later",
-  "common.now": "Now",
+  "common.remindMeLater": "Me le rappeler plus tard",
+  "common.details": "Détails",
+  "common.now": "Maintenant",
   "common.generic": {
-    "customer": "Customer",
-    "supplier": "Supplier",
-    "expense": "Expense",
-    "quote": "Quote"
+    "customer": "Client",
+    "supplier": "Fournisseur",
+    "expense": "Dépense",
+    "quote": "Devis",
+    "product": "Produit",
+    "sale": "Vente"
   },
   "toasts": {
     "common": {
@@ -2978,6 +3121,7 @@
     "invoices": {
       "updateSuccess": "Facture mise à jour",
       "updateError": "La facture n’a pas pu être mise à jour",
+      "createError": "La facture n’a pas pu être créée",
       "createPartialError": "Facture créée, mais la vente n’a pas pu être créée",
       "createWithSaleSuccess": "Facture et vente créées",
       "cancelSuccess": "Facture annulée",
@@ -3037,6 +3181,10 @@
       "assignmentInfo": "Pour l’assignation, utilisez la mise en page des catégories à gauche."
     },
     "bank": {
+      "updateSuccess": "Compte bancaire mis à jour",
+      "createSuccess": "Compte bancaire ajouté",
+      "deleteSuccess": "Compte bancaire supprimé",
+      "operationFailed": "L’opération bancaire a échoué",
       "deleteError": "Le compte bancaire n’a pas pu être supprimé"
     },
     "quotes": {

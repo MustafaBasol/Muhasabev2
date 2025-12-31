@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, Check, Download, AlertCircle, UserCheck } from 'lucide-react';
 import { safeLocalStorage } from '../../utils/localStorageSafe';
+import { formatAppDateTime } from '../../utils/dateFormat';
 
 const DataProcessingAddendum: React.FC = () => {
   const { i18n } = useTranslation('common');
@@ -542,7 +543,7 @@ const DataProcessingAddendum: React.FC = () => {
             <div>
               <p className="text-green-800 font-medium">{activeContent.acceptance.status.accepted}</p>
               <p className="text-green-700 text-sm">
-                {activeContent.acceptance.status.date}: {new Date(acceptanceDate).toLocaleString()}
+                {activeContent.acceptance.status.date}: {formatAppDateTime(acceptanceDate)}
               </p>
             </div>
             <button

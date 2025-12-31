@@ -25,14 +25,13 @@ type DateRangeConfig = {
 const DATE_PRESET_OPTIONS: Array<{
   value: DatePreset;
   labelKey: string;
-  defaultLabel: string;
 }> = [
-  { value: 'this-month', labelKey: 'chartOfAccounts.dateFilters.thisMonth', defaultLabel: 'Bu Ay' },
-  { value: 'this-quarter', labelKey: 'chartOfAccounts.dateFilters.thisQuarter', defaultLabel: 'Bu Çeyrek' },
-  { value: 'this-year', labelKey: 'chartOfAccounts.dateFilters.thisYear', defaultLabel: 'Bu Yıl' },
-  { value: 'last-year', labelKey: 'chartOfAccounts.dateFilters.lastYear', defaultLabel: 'Geçen Yıl' },
-  { value: 'all', labelKey: 'chartOfAccounts.dateFilters.all', defaultLabel: 'Tümü' },
-  { value: 'custom', labelKey: 'chartOfAccounts.dateFilters.custom', defaultLabel: 'Özel Tarih' },
+  { value: 'this-month', labelKey: 'chartOfAccounts.dateFilters.thisMonth' },
+  { value: 'this-quarter', labelKey: 'chartOfAccounts.dateFilters.thisQuarter' },
+  { value: 'this-year', labelKey: 'chartOfAccounts.dateFilters.thisYear' },
+  { value: 'last-year', labelKey: 'chartOfAccounts.dateFilters.lastYear' },
+  { value: 'all', labelKey: 'chartOfAccounts.dateFilters.all' },
+  { value: 'custom', labelKey: 'chartOfAccounts.dateFilters.custom' },
 ];
 
 const startOfDay = (date: Date) => {
@@ -160,29 +159,31 @@ export default function ChartOfAccountsPage({
         const endLabel = customEndDate || '…';
         return `${startLabel} – ${endLabel}`;
       }
-      return t('chartOfAccounts.dateFilters.custom', { defaultValue: 'Özel Tarih' });
+      return t('chartOfAccounts.dateFilters.custom');
     }
     const preset = DATE_PRESET_OPTIONS.find((option) => option.value === datePreset);
     if (preset) {
-      return t(preset.labelKey, { defaultValue: preset.defaultLabel });
+      return t(preset.labelKey);
     }
-    return t('chartOfAccounts.dateFilters.all', { defaultValue: 'Tümü' });
+    return t('chartOfAccounts.dateFilters.all');
   }, [customEndDate, customStartDate, datePreset, t]);
 
   // Gider kategorileri (ExpenseModal ile aynı)
-  const expenseCategories = [
-    { label: 'Diğer', value: 'other' },
-    { label: 'Ekipman', value: 'equipment' },
-    { label: 'Faturalar', value: 'utilities' },
-    { label: 'Kira', value: 'rent' },
-    { label: 'Maaşlar', value: 'salaries' },
-    { label: 'Malzemeler', value: 'supplies' },
-    { label: 'Pazarlama', value: 'marketing' },
-    { label: 'Personel', value: 'personnel' },
-    { label: 'Seyahat', value: 'travel' },
-    { label: 'Sigorta', value: 'insurance' },
-    { label: 'Vergiler', value: 'taxes' },
-  ];
+  const expenseCategories = useMemo(() => (
+    [
+      { label: t('expenseCategories.other'), value: 'other' },
+      { label: t('expenseCategories.equipment'), value: 'equipment' },
+      { label: t('expenseCategories.utilities'), value: 'utilities' },
+      { label: t('expenseCategories.rent'), value: 'rent' },
+      { label: t('expenseCategories.salaries'), value: 'salaries' },
+      { label: t('expenseCategories.supplies'), value: 'supplies' },
+      { label: t('expenseCategories.marketing'), value: 'marketing' },
+      { label: t('expenseCategories.personnel'), value: 'personnel' },
+      { label: t('expenseCategories.travel'), value: 'travel' },
+      { label: t('expenseCategories.insurance'), value: 'insurance' },
+      { label: t('expenseCategories.taxes'), value: 'taxes' },
+    ]
+  ), [t]);
 
   // Kategori isminden değere eşleme
   const categoryNameToValue: { [key: string]: string } = {
@@ -757,11 +758,11 @@ export default function ChartOfAccountsPage({
   };
 
   const deleteAccount = (accountId: string) => {
-    if (confirm(t('chartOfAccounts.deleteConfirm', 'Bu hesabı silmek istediğinizden emin misiniz?'))) {
+    if (confirm(t('chartOfAccounts.deleteConfirm') as string)) {
       // Check if account has children
       const hasChildren = currentAccounts.some(acc => acc.parentId === accountId);
       if (hasChildren) {
-        alert('Bu hesabın alt hesapları var. Önce alt hesapları silin.');
+        alert(t('chartOfAccounts.deleteHasChildrenError') as string);
         return;
       }
 
@@ -976,7 +977,7 @@ export default function ChartOfAccountsPage({
                   ? 'bg-green-100 text-green-800 hover:bg-green-200' 
                   : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
               }`}
-              title={t('chartOfAccounts.tooltips.toggleStatus', { defaultValue: 'Durumu değiştirmek için tıklayın' }) as string}
+              title={t('chartOfAccounts.tooltips.toggleStatus') as string}
             >
               {account.isActive ? t('chartOfAccounts.statusLabels.active') : t('chartOfAccounts.statusLabels.inactive')}
             </button>
@@ -986,14 +987,14 @@ export default function ChartOfAccountsPage({
               <button 
                 onClick={() => addNewAccount(account.id)}
                 className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                title={t('chartOfAccounts.tooltips.addSubAccount', { defaultValue: 'Alt hesap ekle' }) as string}
+                title={t('chartOfAccounts.tooltips.addSubAccount') as string}
               >
                 <Plus className="w-4 h-4" />
               </button>
               <button 
                 onClick={() => deleteAccount(account.id)}
                 className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                title={t('chartOfAccounts.tooltips.deleteAccount', { defaultValue: 'Hesabı sil' }) as string}
+                title={t('chartOfAccounts.tooltips.deleteAccount') as string}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -1119,7 +1120,7 @@ export default function ChartOfAccountsPage({
           </div>
         </div>
         <p className="text-xs text-gray-500 mb-6">
-          {t('chartOfAccounts.activeDateRangeLabel', { defaultValue: 'Tarih filtresi:' })}{' '}
+          {t('chartOfAccounts.activeDateRangeLabel')}{' '}
           <span className="font-medium text-gray-700">{activeDateRangeLabel}</span>
         </p>
 
@@ -1158,7 +1159,7 @@ export default function ChartOfAccountsPage({
                 >
                   {DATE_PRESET_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {t(option.labelKey, { defaultValue: option.defaultLabel })}
+                      {t(option.labelKey)}
                     </option>
                   ))}
                 </select>

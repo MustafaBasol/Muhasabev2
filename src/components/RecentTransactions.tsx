@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useCurrency, Currency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
+import { formatAppDate } from '../utils/dateFormat';
 
 type InvoiceLike = Record<string, unknown>;
 type ExpenseLike = Record<string, unknown>;
@@ -72,11 +73,7 @@ export default function RecentTransactions({
       if (!value) return '—';
       const date = value instanceof Date ? value : new Date(value);
       if (Number.isNaN(date.getTime())) return '—';
-      return date.toLocaleDateString(i18n.language, {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
+      return formatAppDate(date);
     };
 
     const formatAmount = (amount?: number | string | null) => {

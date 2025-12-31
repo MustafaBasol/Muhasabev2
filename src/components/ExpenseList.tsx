@@ -12,6 +12,7 @@ import { compareBy, defaultStatusOrderExpenses, normalizeText, parseDateSafe, to
 import { useAuth } from '../contexts/AuthContext';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
+import { formatAppDate } from '../utils/dateFormat';
 import type { Expense as ExpenseModel, ExpenseStatus } from '../api/expenses';
 
 const escapeCsvValue = (value: unknown): string => {
@@ -222,27 +223,8 @@ export default function ExpenseList({
     return filteredExpenses.reduce((sum, exp) => sum + toNumberSafe(exp.amount), 0);
   }, [filteredExpenses]);
 
-  const totalLabel = (() => {
-    const lang = String(i18n?.language || '').toLowerCase();
-    if (lang.startsWith('tr')) return 'Toplam';
-    if (lang.startsWith('de')) return 'Summe';
-    if (lang.startsWith('fr')) return 'Total';
-    return 'Total';
-  })();
-
-  const shownLabel = (() => {
-    const lang = String(i18n?.language || '').toLowerCase();
-    if (filtersActive) {
-      if (lang.startsWith('tr')) return 'Filtreli';
-      if (lang.startsWith('de')) return 'Gefiltert';
-      if (lang.startsWith('fr')) return 'Filtré';
-      return 'Filtered';
-    }
-    if (lang.startsWith('tr')) return 'Gösterilen';
-    if (lang.startsWith('de')) return 'Angezeigt';
-    if (lang.startsWith('fr')) return 'Affiché';
-    return 'Shown';
-  })();
+  const totalLabel = t('summary.total');
+  const shownLabel = filtersActive ? t('summary.filtered') : t('summary.shown');
 
   // Filtre/arama/sıralama değiştiğinde sayfayı 1'e al
   useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, categoryFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
@@ -253,18 +235,15 @@ export default function ExpenseList({
   }, [filteredExpenses, page, pageSize]);
 
   const formatDate = useCallback((dateString: string) => {
-    const locale = (i18n?.language || 'en').toString();
     const parsed = new Date(dateString);
     if (Number.isNaN(parsed.getTime())) return '—';
-    return parsed.toLocaleDateString(locale);
-  }, [i18n?.language]);
+    return formatAppDate(parsed);
+  }, []);
 
   // Tedarikçi adı güvenli gösterim: placeholder değerleri yerelleştirilmiş etikete çevir
   const getSupplierDisplay = useCallback((name?: string) => {
     const n = (name || '').trim();
-    const lang = (i18n.language || 'tr').slice(0,2).toLowerCase();
-    const localizedFallback = lang === 'tr' ? 'Tedarikçi Yok' : lang === 'de' ? 'Kein Lieferant' : lang === 'fr' ? 'Aucun Fournisseur' : 'No Supplier';
-    if (!n) return t('common:noSupplier', { defaultValue: localizedFallback });
+    if (!n) return t('common.noSupplier');
     const normalized = n.toLowerCase();
     const placeholders = [
       'nosupplier',
@@ -273,7 +252,7 @@ export default function ExpenseList({
       'kein lieferant',
       'aucun fournisseur'
     ];
-    if (placeholders.includes(normalized)) return t('common:noSupplier', { defaultValue: localizedFallback });
+    if (placeholders.includes(normalized)) return t('common.noSupplier');
     return n;
   }, [i18n.language, t]);
 
@@ -286,13 +265,13 @@ export default function ExpenseList({
 
     try {
       const headers = [
-        t('expenses.expenseNumber', { defaultValue: 'Expense Number' }),
-        t('common.description', { defaultValue: 'Description' }),
-        t('expenses.supplier', { defaultValue: 'Supplier' }),
-        t('expenses.category', { defaultValue: 'Category' }),
-        t('common.statusLabel', { defaultValue: 'Status' }),
-        t('expenses.expenseDate', { defaultValue: 'Expense Date' }),
-        t('expenses.amount', { defaultValue: 'Amount' }),
+        t('expenses.expenseNumber'),
+        t('common.description'),
+        t('expenses.supplier'),
+        t('expenses.category'),
+        t('common.statusLabel'),
+        t('expenses.expenseDate'),
+        t('expenses.amount'),
       ];
 
       const rows = filteredExpenses.map((expense) => {
@@ -440,13 +419,13 @@ export default function ExpenseList({
               className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
               <FileDown className="w-4 h-4" />
-              <span>{t('expenses.exportCsv', { defaultValue: 'CSV Dışa Aktar' })}</span>
+              <span>{t('expenses.exportCsv')}</span>
             </button>
             <button
               onClick={onAddExpense}
               disabled={atLimit}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${atLimit ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}
-              title={atLimit ? 'Starter/Free planda bu ayki gider limiti doldu (5/5)' : undefined}
+              title={atLimit ? t('plans.limitExceeded.expensesMessage') : undefined}
             >
               <Plus className="w-4 h-4" />
               <span>{t('expenses.newExpense')}</span>
@@ -483,10 +462,7 @@ export default function ExpenseList({
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             <option value="all">
-              {i18n.language === 'tr' ? 'Tüm kategoriler' : 
-               i18n.language === 'en' ? 'All categories' :
-               i18n.language === 'de' ? 'Alle Kategorien' :
-               i18n.language === 'fr' ? 'Toutes les catégories' : 'All categories'}
+              {t('allCategories')}
             </option>
             {categories.map(category => (
               <option key={category} value={category}>{getCategoryLabel(category)}</option>
@@ -576,7 +552,7 @@ export default function ExpenseList({
           {/* Plan kullanım özeti */}
           {isFreePlan && (
             <div className="px-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 whitespace-nowrap">
-              Bu ay: <strong className={`${atLimit ? 'text-red-600' : 'text-gray-900'}`}>{expensesThisMonth}/{MONTHLY_MAX}</strong>
+              {t('presets.thisMonth')}: <strong className={`${atLimit ? 'text-red-600' : 'text-gray-900'}`}>{expensesThisMonth}/{MONTHLY_MAX}</strong>
             </div>
           )}
         </div>

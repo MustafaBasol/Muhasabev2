@@ -4,6 +4,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { safeLocalStorage } from '../utils/localStorageSafe';
+import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 
 // Sayısal stringleri güvenli biçimde sayıya çevir ("2000.00", "2.000,00", "2,000.00")
 const toNumber = (value: unknown): number => {
@@ -99,14 +100,14 @@ export default function SaleViewModal({
     if (!value) return '—';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString(locale);
+    return formatAppDate(date);
   };
 
   const formatDateTime = (value?: string | number | Date | null) => {
     if (!value) return '—';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleString(locale);
+    return formatAppDateTime(date, { locale });
   };
 
   const formatAmount = (amount: unknown) => {
@@ -158,12 +159,12 @@ export default function SaleViewModal({
 
   const getPaymentMethodLabel = (method?: string) => {
     const key = (method || '').toString().toLowerCase();
-    // Basit i18n anahtarları; bulunamazsa mevcut fallback korunur
+    // Basit i18n anahtarları
     const map: Record<string, string> = {
-      cash: t('payments.methods.cash', 'Nakit'),
-      card: t('payments.methods.card', 'Kredi/Banka Kartı'),
-      transfer: t('payments.methods.transfer', 'Havale/EFT'),
-      check: t('payments.methods.check', 'Çek'),
+      cash: t('cash') as string,
+      card: t('card') as string,
+      transfer: t('transfer') as string,
+      check: t('check') as string,
     };
     return map[key] || method || '—';
   };
