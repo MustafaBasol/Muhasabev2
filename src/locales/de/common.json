@@ -192,85 +192,6 @@
     "pricing.features.dedicatedSupport": "Priorisierter Support",
     "pricing.notes.vatAndCurrency": "Preise exkl. MwSt.",
     "pricing.notes.cancelAnytime": "Jederzeit kündbar.",
-    "pricing": {
-      "title": "Einfache Preisgestaltung",
-      "subtitle": "Wählen Sie den passenden Tarif. Starten Sie kostenlos und upgraden Sie später.",
-      "planNames": {
-        "starter": "Starter",
-        "pro": "Pro",
-        "business": "Business"
-      },
-      "price": { "free": "0€/Monat", "pro": "9.90€/Monat", "biz": "29.90€/Monat" },
-      "annualLine": {
-        "free": "",
-        "pro": "Jährlich: 99€/Jahr",
-        "biz": "Jährlich: 299€/Jahr"
-      },
-      "cta": "Jetzt starten",
-      "ctaStarter": "Kostenlos starten",
-      "ctaPro": "Zu Pro wechseln",
-      "ctaBusiness": "Business wählen",
-      "ctaContact": "Kontaktieren Sie uns",
-      "plans": {
-        "starter": { "desc": "Ideal für Freiberufler und kleine Projekte" },
-        "pro": { "desc": "Ideal für wachsende Unternehmen" },
-        "business": { "desc": "Für etablierte Unternehmen mit Teams" }
-      },
-      "features": {
-        "users1": "1 Benutzer inklusive",
-        "users3": "3 Benutzer inklusive",
-        "users10": "10 Benutzer inklusive",
-        "invoices5": "Bis zu 5 Rechnungen pro Monat",
-        "expenses5": "Bis zu 5 Ausgaben pro Monat",
-        "vat": "Kategoriebasierte MwSt.-Verfolgung",
-        "pdf": "PDF-Rechnungen und -Angebote",
-        "quoteTemplate1": "1 Angebotsvorlage",
-        "unlimitedInvoicesExpenses": "Unbegrenzte Rechnungen und Ausgaben",
-        "customerSupplierUnlimited": "Unbegrenzte Kunden und Lieferanten",
-        "quotesBasic": "Angebotserstellung und teilbarer Link",
-        "products": "Produkt- und Lagerverwaltung",
-        "reports": "Erweiterte Berichte und detaillierte Analysen",
-        "quoteTemplatesUnlimited": "Unbegrenzte Angebotsvorlagen",
-        "saveListViews": "Listenansichten speichern",
-        "everythingPro": "Alles in Pro",
-        "dedicatedSupport": "Priorisierter Support",
-        "noCredit": "Keine Kreditkarte erforderlich"
-      },
-      "pro": { "extraUser": "+ jeder weitere Benutzer 5€/Monat" },
-      "notes": {
-        "vatAndCurrency": "Preise exkl. MwSt.",
-        "cancelAnytime": "Jederzeit kündbar."
-      },
-      "popular": "Am beliebtesten",
-      "trust": "Vertrauenswürdig bei Freelancern, Agenturen und KMU.",
-      "questions": "Fragen zur Preisgestaltung?",
-      "checkFaq": "Zu den FAQ",
-      "or": "oder",
-      "contactSupport": "Support kontaktieren",
-      "guarantee": "30 Tage Geld-zurück-Garantie für alle kostenpflichtigen Pläne"
-    },
-    "faq": {
-      "title": "Häufig gestellte Fragen",
-      "subtitle": "Alles, was Sie über Comptario wissen müssen. Finden Sie die gesuchte Antwort nicht? Kontaktieren Sie uns gern.",
-      "contactUs": "kontaktieren Sie uns",
-      "q1": "Kann ich kostenlos starten?",
-      "a1": "Ja, mit dem Starter‑Plan können Sie eine begrenzte Anzahl an Rechnungen kostenlos erstellen.",
-      "q2": "Gibt es MwSt.-Unterstützung?",
-      "a2": "Ja, mit kategoriebasierter Mehrwertsteuer und übersichtlichen Zusammenfassungen.",
-      "q3": "Werden Angebote unterstützt?",
-      "a3": "Ja. Sie können Angebote erstellen und per Link oder als PDF versenden.",
-      "q4": "Unterstützen Sie mehrere Währungen?",
-      "a4": "Ja — EUR, USD oder TRY mit manueller Kurseingabe.",
-      "q5": "Wie kann ich kündigen?",
-      "a5": "Sie können jederzeit in den Abrechnungseinstellungen kündigen.",
-      "q6": "Wo werden meine Daten gehostet?",
-      "a6": "In der EU (Platzhalter), mit Verschlüsselung und regelmäßigen Backups.",
-      "support": {
-        "title": "Noch Fragen?",
-        "desc": "Unser Support hilft Ihnen, das Beste aus Comptario herauszuholen.",
-        "contact": "Support kontaktieren"
-      }
-    },
     "faq.title": "Frequently asked questions",
     "faq.q1": "Can I start for free?",
     "faq.a1": "Yes, the Starter plan lets you issue limited invoices at no cost.",
@@ -1543,6 +1464,8 @@
     "title": "Rechnungen",
     "unnamed": "Rechnung",
     "newInvoice": "Neue Rechnung",
+    "thisMonth": "Diesen Monat",
+    "planLimitReachedTitle": "Für Free/Starter-Pläne ist das Rechnungslimit für diesen Monat erreicht ({{limit}}/{{limit}}).",
     "editInvoice": "Rechnung Bearbeiten",
     "enterInvoiceInfo": "Geben Sie Kundendaten und Produktdetails ein",
     "deleteConfirm": "Sind Sie sicher, dass Sie diese Rechnung löschen möchten?",
@@ -2809,8 +2732,6 @@
       "membersLabel": "Mitglieder",
       "plan": "Tarif",
       "youLabel": "Sie",
-      "makeAdmin": "Zum Administrator machen",
-      "makeMember": "Zum Mitglied machen",
       "limitFull": "Limit erreicht",
       "invite": {
         "title": "Mitglied einladen",

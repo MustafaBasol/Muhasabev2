@@ -12,15 +12,6 @@
     "withPhone": "Telefon var",
     "withCompany": "Şirketi olanlar"
   },
-  "presets": {
-    "thisMonth": "Bu Ay",
-    "lastMonth": "Geçen Ay",
-    "thisYear": "Bu Yıl",
-    "addedThisMonth": "Bu Ay Eklenenler",
-    "withEmail": "E-posta var",
-    "withPhone": "Telefon var",
-    "withCompany": "Şirketi olanlar"
-  },
   "landing": {
     "copied": "Kopyalandı",
     "copyFailed": "Kopyalama başarısız",
@@ -1145,6 +1136,8 @@
     "title": "Faturalar",
     "unnamed": "Fatura",
     "newInvoice": "Yeni Fatura",
+    "thisMonth": "Bu ay",
+    "planLimitReachedTitle": "Starter/Free planda bu ayki fatura limiti doldu ({{limit}}/{{limit}})",
     "deleteConfirm": "Bu faturayı silmek istediğinizden emin misiniz?",
     "deleteSuccess": "Fatura silindi",
     "noLineItemsError": "Faturaya aktarılacak satır bulunamadı.",

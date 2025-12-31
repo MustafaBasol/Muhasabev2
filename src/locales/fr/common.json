@@ -67,67 +67,6 @@
     "pricing.ctaContact": "Contactez-nous",
     "pricing.notes.vatAndCurrency": "Les prix s’entendent hors TVA.",
     "pricing.notes.cancelAnytime": "Résiliable à tout moment.",
-    "pricing": {
-      "title": "Tarification simple",
-      "subtitle": "Choisissez l’offre adaptée à vos besoins. Commencez gratuitement et évoluez ensuite.",
-      "planNames": {
-        "starter": "Starter",
-        "pro": "Pro",
-        "business": "Business"
-      },
-      "price": {
-        "free": "0€/mois",
-        "pro": "9.90€/mois",
-        "biz": "29.90€/mois"
-      },
-      "annualLine": {
-        "free": "",
-        "pro": "Paiement annuel : 99€/an",
-        "biz": "Paiement annuel : 299€/an"
-      },
-      "cta": "Commencer",
-      "ctaStarter": "Commencer gratuitement",
-      "ctaPro": "Passer à Pro",
-      "ctaBusiness": "Choisir l’offre Business",
-      "ctaContact": "Contactez-nous",
-      "plans": {
-        "starter": { "desc": "Idéal pour freelances et petits projets" },
-        "pro": { "desc": "Idéal pour les entreprises en croissance" },
-        "business": { "desc": "Pour les sociétés établies avec équipes" }
-      },
-      "features": {
-        "users1": "1 utilisateur inclus",
-        "users3": "3 utilisateurs inclus",
-        "users10": "10 utilisateurs inclus",
-        "invoices5": "Jusqu’à 5 factures par mois",
-        "expenses5": "Jusqu’à 5 dépenses par mois",
-        "vat": "Suivi de TVA par catégorie",
-        "pdf": "Factures et devis PDF",
-        "quoteTemplate1": "1 modèle de devis",
-        "unlimitedInvoicesExpenses": "Factures et dépenses illimitées",
-        "customerSupplierUnlimited": "Clients et fournisseurs illimités",
-        "quotesBasic": "Création de devis et lien partageable",
-        "products": "Gestion des produits et des stocks",
-        "reports": "Rapports avancés et analyses détaillées",
-        "quoteTemplatesUnlimited": "Modèles de devis illimités",
-        "saveListViews": "Enregistrer des vues de listes",
-        "everythingPro": "Tout ce qui est dans Pro",
-        "dedicatedSupport": "Support dédié",
-        "noCredit": "Aucune carte de crédit requise"
-      },
-      "pro": { "extraUser": "+ chaque utilisateur supplémentaire 5€/mois" },
-      "notes": {
-        "vatAndCurrency": "Les prix s’entendent hors TVA.",
-        "cancelAnytime": "Résiliable à tout moment."
-      },
-      "popular": "Le plus populaire",
-      "trust": "Plébiscité par les freelances, agences et PME.",
-      "questions": "Des questions sur nos tarifs ?",
-      "checkFaq": "Voir la FAQ",
-      "or": "ou",
-      "contactSupport": "contacter le support",
-      "guarantee": "Garantie satisfait ou remboursé 30 jours sur tous les forfaits payants"
-    },
     "faq.title": "Frequently asked questions",
     "faq.q1": "Can I start for free?",
     "faq.a1": "Yes, the Starter plan lets you issue limited invoices at no cost.",
@@ -1644,6 +1583,8 @@
     "title": "Factures",
     "unnamed": "Facture",
     "newInvoice": "Nouvelle Facture",
+    "thisMonth": "Ce mois-ci",
+    "planLimitReachedTitle": "Limite de factures atteinte pour ce mois-ci (offre Free/Starter) ({{limit}}/{{limit}}).",
     "editInvoice": "Modifier la Facture",
     "enterInvoiceInfo": "Saisissez les informations client et les détails des produits",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette facture ?",
@@ -2822,8 +2763,6 @@
       "membersLabel": "Membres",
       "plan": "Offre",
       "youLabel": "Vous",
-      "makeAdmin": "Faire Administrateur",
-      "makeMember": "Faire Membre",
       "limitFull": "Limite atteinte",
       "invite": {
         "title": "Inviter un Membre",

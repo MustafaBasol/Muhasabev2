@@ -93,6 +93,7 @@ export default function InvoiceList({
 }: InvoiceListProps) {
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation('common');
+  void i18n;
   const { tenant } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -235,7 +236,7 @@ export default function InvoiceList({
         }
       }
     });
-  }, [invoices, debouncedSearch, statusFilter, showVoided, startDate, endDate, sort.by, sort.dir]);
+  }, [invoices, debouncedSearch, statusFilter, showVoided, startDate, endDate, sort.by, sort.dir, i18n.language]);
 
   const filtersActive =
     searchTerm.trim().length > 0 ||
@@ -381,7 +382,7 @@ export default function InvoiceList({
             onClick={onAddInvoice}
             disabled={atLimit}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${atLimit ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-            title={atLimit ? 'Starter/Free planda bu ayki fatura limiti doldu (5/5)' : undefined}
+            title={atLimit ? t('invoices.planLimitReachedTitle', { limit: MONTHLY_MAX }) : undefined}
           >
             <Plus className="w-4 h-4" />
             <span>{t('invoices.newInvoice')}</span>
@@ -507,7 +508,7 @@ export default function InvoiceList({
           {/* Plan kullanım özeti */}
           {isFreePlan && (
             <div className="px-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 w-full sm:w-auto text-center sm:text-left">
-              Bu ay: <strong className={`${atLimit ? 'text-red-600' : 'text-gray-900'}`}>{invoicesThisMonth}/{MONTHLY_MAX}</strong>
+              {t('invoices.thisMonth')}: <strong className={`${atLimit ? 'text-red-600' : 'text-gray-900'}`}>{invoicesThisMonth}/{MONTHLY_MAX}</strong>
             </div>
           )}
         </div>
