@@ -1617,6 +1617,7 @@
     "voidConfirm": "Êtes-vous sûr de vouloir annuler la facture {{invoiceNumber}} ?",
     "voidReason": "Motif d'annulation",
     "voidReasonPlaceholder": "Expliquez le motif de l'annulation...",
+    "exportCsv": "Exporter CSV",
     "delete": "Supprimer",
     "viewInvoice": "Voir la facture",
     "createInvoice": "Créer une Facture",

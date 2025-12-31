@@ -1498,6 +1498,7 @@
     "voidConfirm": "Möchten Sie die Rechnung {{invoiceNumber}} wirklich stornieren?",
     "voidReason": "Stornogrund",
     "voidReasonPlaceholder": "Bitte den Stornogrund erläutern...",
+    "exportCsv": "Als CSV exportieren",
     "delete": "Löschen",
     "viewInvoice": "Rechnung anzeigen",
     "createInvoice": "Rechnung Erstellen",

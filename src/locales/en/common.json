@@ -1082,6 +1082,7 @@
     "voidConfirm": "Are you sure you want to void invoice {{invoiceNumber}}?",
     "voidReason": "Void Reason",
     "voidReasonPlaceholder": "Explain the reason for voiding...",
+    "exportCsv": "Export CSV",
     "delete": "Delete",
     "viewInvoice": "View invoice",
     "createInvoice": "Create Invoice",
