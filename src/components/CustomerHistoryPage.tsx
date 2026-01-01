@@ -379,13 +379,22 @@ export default function CustomerHistoryPage() {
             sCid === cidStr ||
             (!sCid && customerName && (sale.customerName === customerName || sale.customer?.name === customerName));
           if (saleMatchesCustomer) {
+            const items = getSaleItems(sale);
+            const itemsTotal = items.length
+              ? items.reduce((sum, it) => sum + toNumberSafe(it.unitPrice) * toNumberSafe(it.quantity), 0)
+              : 0;
+            const quantity = toNumberSafe((sale as any)?.quantity);
+            const unitPrice = toNumberSafe((sale as any)?.unitPrice);
+            const singleTotal = quantity > 0 && unitPrice > 0 ? quantity * unitPrice : 0;
+            const derivedAmount = itemsTotal || singleTotal || toNumberSafe(sale.amount ?? sale.total ?? 0);
+            const derivedStatus = mapSaleStatus((sale.status as unknown) as salesApi.SaleStatus);
             rowsCombined.push({
               id: String(sale.id ?? sName),
               type: 'sale',
               name: sName,
               date: String(sale.saleDate ?? sale.date ?? new Date()).slice(0, 10),
-              status: sale.status,
-              amount: Number(sale.amount ?? sale.total ?? 0),
+              status: derivedStatus,
+              amount: derivedAmount,
               createdBy: getCreatedBy(sale) || currentUserName || '—',
               description: sale.productName || (getSaleItems(sale)[0]?.productName ?? undefined),
               relatedInvoiceId: sale.invoiceId ? String(sale.invoiceId) : undefined,
