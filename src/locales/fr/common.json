@@ -771,6 +771,14 @@
     "passwordTooWeak": "Veuillez choisir un mot de passe plus fort",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
     "passwordResetSuccess": "Votre mot de passe a été mis à jour",
+    "passwordStrength": {
+      "minLength": "Le mot de passe doit comporter au moins {{min}} caractères",
+      "lowercase": "Le mot de passe doit inclure au moins une lettre minuscule",
+      "uppercase": "Le mot de passe doit inclure au moins une lettre majuscule",
+      "number": "Le mot de passe doit inclure au moins un chiffre",
+      "special": "Le mot de passe doit inclure au moins un caractère spécial",
+      "tooCommon": "Ce mot de passe est trop courant"
+    },
     "updatePassword": "Mettre à jour le mot de passe",
     "signIn": "Se connecter",
     "demoAccount": "Compte démo :",
@@ -818,6 +826,7 @@
     "mfaCodeHelp": "Saisissez le code depuis Google Authenticator / 1Password.",
     "verifyAndSignIn": "Vérifier et se connecter",
     "loginErrorGeneric": "Une erreur s'est produite lors de la connexion.",
+    "invalidAuthData": "Données d’authentification invalides reçues.",
     "verificationEmailSent": "E-mail de vérification envoyé. Merci de consulter votre boîte de réception.",
     "resendVerification": "Renvoyer l'e-mail de vérification",
     "verificationTokenMissing": "Jeton de vérification introuvable.",
@@ -870,6 +879,7 @@
     "networkError": "Erreur de connexion. Veuillez vérifier votre connexion Internet.",
     "unexpectedError": "Une erreur inattendue s'est produite. Veuillez réessayer.",
     "operationFailed": "Échec de l'opération. Veuillez réessayer.",
+    "tenantNotFound": "Locataire introuvable.",
     "notSpecified": "Non spécifié",
     "success": "Succès",
     "warning": "Avertissement",
@@ -901,7 +911,13 @@
       "notFound": "L’élément demandé est introuvable.",
       "badRequest": "Requête invalide. Veuillez vérifier vos informations.",
       "internalServerError": "Erreur serveur. Veuillez réessayer.",
-      "serviceUnavailable": "Le service est actuellement indisponible. Veuillez réessayer plus tard."
+      "serviceUnavailable": "Le service est actuellement indisponible. Veuillez réessayer plus tard.",
+      "backendUnavailable": "Le service backend est indisponible. Veuillez réessayer plus tard.",
+      "maintenanceMode": "Le système est en mode maintenance (lecture seule). Veuillez réessayer plus tard."
+    },
+    "errorBoundary": {
+      "toastPrefix": "Une erreur est survenue : ",
+      "toastUnknown": "Inconnu"
     },
     "periodLockedError": "Cet enregistrement ne peut pas être supprimé car il appartient à une période fiscale verrouillée",
     "description": "Description",
@@ -1222,6 +1238,7 @@
       "list": "Modèles",
       "new": "Nouveau",
       "newTemplate": "Nouveau modèle",
+      "defaultName": "Modèle",
       "placeholderName": "Nom du modèle",
       "apply": "Appliquer",
       "create": "Créer un modèle",
@@ -1246,7 +1263,9 @@
     "portal": {
       "cancelAtPeriodEnd": "L’abonnement sera annulé à la fin de la période. Date : {{date}}",
       "activeApplied": "Abonnement actif. Modifications du portail appliquées.",
-      "synced": "Modifications du portail synchronisées."
+      "synced": "Modifications du portail synchronisées.",
+      "errorGeneric": "Une erreur s’est produite lors de l’ouverture du portail de facturation.",
+      "testModeNotConfigured": "Le portail client Stripe n’est pas configuré en mode test. Activez d’abord le portail dans le tableau de bord Stripe (Paramètres → Portail client)."
     },
     "redirecting": "Redirection vers l’écran de paiement…",
     "interval": {
@@ -1425,6 +1444,8 @@
     "deleteCategory": "Supprimer",
     "editCategoryTooltip": "Modifier la catégorie",
     "mainCategoryEditTooltip": "Seul le taux de taxe peut être modifié pour les catégories principales",
+    "defaultCategoryName": "Général",
+    "mainCategoryRenameRestricted": "Le nom de la catégorie principale ne peut pas être modifié : {{category}}.",
     "generalCategoryCannotDelete": "La catégorie générale ne peut pas être supprimée",
     "mainCategoryCannotDelete": "La catégorie principale ne peut pas être supprimée",
     "deleteCategoryConfirm": "Êtes-vous sûr de vouloir supprimer cette catégorie?",
@@ -1469,6 +1490,7 @@
     "notes": "Notes",
     "namePlaceholder": "Nom du produit/service",
     "unitPlaceholder": "Unité (ex: pcs, kg, heure)",
+    "unitDefault": "pcs",
     "descriptionPlaceholder": "Caractéristiques produit, informations garantie etc.",
     "useCustomTax": "Utiliser taux TVA personnalisé",
     "customTaxNote": "Vous pouvez définir un taux de TVA différent pour ce produit. Si laissé vide, la TVA de catégorie sera utilisée.",
@@ -1546,11 +1568,30 @@
       "active": "Actif",
       "inactive": "Inactif"
     },
+    "errors": {
+      "subAccountCannotHaveSubAccount": "Un sous-compte ne peut pas avoir de sous-comptes.",
+      "expenseCategoryAlreadyAdded": "La catégorie de dépenses \"{{categoryLabel}}\" a déjà été ajoutée."
+    },
     "tooltips": {
       "editHint": "Cliquez sur la ligne du compte pour modifier",
       "toggleStatus": "Cliquer pour changer le statut",
       "addSubAccount": "Ajouter un sous-compte",
       "deleteAccount": "Supprimer le compte"
+    },
+    "lockedTooltips": {
+      "101": "Caisse : paiements en espèces des factures payées (Factures > Payées)",
+      "102": "Banques : paiements bancaires/carte des factures payées (Factures > Payées)",
+      "120": "Clients : factures impayées (Factures > Envoyées/En retard)",
+      "201": "Fournisseurs : dépenses impayées (Dépenses > Approuvées/En attente)",
+      "600": "REVENUS : total des revenus (depuis la page Factures)",
+      "601": "Revenus des ventes : factures de produits (Produits > catégorie Produits)",
+      "602": "Revenus de services : factures de services (Produits > catégorie Services)",
+      "700": "DÉPENSES : total des dépenses (depuis la page Dépenses)",
+      "701": "Loyer : dépenses catégorie Loyer (depuis la page Dépenses)",
+      "702": "Personnel : dépenses catégorie Personnel (depuis la page Dépenses)",
+      "703": "Factures/Charges : dépenses catégorie Services publics (depuis la page Dépenses)",
+      "dynamicExpenseCategory": "{{category}} : dépenses de la catégorie {{category}} (depuis la page Dépenses)",
+      "default": "Ce compte est géré automatiquement depuis d'autres pages"
     },
     "activeDateRangeLabel": "Filtre de dates :",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce compte ?",
@@ -1666,7 +1707,11 @@
     "invoiceStatus": "Statut de la Facture",
     "invoiceNotes": "Notes de Facture",
     "invoiceTotals": "Montants de la Facture",
-    "amountExclTax": "Montant (HT)"
+    "amountExclTax": "Montant (HT)",
+    "validationSelectCustomer": "Veuillez sélectionner un client.",
+    "validationSelectInvoiceToReturn": "Pour créer une facture de retour, veuillez sélectionner la facture à retourner.",
+    "validationAddAtLeastOneItem": "Veuillez ajouter au moins un produit.",
+    "validationCompleteProductInfo": "Veuillez compléter toutes les informations produit."
   },
   "expenses": {
     "title": "Dépenses",
@@ -1707,10 +1752,27 @@
     "addExpense": "Ajouter une Dépense",
     "supplierPlaceholder": "Entrez le nom du fournisseur...",
     "descriptionPlaceholder": "Description de la dépense...",
+    "categories": {
+      "other": "Autre",
+      "equipment": "Équipement",
+      "utilities": "Services publics",
+      "rent": "Loyer",
+      "salaries": "Salaires",
+      "supplies": "Fournitures",
+      "marketing": "Marketing",
+      "travel": "Voyage",
+      "insurance": "Assurance",
+      "taxes": "Taxes"
+    },
     "totalExpense": "Dépense Totale",
     "receiptUrl": "URL du Reçu/Facture",
     "receiptUrlHelper": "Vous pouvez ajouter un lien vers l'image/PDF du reçu ou de la facture",
-    "exportCsv": "Exporter CSV"
+    "exportCsv": "Exporter CSV",
+    "tooltips": {
+      "restoreExpense": "Restaurer la dépense",
+      "voidExpense": "Annuler la dépense",
+      "voidedCannotEdit": "Une dépense annulée ne peut pas être modifiée"
+    }
   },
   "customers": {
     "title": "Clients",
@@ -1741,6 +1803,8 @@
     "customersFound": "clients trouvés",
     "enterCustomerInfo": "Saisir les informations client",
     "editCustomer": "Modifier le Client",
+    "unnamed": "Client sans nom",
+    "noEmail": "Aucun e-mail",
     "taxNumber": "Numéro de TVA",
     "siretNumber": "SIRET",
     "siretNumberPlaceholder": "12345678901234",
@@ -1771,9 +1835,11 @@
   },
   "suppliers": {
     "title": "Fournisseurs",
+    "selectTitle": "Sélectionner un fournisseur",
     "newSupplier": "Nouveau Fournisseur",
     "unnamed": "Fournisseur",
     "noEmail": "Pas d'e-mail",
+    "deleteNotAllowedTitle": "Le fournisseur ne peut pas être supprimé",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce fournisseur ?",
     "search": "Rechercher des fournisseurs...",
     "suppliersRegistered": "fournisseurs enregistrés",
@@ -1789,6 +1855,9 @@
     "totalAmount": "Montant Total",
     "actions": "Actions",
     "exportCsv": "Exporter CSV",
+    "tooltips": {
+      "viewSupplierDetails": "Voir les détails du fournisseur"
+    },
     "categories": {
       "officeSupplies": "Fournitures de bureau",
       "technology": "Technologie",
@@ -1814,6 +1883,16 @@
       "phonePlaceholder": "+33 6 12 34 56 78",
       "taxNumberPlaceholder": "Numéro fiscal",
       "addressPlaceholder": "Informations complètes d'adresse..."
+    },
+    "view": {
+      "detailsSubtitle": "Détails du fournisseur",
+      "basicInfoTitle": "Informations de base",
+      "companyInfoTitle": "Informations sur l’entreprise",
+      "addressInfoTitle": "Informations d’adresse",
+      "quickActionsTitle": "Actions rapides",
+      "createExpense": "Créer une dépense",
+      "viewHistory": "Voir l'historique",
+      "registeredAt": "Date d'inscription"
     }
   },
   "banks": {
@@ -1893,10 +1972,34 @@
       "brandNameHelper": "Ce nom apparaîtra comme nom de marque sur les factures et les écrans publics.",
       "officialNameTooltip": "Seul le propriétaire ou un administrateur peut mettre à jour le nom légal",
       "officialNameOwnerOnly": "Ce champ ne peut être modifié que par le propriétaire de l'entreprise."
+    },
+    "password": {
+      "minLength": "Le mot de passe doit comporter au moins 6 caractères.",
+      "mismatch": "Les mots de passe ne correspondent pas.",
+      "updated": "Mot de passe mis à jour.",
+      "updateFailed": "Impossible de changer le mot de passe.",
+      "fillAll": "Veuillez remplir tous les champs.",
+      "incorrectCurrent": "Votre mot de passe actuel est incorrect.",
+      "requirements": "Le mot de passe doit comporter au moins 6 caractères et contenir au moins 1 majuscule, 1 minuscule, 1 chiffre et 1 caractère spécial."
+    },
+    "export": {
+      "success": "L’export a été lancé ! Il sera envoyé à votre e-mail.",
+      "failed": "Impossible de démarrer l’export"
+    },
+    "accountDeletion": {
+      "requestFailed": "Impossible d’envoyer la demande de suppression"
     }
   },
   "sales": {
     "title": "Ventes",
+    "autoNotes": {
+      "createdFromInvoice": "Créé automatiquement à partir de la facture {{invoiceNumber}}.",
+      "quoteAcceptedAutoCreated": "Devis accepté (créé automatiquement)."
+    },
+    "tooltips": {
+      "clickToEditAmount": "Cliquer pour modifier le montant"
+    },
+    "noCustomersForInvoiceAlert": "Vous devez d’abord ajouter au moins un client pour créer une facture.\n\nVous pouvez ajouter des clients depuis la page Clients.",
     "newSale": "Nouvelle Vente",
     "totalSales": "Total des Ventes",
     "totalSalesCount": "Nombre Total de Ventes",
@@ -2256,6 +2359,35 @@
     "validStockRequired": "Veuillez entrer une quantité de stock valide",
     "descriptionRequired": "Veuillez saisir une description",
     "amountRequired": "Veuillez saisir un montant valide"
+  },
+  "richTextEditor": {
+    "tooltips": {
+      "bold": "Gras (Ctrl+B)",
+      "italic": "Italique (Ctrl+I)",
+      "underline": "Souligné (Ctrl+U)",
+      "strikethrough": "Barré",
+      "heading": "Titres (H1–H6)",
+      "bulletedList": "Liste à puces",
+      "numberedList": "Liste numérotée",
+      "alignLeft": "Aligner à gauche",
+      "alignCenter": "Centrer",
+      "alignRight": "Aligner à droite",
+      "justify": "Justifier",
+      "blockquote": "Citation",
+      "codeBlock": "Bloc de code",
+      "horizontalRule": "Ligne horizontale",
+      "subscript": "Indice",
+      "superscript": "Exposant",
+      "addLink": "Ajouter un lien",
+      "addImage": "Ajouter une image",
+      "insertTable": "Insérer un tableau",
+      "undo": "Annuler (Ctrl+Z)",
+      "redo": "Rétablir (Shift+Ctrl+Z)",
+      "clearFormatting": "Effacer la mise en forme"
+    },
+    "prompts": {
+      "linkUrl": "URL du lien :"
+    }
   },
   "help": {
     "searchPlaceholder": "Rechercher dans l'aide..."
@@ -2619,6 +2751,7 @@
     }
   },
   "fiscalPeriods": {
+    "lockedPeriodFallbackName": "période verrouillée",
     "title": "Périodes Fiscales",
     "subtitle": "Gérez vos paramètres de période fiscale",
     "newPeriod": "Nouvelle Période",
@@ -3098,6 +3231,7 @@
     "suppliers": {
       "updateSuccess": "Fournisseur mis à jour",
       "createSuccess": "Fournisseur ajouté",
+      "createError": "Le fournisseur n’a pas pu être enregistré",
       "deleteSuccess": "Fournisseur supprimé",
       "deleteError": "Le fournisseur n’a pas pu être supprimé"
     },
@@ -3118,6 +3252,7 @@
       "cancelSuccess": "Dépense annulée",
       "cancelError": "La dépense n’a pas pu être annulée",
       "statusUpdateSuccess": "Statut de dépense mis à jour",
+      "statusUpdateError": "Le statut de la dépense n’a pas pu être mis à jour",
       "restoreSuccess": "Dépense restaurée",
       "restoreError": "La dépense n’a pas pu être restaurée"
     },
@@ -3246,7 +3381,21 @@
       "updateConfirm": "Êtes‑vous sûr de vouloir mettre à jour cet utilisateur ?",
       "passwordResetConfirm": "Réinitialiser le mot de passe de cet utilisateur ?",
       "deactivateConfirm": "Désactiver cet utilisateur ?",
-      "activateConfirm": "Activer cet utilisateur ?"
+      "activateConfirm": "Activer cet utilisateur ?",
+      "deleteModalTitle": "Supprimer l’utilisateur",
+      "deleteModalBody": "Choisissez comment supprimer cet utilisateur. Vous pouvez soit désactiver l’utilisateur (suppression douce), soit le supprimer définitivement (suppression dure).",
+      "deleteModalHardWarning": "Attention : la suppression définitive est irréversible et supprimera toutes les données associées à cet utilisateur.",
+      "softDeleteLabel": "Suppression douce (désactiver)",
+      "hardDeleteLabel": "Suppression dure (supprimer définitivement)",
+      "deleteConfirmHard": "Voulez‑vous vraiment supprimer définitivement cet utilisateur ? Cette action est irréversible.",
+      "deleteConfirmSoft": "Voulez‑vous vraiment désactiver cet utilisateur ?",
+      "deleteSuccessHard": "Utilisateur supprimé définitivement.",
+      "deleteSuccessSoft": "Utilisateur désactivé.",
+      "deleteNotFound404": "Utilisateur introuvable ou déjà supprimé.",
+      "deleteFailedAlert": "Échec de la suppression. Vérifiez la console.",
+      "processing": "Traitement…",
+      "hardDeleteButton": "Supprimer définitivement",
+      "deactivateButton": "Désactiver"
     },
     "tenants": {
       "updatePlanConfirm": "Mettre à jour l’abonnement de ce locataire ?",

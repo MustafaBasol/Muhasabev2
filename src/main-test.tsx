@@ -9,7 +9,7 @@ try {
     logger.debug('📍 Root element:', root);
   
   if (!root) {
-    throw new Error('Root element bulunamadı!');
+     throw new Error('Root element not found.');
   }
   
   createRoot(root).render(

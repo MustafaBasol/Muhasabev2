@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Bold, Italic, Underline, Strikethrough,
   List as BulletedList, ListOrdered as NumberedList,
@@ -19,6 +20,7 @@ interface RichTextEditorProps {
 // Hafif RTE: contentEditable + execCommand tabanlı toolbar
 // Not: execCommand modern değil; ancak bağımlılık eklemeden temel düzenleme ihtiyaçlarını karşılar.
 const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeholder, height = 220, readOnly, className }) => {
+  const { t } = useTranslation('common');
   const ref = useRef<HTMLDivElement>(null);
   const showedPlaceholder = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -121,14 +123,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
       {!readOnly && (
   <div className="flex flex-wrap items-center gap-1 border border-slate-200 rounded-t-md bg-white px-2 py-1.5 shadow-sm relative">
           {/* Temel stiller */}
-          <Btn title="Kalın (Ctrl+B)" onClick={() => apply('bold')}><Bold className="w-4 h-4" /></Btn>
-          <Btn title="İtalik (Ctrl+I)" onClick={() => apply('italic')}><Italic className="w-4 h-4" /></Btn>
-          <Btn title="Altı Çizili (Ctrl+U)" onClick={() => apply('underline')}><Underline className="w-4 h-4" /></Btn>
-          <Btn title="Üstü Çizili" onClick={() => apply('strikeThrough')}><Strikethrough className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.bold')} onClick={() => apply('bold')}><Bold className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.italic')} onClick={() => apply('italic')}><Italic className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.underline')} onClick={() => apply('underline')}><Underline className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.strikethrough')} onClick={() => apply('strikeThrough')}><Strikethrough className="w-4 h-4" /></Btn>
           <Divider />
           {/* Başlıklar (ikonlu dropdown) */}
           <div className="relative">
-            <Btn title="Başlık (H1–H6)" onClick={() => setShowHeadingMenu(v => !v)}>
+            <Btn title={t('richTextEditor.tooltips.heading')} onClick={() => setShowHeadingMenu(v => !v)}>
               <Heading1 className="w-4 h-4" />
             </Btn>
             {showHeadingMenu && (
@@ -157,36 +159,36 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
           </div>
           <Divider />
           {/* Listeler */}
-          <Btn title="Madde İşaretli Liste" onClick={() => apply('insertUnorderedList')}><BulletedList className="w-4 h-4" /></Btn>
-          <Btn title="Numaralı Liste" onClick={() => apply('insertOrderedList')}><NumberedList className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.bulletedList')} onClick={() => apply('insertUnorderedList')}><BulletedList className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.numberedList')} onClick={() => apply('insertOrderedList')}><NumberedList className="w-4 h-4" /></Btn>
           <Divider />
           {/* Hizalama */}
-          <Btn title="Sola Hizala" onClick={() => apply('justifyLeft')}><AlignLeft className="w-4 h-4" /></Btn>
-          <Btn title="Ortala" onClick={() => apply('justifyCenter')}><AlignCenter className="w-4 h-4" /></Btn>
-          <Btn title="Sağa Hizala" onClick={() => apply('justifyRight')}><AlignRight className="w-4 h-4" /></Btn>
-          <Btn title="İki Yana Yasla" onClick={() => apply('justifyFull')}><AlignJustify className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.alignLeft')} onClick={() => apply('justifyLeft')}><AlignLeft className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.alignCenter')} onClick={() => apply('justifyCenter')}><AlignCenter className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.alignRight')} onClick={() => apply('justifyRight')}><AlignRight className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.justify')} onClick={() => apply('justifyFull')}><AlignJustify className="w-4 h-4" /></Btn>
           <Divider />
           {/* Alıntı, Kod */}
-          <Btn title="Alıntı" onClick={() => apply('formatBlock', 'BLOCKQUOTE')}><Quote className="w-4 h-4" /></Btn>
-          <Btn title="Kod Bloğu" onClick={() => apply('formatBlock', 'PRE')}><Code className="w-4 h-4" /></Btn>
-          <Btn title="Yatay Çizgi" onClick={() => apply('insertHorizontalRule')}><Minus className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.blockquote')} onClick={() => apply('formatBlock', 'BLOCKQUOTE')}><Quote className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.codeBlock')} onClick={() => apply('formatBlock', 'PRE')}><Code className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.horizontalRule')} onClick={() => apply('insertHorizontalRule')}><Minus className="w-4 h-4" /></Btn>
           <Divider />
           {/* Alt/Üst indis */}
-          <Btn title="Alt indis" onClick={() => apply('subscript')}><span className="text-[10px] font-semibold">x<sub>2</sub></span></Btn>
-          <Btn title="Üst indis" onClick={() => apply('superscript')}><span className="text-[10px] font-semibold">x<sup>2</sup></span></Btn>
+          <Btn title={t('richTextEditor.tooltips.subscript')} onClick={() => apply('subscript')}><span className="text-[10px] font-semibold">x<sub>2</sub></span></Btn>
+          <Btn title={t('richTextEditor.tooltips.superscript')} onClick={() => apply('superscript')}><span className="text-[10px] font-semibold">x<sup>2</sup></span></Btn>
           <Divider />
           {/* Link ve Görsel */}
           <Btn
-            title="Bağlantı Ekle"
+            title={t('richTextEditor.tooltips.addLink')}
             onClick={() => {
-              const url = window.prompt('Bağlantı URL’si:');
+              const url = window.prompt(t('richTextEditor.prompts.linkUrl'));
               if (url) apply('createLink', url);
             }}
           >
             <LinkIcon className="w-4 h-4" />
           </Btn>
           <Btn
-            title="Görsel Ekle"
+            title={t('richTextEditor.tooltips.addImage')}
             onClick={() => fileInputRef.current?.click()}
           >
             <ImageIcon className="w-4 h-4" />
@@ -214,7 +216,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
           {/* Tablo */}
           <div className="relative">
             <Btn
-              title="Tablo Ekle"
+              title={t('richTextEditor.tooltips.insertTable')}
               onClick={() => setShowTablePicker(v => !v)}
             >
               <span className="grid grid-cols-3 grid-rows-3 gap-[1px] w-4 h-4">
@@ -249,9 +251,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
           </div>
           <Divider />
           {/* Geri al / Yinele ve temizle */}
-          <Btn title="Geri Al (Ctrl+Z)" onClick={() => apply('undo')}><Undo2 className="w-4 h-4" /></Btn>
-          <Btn title="Yinele (Shift+Ctrl+Z)" onClick={() => apply('redo')}><Redo2 className="w-4 h-4" /></Btn>
-          <Btn title="Biçimlendirmeyi Temizle" onClick={() => apply('removeFormat')}><Eraser className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.undo')} onClick={() => apply('undo')}><Undo2 className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.redo')} onClick={() => apply('redo')}><Redo2 className="w-4 h-4" /></Btn>
+          <Btn title={t('richTextEditor.tooltips.clearFormatting')} onClick={() => apply('removeFormat')}><Eraser className="w-4 h-4" /></Btn>
         </div>
       )}
       <div

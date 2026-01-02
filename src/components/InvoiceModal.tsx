@@ -569,19 +569,19 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
         customerId: invoiceData.customerId,
         selectedCustomer,
       });
-      setValidationError('Lütfen müşteri seçin');
+      setValidationError(t('invoices.validationSelectCustomer'));
       return;
     }
     if (invoiceData.type === 'return' && !invoiceData.originalInvoiceId) {
-      setValidationError('İade faturası oluşturmak için iade edilecek faturayı seçmelisiniz');
+      setValidationError(t('invoices.validationSelectInvoiceToReturn'));
       return;
     }
     if (!items.length) {
-      setValidationError('Lütfen en az bir ürün ekleyin');
+      setValidationError(t('invoices.validationAddAtLeastOneItem'));
       return;
     }
     if (items.some(item => !item.description || item.unitPrice <= 0)) {
-      setValidationError('Lütfen tüm ürün bilgilerini eksiksiz doldurun');
+      setValidationError(t('invoices.validationCompleteProductInfo'));
       return;
     }
 
@@ -1058,7 +1058,7 @@ export default function InvoiceModal({ onClose, onSave, invoice, customers = [],
                   <span className="font-medium">{taxAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">{t('invoices.discount') || 'İskonto'}:</span>
+                  <span className="text-gray-600">{t('invoices.discount') || 'Discount'}:</span>
                   <input
                     type="number"
                     value={invoiceData.discountAmount ?? 0}

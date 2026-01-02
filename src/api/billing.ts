@@ -1,5 +1,6 @@
 import apiClient from './client';
 import { logger } from '../utils/logger';
+import i18n from '../i18n/config';
 
 type BillingApiError = {
   response?: {
@@ -132,10 +133,10 @@ export async function createPortalSession(tenantId: string, returnUrl: string): 
     return res.data;
   } catch (error: unknown) {
     const details = asBillingError(error);
-    const msg = details.response?.data?.message || details.message || 'Portal hatası';
+    const msg = details.response?.data?.message || details.message || String(i18n.t('billing.portal.errorGeneric'));
     // Bu test-mode yapılandırma hatasını kullanıcıya net gösterelim
     if (String(msg).includes('test mode default configuration has not been created')) {
-      throw new Error('Portal oturumu oluşturulamadı: No configuration provided and your test mode default configuration has not been created. Stripe Dashboard > Billing > Portal > Settings sayfasından test mode için varsayılan yapılandırmayı kaydetmeniz gerekir.');
+      throw new Error(String(i18n.t('billing.portal.testModeNotConfigured')));
     }
     throw error;
   }
@@ -214,8 +215,8 @@ export function humanizePlan(plan?: string): string {
 // Yardımcı: Interval etiketini UI için
 export function humanizeInterval(interval?: string | null): string {
   if (!interval) return '';
-  if (interval === 'month') return 'Aylık';
-  if (interval === 'year') return 'Yıllık';
+  if (interval === 'month') return String(i18n.t('common:planTab.monthly'));
+  if (interval === 'year') return String(i18n.t('common:planTab.yearly'));
   return interval;
 }
 
@@ -230,13 +231,13 @@ export async function debugUpgrade(tenantId: string) {
       successUrl: window.location.origin + '/settings?upgrade=success',
       cancelUrl: window.location.origin + '/settings?upgrade=cancel',
     });
-    logger.info('Checkout session oluşturuldu:', session.id);
+    logger.info('Checkout session created:', session.id);
     window.location.href = session.url; // redirect
   } catch (error: unknown) {
-    const msg = asBillingError(error).response?.data?.message || (error as Error)?.message || 'Bilinmeyen hata';
-    logger.error('Upgrade hata:', msg);
+    const msg = asBillingError(error).response?.data?.message || (error as Error)?.message || String(i18n.t('error'));
+    logger.error('Upgrade error:', msg);
     window.dispatchEvent(
-      new CustomEvent('showToast', { detail: { message: 'Upgrade başarısız: ' + msg, tone: 'error' } })
+      new CustomEvent('showToast', { detail: { message: `${String(i18n.t('billing.upgradeFailed'))}: ${msg}`, tone: 'error' } })
     );
   }
 }

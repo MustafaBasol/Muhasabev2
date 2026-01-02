@@ -54,7 +54,7 @@ const defaultState: ProductFormState = {
   costPrice: '',
   stockQuantity: '',
   reorderLevel: '10',
-  unit: 'adet',
+  unit: '',
   description: '',
   hasCustomTaxRate: false,
   categoryTaxRateOverride: '',
@@ -139,7 +139,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
         costPrice: product.costPrice ? String(product.costPrice) : '',
         stockQuantity: product.stockQuantity ? String(product.stockQuantity) : '',
         reorderLevel: product.reorderLevel ? String(product.reorderLevel) : '10',
-        unit: product.unit || 'adet',
+        unit: product.unit || t('products.unitDefault'),
         description: product.description || '',
         hasCustomTaxRate: product.categoryTaxRateOverride != null,
         categoryTaxRateOverride: product.categoryTaxRateOverride != null ? String(product.categoryTaxRateOverride) : '',
@@ -148,10 +148,11 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       setFormState({
         ...defaultState,
         category: categoryOptions[0] || '',
+        unit: t('products.unitDefault'),
       });
     }
     setErrors({});
-  }, [isOpen, product, categoryOptions]);
+  }, [isOpen, product, categoryOptions, t]);
 
   const handleChange = (field: keyof ProductFormState, value: string) => {
     setFormState(prev => ({ ...prev, [field]: value }));
@@ -209,7 +210,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       costPrice,
       stockQuantity,
       reorderLevel,
-      unit: formState.unit.trim() || 'adet',
+      unit: formState.unit.trim() || t('products.unitDefault'),
       description: formState.description.trim(),
       status: stockQuantity === 0 ? 'out-of-stock' : stockQuantity <= reorderLevel ? 'low' : 'active',
       taxRate: categoryTaxRate, // Kategorinin KDV oranını ürüne ata
@@ -243,11 +244,11 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
       if (fieldErrors && Object.keys(fieldErrors).length > 0) {
         setErrors(prev => ({ ...prev, ...fieldErrors }));
       } else {
-        setErrors(prev => ({ ...prev, _form: t('common.error') || 'İşlem başarısız' }));
+        setErrors(prev => ({ ...prev, _form: t('common.operationFailed') || 'Operation failed. Please try again.' }));
       }
     } catch {
       // Üst katman toast gösterebilir; modal açık kalsın.
-      setErrors(prev => ({ ...prev, _form: t('common.error') || 'İşlem başarısız' }));
+      setErrors(prev => ({ ...prev, _form: t('common.operationFailed') || 'Operation failed. Please try again.' }));
     }
   };
 
@@ -265,9 +266,9 @@ export default function ProductModal({ isOpen, onClose, onSave, product, categor
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {product ? (t('products.editProduct') || 'Urunu duzenle') : (t('products.newProduct') || 'Yeni urun ekle')}
+                {product ? (t('products.editProduct') || 'Edit product') : (t('products.newProduct') || 'Add new product')}
               </h2>
-              <p className="text-sm text-gray-500">{t('products.enterProductInfo') || 'Urun bilgilerini doldurun ve stok durumunu guncelleyin'}</p>
+              <p className="text-sm text-gray-500">{t('products.enterProductInfo') || 'Fill in product information and update stock status'}</p>
             </div>
           </div>
           <button

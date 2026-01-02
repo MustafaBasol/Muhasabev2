@@ -1528,7 +1528,7 @@ const AdminPage: React.FC = () => {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="bg-white rounded-xl w-full max-w-md shadow-xl border border-red-200">
               <div className="px-5 py-4 border-b border-red-100 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-red-700">Kullanıcıyı Sil</h3>
+                <h3 className="text-lg font-semibold text-red-700">{t('admin.users.deleteModalTitle')}</h3>
                 <button
                   onClick={() => setDeleteModalUser(null)}
                   className="text-gray-500 hover:text-gray-700"
@@ -1537,9 +1537,9 @@ const AdminPage: React.FC = () => {
               <div className="p-5 space-y-4">
                 <div className="text-sm text-gray-700 leading-relaxed">
                   <p className="mb-2"><strong>{deleteModalUser.firstName} {deleteModalUser.lastName}</strong> - {deleteModalUser.email}</p>
-                  <p className="mb-2">Bu işlemi dikkatli yapın. Soft silme kullanıcıyı pasif hale getirir ve gerektiğinde geri döndürülebilir. Hard silme kalıcıdır ve kullanıcı kaydı tamamen kaldırılır.</p>
+                  <p className="mb-2">{t('admin.users.deleteModalBody')}</p>
                   {deleteMode === 'hard' && (
-                    <p className="text-red-600 font-medium">DİKKAT: Hard silme geri alınamaz. İlgili ilişkisel kayıtlar (audit log vb. hariç) cascade ile kaybolabilir.</p>
+                    <p className="text-red-600 font-medium">{t('admin.users.deleteModalHardWarning')}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
@@ -1551,7 +1551,7 @@ const AdminPage: React.FC = () => {
                       checked={deleteMode === 'soft'}
                       onChange={() => setDeleteMode('soft')}
                     />
-                    <span>Soft Sil (Pasifleştir)</span>
+                    <span>{t('admin.users.softDeleteLabel')}</span>
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -1561,7 +1561,7 @@ const AdminPage: React.FC = () => {
                       checked={deleteMode === 'hard'}
                       onChange={() => setDeleteMode('hard')}
                     />
-                    <span className="text-red-600">Hard Sil (Kalıcı)</span>
+                    <span className="text-red-600">{t('admin.users.hardDeleteLabel')}</span>
                   </label>
                 </div>
               </div>
@@ -1575,26 +1575,26 @@ const AdminPage: React.FC = () => {
                   onClick={async () => {
                     if (!deleteModalUser) return;
                     const hard = deleteMode === 'hard';
-                    const confirmText = hard ? 'Bu kullanıcı kalıcı olarak silinecek. Onaylıyor musunuz?' : 'Kullanıcı pasifleştirilecek. Onaylıyor musunuz?';
+                    const confirmText = hard ? t('admin.users.deleteConfirmHard') : t('admin.users.deleteConfirmSoft');
                     if (!window.confirm(confirmText)) return;
                     try {
                       setDeleteLoading(true);
                       await adminApi.deleteUser(deleteModalUser.id, { hard });
                       setUsers(prev => hard ? prev.filter(u => u.id === deleteModalUser.id ? false : true) : prev.map(u => u.id === deleteModalUser.id ? { ...u, isActive: false } : u));
-                      setActionMessage(hard ? 'Kullanıcı kalıcı olarak silindi' : 'Kullanıcı pasifleştirildi');
+                      setActionMessage(hard ? t('admin.users.deleteSuccessHard') : t('admin.users.deleteSuccessSoft'));
                       setTimeout(() => setActionMessage(''), 2500);
                       setDeleteModalUser(null);
                     } catch (e: any) {
                       console.error('Silme hatası', e);
                       const status = e?.response?.status;
                       if (status === 404) {
-                        setActionMessage('Kullanıcı zaten silinmiş veya bulunamadı (404)');
+                        setActionMessage(t('admin.users.deleteNotFound404'));
                         setTimeout(() => setActionMessage(''), 2500);
                         setDeleteModalUser(null);
                         // Sunucudaki güncel durumu yansıtmak için listeyi tazele
                         fetchUsers(userTenantFilter !== 'all' ? userTenantFilter : undefined);
                       } else {
-                        alert('Silme başarısız. Konsolu kontrol edin.');
+                        alert(t('admin.users.deleteFailedAlert'));
                       }
                     } finally {
                       setDeleteLoading(false);
@@ -1602,7 +1602,7 @@ const AdminPage: React.FC = () => {
                   }}
                   disabled={deleteLoading}
                   className={`px-4 py-2 text-sm rounded-lg text-white ${deleteMode === 'hard' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'} disabled:opacity-60`}
-                >{deleteLoading ? 'İşleniyor...' : (deleteMode === 'hard' ? 'Kalıcı Sil' : 'Pasifleştir')}</button>
+                >{deleteLoading ? t('admin.users.processing') : (deleteMode === 'hard' ? t('admin.users.hardDeleteButton') : t('admin.users.deactivateButton'))}</button>
               </div>
             </div>
           </div>

@@ -44,14 +44,14 @@
       "pricing.price.free": "0€/ay",
       "pricing.price.pro": "9.90€/ay",
       "pricing.price.biz": "29.90€/ay",
-  "pricing.annualLine.free": "",
-  "pricing.annualLine.pro": "Yıllık peşin: 99€/yıl",
-  "pricing.annualLine.biz": "Yıllık peşin: 299€/yıl",
-  "pricing.cta": "Şimdi Başlayın",
-  "pricing.ctaStarter": "Şimdi Başlayın",
-  "pricing.ctaPro": "Şimdi Pro’ya Geçin",
-  "pricing.ctaBusiness": "İşletme Planını Seçin",
-  "pricing.ctaContact": "Bize ulaşın",
+    "pricing.annualLine.free": "",
+    "pricing.annualLine.pro": "Yıllık peşin: 99€/yıl",
+    "pricing.annualLine.biz": "Yıllık peşin: 299€/yıl",
+    "pricing.cta": "Şimdi Başlayın",
+    "pricing.ctaStarter": "Şimdi Başlayın",
+    "pricing.ctaPro": "Şimdi Pro’ya Geçin",
+    "pricing.ctaBusiness": "İşletme Planını Seçin",
+    "pricing.ctaContact": "Bize ulaşın",
     "pricing": {
       "planNames": {
         "starter": "Başlangıç",
@@ -252,6 +252,14 @@
     "passwordTooWeak": "Lütfen daha güçlü bir şifre belirleyin",
     "passwordMismatch": "Şifreler eşleşmiyor",
     "passwordResetSuccess": "Şifreniz güncellendi",
+    "passwordStrength": {
+      "minLength": "Şifre en az {{min}} karakter olmalıdır",
+      "lowercase": "Şifre en az bir küçük harf içermelidir",
+      "uppercase": "Şifre en az bir büyük harf içermelidir",
+      "number": "Şifre en az bir rakam içermelidir",
+      "special": "Şifre en az bir özel karakter içermelidir",
+      "tooCommon": "Bu şifre çok yaygın kullanılmaktadır"
+    },
     "updatePassword": "Şifreyi Güncelle",
     "signIn": "Giriş Yap",
     "demoAccount": "Demo Hesap:",
@@ -282,6 +290,14 @@
     "captchaRequired": "Lütfen insan doğrulamasını tamamlayın.",
     "captchaPrompt": "Devam etmeden önce insan doğrulamasını tamamlayın.",
     "captchaVerificationFailed": "İnsan doğrulaması doğrulanamadı. Lütfen tekrar deneyin.",
+    "turnstile": {
+      "loading": "Doğrulama bileşeni yükleniyor...",
+      "scriptLoadFailed": "Doğrulama (Turnstile) scripti yüklenemedi.",
+      "devFailedSkipped": "Doğrulama başarısız (geliştirme modunda atlandı)",
+      "unavailable": "Captcha bileşeni yüklenemedi. Lütfen sayfayı yenileyin.",
+      "codespacesSkipped": "GitHub Codespaces ortamında doğrulama atlandı; üretimde Turnstile aktif olacak.",
+      "devNoSiteKey": "Captcha dev ortamda atlandı (site key yok)"
+    },
     "verifyRequiredTitle": "E-posta doğrulaması gerekiyor",
     "verifyRequiredBody": "{{email}} adresine doğrulama bağlantısı gönderdik. Bağlantıya tıklayana kadar hesap tamamen kilitlidir.",
     "verifyRequiredHint": "Doğrulama tamamlanmadan hiçbir mali işlem gerçekleştiremezsiniz.",
@@ -300,6 +316,7 @@
     "mfaCodeHelp": "Google Authenticator / 1Password kodunu girin.",
     "verifyAndSignIn": "Doğrula ve Giriş Yap",
     "loginErrorGeneric": "Giriş sırasında bir hata oluştu.",
+    "invalidAuthData": "Geçersiz kimlik doğrulama verisi alındı.",
     "verificationEmailSent": "Doğrulama e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.",
     "resendVerification": "Doğrulama e-postasını tekrar gönder",
     "verificationTokenMissing": "Doğrulama anahtarı bulunamadı.",
@@ -334,6 +351,7 @@
     "range": "{{start}}-{{end}} / {{total}}"
   },
   "fiscalPeriods": {
+    "lockedPeriodFallbackName": "kilitli dönem",
     "title": "Mali Dönemler",
     "subtitle": "Mali dönem ayarlarınızı yönetin",
     "newPeriod": "Yeni Dönem",
@@ -464,6 +482,7 @@
     "error": "Hata",
     "networkError": "Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.",
     "unexpectedError": "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
+    "tenantNotFound": "Tenant bulunamadı.",
     "operationFailed": "İşlem başarısız oldu. Lütfen tekrar deneyin.",
     "notSpecified": "Belirtilmemiş",
     "success": "Başarılı",
@@ -495,7 +514,13 @@
       "notFound": "Aradığınız kayıt bulunamadı.",
       "badRequest": "Geçersiz istek. Lütfen girdiğiniz bilgileri kontrol edin.",
       "internalServerError": "Sunucu hatası. Lütfen tekrar deneyin.",
-      "serviceUnavailable": "Servis şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin."
+      "serviceUnavailable": "Servis şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
+      "backendUnavailable": "Backend servisi şu anda erişilemiyor. Lütfen daha sonra tekrar deneyin.",
+      "maintenanceMode": "Sistem bakım modunda (salt okunur). Lütfen daha sonra tekrar deneyin."
+    },
+    "errorBoundary": {
+      "toastPrefix": "Bir hata oluştu: ",
+      "toastUnknown": "Bilinmeyen"
     },
     "periodLockedError": "Bu kayıt kilitli mali dönemde yer aldığı için silinemez",
     "monthlyIncomeExpense": "Aylık Gelir/Gider",
@@ -778,6 +803,7 @@
       "list": "Şablonlar",
       "new": "Yeni",
       "newTemplate": "Yeni şablon",
+      "defaultName": "Şablon",
       "placeholderName": "Şablon adı",
       "apply": "Uygula",
       "create": "Şablon Oluştur",
@@ -799,10 +825,15 @@
       "cancelledMessage": "Ödeme iptal edildi veya tamamlanamadı."
     },
     "addonAdded": "İlave kullanıcılar eklendi.",
+    "addonProrationNote": " (Bu dönem için ek prorasyon: {{amount}} {{currency}} — bir sonraki faturaya eklenecek)",
+    "confirmFallbackMessage": "Emin misiniz?",
+    "upgradeFailed": "Yükseltme başarısız",
     "portal": {
       "cancelAtPeriodEnd": "Abonelik dönem sonunda iptal edilecek. İptal tarihi: {{date}}",
       "activeApplied": "Abonelik aktif. Portal değişiklikleri uygulandı.",
-      "synced": "Portal değişiklikleri senkronize edildi."
+      "synced": "Portal değişiklikleri senkronize edildi.",
+      "errorGeneric": "Faturalandırma portalı hatası.",
+      "testModeNotConfigured": "Portal oturumu oluşturulamadı: Stripe Billing Portal test modunda yapılandırılmamış. Stripe Dashboard > Billing > Portal > Settings sayfasından test mode için varsayılan yapılandırmayı oluşturup kaydetmeniz gerekir."
     },
     "redirecting": "Ödeme ekranına yönlendiriliyorsunuz…",
     "interval": { "updated": "Plan dönemi güncellendi." },
@@ -928,6 +959,7 @@
   },
   "products": {
     "title": "Ürünler",
+    "defaultCategoryName": "Genel",
     "newProduct": "Yeni Ürün",
     "exportCsv": "CSV Dışa Aktar",
     "search": "Ürün ara...",
@@ -977,6 +1009,7 @@
     "deleteCategory": "Sil",
     "editCategoryTooltip": "Kategoriyi düzenle",
     "mainCategoryEditTooltip": "Ana kategorilerin sadece KDV'si değiştirilebilir",
+    "mainCategoryRenameRestricted": "\"{{category}}\" ana kategori olduğu için ismi değiştirilemez. Sadece KDV oranı güncellenebilir.",
     "generalCategoryCannotDelete": "Genel kategorisi silinemez",
     "mainCategoryCannotDelete": "Ana kategori silinemez",
     "deleteCategoryConfirm": "Bu kategoriyi silmek istediğinizden emin misiniz?",
@@ -1023,6 +1056,7 @@
     "notes": "NOTLAR",
     "namePlaceholder": "Ürün/hizmet adı",
     "unitPlaceholder": "Birim (örn: adet, kg, saat)",
+    "unitDefault": "adet",
     "descriptionPlaceholder": "Ürün özellikleri, garanti bilgisi vb.",
     "useCustomTax": "Özel KDV oranı kullan",
     "customTaxNote": "Bu ürün için farklı bir KDV oranı belirleyebilirsiniz. Boş bırakılırsa kategori KDV'si kullanılır.",
@@ -1105,9 +1139,28 @@
       "addSubAccount": "Alt hesap ekle",
       "deleteAccount": "Hesabı sil"
     },
+    "lockedTooltips": {
+      "101": "Kasa: Ödenen faturaların nakit ödemeleri (Faturalar > Ödendi)",
+      "102": "Bankalar: Ödenen faturaların banka/kart ödemeleri (Faturalar > Ödendi)",
+      "120": "Alıcılar: Ödenmemiş faturalar (Faturalar > Gönderildi/Vadesi Geçti)",
+      "201": "Satıcılar: Ödenmemiş giderler (Giderler > Onaylandı/Beklemede)",
+      "600": "GELİRLER: Tüm gelirler toplamı (Faturalar sayfasından)",
+      "601": "Satış Gelirleri: Ürün kategorili faturalar (Ürünler > Ürünler kategorisi)",
+      "602": "Hizmet Gelirleri: Hizmet kategorili faturalar (Ürünler > Hizmetler kategorisi)",
+      "700": "GİDERLER: Tüm giderler toplamı (Giderler sayfasından)",
+      "701": "Kira Giderleri: Kira kategorili giderler (Giderler sayfasından)",
+      "702": "Personel Giderleri: Personel kategorili giderler (Giderler sayfasından)",
+      "703": "Fatura Giderleri: Fatura kategorili giderler (Giderler sayfasından)",
+      "dynamicExpenseCategory": "{{category}}: {{category}} kategorili giderler (Giderler sayfasından)",
+      "default": "Bu hesap diğer sayfalardan otomatik yönetilir"
+    },
     "activeDateRangeLabel": "Tarih filtresi:",
     "deleteConfirm": "Bu hesabı silmek istediğinizden emin misiniz?",
     "deleteHasChildrenError": "Bu hesabın alt hesapları var. Önce alt hesapları silin.",
+    "errors": {
+      "subAccountCannotHaveSubAccount": "Alt kategorilere tekrar alt kategori eklenemez. Sadece ana kategorilere alt kategori eklenebilir.",
+      "expenseCategoryAlreadyAdded": "\"{{categoryLabel}}\" kategorisi zaten eklenmiş. Her kategori sadece bir kez eklenebilir."
+    },
     "accountNames": {
       "100": "DÖNEN VARLIKLAR",
       "101": "Kasa",
@@ -1219,7 +1272,11 @@
     "invoiceStatus": "Fatura Durumu",
     "invoiceNotes": "Fatura Notları",
     "invoiceTotals": "Fatura Tutarları",
-    "amountExclTax": "Tutar (KDV Hariç)"
+    "amountExclTax": "Tutar (KDV Hariç)",
+    "validationSelectCustomer": "Lütfen müşteri seçin",
+    "validationSelectInvoiceToReturn": "İade faturası oluşturmak için iade edilecek faturayı seçmelisiniz",
+    "validationAddAtLeastOneItem": "Lütfen en az bir ürün ekleyin",
+    "validationCompleteProductInfo": "Lütfen tüm ürün bilgilerini eksiksiz doldurun"
   },
   "expenses": {
     "title": "Giderler",
@@ -1263,7 +1320,24 @@
     "receiptUrl": "Fiş/Fatura URL'si",
     "receiptUrlHelper": "Fiş veya fatura görselinin/PDF'inin bağlantısını ekleyebilirsiniz",
     "descriptionPlaceholder": "Gider açıklaması...",
-    "supplierPlaceholder": "Tedarikçi adı yazın..."
+    "supplierPlaceholder": "Tedarikçi adı yazın...",
+    "categories": {
+      "other": "Diğer",
+      "equipment": "Ekipman",
+      "utilities": "Faturalar",
+      "rent": "Kira",
+      "salaries": "Maaşlar",
+      "supplies": "Malzemeler",
+      "marketing": "Pazarlama",
+      "travel": "Seyahat",
+      "insurance": "Sigorta",
+      "taxes": "Vergiler"
+    },
+    "tooltips": {
+      "restoreExpense": "Gideri geri yükle",
+      "voidExpense": "Gideri iptal et",
+      "voidedCannotEdit": "İptal edilmiş gider düzenlenemez"
+    }
   },
   "validation": {
     "descriptionRequired": "Lütfen açıklama girin",
@@ -1280,6 +1354,35 @@
     "skuRequired": "SKU zorunlu",
     "validPriceRequired": "Geçerli bir fiyat girin",
     "validStockRequired": "Geçerli stok adedi girin"
+  },
+  "richTextEditor": {
+    "tooltips": {
+      "bold": "Kalın (Ctrl+B)",
+      "italic": "İtalik (Ctrl+I)",
+      "underline": "Altı Çizili (Ctrl+U)",
+      "strikethrough": "Üstü Çizili",
+      "heading": "Başlık (H1–H6)",
+      "bulletedList": "Madde İşaretli Liste",
+      "numberedList": "Numaralı Liste",
+      "alignLeft": "Sola Hizala",
+      "alignCenter": "Ortala",
+      "alignRight": "Sağa Hizala",
+      "justify": "İki Yana Yasla",
+      "blockquote": "Alıntı",
+      "codeBlock": "Kod Bloğu",
+      "horizontalRule": "Yatay Çizgi",
+      "subscript": "Alt indis",
+      "superscript": "Üst indis",
+      "addLink": "Bağlantı Ekle",
+      "addImage": "Görsel Ekle",
+      "insertTable": "Tablo Ekle",
+      "undo": "Geri Al (Ctrl+Z)",
+      "redo": "Yinele (Shift+Ctrl+Z)",
+      "clearFormatting": "Biçimlendirmeyi Temizle"
+    },
+    "prompts": {
+      "linkUrl": "Bağlantı URL’si:"
+    }
   },
   "help": {
     "searchPlaceholder": "Yardımda ara..."
@@ -1343,9 +1446,11 @@
   },
   "suppliers": {
     "title": "Tedarikçiler",
+    "selectTitle": "Tedarikçi Seç",
     "newSupplier": "Yeni Tedarikçi",
     "unnamed": "Tedarikçi",
     "noEmail": "E-posta yok",
+    "deleteNotAllowedTitle": "Tedarikçi silinemez",
     "deleteConfirm": "Bu tedarikçiyi silmek istediğinizden emin misiniz?",
     "search": "Tedarikçi ara...",
     "suppliersRegistered": "tedarikçi kayıtlı",
@@ -1361,6 +1466,9 @@
     "totalAmount": "Toplam Tutar",
     "actions": "İşlemler",
     "exportCsv": "CSV Dışa Aktar",
+    "tooltips": {
+      "viewSupplierDetails": "Tedarikçi detaylarını görüntüle"
+    },
     "categories": {
       "officeSupplies": "Ofis Malzemeleri",
       "technology": "Teknoloji",
@@ -1386,6 +1494,16 @@
       "phonePlaceholder": "+90 555 123 45 67",
       "taxNumberPlaceholder": "Vergi Numarası",
       "addressPlaceholder": "Tam adres bilgisi..."
+    },
+    "view": {
+      "detailsSubtitle": "Tedarikçi detayları",
+      "basicInfoTitle": "Temel bilgiler",
+      "companyInfoTitle": "Şirket bilgileri",
+      "addressInfoTitle": "Adres bilgileri",
+      "quickActionsTitle": "Hızlı işlemler",
+      "createExpense": "Gider oluştur",
+      "viewHistory": "Geçmişi görüntüle",
+      "registeredAt": "Kayıt tarihi"
     }
   },
   "banks": {
@@ -1513,6 +1631,7 @@
     "suppliers": {
       "updateSuccess": "Tedarikçi güncellendi",
       "createSuccess": "Tedarikçi eklendi",
+      "createError": "Tedarikçi kaydedilemedi",
       "deleteSuccess": "Tedarikçi silindi",
       "deleteError": "Tedarikçi silinemedi"
     },
@@ -1525,6 +1644,22 @@
       "stockUpdateFailed": "Satış kaydedildi ancak stok güncellenemedi",
       "deleteError": "Satış silinemedi",
       "deleteSuccess": "Satış başarıyla silindi",
+      "password": {
+        "minLength": "Şifre en az 6 karakter olmalıdır.",
+        "mismatch": "Şifreler eşleşmiyor.",
+        "updated": "Şifre güncellendi.",
+        "updateFailed": "Şifre değiştirilemedi.",
+        "fillAll": "Lütfen tüm alanları doldurun.",
+        "incorrectCurrent": "Mevcut şifreniz yanlış.",
+        "requirements": "Şifre en az 6 karakter olmalı ve en az 1 büyük harf, 1 küçük harf, 1 sayı ve 1 özel karakter içermelidir."
+      },
+      "export": {
+        "success": "Dışa aktarma işlemi başlatıldı! E-postanıza gönderilecek.",
+        "failed": "Dışa aktarma başlatılamadı"
+      },
+      "accountDeletion": {
+        "requestFailed": "Silme talebi gönderilemedi"
+      },
       "customerNotFound": "Müşteri bulunamadı! Lütfen önce müşteri oluşturun."
     },
     "expenses": {
@@ -1533,6 +1668,7 @@
       "cancelSuccess": "Gider iptal edildi",
       "cancelError": "Gider iptal edilemedi",
       "statusUpdateSuccess": "Gider durumu güncellendi",
+      "statusUpdateError": "Gider durumu güncellenemedi",
       "restoreSuccess": "Gider geri yüklendi",
       "restoreError": "Gider geri yüklenemedi"
     },
@@ -1615,6 +1751,13 @@
   },
   "sales": {
     "title": "Satışlar",
+    "autoNotes": {
+      "createdFromInvoice": "{{invoiceNumber}} numaralı faturadan otomatik oluşturuldu.",
+      "quoteAcceptedAutoCreated": "Teklif kabul edildi (otomatik oluşturuldu)."
+    },
+    "tooltips": {
+      "clickToEditAmount": "Tutarı düzenlemek için tıklayın"
+    },
     "newSale": "Yeni Satış",
     "totalSales": "Toplam Satış",
     "netSuffix": " (KDV Hariç)",
@@ -1640,6 +1783,7 @@
     "deleteSale": "Satışı sil",
     "deleteConfirm": "Bu satışı silmek istediğinizden emin misiniz?",
     "createInvoice": "Fatura Oluştur",
+    "noCustomersForInvoiceAlert": "Fatura oluşturmak için önce en az bir müşteri eklemelisiniz.\n\n\"Müşteriler\" sayfasından yeni müşteri ekleyebilirsiniz.",
     "download": "İndir",
     "exportCsv": "CSV Dışa Aktar",
     "subtitle": "Satış kayıtlarınızı yönetin",
@@ -2477,7 +2621,21 @@
       "updateConfirm": "Bu kullanıcıyı güncellemek istediğinize emin misiniz?",
       "passwordResetConfirm": "Şifre sıfırlama e-postası gönderilsin mi?",
       "deactivateConfirm": "Kullanıcıyı devre dışı bırakmak istediğinize emin misiniz?",
-      "activateConfirm": "Kullanıcıyı aktifleştirmek istediğinize emin misiniz?"
+      "activateConfirm": "Kullanıcıyı aktifleştirmek istediğinize emin misiniz?",
+      "deleteModalTitle": "Kullanıcıyı Sil",
+      "deleteModalBody": "Bu işlemi dikkatli yapın. Soft silme kullanıcıyı pasif hale getirir ve gerektiğinde geri döndürülebilir. Hard silme kalıcıdır ve kullanıcı kaydı tamamen kaldırılır.",
+      "deleteModalHardWarning": "DİKKAT: Hard silme geri alınamaz. İlgili ilişkisel kayıtlar (audit log vb. hariç) cascade ile kaybolabilir.",
+      "softDeleteLabel": "Soft Sil (Pasifleştir)",
+      "hardDeleteLabel": "Hard Sil (Kalıcı)",
+      "deleteConfirmHard": "Bu kullanıcı kalıcı olarak silinecek. Onaylıyor musunuz?",
+      "deleteConfirmSoft": "Kullanıcı pasifleştirilecek. Onaylıyor musunuz?",
+      "deleteSuccessHard": "Kullanıcı kalıcı olarak silindi.",
+      "deleteSuccessSoft": "Kullanıcı pasifleştirildi.",
+      "deleteNotFound404": "Kullanıcı zaten silinmiş veya bulunamadı (404).",
+      "deleteFailedAlert": "Silme başarısız. Konsolu kontrol edin.",
+      "processing": "İşleniyor…",
+      "hardDeleteButton": "Kalıcı Sil",
+      "deactivateButton": "Pasifleştir"
     },
     "tenants": {
       "updatePlanConfirm": "{{name}} için planı '{{plan}}' olarak güncellemek istediğinize emin misiniz?",
@@ -2584,6 +2742,8 @@
         "to": "Bitiş",
         "exportCsv": "CSV Dışa Aktar"
       },
+        "unnamed": "İsimsiz Müşteri",
+        "noEmail": "E-posta bilgisi yok",
       "table": {
         "number": "Numara",
         "date": "Tarih",

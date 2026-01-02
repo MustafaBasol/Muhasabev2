@@ -365,8 +365,8 @@ export default function CustomerList({
 
   const renderCustomerRow = (customer: Customer, index: number) => {
     const customerId = customer?.id != null ? String(customer.id) : `customer-${index}`;
-    const displayName = customer?.name?.trim() || 'İsimsiz Müşteri';
-    const displayEmail = customer?.email || 'E-posta bilgisi yok';
+    const displayName = customer?.name?.trim() || t('customers.unnamed');
+    const displayEmail = customer?.email || t('customers.noEmail');
     const displayPhone = customer?.phone;
     const initials = displayName.charAt(0).toUpperCase() || '?';
 

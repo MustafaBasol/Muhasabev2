@@ -16,7 +16,7 @@ logger.info('🚀 Comptario uygulaması başlatılıyor...');
 // Root element'i kontrol et
 const root = document.getElementById('root');
 if (!root) {
-  throw new Error('Root element bulunamadı!');
+  throw new Error('Root element not found.');
 }
 
 logger.info('✅ Root element bulundu, uygulama render ediliyor...');

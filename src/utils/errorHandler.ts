@@ -83,7 +83,7 @@ const translateErrorMessage = (message: string): string => {
   // Check for period lock error pattern
   if (message.includes('Cannot modify records in locked period')) {
     const periodMatch = message.match(/"([^"]+)"/);
-    const periodName = periodMatch ? periodMatch[1] : 'kilitli dönem';
+    const periodName = periodMatch ? periodMatch[1] : i18n.t('fiscalPeriods.lockedPeriodFallbackName');
     return i18n.t('fiscalPeriods.errors.operationNotAllowedWithPeriod', { periodName });
   }
 

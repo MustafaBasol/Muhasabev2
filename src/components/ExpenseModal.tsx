@@ -55,16 +55,16 @@ interface ExpenseModalProps {
 }
 
 const categoryOptions = [
-  { fallbackLabel: 'Diğer', value: 'other' },
-  { fallbackLabel: 'Ekipman', value: 'equipment' },
-  { fallbackLabel: 'Faturalar', value: 'utilities' },
-  { fallbackLabel: 'Kira', value: 'rent' },
-  { fallbackLabel: 'Maaşlar', value: 'salaries' },
-  { fallbackLabel: 'Malzemeler', value: 'supplies' },
-  { fallbackLabel: 'Pazarlama', value: 'marketing' },
-  { fallbackLabel: 'Seyahat', value: 'travel' },
-  { fallbackLabel: 'Sigorta', value: 'insurance' },
-  { fallbackLabel: 'Vergiler', value: 'taxes' },
+  { value: 'other' },
+  { value: 'equipment' },
+  { value: 'utilities' },
+  { value: 'rent' },
+  { value: 'salaries' },
+  { value: 'supplies' },
+  { value: 'marketing' },
+  { value: 'travel' },
+  { value: 'insurance' },
+  { value: 'taxes' },
 ] as const;
 
 const statusOptions: ExpenseStatus[] = [
@@ -134,16 +134,16 @@ const parseAmountInput = (value: string) => {
 
 export default function ExpenseModal({ isOpen, onClose, onSave, expense, suppliers = [], supplierInfo }: ExpenseModalProps) {
   const { formatCurrency } = useCurrency();
-  const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation('common');
 
   const [expenseData, setExpenseData] = useState<ExpenseFormState>(() => buildFormState(expense, supplierInfo));
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
   const [filteredSuppliers, setFilteredSuppliers] = useState<SupplierOption[]>(suppliers);
 
   const categorySelectOptions = useMemo(() => (
-    categoryOptions.map(({ value, fallbackLabel }) => ({
+    categoryOptions.map(({ value }) => ({
       value,
-      label: t(`expenseCategories.${value}`) || fallbackLabel,
+      label: t(`expenses.categories.${value}`),
     }))
   ), [t]);
 
@@ -180,16 +180,16 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
     // Validation
     const trimmedDescription = expenseData.description.trim();
     if (!trimmedDescription) {
-      alert(t('validation.descriptionRequired') || 'Lütfen açıklama girin');
+      alert(t('validation.descriptionRequired'));
       return;
     }
     const parsedAmount = parseAmountInput(expenseData.amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      alert(t('validation.amountRequired') || 'Lütfen geçerli bir tutar girin');
+      alert(t('validation.amountRequired'));
       return;
     }
     if (!expenseData.category) {
-      alert(t('validation.categoryRequired') || 'Lütfen kategori seçin');
+      alert(t('validation.categoryRequired'));
       return;
     }
     
@@ -234,9 +234,9 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {expense ? (t('expenses.editExpense') || 'Gideri Düzenle') : (t('expenses.newExpense') || 'Yeni Gider Ekle')}
+                {expense ? t('expenses.editExpense') : t('expenses.newExpense')}
               </h2>
-              <p className="text-sm text-gray-500">{t('expenses.enterExpenseInfo') || 'Gider bilgilerini girin'}</p>
+              <p className="text-sm text-gray-500">{t('expenses.enterExpenseInfo')}</p>
             </div>
           </div>
           <button
@@ -252,7 +252,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('expenses.expenseNumber') || 'Gider Numarası'}
+                {t('expenses.expenseNumber')}
               </label>
               <input
                 type="text"
@@ -264,7 +264,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Tag className="w-4 h-4 inline mr-2" />
-                {t('expenses.category') || 'Kategori'} *
+                {t('expenses.category')} *
               </label>
               <select
                 value={expenseData.category}
@@ -282,14 +282,14 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('common.description') || 'Açıklama'} *
+              {t('expenses.description')} *
             </label>
             <input
               type="text"
               value={expenseData.description}
               onChange={(e) => setExpenseData(prev => ({ ...prev, description: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              placeholder={t('expenses.descriptionPlaceholder') || 'Gider açıklaması...'}
+              placeholder={t('expenses.descriptionPlaceholder')}
               required
             />
           </div>
@@ -299,7 +299,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Building2 className="w-4 h-4 inline mr-2" />
-                {t('expenses.supplier') || 'Tedarikçi/Firma'}
+                {t('expenses.supplier')}
               </label>
               <div className="relative">
                 <input
@@ -316,7 +316,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
                     setTimeout(() => setShowSupplierDropdown(false), 200);
                   }}
                   className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                  placeholder={t('expenses.supplierPlaceholder') || 'Tedarikçi adı yazın...'}
+                  placeholder={t('expenses.supplierPlaceholder')}
                 />
                 {/* Clear supplier button */}
                 {expenseData.supplierInput && (
@@ -363,7 +363,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('expenses.amount') || 'Tutar'} *
+                {t('expenses.amount')} *
               </label>
               <input
                 type="number"
@@ -383,7 +383,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Calendar className="w-4 h-4 inline mr-2" />
-                {t('expenses.expenseDate') || 'Gider Tarihi'} *
+                {t('expenses.expenseDate')} *
               </label>
               <input
                 type="date"
@@ -396,7 +396,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('expenses.paymentDate') || 'Ödeme Tarihi'}
+                {t('expenses.paymentDate')}
               </label>
               <input
                 type="date"
@@ -408,7 +408,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('common:statusLabel') || t('common:statusLabel', { lng: 'en' }) || 'Status'}
+                {t('expenses.status')}
               </label>
               <select
                 value={expenseData.status}
@@ -444,7 +444,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
           {/* Amount Summary */}
           <div className="bg-red-50 rounded-lg p-4 border border-red-200">
             <div className="flex justify-between items-center">
-              <span className="text-red-800 font-medium">{t('expenses.totalExpense') || 'Toplam Gider'}:</span>
+              <span className="text-red-800 font-medium">{t('expenses.totalExpense')}:</span>
               <span className="text-xl font-bold text-red-600">
                 {formatCurrency(previewAmount)}
               </span>
@@ -458,14 +458,14 @@ export default function ExpenseModal({ isOpen, onClose, onSave, expense, supplie
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            {t('common.cancel') || 'İptal'}
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={isSaveDisabled}
             className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {expense ? (t('common.update') || 'Güncelle') : (t('expenses.addExpense') || 'Gider Ekle')}
+            {expense ? t('common.update') : t('expenses.addExpense')}
           </button>
         </div>
       </div>

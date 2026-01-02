@@ -695,7 +695,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
 
       if (customers.length === 0) {
         logger.error('simpleSales.invoice.noCustomers');
-        alert('Fatura oluşturmak için önce en az bir müşteri eklemelisiniz.\n\n"Müşteriler" sayfasından yeni müşteri ekleyebilirsiniz.');
+        alert(t('sales.noCustomersForInvoiceAlert'));
         setShowInvoiceConfirmModal(false);
         setSelectedSaleForInvoice(null);
         return;
@@ -1249,7 +1249,7 @@ export default function SimpleSalesPage({ customers = [], sales = [], invoices =
                           <span 
                             onClick={() => handleInlineEdit(sale.id, 'amount', sale.amount)}
                             className="text-sm font-semibold text-green-600 cursor-pointer hover:bg-green-50 rounded p-1 transition-colors"
-                            title="Tutarı düzenlemek için tıklayın"
+                            title={t('sales.tooltips.clickToEditAmount')}
                           >
                             {formatAmount(resolveSaleTotal(sale))}
                           </span>

@@ -16,6 +16,7 @@ import {
   calculateInvoiceTotals,
   normalizeTaxRateInput,
 } from '../utils/tax';
+import { localizeAutoNote } from '../utils/autoNotes';
 
 type SaleItemWithMeta = Sale['items'] extends Array<infer T>
   ? T & { description?: string; taxRate?: number }
@@ -200,7 +201,7 @@ export default function InvoiceFromSaleModal({
       setInvoiceData({
         dueDate: dueDate.toISOString().split('T')[0],
         status: 'draft',
-        notes: sale.notes || ''
+           notes: sale.notes ? localizeAutoNote(sale.notes, t) : ''
       });
     }
   }, [isOpen, sale]);

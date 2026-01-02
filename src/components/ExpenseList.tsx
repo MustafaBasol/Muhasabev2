@@ -681,7 +681,7 @@ export default function ExpenseList({
                               ? 'text-gray-300 cursor-not-allowed' 
                               : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
                           }`}
-                          title={expense.isVoided ? 'İptal edilmiş gider düzenlenemez' : t('expenses.edit')}
+                          title={expense.isVoided ? t('expenses.tooltips.voidedCannotEdit') : t('expenses.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -700,7 +700,7 @@ export default function ExpenseList({
                           <button 
                             onClick={() => handleRestoreExpense(expense.id)}
                             className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="Gideri geri yükle"
+                            title={t('expenses.tooltips.restoreExpense')}
                           >
                             <RotateCcw className="w-4 h-4" />
                           </button>
@@ -708,7 +708,7 @@ export default function ExpenseList({
                           <button 
                             onClick={() => handleVoidExpense(expense)}
                             className="inline-flex items-center justify-center w-9 h-9 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-                            title="Gideri iptal et"
+                            title={t('expenses.tooltips.voidExpense')}
                           >
                             <Ban className="w-4 h-4" />
                           </button>
@@ -824,7 +824,7 @@ export default function ExpenseList({
                               ? 'text-gray-300 cursor-not-allowed' 
                               : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
                           }`}
-                          title={expense.isVoided ? 'İptal edilmiş gider düzenlenemez' : t('expenses.edit')}
+                          title={expense.isVoided ? t('expenses.tooltips.voidedCannotEdit') : t('expenses.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -843,7 +843,7 @@ export default function ExpenseList({
                           <button 
                             onClick={() => handleRestoreExpense(expense.id)}
                             className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="Gideri geri yükle"
+                            title={t('expenses.tooltips.restoreExpense')}
                           >
                             <RotateCcw className="w-4 h-4" />
                           </button>
@@ -851,7 +851,7 @@ export default function ExpenseList({
                           <button 
                             onClick={() => handleVoidExpense(expense)}
                             className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-                            title="Gideri iptal et"
+                            title={t('expenses.tooltips.voidExpense')}
                           >
                             <Ban className="w-4 h-4" />
                           </button>

@@ -279,7 +279,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
   const resolvedTenantId = resolveTenantId(tenant);
   const getRequiredTenantId = () => {
     if (!resolvedTenantId) {
-      throw new Error('Tenant bulunamadı');
+      throw new Error(t('common.tenantNotFound'));
     }
     return resolvedTenantId;
   };
@@ -361,51 +361,49 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       try {
         setBusy(true);
         const tenantId = getRequiredTenantId();
-        if (mode === 'now') {
-          const { chargeAddonNow, listInvoices } = await import('../api/billing');
-          const resp = await chargeAddonNow(tenantId, seats);
-          if (!resp?.success) {
-            setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
-            return;
-          }
-          const currency = (resp.currency || '').toUpperCase();
-          const amountMinor = typeof resp.amountPaid === 'number' && resp.amountPaid > 0
-            ? resp.amountPaid
-            : (typeof resp.amountDue === 'number' && resp.amountDue > 0 ? resp.amountDue : null);
-          const amountText = amountMinor ? ` (${(amountMinor / 100).toFixed(2)} ${currency})` : '';
-          setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar tahsil edildi.' : 'Additional users charged.') + amountText);
-          setAdditionalUsersToAdd(1);
-          await refreshUser();
-          try {
-            const res = await listInvoices(tenantId);
-            setInvoices(normalizeInvoiceList(res?.invoices));
-          } catch (error) {
-            logger.warn('Invoice refresh after addon charge failed', error);
-          }
-          notifyBillingSuccess({ type: 'addon', seats });
-        } else {
+          if (mode === 'now') {
+            const { chargeAddonNow, listInvoices } = await import('../api/billing');
+            const resp = await chargeAddonNow(tenantId, seats);
+            if (!resp?.success) {
+              setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
+              return;
+            }
+            const currency = (resp.currency || '').toUpperCase();
+            const amountMinor = typeof resp.amountPaid === 'number' && resp.amountPaid > 0
+              ? resp.amountPaid
+              : (typeof resp.amountDue === 'number' && resp.amountDue > 0 ? resp.amountDue : null);
+            const amountText = amountMinor ? ` (${(amountMinor / 100).toFixed(2)} ${currency})` : '';
+            setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar tahsil edildi.' : 'Additional users charged.') + amountText);
+            setAdditionalUsersToAdd(1);
+            await refreshUser();
+            try {
+              const res = await listInvoices(tenantId);
+              setInvoices(normalizeInvoiceList(res?.invoices));
+            } catch (error) {
+              logger.warn('Invoice refresh after addon charge failed', error);
+            }
+            notifyBillingSuccess({ type: 'addon', seats });
+          } else {
           const resp = await createAddonCheckout(tenantId, seats, '', '');
           if (!resp?.success) {
-            setPlanMessage(currentLanguage === 'tr' ? 'İşlem başarısız.' : 'Operation failed.');
+            setPlanMessage(t('common.operationFailed'));
             return;
           }
           const prorationMsg = (() => {
             const currency = (resp.upcomingCurrency || '').toUpperCase();
             if (typeof resp.upcomingProrationTotal === 'number') {
               const amount = (resp.upcomingProrationTotal / 100).toFixed(2);
-              return currentLanguage === 'tr'
-                ? ` (Bu dönem için ek proration: ${amount} ${currency} — bir sonraki faturaya eklenecek)`
-                : ` (Proration for this period: ${amount} ${currency} — will be added to the next invoice)`;
+              return String(t('billing.addonProrationNote', { amount, currency }));
             }
             return '';
           })();
-          setPlanMessage((currentLanguage === 'tr' ? 'İlave kullanıcılar eklendi.' : 'Additional users added.') + prorationMsg);
+          setPlanMessage(String(t('billing.addonAdded')) + prorationMsg);
           setAdditionalUsersToAdd(1);
           await refreshUser();
           notifyBillingSuccess({ type: 'addon', seats });
         }
       } catch (error) {
-        setPlanMessage(extractErrorMessage(error, currentLanguage === 'tr' ? 'Hata' : 'Error'));
+        setPlanMessage(extractErrorMessage(error, String(t('common.operationFailed'))));
       } finally {
         setBusy(false);
       }
@@ -618,7 +616,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       setPlanMessage(currentLanguage === 'tr' ? 'Koltuk azaltıldı.' : 'Seat removed.');
       await refreshUser();
     } catch (error) {
-      setPlanMessage(extractErrorMessage(error, 'Hata'));
+      setPlanMessage(extractErrorMessage(error, String(t('common.operationFailed'))));
     } finally {
       setBusy(false);
     }
@@ -929,7 +927,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         await refreshUser();
       }
     } catch (error) {
-      setPlanMessage(extractErrorMessage(error, 'İptal hata'));
+      setPlanMessage(extractErrorMessage(error, String(t('common.operationFailed'))));
     } finally {
       setBusy(false);
     }
@@ -950,7 +948,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
         await refreshUser();
       }
     } catch (error) {
-      setPlanMessage(extractErrorMessage(error, 'Yeniden başlatma hatası'));
+      setPlanMessage(extractErrorMessage(error, String(t('common.operationFailed'))));
     } finally {
       setBusy(false);
     }
@@ -1037,7 +1035,7 @@ const PlanTab: React.FC<PlanTabProps> = ({ tenant, currentLanguage, text }) => {
       setPlanConfirm({ open: true, title, message });
     } catch (error) {
       logger.warn('Plan confirmation fallback triggered', error);
-      setPlanConfirm({ open: true, title: 'Confirm', message: 'Proceed with the change?' });
+      setPlanConfirm({ open: true, title: String(t('common.confirm')), message: String(t('billing.confirmFallbackMessage')) });
     }
   };
 
@@ -3558,24 +3556,24 @@ export default function SettingsPage({
       if (pwCurrent || pwNew || pwConfirm) {
         if (!pwCurrent || !pwNew || !pwConfirm) {
           openInfo(
-            currentLanguage === 'tr' ? 'Şifre Alanları Eksik' : 'Missing Password Fields',
-            currentLanguage === 'tr' ? 'Mevcut, yeni ve tekrar şifre alanlarının tümü doldurulmalı.' : 'All password fields (current, new, confirm) must be filled.',
+            String(t('settings.password.missingFieldsTitle')),
+            String(t('settings.password.missingFieldsMessage')),
             'error'
           );
           return;
         }
         if (pwNew !== pwConfirm) {
           openInfo(
-            currentLanguage === 'tr' ? 'Şifre Eşleşmiyor' : 'Password Mismatch',
-            currentLanguage === 'tr' ? 'Yeni şifre ile tekrar şifre aynı değil.' : 'New password and confirmation do not match.',
+            String(t('settings.password.mismatchTitle')),
+            String(t('settings.password.mismatchMessage')),
             'error'
           );
           return;
         }
         if (pwNew.length < 8) {
           openInfo(
-            currentLanguage === 'tr' ? 'Şifre Çok Kısa' : 'Password Too Short',
-            currentLanguage === 'tr' ? 'Yeni şifre en az 8 karakter olmalı.' : 'New password must be at least 8 characters.',
+            String(t('settings.password.tooShortTitle')),
+            String(t('settings.password.tooShortMessage')),
             'error'
           );
           return;
@@ -3585,8 +3583,8 @@ export default function SettingsPage({
           const resp = await usersApi.changePassword(pwCurrent, pwNew);
           if (resp?.success) {
             openInfo(
-              currentLanguage === 'tr' ? 'Şifre Güncellendi' : 'Password Updated',
-              currentLanguage === 'tr' ? 'Şifreniz başarıyla değiştirildi.' : 'Your password has been changed successfully.',
+              String(t('settings.password.updatedTitle')),
+              String(t('settings.password.updatedMessage')),
               'success'
             );
             setProfileData(prev => ({
@@ -3597,16 +3595,16 @@ export default function SettingsPage({
             }));
           } else {
             openInfo(
-              currentLanguage === 'tr' ? 'Şifre Değiştirilemedi' : 'Password Change Failed',
-              currentLanguage === 'tr' ? 'İşlem sırasında hata oluştu.' : 'An error occurred during password change.',
+              String(t('settings.password.changeFailedTitle')),
+              String(t('settings.password.changeFailedMessage')),
               'error'
             );
             return; // diğer kayıtları sürdürme
           }
         } catch (error: unknown) {
-          const msg = extractErrorMessage(error, 'Hata');
+          const msg = extractErrorMessage(error, String(t('common.operationFailed')));
           openInfo(
-            currentLanguage === 'tr' ? 'Şifre Değiştirilemedi' : 'Password Change Failed',
+            String(t('settings.password.changeFailedTitle')),
             msg,
             'error'
           );
@@ -3905,22 +3903,22 @@ export default function SettingsPage({
           {/* Bilgilendirme metni */}
           <div className="mb-4 flex items-start gap-2 rounded-md bg-blue-50 p-3 text-blue-800">
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>{text.company.legalFields.countryHelp || 'Şirket bilgilerini girebilmek için lütfen şirket ülkesini seçin.'}</span>
+            <span>{text.company.legalFields.countryHelp || 'Please select the company country to enter company details.'}</span>
           </div>
           {/* Ülke seçimi en üstte */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.countrySelectLabel || 'Ülke'}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{text.company.legalFields.countrySelectLabel || 'Country'}</label>
                 <select
                   value={companyData.country}
                   onChange={e => handleCompanyChange('country', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="TR">{text.company.legalFields.countryOptions?.TR || 'Türkiye'}</option>
-                <option value="US">{text.company.legalFields.countryOptions?.US || 'Amerika'}</option>
-                <option value="DE">{text.company.legalFields.countryOptions?.DE || 'Almanya'}</option>
-                <option value="FR">{text.company.legalFields.countryOptions?.FR || 'Fransa'}</option>
-                <option value="OTHER">{text.company.legalFields.countryOptions?.OTHER || 'Diğer'}</option>
+                <option value="TR">{text.company.legalFields.countryOptions?.TR || 'Turkey'}</option>
+                <option value="US">{text.company.legalFields.countryOptions?.US || 'United States'}</option>
+                <option value="DE">{text.company.legalFields.countryOptions?.DE || 'Germany'}</option>
+                <option value="FR">{text.company.legalFields.countryOptions?.FR || 'France'}</option>
+                <option value="OTHER">{text.company.legalFields.countryOptions?.OTHER || 'Other'}</option>
               </select>
             </div>
           </div>
@@ -4646,10 +4644,10 @@ export default function SettingsPage({
         document.body.removeChild(a);
 
         // Lokalize edilmemiş; isterseniz modala çevrilebilir
-        alert('Data exported successfully!');
+        alert(String(t('settings.export.success')));
       } catch (error) {
         logger.error('Export error', error);
-        alert(`Failed to export data: ${error instanceof Error ? error.message : String(error)}`);
+        alert(String(t('settings.export.failed', { error: error instanceof Error ? error.message : String(error) })));
       } finally {
         setIsExporting(false);
       }
@@ -4680,7 +4678,7 @@ export default function SettingsPage({
             setIsDeletingAccount(false);
             return;
           }
-          throw new Error('Account deletion request failed');
+          throw new Error(String(t('settings.accountDeletion.requestFailed')));
         }
 
         const result = await response.json();

@@ -1,6 +1,7 @@
 import apiClient, { API_BASE_URL } from './client';
 import { logger } from '../utils/logger';
 import { safeLocalStorage, clearLegacySessionCaches } from '../utils/localStorageSafe';
+import i18n from '../i18n/config';
 
 type ApiErrorLike = {
   response?: {
@@ -81,7 +82,7 @@ export const authService = {
       const response = await apiClient.post<AuthResponse>('/auth/register', data);
       return response.data;
     } catch (error: unknown) {
-      throw new Error(getErrorMessage(error, 'Kayıt sırasında hata oluştu'));
+      throw new Error(getErrorMessage(error, String(i18n.t('auth.registerErrorGeneric'))));
     }
   },
 
@@ -118,7 +119,7 @@ export const authService = {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const message = errorData.message || 'Geçersiz email veya şifre';
+        const message = errorData.message || String(i18n.t('common.apiErrors.invalidCredentials'));
         if (message === 'MFA_REQUIRED') {
           // Frontend bu durumu özel olarak ele alacak
           return { mfaRequired: true } as const;

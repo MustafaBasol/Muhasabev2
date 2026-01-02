@@ -10,7 +10,21 @@
       "updateConfirm": "Sind Sie sicher, dass Sie diesen Benutzer aktualisieren möchten?",
       "passwordResetConfirm": "E-Mail zum Zurücksetzen des Passworts senden?",
       "deactivateConfirm": "Möchten Sie diesen Benutzer wirklich deaktivieren?",
-      "activateConfirm": "Möchten Sie diesen Benutzer wirklich aktivieren?"
+      "activateConfirm": "Möchten Sie diesen Benutzer wirklich aktivieren?",
+      "deleteModalTitle": "Benutzer löschen",
+      "deleteModalBody": "Bitte vorsichtig vorgehen. Soft-Delete deaktiviert den Benutzer und kann bei Bedarf rückgängig gemacht werden. Hard-Delete ist dauerhaft und entfernt den Benutzerdatensatz.",
+      "deleteModalHardWarning": "WARNUNG: Hard-Delete kann nicht rückgängig gemacht werden. Zugehörige Datensätze (außer Audit-Logs usw.) können durch Kaskadenlöschungen entfernt werden.",
+      "softDeleteLabel": "Soft-Delete (Deaktivieren)",
+      "hardDeleteLabel": "Hard-Delete (Dauerhaft)",
+      "deleteConfirmHard": "Dieser Benutzer wird dauerhaft gelöscht. Bestätigen?",
+      "deleteConfirmSoft": "Dieser Benutzer wird deaktiviert. Bestätigen?",
+      "deleteSuccessHard": "Benutzer dauerhaft gelöscht.",
+      "deleteSuccessSoft": "Benutzer deaktiviert.",
+      "deleteNotFound404": "Benutzer bereits gelöscht oder nicht gefunden (404).",
+      "deleteFailedAlert": "Löschen fehlgeschlagen. Bitte Konsole prüfen.",
+      "processing": "Wird verarbeitet…",
+      "hardDeleteButton": "Dauerhaft löschen",
+      "deactivateButton": "Deaktivieren"
     },
     "tenants": {
       "updatePlanConfirm": "Möchten Sie den Plan für {{name}} wirklich auf '{{plan}}' aktualisieren?",
@@ -94,10 +108,15 @@
       "cancelledMessage": "Zahlung storniert oder nicht abgeschlossen."
     },
     "addonAdded": "Zusätzliche Benutzer hinzugefügt.",
+    "addonProrationNote": "Eine anteilige Berechnung für die verbleibende Zeit wird angewendet: {{amount}} {{currency}}",
+    "confirmFallbackMessage": "Sind Sie sicher?",
+    "upgradeFailed": "Upgrade fehlgeschlagen",
     "portal": {
       "cancelAtPeriodEnd": "Abo endet am Periodenende. Datum: {{date}}",
       "activeApplied": "Abo aktiv. Portaländerungen angewendet.",
-      "synced": "Portaländerungen synchronisiert."
+      "synced": "Portaländerungen synchronisiert.",
+      "errorGeneric": "Fehler im Abrechnungsportal.",
+      "testModeNotConfigured": "Abrechnungsportal-Sitzung konnte nicht erstellt werden: Das Stripe Billing Portal ist für den Testmodus nicht konfiguriert. In Stripe Dashboard > Billing > Portal > Settings eine Standard-Konfiguration für den Testmodus erstellen/speichern."
     },
     "redirecting": "Weiterleitung zur Zahlung…",
     "interval": {
@@ -714,6 +733,14 @@
     "passwordTooWeak": "Bitte wählen Sie ein stärkeres Passwort",
     "passwordMismatch": "Passwörter stimmen nicht überein",
     "passwordResetSuccess": "Ihr Passwort wurde aktualisiert",
+    "passwordStrength": {
+      "minLength": "Das Passwort muss mindestens {{min}} Zeichen lang sein",
+      "lowercase": "Das Passwort muss mindestens einen Kleinbuchstaben enthalten",
+      "uppercase": "Das Passwort muss mindestens einen Großbuchstaben enthalten",
+      "number": "Das Passwort muss mindestens eine Zahl enthalten",
+      "special": "Das Passwort muss mindestens ein Sonderzeichen enthalten",
+      "tooCommon": "Dieses Passwort ist zu häufig"
+    },
     "updatePassword": "Passwort aktualisieren",
     "signIn": "Anmelden",
     "demoAccount": "Demo-Konto:",
@@ -743,6 +770,14 @@
     "captchaRequired": "Bitte schließen Sie die Menschlichkeitsprüfung ab.",
     "captchaPrompt": "Bitte schließen Sie die Menschlichkeitsprüfung ab, bevor Sie fortfahren.",
     "captchaVerificationFailed": "Die Menschlichkeitsprüfung konnte nicht bestätigt werden. Bitte versuchen Sie es erneut.",
+    "turnstile": {
+      "loading": "Verifizierungskomponente wird geladen...",
+      "scriptLoadFailed": "Das Verifizierungsskript (Turnstile) konnte nicht geladen werden.",
+      "devFailedSkipped": "Verifizierung fehlgeschlagen (in der Entwicklungsumgebung übersprungen)",
+      "unavailable": "Die Captcha-Komponente konnte nicht geladen werden. Bitte laden Sie die Seite neu.",
+      "codespacesSkipped": "Captcha wurde in der Codespaces-Umgebung deaktiviert.",
+      "devNoSiteKey": "Entwicklungsumgebung: Kein Captcha Site-Key, Verifizierung übersprungen."
+    },
       "verifyRequiredTitle": "E-Mail-Bestätigung erforderlich",
       "verifyRequiredBody": "Wir haben einen Bestätigungslink an {{email}} gesendet. Bestätige deine Adresse, um fortzufahren.",
       "verifyRequiredHint": "Ohne bestätigte E-Mail bleiben alle Aktionen im System gesperrt.",
@@ -761,6 +796,7 @@
     "mfaCodeHelp": "Geben Sie den Code aus Google Authenticator / 1Password ein.",
     "verifyAndSignIn": "Verifizieren und anmelden",
     "loginErrorGeneric": "Beim Anmelden ist ein Fehler aufgetreten.",
+    "invalidAuthData": "Ungültige Authentifizierungsdaten erhalten.",
     "verificationEmailSent": "Bestätigungs-E-Mail gesendet. Bitte prüfen Sie Ihr Postfach.",
     "resendVerification": "Bestätigungs-E-Mail erneut senden",
     "verificationTokenMissing": "Bestätigungs-Token nicht gefunden.",
@@ -812,6 +848,7 @@
     "error": "Fehler",
     "networkError": "Netzwerkfehler. Bitte prüfen Sie Ihre Internetverbindung.",
     "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+    "tenantNotFound": "Mandant nicht gefunden.",
     "operationFailed": "Vorgang fehlgeschlagen. Bitte versuchen Sie es erneut.",
     "notSpecified": "Nicht angegeben",
     "success": "Erfolg",
@@ -843,7 +880,13 @@
       "notFound": "Der angeforderte Datensatz wurde nicht gefunden.",
       "badRequest": "Ungültige Anfrage. Bitte prüfen Sie Ihre Eingaben.",
       "internalServerError": "Serverfehler. Bitte versuchen Sie es erneut.",
-      "serviceUnavailable": "Der Dienst ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut."
+      "serviceUnavailable": "Der Dienst ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.",
+      "backendUnavailable": "Der Backend-Dienst ist derzeit nicht erreichbar. Bitte versuchen Sie es später erneut.",
+      "maintenanceMode": "Das System befindet sich im Wartungsmodus (nur lesen). Bitte versuchen Sie es später erneut."
+    },
+    "errorBoundary": {
+      "toastPrefix": "Ein Fehler ist aufgetreten: ",
+      "toastUnknown": "Unbekannt"
     },
     "periodLockedError": "Dieser Datensatz kann nicht gelöscht werden, da er zu einem gesperrten Geschäftsjahr gehört",
     "description": "Beschreibung",
@@ -1135,6 +1178,7 @@
       "list": "Vorlagen",
       "new": "Neu",
       "newTemplate": "Neue Vorlage",
+      "defaultName": "Vorlage",
       "placeholderName": "Vorlagenname",
       "apply": "Anwenden",
       "create": "Vorlage erstellen",
@@ -1261,6 +1305,7 @@
   },
   "products": {
     "title": "Produkte",
+    "defaultCategoryName": "Allgemein",
     "newProduct": "Neues Produkt",
     "exportCsv": "Als CSV exportieren",
     "search": "Produkte suchen...",
@@ -1306,6 +1351,7 @@
     "deleteCategory": "Löschen",
     "editCategoryTooltip": "Kategorie bearbeiten",
     "mainCategoryEditTooltip": "Nur Steuersatz kann für Hauptkategorien geändert werden",
+    "mainCategoryRenameRestricted": "\"{{category}}\" ist eine Hauptkategorie und kann nicht umbenannt werden. Nur der MwSt.-Satz kann aktualisiert werden.",
     "generalCategoryCannotDelete": "Allgemeine Kategorie kann nicht gelöscht werden",
     "mainCategoryCannotDelete": "Hauptkategorie kann nicht gelöscht werden",
     "deleteCategoryConfirm": "Sind Sie sicher, dass Sie diese Kategorie löschen möchten?",
@@ -1350,6 +1396,7 @@
     "notes": "NOTIZEN",
     "namePlaceholder": "Produkt-/Dienstleistungsname",
     "unitPlaceholder": "Einheit (z.B: Stk, kg, Stunde)",
+    "unitDefault": "Stk",
     "descriptionPlaceholder": "Produkteigenschaften, Garantieinformationen usw.",
     "useCustomTax": "Benutzerdefinierten MwSt-Satz verwenden",
     "customTaxNote": "Sie können einen anderen MwSt-Satz für dieses Produkt festlegen. Wenn leer gelassen, wird die Kategorie-MwSt verwendet.",
@@ -1433,9 +1480,28 @@
       "addSubAccount": "Unterkonto hinzufügen",
       "deleteAccount": "Konto löschen"
     },
+    "lockedTooltips": {
+      "101": "Kasse: Barzahlungen aus bezahlten Rechnungen (Rechnungen > Bezahlt)",
+      "102": "Banken: Bank-/Kartenzahlungen aus bezahlten Rechnungen (Rechnungen > Bezahlt)",
+      "120": "Forderungen: Unbezahlte Rechnungen (Rechnungen > Gesendet/Überfällig)",
+      "201": "Verbindlichkeiten: Unbezahlte Ausgaben (Ausgaben > Genehmigt/Ausstehend)",
+      "600": "ERLÖSE: Summe aller Erlöse (aus der Rechnungsseite)",
+      "601": "Umsatzerlöse: Produkt-Rechnungen (Produkte > Kategorie Produkte)",
+      "602": "Dienstleistungserlöse: Dienstleistungs-Rechnungen (Produkte > Kategorie Dienstleistungen)",
+      "700": "AUSGABEN: Summe aller Ausgaben (aus der Ausgabenseite)",
+      "701": "Mietaufwand: Ausgaben der Kategorie Miete (aus der Ausgabenseite)",
+      "702": "Personalaufwand: Ausgaben der Kategorie Personal (aus der Ausgabenseite)",
+      "703": "Rechnungs-/Nebenkosten: Ausgaben der Kategorie Versorger/Utilities (aus der Ausgabenseite)",
+      "dynamicExpenseCategory": "{{category}}: Ausgaben der Kategorie {{category}} (aus der Ausgabenseite)",
+      "default": "Dieses Konto wird automatisch aus anderen Seiten verwaltet"
+    },
     "activeDateRangeLabel": "Datumsfilter:",
     "deleteConfirm": "Möchten Sie dieses Konto wirklich löschen?",
     "deleteHasChildrenError": "Dieses Konto hat Unterkonten. Löschen Sie zuerst die Unterkonten.",
+    "errors": {
+      "subAccountCannotHaveSubAccount": "Sie können kein Unterkonto unter einem anderen Unterkonto hinzufügen. Fügen Sie Unterkonten nur unter Hauptkonten hinzu.",
+      "expenseCategoryAlreadyAdded": "Die Kategorie \"{{categoryLabel}}\" wurde bereits hinzugefügt. Jede Kategorie kann nur einmal hinzugefügt werden."
+    },
     "accountNames": {
       "100": "UMLAUFVERMÖGEN",
       "101": "Kasse",
@@ -1547,7 +1613,11 @@
     "invoiceStatus": "Rechnungsstatus",
     "invoiceNotes": "Rechnungsnotizen",
     "invoiceTotals": "Rechnungsbeträge",
-    "amountExclTax": "Betrag (ohne MwSt.)"
+    "amountExclTax": "Betrag (ohne MwSt.)",
+    "validationSelectCustomer": "Bitte wählen Sie einen Kunden aus.",
+    "validationSelectInvoiceToReturn": "Um eine Gutschrift zu erstellen, wählen Sie bitte die Rechnung aus, die zurückgegeben werden soll.",
+    "validationAddAtLeastOneItem": "Bitte fügen Sie mindestens ein Produkt hinzu.",
+    "validationCompleteProductInfo": "Bitte vervollständigen Sie alle Produktinformationen."
   },
   "expenses": {
     "title": "Ausgaben",
@@ -1588,10 +1658,27 @@
     "addExpense": "Ausgabe Hinzufügen",
     "supplierPlaceholder": "Lieferantennamen eingeben...",
     "descriptionPlaceholder": "Ausgabenbeschreibung...",
+    "categories": {
+      "other": "Sonstiges",
+      "equipment": "Ausrüstung",
+      "utilities": "Nebenkosten",
+      "rent": "Miete",
+      "salaries": "Gehälter",
+      "supplies": "Material",
+      "marketing": "Marketing",
+      "travel": "Reise",
+      "insurance": "Versicherung",
+      "taxes": "Steuern"
+    },
     "totalExpense": "Gesamtausgabe",
     "receiptUrl": "Beleg/Rechnung URL",
     "receiptUrlHelper": "Sie können einen Link zu Beleg- oder Rechnungsbild/PDF hinzufügen",
-    "exportCsv": "Als CSV exportieren"
+    "exportCsv": "Als CSV exportieren",
+    "tooltips": {
+      "restoreExpense": "Ausgabe wiederherstellen",
+      "voidExpense": "Ausgabe stornieren",
+      "voidedCannotEdit": "Stornierte Ausgaben können nicht bearbeitet werden"
+    }
   },
   "customers": {
     "title": "Kunden",
@@ -1622,6 +1709,8 @@
     "customersFound": "Kunden gefunden",
     "enterCustomerInfo": "Kundeninformationen eingeben",
     "editCustomer": "Kunde Bearbeiten",
+    "unnamed": "Unbenannter Kunde",
+    "noEmail": "Keine E-Mail",
     "taxNumber": "Steuernummer",
     "siretNumber": "SIRET",
     "siretNumberPlaceholder": "12345678901234",
@@ -1652,9 +1741,11 @@
   },
   "suppliers": {
     "title": "Lieferanten",
+    "selectTitle": "Lieferanten auswählen",
     "newSupplier": "Neuer Lieferant",
     "unnamed": "Lieferant",
     "noEmail": "Keine E-Mail",
+    "deleteNotAllowedTitle": "Lieferant kann nicht gelöscht werden",
     "deleteConfirm": "Sind Sie sicher, dass Sie diesen Lieferanten löschen möchten?",
     "search": "Lieferanten suchen...",
     "suppliersRegistered": "Lieferanten registriert",
@@ -1670,6 +1761,9 @@
     "totalAmount": "Gesamtbetrag",
     "actions": "Aktionen",
     "exportCsv": "Als CSV exportieren",
+    "tooltips": {
+      "viewSupplierDetails": "Lieferantendetails anzeigen"
+    },
     "categories": {
       "officeSupplies": "Büromaterial",
       "technology": "Technologie",
@@ -1695,6 +1789,16 @@
       "phonePlaceholder": "+49 170 1234567",
       "taxNumberPlaceholder": "Steuernummer",
       "addressPlaceholder": "Vollständige Adressinformationen..."
+    },
+    "view": {
+      "detailsSubtitle": "Lieferantendetails",
+      "basicInfoTitle": "Grundinformationen",
+      "companyInfoTitle": "Unternehmensinformationen",
+      "addressInfoTitle": "Adressinformationen",
+      "quickActionsTitle": "Schnellaktionen",
+      "createExpense": "Ausgabe erstellen",
+      "viewHistory": "Verlauf anzeigen",
+      "registeredAt": "Registrierungsdatum"
     }
   },
   "banks": {
@@ -1774,10 +1878,33 @@
       "brandNameHelper": "Dieser Name erscheint als Markenname auf Rechnungen und öffentlichen Ansichten.",
       "officialNameTooltip": "Nur der Inhaber oder ein Admin kann den rechtlichen Firmennamen aktualisieren",
       "officialNameOwnerOnly": "Dieses Feld kann nur vom Firmeninhaber geändert werden."
+    },
+    "password": {
+      "minLength": "Das Passwort muss mindestens 6 Zeichen lang sein.",
+      "mismatch": "Passwörter stimmen nicht überein.",
+      "updated": "Passwort aktualisiert.",
+      "updateFailed": "Passwort konnte nicht geändert werden.",
+      "fillAll": "Bitte füllen Sie alle Felder aus.",
+      "incorrectCurrent": "Ihr aktuelles Passwort ist falsch.",
+      "requirements": "Das Passwort muss mindestens 6 Zeichen lang sein und mindestens 1 Großbuchstaben, 1 Kleinbuchstaben, 1 Zahl und 1 Sonderzeichen enthalten."
+    },
+    "export": {
+      "success": "Export wurde gestartet! Er wird an Ihre E-Mail gesendet.",
+      "failed": "Export konnte nicht gestartet werden"
+    },
+    "accountDeletion": {
+      "requestFailed": "Löschanfrage konnte nicht gesendet werden"
     }
   },
   "sales": {
     "title": "Verkäufe",
+    "autoNotes": {
+      "createdFromInvoice": "Automatisch aus Rechnung {{invoiceNumber}} erstellt.",
+      "quoteAcceptedAutoCreated": "Angebot akzeptiert (automatisch erstellt)."
+    },
+    "tooltips": {
+      "clickToEditAmount": "Klicken, um den Betrag zu bearbeiten"
+    },
     "newSale": "Neuer Verkauf",
     "totalSales": "Gesamtumsatz",
     "totalSalesCount": "Gesamtanzahl Verkäufe",
@@ -1802,6 +1929,7 @@
     "deleteSale": "Verkauf löschen",
     "deleteConfirm": "Sind Sie sicher, dass Sie diesen Verkauf löschen möchten?",
     "createInvoice": "Rechnung Erstellen",
+    "noCustomersForInvoiceAlert": "Um eine Rechnung zu erstellen, müssen Sie zuerst mindestens einen Kunden hinzufügen.\n\nSie können einen neuen Kunden auf der Seite \"Kunden\" hinzufügen.",
     "download": "Herunterladen",
     "exportCsv": "Als CSV exportieren",
     "subtitle": "Verwalten Sie Ihre Verkaufsaufzeichnungen",
@@ -1886,6 +2014,7 @@
     "suppliers": {
       "updateSuccess": "Lieferant aktualisiert",
       "createSuccess": "Lieferant hinzugefügt",
+      "createError": "Lieferant konnte nicht gespeichert werden",
       "deleteSuccess": "Lieferant gelöscht",
       "deleteError": "Lieferant konnte nicht gelöscht werden"
     },
@@ -1906,6 +2035,7 @@
       "cancelSuccess": "Ausgabe storniert",
       "cancelError": "Ausgabe konnte nicht storniert werden",
       "statusUpdateSuccess": "Ausgabenstatus aktualisiert",
+      "statusUpdateError": "Ausgabenstatus konnte nicht aktualisiert werden",
       "restoreSuccess": "Ausgabe wiederhergestellt",
       "restoreError": "Ausgabe konnte nicht wiederhergestellt werden"
     },
@@ -2236,6 +2366,35 @@
     "validStockRequired": "Bitte geben Sie eine gültige Lagermenge ein",
     "descriptionRequired": "Bitte geben Sie eine Beschreibung ein",
     "amountRequired": "Bitte geben Sie einen gültigen Betrag ein"
+  },
+  "richTextEditor": {
+    "tooltips": {
+      "bold": "Fett (Strg+B)",
+      "italic": "Kursiv (Strg+I)",
+      "underline": "Unterstreichen (Strg+U)",
+      "strikethrough": "Durchgestrichen",
+      "heading": "Überschriften (H1–H6)",
+      "bulletedList": "Aufzählung",
+      "numberedList": "Nummerierte Liste",
+      "alignLeft": "Links ausrichten",
+      "alignCenter": "Zentrieren",
+      "alignRight": "Rechts ausrichten",
+      "justify": "Blocksatz",
+      "blockquote": "Zitat",
+      "codeBlock": "Codeblock",
+      "horizontalRule": "Horizontale Linie",
+      "subscript": "Tiefgestellt",
+      "superscript": "Hochgestellt",
+      "addLink": "Link hinzufügen",
+      "addImage": "Bild hinzufügen",
+      "insertTable": "Tabelle einfügen",
+      "undo": "Rückgängig (Strg+Z)",
+      "redo": "Wiederholen (Umschalt+Strg+Z)",
+      "clearFormatting": "Formatierung entfernen"
+    },
+    "prompts": {
+      "linkUrl": "Link-URL:"
+    }
   },
   "help": {
     "searchPlaceholder": "Hilfe durchsuchen..."
@@ -2599,6 +2758,7 @@
     }
   },
   "fiscalPeriods": {
+    "lockedPeriodFallbackName": "gesperrte Periode",
     "title": "Geschäftsjahre",
     "subtitle": "Verwalten Sie Ihre Geschäftsjahr-Einstellungen",
     "newPeriod": "Neue Periode",
@@ -2838,7 +2998,13 @@
         "organizationLabel": "Organisation",
         "emailLabel": "Eingeladene E-Mail",
         "expiresLabel": "Läuft ab",
-        "roleLabel": "Rolle"
+        "serviceUnavailable": "Der Dienst ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.",
+        "backendUnavailable": "Der Backend-Dienst ist derzeit nicht erreichbar. Bitte versuchen Sie es später erneut.",
+        "maintenanceMode": "Das System befindet sich im Wartungsmodus (nur lesen). Bitte versuchen Sie es später erneut."
+      },
+      "errorBoundary": {
+        "toastPrefix": "Ein Fehler ist aufgetreten: ",
+        "toastUnknown": "Unbekannt"
       },
       "passwordFlow": {
         "title": "Passwort festlegen",

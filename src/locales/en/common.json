@@ -84,6 +84,82 @@
     "hero.mockup.vat": "VAT to Pay",
     "hero.mockup.rate": "Rate",
     "features.subtitle": "Manage your pre-accounting with confidence using our comprehensive set of tools designed for modern businesses.",
+    "value": {
+      "title": "Scales from freelancers to SMEs",
+      "subtitle": "Whether you're just starting out or running an established business, Comptario adapts to your needs.",
+      "freelancers": {
+        "title": "For Freelancers",
+        "desc": "Simple invoicing and expense tracking to keep your business organized",
+        "basic": "Basic invoicing",
+        "expense": "Expense management",
+        "tax": "Tax summaries"
+      },
+      "small": {
+        "title": "For Small Businesses",
+        "desc": "Comprehensive pre-accounting tools that grow with your business",
+        "currency": "Multi-currency support",
+        "customer": "Customer management",
+        "reporting": "Advanced reporting"
+      },
+      "growing": {
+        "title": "For Growing Companies",
+        "desc": "Scalable solutions that adapt to your expanding operations",
+        "team": "Team collaboration",
+        "api": "Send quotes via link",
+        "support": "Flexible filtering options"
+      },
+      "cta": {
+        "title": "Ready to streamline your pre-accounting?",
+        "subtitle": "Join thousands of businesses who trust Comptario to manage their finances efficiently.",
+        "trial": "Start Free Trial",
+        "demo": "Schedule Demo"
+      },
+      "stats": {
+        "users": "Active Users",
+        "invoices": "Invoices Generated",
+        "uptime": "Uptime"
+      }
+    },
+    "security": {
+      "title": "Security & Compliance",
+      "badge": "Enterprise-Grade Security",
+      "items": "EU hosting (placeholder), encryption in transit and at rest, automated backups.",
+      "features": {
+        "hosting": {
+          "title": "EU Data Hosting",
+          "desc": "Your data is hosted in secure EU data centers with GDPR compliance"
+        },
+        "encryption": {
+          "title": "End-to-End Encryption",
+          "desc": "All data is encrypted in transit and at rest using industry-standard protocols"
+        },
+        "backups": {
+          "title": "Automated Backups",
+          "desc": "Daily automated backups ensure your data is always safe and recoverable"
+        },
+        "gdpr": {
+          "title": "GDPR Compliant",
+          "desc": "Full compliance with European data protection regulations"
+        },
+        "monitoring": {
+          "title": "24/7 Monitoring",
+          "desc": "Continuous security monitoring and threat detection"
+        },
+        "uptime": {
+          "title": "99.9% Uptime",
+          "desc": "Reliable infrastructure with guaranteed uptime SLA"
+        }
+      },
+      "trusted": {
+        "title": "Trusted by businesses across Europe",
+        "gdpr": "Compliant",
+        "iso": "Certified",
+        "soc": "Type II",
+        "ssl": "Encrypted",
+        "desc": "Your financial data is protected by the same security standards used by banks and financial institutions. We never share your data with third parties and you maintain full control over your information."
+      }
+    },
+    "value.title": "Scales from freelancers to SMEs",
     "value.subtitle": "Whether you're just starting out or running an established business, Comptario adapts to your needs.",
     "value.freelancers.title": "For Freelancers",
     "value.freelancers.desc": "Simple invoicing and expense tracking to keep your business organized",
@@ -107,6 +183,7 @@
     "value.stats.users": "Active Users",
     "value.stats.invoices": "Invoices Generated",
     "value.stats.uptime": "Uptime",
+    "security.title": "Security & Compliance",
     "security.badge": "Enterprise-Grade Security",
     "finalCta.subtitle": "Join thousands of businesses who have streamlined their pre-accounting with Comptario. Start your free trial today – no credit card required.",
     "finalCta.trial": "Free 30-day trial",
@@ -256,6 +333,14 @@
     "passwordTooWeak": "Please choose a stronger password",
     "passwordMismatch": "Passwords do not match",
     "passwordResetSuccess": "Your password has been updated",
+    "passwordStrength": {
+      "minLength": "Password must be at least {{min}} characters",
+      "lowercase": "Password must include at least one lowercase letter",
+      "uppercase": "Password must include at least one uppercase letter",
+      "number": "Password must include at least one number",
+      "special": "Password must include at least one special character",
+      "tooCommon": "This password is too common"
+    },
     "updatePassword": "Update Password",
     "signIn": "Sign In",
     "demoAccount": "Demo Account:",
@@ -285,6 +370,14 @@
     "captchaRequired": "Please complete the human verification.",
     "captchaPrompt": "Please complete the human verification before continuing.",
     "captchaVerificationFailed": "We couldn't confirm the human verification. Please try again.",
+    "turnstile": {
+      "loading": "Loading verification…",
+      "scriptLoadFailed": "Verification could not be loaded.",
+      "devFailedSkipped": "Captcha failed in development mode; verification was skipped.",
+      "unavailable": "Captcha is currently unavailable. Please refresh the page or contact support.",
+      "codespacesSkipped": "Verification was skipped in GitHub Codespaces; Turnstile will be active in production.",
+      "devNoSiteKey": "Captcha skipped in development (missing site key)."
+    },
     "verifyRequiredTitle": "Email verification required",
     "verifyRequiredBody": "We sent a verification link to {{email}}. Please confirm your address to unlock the workspace.",
     "verifyRequiredHint": "Access to accounting actions stays locked until the email is verified.",
@@ -303,6 +396,7 @@
     "mfaCodeHelp": "Enter the code from Google Authenticator / 1Password.",
     "verifyAndSignIn": "Verify and sign in",
     "loginErrorGeneric": "An error occurred while signing in.",
+    "invalidAuthData": "Invalid authentication data received.",
     "verificationEmailSent": "Verification email sent. Please check your inbox.",
     "resendVerification": "Resend verification email",
     "verificationTokenMissing": "Verification token not found.",
@@ -354,6 +448,7 @@
     "error": "Error",
     "networkError": "Network error. Please check your internet connection.",
     "unexpectedError": "An unexpected error occurred. Please try again.",
+    "tenantNotFound": "Tenant not found.",
     "operationFailed": "Operation failed. Please try again.",
     "notSpecified": "Not specified",
     "success": "Success",
@@ -387,7 +482,13 @@
       "notFound": "The requested record was not found.",
       "badRequest": "Invalid request. Please check your input.",
       "internalServerError": "Server error. Please try again.",
-      "serviceUnavailable": "Service is currently unavailable. Please try again later."
+      "serviceUnavailable": "Service is currently unavailable. Please try again later.",
+      "backendUnavailable": "Backend service is unavailable. Please try again later.",
+      "maintenanceMode": "System is in maintenance mode (read-only). Please try again later."
+    },
+    "errorBoundary": {
+      "toastPrefix": "An error occurred: ",
+      "toastUnknown": "Unknown"
     },
     "periodLockedError": "This record cannot be deleted because it belongs to a locked fiscal period",
   "description": "Description",
@@ -693,6 +794,7 @@
       "list": "Templates",
       "new": "New",
       "newTemplate": "New template",
+      "defaultName": "Template",
       "placeholderName": "Template name",
       "apply": "Apply",
       "create": "Create Template",
@@ -714,10 +816,15 @@
       "cancelledMessage": "Payment cancelled or not completed."
     },
     "addonAdded": "Additional users added.",
+    "addonProrationNote": " (Proration for this period: {{amount}} {{currency}} — will be added to the next invoice)",
+    "confirmFallbackMessage": "Proceed with the change?",
+    "upgradeFailed": "Upgrade failed",
     "portal": {
       "cancelAtPeriodEnd": "Subscription will be cancelled at period end. Date: {{date}}",
       "activeApplied": "Subscription active. Portal changes applied.",
-      "synced": "Portal changes synchronized."
+      "synced": "Portal changes synchronized.",
+      "errorGeneric": "Billing portal error.",
+      "testModeNotConfigured": "Could not create billing portal session: Stripe billing portal is not configured for test mode. In Stripe Dashboard > Billing > Portal > Settings, create/save a default test-mode configuration."
     },
     "redirecting": "Redirecting to payment…",
     "interval": { "updated": "Billing interval updated." },
@@ -841,6 +948,7 @@
   },
   "products": {
     "title": "Products",
+    "defaultCategoryName": "General",
     "newProduct": "New Product",
     "exportCsv": "Export CSV",
     "search": "Search products...",
@@ -890,6 +998,7 @@
     "deleteCategory": "Delete",
     "editCategoryTooltip": "Edit category",
     "mainCategoryEditTooltip": "Only tax rate can be changed for main categories",
+    "mainCategoryRenameRestricted": "\"{{category}}\" is a main category name and cannot be changed. Only VAT rate can be updated.",
     "generalCategoryCannotDelete": "General category cannot be deleted",
     "mainCategoryCannotDelete": "Main category cannot be deleted",
     "deleteCategoryConfirm": "Are you sure you want to delete this category?",
@@ -935,6 +1044,7 @@
     "notes": "NOTES",
     "namePlaceholder": "Product/service name",
     "unitPlaceholder": "Unit (e.g: pcs, kg, hour)",
+    "unitDefault": "pcs",
     "descriptionPlaceholder": "Product features, warranty information etc.",
     "useCustomTax": "Use custom VAT rate",
     "customTaxNote": "You can set a different VAT rate for this product. If left blank, category VAT will be used.",
@@ -1017,9 +1127,28 @@
       "addSubAccount": "Add sub-account",
       "deleteAccount": "Delete account"
     },
+    "lockedTooltips": {
+      "101": "Cash: cash payments from paid invoices (Invoices > Paid)",
+      "102": "Banks: bank/card payments from paid invoices (Invoices > Paid)",
+      "120": "Accounts Receivable: unpaid invoices (Invoices > Sent/Overdue)",
+      "201": "Accounts Payable: unpaid expenses (Expenses > Approved/Pending)",
+      "600": "REVENUES: total revenues (from the Invoices page)",
+      "601": "Sales Revenue: product invoices (Products > Products category)",
+      "602": "Service Revenue: service invoices (Products > Services category)",
+      "700": "EXPENSES: total expenses (from the Expenses page)",
+      "701": "Rent Expenses: rent category expenses (from the Expenses page)",
+      "702": "Personnel Expenses: personnel category expenses (from the Expenses page)",
+      "703": "Invoice Expenses: utilities category expenses (from the Expenses page)",
+      "dynamicExpenseCategory": "{{category}}: expenses in the {{category}} category (from the Expenses page)",
+      "default": "This account is managed automatically from other pages"
+    },
     "activeDateRangeLabel": "Date filter:",
     "deleteConfirm": "Are you sure you want to delete this account?",
     "deleteHasChildrenError": "This account has sub-accounts. Delete sub-accounts first.",
+    "errors": {
+      "subAccountCannotHaveSubAccount": "You can't add a sub-account under another sub-account. Add sub-accounts only under main accounts.",
+      "expenseCategoryAlreadyAdded": "\"{{categoryLabel}}\" category is already added. Each category can be added only once."
+    },
     "accountNames": {
       "100": "CURRENT ASSETS",
       "101": "Cash",
@@ -1133,6 +1262,10 @@
     "invoiceTotals": "Invoice Totals",
     "amountExclVATLabel": "Amount (Excl. VAT)",
     "amountExclTax": "Amount (Excl. VAT)"
+    ,"validationSelectCustomer": "Please select a customer."
+    ,"validationSelectInvoiceToReturn": "To create a return invoice, please select the invoice to return."
+    ,"validationAddAtLeastOneItem": "Please add at least one product."
+    ,"validationCompleteProductInfo": "Please complete all product information."
   },
   "expenses": {
     "title": "Expenses",
@@ -1174,9 +1307,26 @@
     "addExpense": "Add Expense",
     "supplierPlaceholder": "Enter supplier name...",
     "descriptionPlaceholder": "Expense description...",
+    "categories": {
+      "other": "Other",
+      "equipment": "Equipment",
+      "utilities": "Utilities",
+      "rent": "Rent",
+      "salaries": "Salaries",
+      "supplies": "Supplies",
+      "marketing": "Marketing",
+      "travel": "Travel",
+      "insurance": "Insurance",
+      "taxes": "Taxes"
+    },
     "totalExpense": "Total Expense",
     "receiptUrl": "Receipt/Invoice URL",
-    "receiptUrlHelper": "You can add a link to receipt or invoice image/PDF"
+    "receiptUrlHelper": "You can add a link to receipt or invoice image/PDF",
+    "tooltips": {
+      "restoreExpense": "Restore expense",
+      "voidExpense": "Void expense",
+      "voidedCannotEdit": "Voided expenses cannot be edited"
+    }
   },
   "customers": {
     "title": "Customers",
@@ -1207,6 +1357,8 @@
     "customersFound": "customers found",
     "enterCustomerInfo": "Enter customer information",
     "editCustomer": "Edit Customer",
+    "unnamed": "Unnamed customer",
+    "noEmail": "No email",
     "taxNumber": "Tax Number",
     "siretNumber": "SIRET",
     "siretNumberPlaceholder": "12345678901234",
@@ -1237,9 +1389,11 @@
   },
   "suppliers": {
     "title": "Suppliers",
+    "selectTitle": "Select Supplier",
     "newSupplier": "New Supplier",
     "unnamed": "Supplier",
     "noEmail": "No email",
+    "deleteNotAllowedTitle": "Supplier cannot be deleted",
     "deleteConfirm": "Are you sure you want to delete this supplier?",
     "search": "Search suppliers...",
     "suppliersRegistered": "suppliers registered",
@@ -1255,6 +1409,9 @@
     "totalAmount": "Total Amount",
     "actions": "Actions",
     "exportCsv": "Export CSV",
+    "tooltips": {
+      "viewSupplierDetails": "View supplier details"
+    },
     "categories": {
       "officeSupplies": "Office Supplies",
       "technology": "Technology",
@@ -1280,6 +1437,16 @@
       "phonePlaceholder": "+1 555 123 4567",
       "taxNumberPlaceholder": "Tax ID",
       "addressPlaceholder": "Full address information..."
+    },
+    "view": {
+      "detailsSubtitle": "Supplier details",
+      "basicInfoTitle": "Basic information",
+      "companyInfoTitle": "Company information",
+      "addressInfoTitle": "Address information",
+      "quickActionsTitle": "Quick actions",
+      "createExpense": "Create expense",
+      "viewHistory": "View history",
+      "registeredAt": "Registered date"
     }
   },
   "banks": {
@@ -1353,6 +1520,25 @@
     "error": "Error",
     "saved": "Settings saved",
     "saveFailed": "Settings could not be saved",
+    "password": {
+      "missingFieldsTitle": "Missing Password Fields",
+      "missingFieldsMessage": "All password fields (current, new, confirm) must be filled.",
+      "mismatchTitle": "Password Mismatch",
+      "mismatchMessage": "New password and confirmation do not match.",
+      "tooShortTitle": "Password Too Short",
+      "tooShortMessage": "New password must be at least 8 characters.",
+      "updatedTitle": "Password Updated",
+      "updatedMessage": "Your password has been changed successfully.",
+      "changeFailedTitle": "Password Change Failed",
+      "changeFailedMessage": "An error occurred during password change."
+    },
+    "export": {
+      "success": "Data exported successfully!",
+      "failed": "Failed to export data: {{error}}"
+    },
+    "accountDeletion": {
+      "requestFailed": "Account deletion request failed"
+    },
     "companyFields": {
       "officialName": "Legal Company Name",
       "brandName": "Invoice/Brand Name",
@@ -1407,6 +1593,7 @@
     "suppliers": {
       "updateSuccess": "Supplier updated",
       "createSuccess": "Supplier added",
+      "createError": "Supplier could not be saved",
       "deleteSuccess": "Supplier deleted",
       "deleteError": "Supplier could not be deleted"
     },
@@ -1427,6 +1614,7 @@
       "cancelSuccess": "Expense voided",
       "cancelError": "Expense could not be voided",
       "statusUpdateSuccess": "Expense status updated",
+      "statusUpdateError": "Expense status could not be updated",
       "restoreSuccess": "Expense restored",
       "restoreError": "Expense could not be restored"
     },
@@ -1509,6 +1697,13 @@
   },
   "sales": {
     "title": "Sales",
+    "autoNotes": {
+      "createdFromInvoice": "Automatically created from invoice {{invoiceNumber}}.",
+      "quoteAcceptedAutoCreated": "Quote accepted (auto-created)."
+    },
+    "tooltips": {
+      "clickToEditAmount": "Click to edit amount"
+    },
     "newSale": "New Sale",
     "totalSales": "Total Sales",
     "netSuffix": " (Net of VAT)",
@@ -1534,6 +1729,7 @@
     "deleteSale": "Delete sale",
     "deleteConfirm": "Are you sure you want to delete this sale?",
     "createInvoice": "Create Invoice",
+    "noCustomersForInvoiceAlert": "To create an invoice, you must add at least one customer first.\n\nYou can add a new customer from the \"Customers\" page.",
     "download": "Download",
     "exportCsv": "Export CSV",
     "subtitle": "Manage your sales records",
@@ -1691,6 +1887,35 @@
     "skuRequired": "SKU is required",
     "validPriceRequired": "Please enter a valid price",
     "validStockRequired": "Please enter a valid stock quantity"
+  },
+  "richTextEditor": {
+    "tooltips": {
+      "bold": "Bold (Ctrl+B)",
+      "italic": "Italic (Ctrl+I)",
+      "underline": "Underline (Ctrl+U)",
+      "strikethrough": "Strikethrough",
+      "heading": "Headings (H1–H6)",
+      "bulletedList": "Bulleted list",
+      "numberedList": "Numbered list",
+      "alignLeft": "Align left",
+      "alignCenter": "Center",
+      "alignRight": "Align right",
+      "justify": "Justify",
+      "blockquote": "Quote",
+      "codeBlock": "Code block",
+      "horizontalRule": "Horizontal rule",
+      "subscript": "Subscript",
+      "superscript": "Superscript",
+      "addLink": "Add link",
+      "addImage": "Add image",
+      "insertTable": "Insert table",
+      "undo": "Undo (Ctrl+Z)",
+      "redo": "Redo (Shift+Ctrl+Z)",
+      "clearFormatting": "Clear formatting"
+    },
+    "prompts": {
+      "linkUrl": "Link URL:"
+    }
   },
   "help": {
     "searchPlaceholder": "Search help..."
@@ -2142,6 +2367,7 @@
     "range": "{{start}}-{{end}} / {{total}}"
   },
   "fiscalPeriods": {
+    "lockedPeriodFallbackName": "locked period",
     "title": "Fiscal Periods",
     "subtitle": "Manage your fiscal period settings",
     "newPeriod": "New Period",
@@ -2414,7 +2640,21 @@
       "updateConfirm": "Are you sure you want to update this user?",
       "passwordResetConfirm": "Send password reset email?",
       "deactivateConfirm": "Are you sure you want to deactivate this user?",
-      "activateConfirm": "Are you sure you want to activate this user?"
+      "activateConfirm": "Are you sure you want to activate this user?",
+      "deleteModalTitle": "Delete User",
+      "deleteModalBody": "Proceed carefully. Soft delete deactivates the user and can be reversed if needed. Hard delete is permanent and removes the user record.",
+      "deleteModalHardWarning": "WARNING: Hard delete cannot be undone. Related records (except audit logs, etc.) may be removed via cascading deletes.",
+      "softDeleteLabel": "Soft Delete (Deactivate)",
+      "hardDeleteLabel": "Hard Delete (Permanent)",
+      "deleteConfirmHard": "This user will be permanently deleted. Confirm?",
+      "deleteConfirmSoft": "This user will be deactivated. Confirm?",
+      "deleteSuccessHard": "User permanently deleted.",
+      "deleteSuccessSoft": "User deactivated.",
+      "deleteNotFound404": "User already deleted or not found (404).",
+      "deleteFailedAlert": "Delete failed. Check the console.",
+      "processing": "Processing…",
+      "hardDeleteButton": "Delete Permanently",
+      "deactivateButton": "Deactivate"
     },
     "tenants": {
       "updatePlanConfirm": "Are you sure you want to update plan to '{{plan}}' for {{name}}?",

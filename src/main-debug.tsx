@@ -26,7 +26,7 @@ try {
   logger.debug('10. Root element:', root);
   
   if (!root) {
-    throw new Error('Root element bulunamadı!');
+     throw new Error('Root element not found.');
   }
   
   logger.info('11. React render başlıyor...');

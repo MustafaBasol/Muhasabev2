@@ -543,7 +543,7 @@ export default function CustomerHistoryPage() {
             const sale = await salesApi.getSale(String(inv.saleId));
             if (Array.isArray(sale.items)) {
               items = sale.items.map((it) => ({
-                description: it.productName || it.description || 'Ürün/Hizmet',
+                description: it.productName || it.description || 'Product/Service',
                 quantity: toNumberSafe(it.quantity ?? 1),
                 unitPrice: toNumberSafe(it.unitPrice ?? 0),
                 total: toNumberSafe(it.total ?? toNumberSafe(it.unitPrice ?? 0) * toNumberSafe(it.quantity ?? 1)),

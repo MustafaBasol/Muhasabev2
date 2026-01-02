@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const isCodespaceHost = () => {
   if (typeof window === 'undefined') return false;
@@ -17,6 +18,7 @@ interface TurnstileCaptchaProps {
 // Cloudflare Turnstile entegrasyonu.
 // Ortam değişkeni yoksa (site key), komponent uyarı loglar ve hemen "başarılı" kabul eder (fail-open).
 export function TurnstileCaptcha({ onToken, className, disabled, invisible }: TurnstileCaptchaProps) {
+  const { t } = useTranslation('common');
   const siteKey = (import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '';
   const isDev = Boolean((import.meta as any).env?.DEV);
   const codespace = isCodespaceHost();
@@ -59,9 +61,9 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
     script.defer = true;
     script.setAttribute('data-turnstile-script', 'true');
     script.onload = () => setLoadedScript(true);
-    script.onerror = () => setScriptError('Turnstile script yüklenemedi');
+    script.onerror = () => setScriptError(t('auth.turnstile.scriptLoadFailed'));
     document.head.appendChild(script);
-  }, [siteKey, loadedScript, skipVerification]);
+  }, [siteKey, loadedScript, skipVerification, t]);
 
   useEffect(() => {
     if (skipVerification || hardFailed) return;
@@ -147,7 +149,7 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
           {!loadedScript && !scriptError && (
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
-              <span>Doğrulama bileşeni yükleniyor...</span>
+              <span>{t('auth.turnstile.loading')}</span>
             </div>
           )}
           {scriptError && <div className="text-xs text-red-600">{scriptError}</div>}
@@ -157,11 +159,11 @@ export function TurnstileCaptcha({ onToken, className, disabled, invisible }: Tu
         <div className="text-xs text-gray-500 italic">
           {hardFailed
             ? (isDev
-                ? 'Captcha geliştirici modunda başarısız oldu, doğrulama atlandı.'
-                : 'Captcha şu anda yüklenemiyor. Lütfen sayfayı yenileyin veya destekle iletişime geçin.')
+                ? t('auth.turnstile.devFailedSkipped')
+                : t('auth.turnstile.unavailable'))
             : (codespace
-                ? 'GitHub Codespace ortamında doğrulama atlandı; üretimde Turnstile aktif olacak.'
-                : 'Captcha dev ortamda atlandı (site key yok)')}
+                ? t('auth.turnstile.codespacesSkipped')
+                : t('auth.turnstile.devNoSiteKey'))}
         </div>
       )}
     </div>

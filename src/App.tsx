@@ -1929,7 +1929,7 @@ const AppContent: React.FC = () => {
             const supplier = (expense as any)?.supplier;
             if (typeof supplier === 'string') return supplier;
             if (supplier && typeof supplier === 'object' && typeof supplier.name === 'string') return supplier.name;
-            return tOr('common.generic.supplier', 'Tedarikçi');
+            return tOr('common.generic.supplier', 'Supplier');
           })();
           const description = expense.description || tOr('common.generic.expense', 'Gider');
           
@@ -2146,7 +2146,7 @@ const AppContent: React.FC = () => {
           if (n.relatedId?.startsWith('expense-')) {
             const id = n.relatedId.split('expense-')[1];
             const exp: any = expenses.find(x => String((x as any).id) === String(id));
-            const supplierName = exp?.supplier?.name || exp?.supplier || tOr('common.generic.supplier', 'Tedarikçi');
+            const supplierName = exp?.supplier?.name || exp?.supplier || tOr('common.generic.supplier', 'Supplier');
             const description = exp?.description || tOr('common.generic.expense', 'Gider');
             const dueDate = exp?.dueDate || exp?.expenseDate ? new Date(exp?.dueDate || exp?.expenseDate) : null;
             if (dueDate) {
@@ -3158,8 +3158,8 @@ const AppContent: React.FC = () => {
         
         // 🔔 Bildirim ekle
         addNotification(
-          tOr('notifications.suppliers.created.title', 'Yeni tedarikçi eklendi'),
-          tOr('notifications.suppliers.created.desc', `${created.name} sisteme kaydedildi.`, { name: created.name }),
+          tOr('notifications.suppliers.created.title', 'New supplier added'),
+          tOr('notifications.suppliers.created.desc', '{{name}} has been registered.', { name: created.name }),
           'success',
           'suppliers',
           { i18nTitleKey: 'notifications.suppliers.created.title', i18nDescKey: 'notifications.suppliers.created.desc', i18nParams: { name: created.name } }
@@ -3167,7 +3167,7 @@ const AppContent: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Supplier upsert error:', error);
-      const errorMsg = error.response?.data?.message || error.message || 'Tedarikçi kaydedilemedi';
+      const errorMsg = error.response?.data?.message || error.message || t('toasts.suppliers.createError');
       showToast(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg, 'error');
     }
   };
@@ -3186,7 +3186,7 @@ const AppContent: React.FC = () => {
       // Bağlı gider kontrolü
       if (error.response?.data?.relatedExpenses) {
         setDeleteWarningData({
-          title: 'Tedarikçi Silinemez',
+          title: t('suppliers.deleteNotAllowedTitle'),
           message: error.response.data.message,
           relatedItems: normalizeRelatedItems(error.response.data.relatedExpenses),
           itemType: 'expense'
@@ -3333,8 +3333,8 @@ const AppContent: React.FC = () => {
           return;
         } else if (used === MAX - 1) {
           addNotification(
-            tOr('notifications.plan.limit.title', 'Plan limiti uyarısı'),
-            tOr('notifications.plan.limit.invoices.desc', 'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).', { used: used, limit: MAX }),
+            tOr('notifications.plan.limit.title', 'Plan limit warning'),
+            tOr('notifications.plan.limit.invoices.desc', "You are approaching this month's limit ({{used}}/{{limit}}).", { used: used, limit: MAX }),
             'info',
             'invoices',
             { relatedId: 'plan-limit-invoices', i18nTitleKey: 'notifications.plan.limit.title', i18nDescKey: 'notifications.plan.limit.invoices.desc', i18nParams: { used: used, limit: MAX } }
@@ -3487,7 +3487,7 @@ const AppContent: React.FC = () => {
               saleDate: cleanData.issueDate,
               items: saleItems,
               discountAmount: Number(cleanData.discountAmount || 0),
-              notes: `${created.invoiceNumber} numaralı faturadan otomatik oluşturuldu.`,
+              notes: t('sales.autoNotes.createdFromInvoice', { invoiceNumber: created.invoiceNumber }),
               invoiceId: created.id,
             };
 
@@ -3623,7 +3623,7 @@ const AppContent: React.FC = () => {
       logger.warn('app.invoices.cacheUpdateSkipped', { action: 'delete' });
       
       // Check if error is about locked period
-      if (errorMessage.includes('locked period') || errorMessage.includes('kilitli dönem') || errorMessage.includes('Cannot modify records')) {
+      if (errorMessage.includes('locked period') || errorMessage.includes('Cannot modify records')) {
         showToast(t('common.periodLockedError'), 'error');
       } else {
         showToast(errorMessage || t('invoices.deleteError'), 'error');
@@ -3726,8 +3726,8 @@ const AppContent: React.FC = () => {
           return;
         } else if (used === MAX - 1) {
           addNotification(
-            tOr('notifications.plan.limit.title', 'Plan limiti uyarısı'),
-            tOr('notifications.plan.limit.expenses.desc', 'Bu ay 5/5 limitine yaklaşmaktasınız (4/5).', { used: used, limit: MAX }),
+            tOr('notifications.plan.limit.title', 'Plan limit warning'),
+            tOr('notifications.plan.limit.expenses.desc', "You are approaching this month's limit ({{used}}/{{limit}}).", { used: used, limit: MAX }),
             'info',
             'expenses',
             { relatedId: 'plan-limit-expenses', i18nTitleKey: 'notifications.plan.limit.title', i18nDescKey: 'notifications.plan.limit.expenses.desc', i18nParams: { used: used, limit: MAX } }
@@ -3781,10 +3781,10 @@ const AppContent: React.FC = () => {
         showToast(t('toasts.expenses.createSuccess'), 'success');
         
         // 🔔 Bildirim ekle
-        const supplierName = mappedCreated.supplier?.name || 'Tedarikçi';
+        const supplierName = mappedCreated.supplier?.name || tOr('common.generic.supplier', 'Supplier');
         addNotification(
-          tOr('notifications.expenses.created.title', 'Yeni gider kaydedildi'),
-          tOr('notifications.expenses.created.desc', `${supplierName} - ${mappedCreated.description}: ${mappedCreated.amount} TL`, { supplierName, description: mappedCreated.description, amount: mappedCreated.amount }),
+          tOr('notifications.expenses.created.title', 'New expense recorded'),
+          tOr('notifications.expenses.created.desc', '{{supplierName}} - {{description}}: {{amount}}', { supplierName, description: mappedCreated.description, amount: mappedCreated.amount }),
           'info',
           'expenses',
           { i18nTitleKey: 'notifications.expenses.created.title', i18nDescKey: 'notifications.expenses.created.desc', i18nParams: { supplierName, description: mappedCreated.description, amount: mappedCreated.amount } }
@@ -3824,7 +3824,7 @@ const AppContent: React.FC = () => {
       logger.warn('app.expenses.cacheUpdateSkipped', { action: 'delete' });
       
       // Check if error is about locked period
-      if (errorMessage.includes('locked period') || errorMessage.includes('kilitli dönem') || errorMessage.includes('Cannot modify records')) {
+      if (errorMessage.includes('locked period') || errorMessage.includes('Cannot modify records')) {
         showToast(t('common.periodLockedError'), 'error');
       } else {
         showToast(errorMessage || t('expenses.deleteError'), 'error');
@@ -3877,8 +3877,8 @@ const AppContent: React.FC = () => {
       showToast(t('toasts.expenses.statusUpdateSuccess'), 'success');
     } catch (error: any) {
       console.error('Expense status update error:', error);
-      const msg = String(error?.response?.data?.message || error?.message || 'Gider durumu güncellenemedi');
-      if (msg.includes('locked period') || msg.includes('kilitli dönem') || msg.includes('Cannot modify records')) {
+      const msg = String(error?.response?.data?.message || error?.message || t('toasts.expenses.statusUpdateError'));
+      if (msg.includes('locked period') || msg.includes('Cannot modify records')) {
         showToast(t('common.periodLockedError'), 'error');
       } else {
         showToast(msg, 'error');
@@ -6367,7 +6367,7 @@ const AppContent: React.FC = () => {
                   taxRate: Number(it.taxRate ?? DEFAULT_TAX_RATE),
                 })),
                 discountAmount: 0,
-                notes: 'Teklif kabul edildi (otomatik oluşturuldu)'.trim(),
+                notes: t('sales.autoNotes.quoteAcceptedAutoCreated'),
                 sourceQuoteId: String(q.id),
               });
               // Başarılıysa state'i anında güncelle (yenilemeden görünür)

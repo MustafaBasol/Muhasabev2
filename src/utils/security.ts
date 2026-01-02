@@ -3,6 +3,7 @@
 
 import DOMPurify from 'dompurify';
 import { safeLocalStorage } from './localStorageSafe';
+import i18n from '../i18n/config';
 
 /**
  * XSS saldırılarına karşı HTML içeriğini temizle
@@ -77,25 +78,26 @@ export const isStrongPassword = (password: string): {
   errors: string[];
 } => {
   const errors: string[] = [];
+  const minLen = 8;
   
-  if (password.length < 8) {
-    errors.push('Şifre en az 8 karakter olmalıdır');
+  if (password.length < minLen) {
+    errors.push(i18n.t('auth.passwordStrength.minLength', { min: minLen }));
   }
   
   if (!/[a-z]/.test(password)) {
-    errors.push('Şifre en az bir küçük harf içermelidir');
+    errors.push(i18n.t('auth.passwordStrength.lowercase'));
   }
   
   if (!/[A-Z]/.test(password)) {
-    errors.push('Şifre en az bir büyük harf içermelidir');
+    errors.push(i18n.t('auth.passwordStrength.uppercase'));
   }
   
   if (!/[0-9]/.test(password)) {
-    errors.push('Şifre en az bir rakam içermelidir');
+    errors.push(i18n.t('auth.passwordStrength.number'));
   }
   
   if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
-    errors.push('Şifre en az bir özel karakter içermelidir');
+    errors.push(i18n.t('auth.passwordStrength.special'));
   }
   
   // Yaygın şifreler kontrolü
@@ -105,7 +107,7 @@ export const isStrongPassword = (password: string): {
   ];
   
   if (commonPasswords.includes(password.toLowerCase())) {
-    errors.push('Bu şifre çok yaygın kullanılmaktadır');
+    errors.push(i18n.t('auth.passwordStrength.tooCommon'));
   }
   
   return {

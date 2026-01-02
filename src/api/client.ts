@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosHeaders } from 'axios';
 import type { RawAxiosRequestHeaders, RawAxiosResponseHeaders } from 'axios';
 import { logger } from '../utils/logger';
+import i18n from '../i18n/config';
 import { adminAuthStorage } from '../utils/adminAuthStorage';
 import { safeLocalStorage, readLegacyAuthToken, writeLegacyAuthToken, clearLegacySessionCaches } from '../utils/localStorageSafe';
 
@@ -203,7 +204,7 @@ apiClient.interceptors.response.use(
       
       // Return a clear error without retry
       return Promise.reject({
-        message: 'Backend servisi erişilebilir değil. Port 3000 kontrol edin.',
+        message: String(i18n.t('common.apiErrors.backendUnavailable')),
         code: 'NETWORK_ERROR',
         originalError: error,
       });
@@ -237,7 +238,7 @@ apiClient.interceptors.response.use(
       maintenanceStatus === 503 &&
       (maintenanceError === 'MAINTENANCE_MODE' || containsMaintenanceText)
     ) {
-      const fallbackMessage = maintenanceMessage || 'Sistem bakım modunda (salt okunur). Lütfen daha sonra tekrar deneyin.';
+      const fallbackMessage = maintenanceMessage || String(i18n.t('common.apiErrors.maintenanceMode'));
       try {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(

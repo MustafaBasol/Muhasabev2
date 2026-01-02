@@ -268,7 +268,7 @@ export default function CustomerHistoryModal({
                           <button
                             onClick={() => onViewSale?.(sale)}
                             className="text-green-600 hover:text-green-800 transition-colors cursor-pointer"
-                            title={t('sales.view') || 'Satışı görüntüle'}
+                            title={t('sales.view') || 'View sale'}
                           >
                             {sale.saleNumber || `SAL-${sale.id}`}
                           </button>

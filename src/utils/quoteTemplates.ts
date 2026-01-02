@@ -1,5 +1,6 @@
 import { logger } from './logger';
 import { safeLocalStorage } from './localStorageSafe';
+import i18n from '../i18n/config';
 
 export type QuoteTemplate = {
   id: string;
@@ -28,7 +29,7 @@ const normalizeTemplateRecord = (value: unknown): QuoteTemplate | null => {
   if (!isPlainObject(value)) return null;
   const id = ensureString(value.id).trim();
   if (!id) return null;
-  const name = ensureString(value.name).trim() || 'Şablon';
+  const name = ensureString(value.name).trim() || i18n.t('quotes.templates.defaultName');
   const html = clampHtml(ensureString(value.html));
   const createdAt = ensureString(value.createdAt) || new Date().toISOString();
   const updatedAt = ensureString(value.updatedAt) || createdAt;
@@ -65,7 +66,7 @@ const buildTemplate = (tpl: Omit<QuoteTemplate, 'createdAt' | 'updatedAt'> & Par
   const id = ensureString(tpl.id).trim() || generateTemplateId();
   return {
     id,
-    name: ensureString(tpl.name).trim() || 'Şablon',
+    name: ensureString(tpl.name).trim() || i18n.t('quotes.templates.defaultName'),
     html: clampHtml(ensureString(tpl.html)),
     isDefault: Boolean(tpl.isDefault),
     createdAt: tpl.createdAt || now,

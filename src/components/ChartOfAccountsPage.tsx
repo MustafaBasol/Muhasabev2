@@ -433,17 +433,17 @@ export default function ChartOfAccountsPage({
   const getLockedAccountTooltip = (account: Account): string => {
     const code = account.code;
     const tooltips: { [key: string]: string } = {
-      '101': 'Kasa: Ödenen faturaların nakit ödemeleri (Faturalar > Ödendi)',
-      '102': 'Bankalar: Ödenen faturaların banka/kart ödemeleri (Faturalar > Ödendi)',
-      '120': 'Alıcılar: Ödenmemiş faturalar (Faturalar > Gönderildi/Vadesi Geçti)',
-      '201': 'Satıcılar: Ödenmemiş giderler (Giderler > Onaylandı/Beklemede)',
-      '600': 'GELİRLER: Tüm gelirler toplamı (Faturalar sayfasından)',
-      '601': 'Satış Gelirleri: Ürün kategorili faturalar (Ürünler > Ürünler kategorisi)',
-      '602': 'Hizmet Gelirleri: Hizmet kategorili faturalar (Ürünler > Hizmetler kategorisi)',
-      '700': 'GİDERLER: Tüm giderler toplamı (Giderler sayfasından)',
-      '701': 'Kira Giderleri: Kira kategorili giderler (Giderler sayfasından)',
-      '702': 'Personel Giderleri: Personel kategorili giderler (Giderler sayfasından)',
-      '703': 'Fatura Giderleri: Fatura kategorili giderler (Giderler sayfasından)'
+      '101': String(t('chartOfAccounts.lockedTooltips.101')),
+      '102': String(t('chartOfAccounts.lockedTooltips.102')),
+      '120': String(t('chartOfAccounts.lockedTooltips.120')),
+      '201': String(t('chartOfAccounts.lockedTooltips.201')),
+      '600': String(t('chartOfAccounts.lockedTooltips.600')),
+      '601': String(t('chartOfAccounts.lockedTooltips.601')),
+      '602': String(t('chartOfAccounts.lockedTooltips.602')),
+      '700': String(t('chartOfAccounts.lockedTooltips.700')),
+      '701': String(t('chartOfAccounts.lockedTooltips.701')),
+      '702': String(t('chartOfAccounts.lockedTooltips.702')),
+      '703': String(t('chartOfAccounts.lockedTooltips.703')),
     };
     
     // Dinamik kategoriler için
@@ -452,12 +452,12 @@ export default function ChartOfAccountsPage({
       if (parent?.code === '700') {
         const categoryValue = categoryNameToValue[account.name];
         if (categoryValue) {
-          return `${account.name}: ${account.name} kategorili giderler (Giderler sayfasından)`;
+          return String(t('chartOfAccounts.lockedTooltips.dynamicExpenseCategory', { category: account.name }));
         }
       }
     }
     
-    return tooltips[code] || 'Bu hesap diğer sayfalardan otomatik yönetilir';
+    return tooltips[code] || String(t('chartOfAccounts.lockedTooltips.default'));
   };
 
   // Update accounts with dynamic balances
@@ -620,7 +620,7 @@ export default function ChartOfAccountsPage({
       
       // Eğer parent'ın kendisi de bir child ise (yani alt kategoriye alt kategori eklemeye çalışıyorsa)
       if (parent?.parentId) {
-        alert('Alt kategorilere tekrar alt kategori eklenemez. Sadece ana kategorilere alt kategori eklenebilir.');
+        alert(t('chartOfAccounts.errors.subAccountCannotHaveSubAccount'));
         return;
       }
       
@@ -636,7 +636,7 @@ export default function ChartOfAccountsPage({
     const newAccount: Account = {
       id: Date.now().toString(),
       code: '',
-      name: 'Yeni Hesap',
+      name: t('chartOfAccounts.newAccount'),
       type: parentId ? getParentAccountType(parentId) : 'asset',
       parentId,
       isActive: true,
@@ -675,7 +675,7 @@ export default function ChartOfAccountsPage({
     });
 
     if (categoryExists) {
-      alert(`"${categoryLabel}" kategorisi zaten eklenmiş. Her kategori sadece bir kez eklenebilir.`);
+      alert(t('chartOfAccounts.errors.expenseCategoryAlreadyAdded', { categoryLabel }));
       setShowExpenseCategoryModal(false);
       setPendingParentId(null);
       return;

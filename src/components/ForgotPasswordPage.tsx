@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
       setSent(true);
       setCooldown(60);
     } catch (err: any) {
-      setError(err?.message || 'İşlem sırasında bir hata oluştu');
+      setError(err?.message || t('common.operationFailed'));
     } finally {
       setLoading(false);
     }

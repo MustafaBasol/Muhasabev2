@@ -160,7 +160,7 @@ export default function SupplierList({
         <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <h2 className="text-xl font-semibold text-gray-900">
-              {selectionMode ? 'Tedarikçi Seç' : t('suppliers.title')}
+              {selectionMode ? t('suppliers.selectTitle') : t('suppliers.title')}
             </h2>
             <p className="text-sm text-gray-500">
               {totalSuppliers} {t('suppliers.suppliersRegistered')}
@@ -313,7 +313,7 @@ export default function SupplierList({
                           onViewSupplier(supplier);
                         }}
                         className="font-semibold text-orange-600 hover:text-orange-800 transition-colors cursor-pointer text-left"
-                        title="Tedarikçi detaylarını görüntüle"
+                        title={t('suppliers.tooltips.viewSupplierDetails')}
                       >
                         {displayName}
                       </button>

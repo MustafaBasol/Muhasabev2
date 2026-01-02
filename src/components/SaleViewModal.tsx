@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
+import { localizeAutoNote } from '../utils/autoNotes';
 
 // Sayısal stringleri güvenli biçimde sayıya çevir ("2000.00", "2.000,00", "2,000.00")
 const toNumber = (value: unknown): number => {
@@ -379,7 +380,7 @@ export default function SaleViewModal({
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{L.notes}</h3>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <p className="text-gray-700">{sale.notes}</p>
+                <p className="text-gray-700">{localizeAutoNote(sale.notes, t)}</p>
               </div>
             </div>
           )}

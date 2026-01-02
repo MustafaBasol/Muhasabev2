@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { X, Search, Calendar, User, DollarSign, FileText } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { localizeAutoNote } from '../utils/autoNotes';
 import type { Invoice, Sale } from '../types';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
@@ -216,7 +217,7 @@ export default function ExistingSaleSelectionModal({
 
                       {sale.notes && (
                         <p className="text-sm text-gray-600 italic">
-                          "{sale.notes}"
+                          "{localizeAutoNote(sale.notes, t)}"
                         </p>
                       )}
                     </div>

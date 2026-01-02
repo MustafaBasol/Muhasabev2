@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef, useC
 import { authService, AuthResponse } from '../api/auth';
 // import { secureStorage } from '../utils/storage';
 import { logger } from '../utils/logger';
+import i18n from '../i18n/config';
 import { createSessionManager, SessionManager } from '../utils/sessionManager';
 import { isEmailVerificationRequired } from '../utils/emailVerification';
 import {
@@ -244,7 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Safety check
     if (!data || !data.user || !data.token) {
       console.error('❌ Invalid auth data:', data);
-      throw new Error('Geçersiz auth verisi alındı');
+      throw new Error(String(i18n.t('auth.invalidAuthData')));
     }
     
     // Önce eski verileri temizle
@@ -352,7 +353,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const apiMessage = maybe?.response?.data?.message;
       const errorMessage = (typeof apiMessage === 'string')
         ? apiMessage
-        : (err instanceof Error ? err.message : 'Giriş sırasında bir hata oluştu');
+        : (err instanceof Error ? err.message : String(i18n.t('auth.loginErrorGeneric')));
       throw new Error(errorMessage);
     }
   };
@@ -405,7 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 409 özel durumu kullanıcı dostu şekilde komponentte ele alabilmek için fırlat
       const details = getApiErrorDetails(error);
       const status = details.response?.status;
-      const message = details.response?.data?.message || details.message || 'Kayıt sırasında bir hata oluştu';
+      const message = details.response?.data?.message || details.message || String(i18n.t('auth.registerErrorGeneric'));
       if (status === 409) {
         const err: StatusAssignableError = new Error('EMAIL_IN_USE');
         err.status = 409;

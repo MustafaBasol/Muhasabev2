@@ -126,6 +126,8 @@ const translateCategoryName = (categoryName: string, t: (key: string) => string)
   
   // Ana kategoriler için çeviri - Türkçe isimler ile eşleştir
   switch (normalizedName) {
+    case 'Genel':
+      return t('products.defaultCategoryName');
     case 'Hizmetler':
       return t('products.mainCategories.services');
     case 'Ürünler':
@@ -134,7 +136,6 @@ const translateCategoryName = (categoryName: string, t: (key: string) => string)
       // Alt kategoriler veya diğer kategoriler için orijinal ismi döndür
       return normalizedName;
   }
-  return categoryName;
 };
 
 
@@ -530,7 +531,7 @@ export default function ProductList({
     
     // Korumalı kategorilerin ismini değiştirmeyi engelle
     if (categoryObj.isProtected && updated !== currentName) {
-      alert(`"${currentName}" ana kategori olduğu için ismi değiştirilemez. Sadece KDV oranı güncellenebilir.`);
+      alert(t('products.mainCategoryRenameRestricted', { category: currentName }));
       setEditingCategoryData(null);
       return;
     }

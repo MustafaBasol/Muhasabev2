@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import i18n from '../i18n/config';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -14,6 +15,14 @@ interface ErrorBoundaryState {
 }
 
 type SupportedLanguage = 'tr' | 'en' | 'fr' | 'de';
+
+const normalizeLang = (lng?: string): SupportedLanguage => {
+  const l = String(lng || 'en').toLowerCase();
+  if (l.startsWith('tr')) return 'tr';
+  if (l.startsWith('fr')) return 'fr';
+  if (l.startsWith('de')) return 'de';
+  return 'en';
+};
 
 interface ErrorBoundaryTexts {
   title: string;
@@ -63,7 +72,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     try {
       console.error(`[ErrorBoundary:${this.props.name || 'root'}]`, error, info);
       // Basit global event: UI başka yerde toast gösterebilir
-      const evt = new CustomEvent('showToast', { detail: { message: 'Bir hata oluştu: ' + (error?.message || 'Bilinmeyen'), tone: 'error' } });
+      const prefix = String(i18n.t('common.errorBoundary.toastPrefix'));
+      const unknown = String(i18n.t('common.errorBoundary.toastUnknown'));
+      const evt = new CustomEvent('showToast', { detail: { message: `${prefix}${error?.message || unknown}`, tone: 'error' } });
       window.dispatchEvent(evt);
     } catch {}
   }
@@ -74,7 +85,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   render() {
     if (this.state.hasError) {
-      const texts = this.props.texts ?? TEXT_DICTIONARY.tr;
+      const texts = this.props.texts ?? (TEXT_DICTIONARY[normalizeLang(i18n.language)] ?? TEXT_DICTIONARY.en);
       const sectionLabel = this.props.name || texts.defaultSectionLabel;
       return this.props.fallback || (
         <div style={{ padding: '32px', maxWidth: 640, margin: '40px auto', fontFamily: 'system-ui' }}>
