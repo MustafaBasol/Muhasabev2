@@ -91,6 +91,12 @@ export class CSRFMiddleware implements NestMiddleware {
   private needsCSRFProtection(path: string): boolean {
     // Global prefix '/api' varsa normalize et
     const normalizedPath = path.startsWith('/api/') ? path.substring(4) : path;
+
+    // Automation-friendly exception: blog admin endpoints are protected by admin-token,
+    // and may be called by non-browser clients (n8n) without cookie-based CSRF state.
+    if (normalizedPath.startsWith('/admin/blog-posts')) {
+      return false;
+    }
     const protectedPaths = [
       '/admin',
       '/users/2fa',

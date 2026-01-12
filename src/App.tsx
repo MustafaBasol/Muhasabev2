@@ -109,6 +109,7 @@ import VerifyNoticePage from "./components/VerifyNoticePage";
 import LandingPage from "./components/landing/LandingPage";
 import AboutPage from "./components/landing/AboutPage";
 import ApiPage from "./components/landing/ApiPage";
+import BlogPage from "./components/landing/BlogPage";
 
 // legal pages
 import TermsOfService from "./components/legal/TermsOfService";
@@ -2341,6 +2342,11 @@ const AppContent: React.FC = () => {
         navigate('about');
       } else if (hash === 'api') {
         navigate('api');
+      } else if (hash === 'blog') {
+        navigate('blog');
+      } else if (hash.startsWith('blog/')) {
+        const slug = hash.replace('blog/', '');
+        navigate(`blog-post:${slug}`, { slug });
       } else if (hash.startsWith('customer-history:')) {
         navigate(hash);
       }
@@ -6489,6 +6495,15 @@ const AppContent: React.FC = () => {
   // Landing page for non-authenticated users at root path
   if (currentPage === 'landing') {
     return <LandingPage />;
+  }
+
+  // Blog pages are public (SEO meta handled per post)
+  if (currentPage === 'blog') {
+    return <BlogPage />;
+  }
+  if (typeof currentPage === 'string' && currentPage.startsWith('blog-post:')) {
+    const slug = currentPage.replace('blog-post:', '');
+    return <BlogPage slug={slug} />;
   }
 
   // Login page for non-authenticated users trying to access protected routes

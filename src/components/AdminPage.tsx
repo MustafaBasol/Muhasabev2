@@ -8,6 +8,7 @@ import PlanLimitsPage from './admin/PlanLimitsPage';
 import SiteSettingsPage from './admin/SiteSettingsPage';
 // OrganizationManagementPage ve TenantLimitsPage kaldırıldı
 import TenantConsolePage from './admin/TenantConsolePage';
+import BlogManagementPage from './admin/BlogManagementPage';
 import { useAuth } from '../contexts/AuthContext';
 import StatusPage from './status/StatusPage';
 const AdminSecurityPageLazy = React.lazy(() => import('./admin/AdminSecurityPage'));
@@ -74,7 +75,7 @@ const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups' | 'retention' | 'status' | 'planLimits' | 'tenantConsole' | 'siteSettings' | 'security'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tenants' | 'data' | 'backups' | 'retention' | 'status' | 'planLimits' | 'tenantConsole' | 'siteSettings' | 'blog' | 'security'>('users');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
   // Users sekmesi için şirket filtresi (sunucu tarafı)
   const [userTenantFilter, setUserTenantFilter] = useState<string>('all');
@@ -725,6 +726,16 @@ const AdminPage: React.FC = () => {
             }`}
           >
             ⚙️ Site Ayarları
+          </button>
+          <button
+            onClick={() => setActiveTab('blog')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'blog'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            📝 Blog
           </button>
           <button
             onClick={() => setActiveTab('security')}
@@ -1447,6 +1458,12 @@ const AdminPage: React.FC = () => {
         {activeTab === 'siteSettings' && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <SiteSettingsPage />
+          </div>
+        )}
+
+        {activeTab === 'blog' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <BlogManagementPage />
           </div>
         )}
 
