@@ -31,10 +31,16 @@ const LandingNavbar: React.FC<LandingNavbarProps> = ({ onTryForFree, onSignIn })
     { key: 'features', href: '#features', label: t('landing.nav.features') },
     { key: 'pricing', href: '#pricing', label: t('landing.nav.pricing') },
     { key: 'faq', href: '#faq', label: t('landing.nav.faq') },
+    { key: 'blog', href: '#blog', label: t('landing.nav.blog') },
     { key: 'contact', href: '#contact', label: t('landing.nav.contact') },
   ];
 
   const scrollToSection = (href: string) => {
+    if (href === '#blog') {
+      window.location.hash = 'blog';
+      setIsMenuOpen(false);
+      return;
+    }
     const element = document.querySelector(href);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });

@@ -4,8 +4,12 @@ Bu doküman, blog yazılarını n8n üzerinden otomatik oluşturmak/güncellemek
 
 ## Temel Bilgiler
 
-- **API base path:** Frontend dev/prod istekleri varsayılan olarak `/api` altından gider.
-  - Yani gerçek endpoint: `https://DOMAIN/api/...`
+- **API path prefix:** Backend global prefix `\`/api\`` kullanır.
+  - Yani endpoint formatı: `https://<BACKEND_DOMAIN>/api/...`
+- **Prod domain ayrımı (Comptario):**
+  - Frontend: `https://comptario.com`
+  - Backend API: `https://api.comptario.com`
+  - n8n / cURL gibi otomasyon isteklerinde **API domain’ini** kullanın: `https://api.comptario.com/api/...`
 - **Admin auth:** `admin-token` header’ı zorunludur.
 - **CSRF:** Blog admin endpointleri otomasyon istemcileri için CSRF’den muaf tutulmuştur (admin-token ile zaten korunur).
 
@@ -16,6 +20,9 @@ Admin token, login sonrası backend’in döndürdüğü `adminToken` alanıdır
 - **Endpoint:** `POST https://DOMAIN/api/admin/login`
 - **Body:** `{"username":"...","password":"...","totp":"123456"}`
 - **Response:** `{"adminToken":"...","expiresIn":"1h" ... }`
+
+Not: Eğer `https://comptario.com/api/...` çağrıları Cloudflare/nginx katmanında takılıyorsa, doğrudan API domain’ine geçin:
+- `https://api.comptario.com/api/admin/login`
 
 Not: Bu projede admin token **in-memory** tutulur ve **yaklaşık 1 saat** sonra geçersizleşir. Bu yüzden n8n’de ya token’ı periyodik yenilemeniz ya da her çalıştırmada login olup yeni token almanız gerekir.
 
@@ -28,7 +35,7 @@ Bu modda token’ı bir kez (veya gerektiğinde) siz üretirsiniz, n8n sadece on
 1) Admin login çağrısı yapın (tarayıcıdan admin panele girerek veya cURL ile):
 
 ```bash
-curl -X POST "https://DOMAIN/api/admin/login" \
+curl -X POST "https://api.comptario.com/api/admin/login" \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"YOUR_PASSWORD","totp":"123456"}'
 ```
@@ -63,6 +70,14 @@ Bu modda workflow her tetiklendiğinde:
 #### 1) Code Node (TOTP üretimi)
 
 Bu örnek 6 haneli, 30 saniye adımlı TOTP üretir. Secret’ı base32 formatında girin (Google Authenticator / Authy genelde base32 verir).
+
+Önemli: n8n’in **Code** node’u güvenlik nedeniyle Node.js built-in modüllerini kısıtlayabilir. Eğer `Cannot find module 'crypto'` hatası alırsanız n8n instance’ınızda aşağıdaki env var’ı tanımlayıp n8n’i yeniden başlatın:
+
+- `NODE_FUNCTION_ALLOW_BUILTIN=crypto`
+
+Notlar:
+- n8n Cloud’da (veya yönetilen ortamlarda) bu ayarı yapamayabilirsiniz; bu durumda **Mod 1 (Manuel Token)** ile ilerlemek en kolay yoldur.
+- Self-hosted Docker kullanıyorsanız n8n servisinin `environment:` kısmına ekleyip `docker compose up -d` ile yeniden yaratın.
 
 ```javascript
 // n8n Code node (JavaScript)
@@ -120,12 +135,41 @@ const code = totp(secret);
 return [{ json: { totp: code } }];
 ```
 
+Sorun giderme: Container’da değişken var ama Code node `process.env` göremiyor
+
+Bazı n8n kurulumlarında (özellikle sandbox/vm2) Code node içinde `process.env` kısıtlı olabilir. Bu durumda env’i doğrudan Code node’dan okumak yerine, **expression** ile bir önceki node’da item’a ekleyip Code node’a taşıyın:
+
+1) Code node’dan önce bir **Set / Edit Fields** node’u ekleyin (ör. adı: `Load Env`).
+2) Bu node’da bir alan ekleyin:
+   - `secret`: `{{$env.ADMIN_TOTP_SECRET}}`
+3) Code node’da secret okuma satırını şöyle değiştirin:
+
+```javascript
+const secret = $input.first().json.secret;
+if (!secret) {
+  throw new Error('ADMIN_TOTP_SECRET is not set');
+}
+```
+
+Eğer debug yaptığınızda `$input.first().json.secret` boş geliyorsa (bazı durumlarda node input’u farklı bir item olabilir), Code node içinde `Load Env` node’unun çıktısını **node adıyla** okuyarak ilerleyebilirsiniz:
+
+```javascript
+const secret = $('Load Env').first().json.secret;
+if (!secret) {
+  throw new Error('ADMIN_TOTP_SECRET is not set');
+}
+```
+
+Not: Node adınız farklıysa `Load Env` kısmını birebir node adınızla değiştirin. Sağlıklı test için “Execute workflow” ile akışı baştan çalıştırın ve pinned data kullanmayın.
+
+Bu yöntemle env, n8n’in expression katmanından (ana process) alınır ve Code node sandbox’ına veri olarak taşınır.
+
 Güvenlik notu: Bu modda 2FA secret’ı n8n’de saklandığı için erişimleri çok sıkı kısıtlayın.
 
 #### 2) HTTP Request (Admin Login)
 
 - **Method:** `POST`
-- **URL:** `https://DOMAIN/api/admin/login`
+- **URL:** `https://api.comptario.com/api/admin/login`
 - **Headers:** `Content-Type: application/json`
 - **Body (JSON):**
 
@@ -150,7 +194,7 @@ Not: Node adı sizde farklıysa, expression’ı node adınıza göre uyarlayın
 ## Önerilen Tek Endpoint (Upsert by Slug)
 
 - **Method:** `PUT`
-- **URL:** `https://DOMAIN/api/admin/blog-posts/by-slug/:slug`
+- **URL:** `https://api.comptario.com/api/admin/blog-posts/by-slug/:slug`
   - `:slug` örn: `kobi-icin-fatura-ipuclari`
 - **Headers:**
   - `Content-Type: application/json`
@@ -196,7 +240,7 @@ Not: Node adı sizde farklıysa, expression’ı node adınıza göre uyarlayın
 n8n’de bir **HTTP Request** node’u ekleyin:
 
 - **Method:** `PUT`
-- **URL:** `https://DOMAIN/api/admin/blog-posts/by-slug/{{$json.slug}}`
+- **URL:** `https://api.comptario.com/api/admin/blog-posts/by-slug/{{$json.slug}}`
 - **Authentication:** None (header ile)
 - **Headers:**
   - `admin-token`: `YOUR_ADMIN_TOKEN`
@@ -227,6 +271,20 @@ Notlar:
 - `canonicalUrl` boş ise göndermeyebilirsiniz; backend `null` saklar.
 - `jsonLd` geçerli JSON string olmalı (düz metin değil).
 
+## Hostinger VPS (Docker Manager) Notu
+
+Hostinger’ın “Manage project with .yaml editor” ekranında sağdaki **Environment** paneline eklediğiniz değişkenler, bazı kurulumlarda YAML içinde **adıyla referanslanmadıkça** servise geçmeyebilir.
+
+Bu durumda YAML içindeki `environment:` listesinde şu formatı kullanın:
+
+- `- ADMIN_TOTP_SECRET=${ADMIN_TOTP_SECRET}`
+
+Yanlış örnek (değişken adı yerine değeri yazmak gibi):
+
+- `- ADMIN_TOTP_SECRET=${ERND...}`
+
+Değişiklikten sonra mutlaka **Deploy/Recreate** yapın. Doğrulamak için n8n’de geçici bir Code node ile `!!process.env.ADMIN_TOTP_SECRET` kontrol edebilirsiniz.
+
 ## Önerilen Minimum SEO Alanları
 
 En az şu 3 alanı dolu tutmak genelde yeterlidir:
@@ -250,7 +308,7 @@ Opsiyonel ama faydalı:
 ## Hızlı cURL Testi
 
 ```bash
-curl -X PUT "https://DOMAIN/api/admin/blog-posts/by-slug/test-yazi" \
+curl -X PUT "https://api.comptario.com/api/admin/blog-posts/by-slug/test-yazi" \
   -H "Content-Type: application/json" \
   -H "admin-token: YOUR_ADMIN_TOKEN" \
   -d '{"slug":"test-yazi","title":"Test","contentMarkdown":"# Test","status":"published"}'

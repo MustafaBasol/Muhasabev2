@@ -16,6 +16,7 @@ const LandingFooter: React.FC = () => {
       api: 'API',
       company: 'ŞİRKET',
       about: 'Hakkında',
+      blog: 'Blog',
   // Removed: Blog, Kariyer, Basın
       support: 'DESTEK',
       helpCenter: 'Yardım Merkezi',
@@ -48,6 +49,7 @@ const LandingFooter: React.FC = () => {
       api: 'API',
       company: 'COMPANY',
       about: 'About',
+      blog: 'Blog',
   // Removed: Blog, Careers, Press
       support: 'SUPPORT',
       helpCenter: 'Help Center',
@@ -80,6 +82,7 @@ const LandingFooter: React.FC = () => {
       api: 'API',
       company: 'UNTERNEHMEN',
       about: 'Über uns',
+      blog: 'Blog',
   // Removed: Blog, Karriere, Presse
       support: 'SUPPORT',
       helpCenter: 'Hilfe Center',
@@ -112,6 +115,7 @@ const LandingFooter: React.FC = () => {
       api: 'API',
       company: 'ENTREPRISE',
       about: 'À propos',
+      blog: 'Blog',
   // Removed: Blog, Carrières, Presse
       support: 'SUPPORT',
       helpCenter: 'Centre d\'aide',
@@ -153,7 +157,8 @@ const LandingFooter: React.FC = () => {
     {
       title: t.company,
       links: [
-        { name: t.about, href: '#about' }
+        { name: t.about, href: '#about' },
+        { name: t.blog, href: '#blog' }
       ]
     },
     {
@@ -185,6 +190,9 @@ const LandingFooter: React.FC = () => {
     } else if (href === '#about') {
       // About page route
       window.location.hash = 'about';
+    } else if (href === '#blog') {
+      // Blog route
+      window.location.hash = 'blog';
     } else if (href === '#api') {
       // API page route
       window.location.hash = 'api';
