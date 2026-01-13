@@ -417,6 +417,19 @@ Yazı içi görsel için (Markdown):
 ![Kapak]({{$node["Upload Image"].json["url"]}})
 ```
 
+### Sorun giderme (Prod)
+
+- `308 Permanent Redirect` görürseniz:
+  - Genelde Traefik/Cloudflare `http` isteklerini `https`’e yönlendiriyordur.
+  - Çözüm: URL’leri doğrudan `https://api.comptario.com/...` kullanın.
+  - n8n’in **HTTP Request** node’u bazı kurulumlarda redirect’i otomatik takip etmez; bu yüzden n8n’de URL’i en baştan **https** yazmak en güvenlisidir.
+  - cURL ile test ediyorsanız yönlendirmeyi takip etmek için `-L` ekleyebilirsiniz.
+- `curl` ile multipart upload’da `Content-Type` header’ını elle set etmeyin.
+  - `-F "file=@..."` kullandığınızda `curl` boundary ile doğru `Content-Type` üretir.
+- Sağlık kontrolü:
+  - Bu backend’de health endpoint’i `GET /api/health`’dir.
+  - `GET /health` bazı ortamlarda SPA/static fallback’e düşüp 404 dönebilir.
+
 ## Yayın Kontrolü
 
 - Public SEO sayfaları:

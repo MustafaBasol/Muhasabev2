@@ -11,11 +11,10 @@ import Pricing from './Pricing';
 import FAQ from './FAQ';
 import FinalCTA from './FinalCTA';
 import LandingFooter from './LandingFooter';
-import VideoModal from './VideoModal';
 
 const LandingPage: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const [showVideoModal, setShowVideoModal] = useState(false);
+  const DEMO_VIDEO_URL = 'https://www.youtube.com/watch?v=wFX_ePvjkTY';
   
   const LOGIN_URL = import.meta.env.VITE_LOGIN_URL || "/login";
   const REGISTER_URL = import.meta.env.VITE_REGISTER_URL || "#register";
@@ -181,7 +180,7 @@ const LandingPage: React.FC = () => {
   };
 
   const handleWatchDemo = () => {
-    setShowVideoModal(true);
+    window.open(DEMO_VIDEO_URL, '_blank', 'noopener,noreferrer');
   };
 
   // Skip-to-content link for accessibility
@@ -234,11 +233,6 @@ const LandingPage: React.FC = () => {
 
       {/* Footer */}
       <LandingFooter />
-
-      {/* Video Modal */}
-      {showVideoModal && (
-        <VideoModal onClose={() => setShowVideoModal(false)} />
-      )}
     </div>
   );
 };
