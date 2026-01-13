@@ -34,6 +34,20 @@ export enum BlogPostStatus {
   PUBLISHED = 'published',
 }
 
+export type BlogPostTranslation = {
+  title?: string;
+  excerpt?: string | null;
+  contentHtml?: string;
+  contentMarkdown?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  canonicalUrl?: string | null;
+  ogImageUrl?: string | null;
+  keywords?: string | null;
+  noIndex?: boolean;
+  jsonLd?: string | null;
+};
+
 @Entity('blog_posts')
 export class BlogPost {
   @PrimaryGeneratedColumn('uuid')
@@ -78,6 +92,11 @@ export class BlogPost {
 
   @Column({ type: 'text', nullable: true })
   jsonLd?: string | null;
+
+  // Optional per-language overrides. Stored as JSON string for SQLite compatibility.
+  // Shape: { "en": { title, contentHtml, ... }, "de": { ... } }
+  @Column({ type: 'simple-json', nullable: true })
+  translations?: Record<string, BlogPostTranslation> | null;
 
   @Column({
     type: 'simple-enum',

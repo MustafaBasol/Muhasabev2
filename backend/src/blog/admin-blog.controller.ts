@@ -94,6 +94,92 @@ export class AdminBlogController {
     return { html: this.sanitizeOrThrow(String(htmlFromMd)), markdown: markdown! };
   }
 
+  private normalizeLangKey(raw: unknown): string {
+    return String(raw ?? '').trim().toLowerCase();
+  }
+
+  private normalizeTranslationsPatch(input: unknown): Record<string, any> | null {
+    if (input === null) return {};
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+
+    const entries = Object.entries(input as Record<string, unknown>);
+    if (entries.length === 0) return {};
+
+    const patch: Record<string, any> = {};
+
+    for (const [langRaw, value] of entries) {
+      const lang = this.normalizeLangKey(langRaw);
+      if (!lang) continue;
+
+      if (value === null) {
+        patch[lang] = null;
+        continue;
+      }
+
+      if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+      const v = value as Record<string, any>;
+
+      const entry: Record<string, any> = {};
+
+      if (typeof v.title === 'string' && v.title.trim()) entry.title = v.title;
+      if (v.excerpt === null) entry.excerpt = null;
+      else if (typeof v.excerpt === 'string') entry.excerpt = v.excerpt;
+
+      const hasHtml = typeof v.contentHtml === 'string' && v.contentHtml.trim().length > 0;
+      const hasMd = typeof v.contentMarkdown === 'string' && v.contentMarkdown.trim().length > 0;
+      if (hasHtml || hasMd) {
+        const { html, markdown } = this.renderHtml({
+          contentHtml: hasHtml ? v.contentHtml : undefined,
+          contentMarkdown: hasMd ? v.contentMarkdown : undefined,
+        });
+        entry.contentHtml = html;
+        entry.contentMarkdown = markdown ?? null;
+      }
+
+      if (v.metaTitle === null) entry.metaTitle = null;
+      else if (typeof v.metaTitle === 'string') entry.metaTitle = v.metaTitle;
+
+      if (v.metaDescription === null) entry.metaDescription = null;
+      else if (typeof v.metaDescription === 'string') entry.metaDescription = v.metaDescription;
+
+      if (v.canonicalUrl === null) entry.canonicalUrl = null;
+      else if (typeof v.canonicalUrl === 'string') entry.canonicalUrl = v.canonicalUrl;
+
+      if (v.ogImageUrl === null) entry.ogImageUrl = null;
+      else if (typeof v.ogImageUrl === 'string') entry.ogImageUrl = v.ogImageUrl;
+
+      if (v.keywords === null) entry.keywords = null;
+      else if (typeof v.keywords === 'string') entry.keywords = v.keywords;
+
+      if (typeof v.noIndex === 'boolean') entry.noIndex = v.noIndex;
+
+      if (v.jsonLd === null) entry.jsonLd = null;
+      else if (typeof v.jsonLd === 'string') entry.jsonLd = v.jsonLd;
+
+      if (Object.keys(entry).length > 0) {
+        patch[lang] = entry;
+      }
+    }
+
+    return patch;
+  }
+
+  private mergeTranslations(existing: Record<string, any> | null | undefined, patch: Record<string, any> | null): Record<string, any> | null {
+    if (patch === null) return existing ?? null;
+    // explicit clear all
+    if (Object.keys(patch).length === 0) return null;
+
+    const next: Record<string, any> = { ...(existing || {}) };
+    for (const [lang, val] of Object.entries(patch)) {
+      if (val === null) {
+        delete next[lang];
+        continue;
+      }
+      next[lang] = { ...(next[lang] || {}), ...(val as any) };
+    }
+    return Object.keys(next).length ? next : null;
+  }
+
   @Get()
   async list(@Headers() headers?: AdminHeaderMap) {
     this.checkAdminAuth(headers);
@@ -117,6 +203,8 @@ export class AdminBlogController {
     this.checkAdminAuth(headers);
     const slug = this.blogService.normalizeSlug(dto.slug);
     const { html, markdown } = this.renderHtml(dto);
+    const translationsPatch = this.normalizeTranslationsPatch((dto as any).translations);
+    const translations = this.mergeTranslations(null, translationsPatch);
 
     const post = this.blogRepo.create({
       slug,
@@ -124,6 +212,7 @@ export class AdminBlogController {
       excerpt: dto.excerpt ?? null,
       contentHtml: html,
       contentMarkdown: markdown ?? null,
+      translations,
       metaTitle: dto.metaTitle ?? null,
       metaDescription: dto.metaDescription ?? null,
       canonicalUrl: dto.canonicalUrl ?? null,
@@ -161,6 +250,14 @@ export class AdminBlogController {
     if (dto.keywords !== undefined) post.keywords = dto.keywords;
     if (dto.noIndex !== undefined) post.noIndex = dto.noIndex;
     if (dto.jsonLd !== undefined) post.jsonLd = dto.jsonLd;
+
+    if ((dto as any).translations !== undefined) {
+      const patch = this.normalizeTranslationsPatch((dto as any).translations);
+      if (patch === null) {
+        throw new BadRequestException('translations must be an object');
+      }
+      post.translations = this.mergeTranslations(post.translations, patch);
+    }
 
     const contentTouched = dto.contentHtml !== undefined || dto.contentMarkdown !== undefined;
     if (contentTouched) {
@@ -219,6 +316,7 @@ export class AdminBlogController {
       noIndex: dto.noIndex,
       jsonLd: dto.jsonLd,
       status: dto.status,
+      translations: (dto as any).translations,
     };
     return this.update(existing.id, patch, headers);
   }

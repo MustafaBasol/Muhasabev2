@@ -54,7 +54,7 @@ const ensureJsonLd = (json: string | null) => {
 };
 
 const BlogPage: React.FC<Props> = ({ slug }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [list, setList] = useState<PublicBlogPostSummary[]>([]);
   const [post, setPost] = useState<PublicBlogPost | null>(null);
   const [loading, setLoading] = useState(false);
@@ -97,7 +97,7 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
         setLoading(true);
         setError('');
         if (slug) {
-          const p = await publicBlogApi.getPostBySlug(slug);
+          const p = await publicBlogApi.getPostBySlug(slug, i18n.language);
           setPost(p);
           setList([]);
           setTotal(0);
@@ -117,7 +117,7 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
           ensureJsonLd(p.jsonLd || null);
         } else {
           const offset = (page - 1) * PAGE_SIZE;
-          const res = await publicBlogApi.listPosts(PAGE_SIZE, offset);
+          const res = await publicBlogApi.listPosts(PAGE_SIZE, offset, i18n.language);
           setList(res.items || []);
           setTotal(Number(res.total || 0));
           setPost(null);
@@ -132,7 +132,7 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
     };
 
     void load();
-  }, [slug, page]);
+  }, [slug, page, i18n.language]);
 
   const onTryForFree = () => {
     window.location.hash = 'register';

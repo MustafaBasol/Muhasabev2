@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsEnum,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -66,6 +67,11 @@ export class CreateBlogPostDto {
   @IsOptional()
   @IsEnum(BlogPostStatus)
   status?: BlogPostStatus;
+
+  // Optional per-language overrides: { "de": { title, contentMarkdown, ... }, "fr": { ... } }
+  @IsOptional()
+  @IsObject()
+  translations?: Record<string, any>;
 }
 
 export class UpdateBlogPostDto {
@@ -126,4 +132,8 @@ export class UpdateBlogPostDto {
   @IsOptional()
   @IsEnum(BlogPostStatus)
   status?: BlogPostStatus;
+
+  @IsOptional()
+  @IsObject()
+  translations?: Record<string, any>;
 }

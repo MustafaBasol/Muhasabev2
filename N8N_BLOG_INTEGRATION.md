@@ -268,6 +268,73 @@ Not: Türkçe karakterleri (ç,ğ,ı,ö,ş,ü) ASCII’ye çevirmek isterseniz a
 }
 ```
 
+## Çok Dilli Blog (Translations)
+
+Bu projede çok dillilik için önerilen yaklaşım:
+
+- Tek bir `slug` (tek post) tutulur.
+- Varsayılan dil içeriği normal alanlarda durur (`title`, `contentMarkdown`/`contentHtml`, SEO alanları).
+- Ek diller için aynı post içinde `translations` objesi kullanılır.
+- Public API tarafında `?lang=` ile istenen dile göre alanlar otomatik **override** edilir; çeviri yoksa varsayılana düşer.
+
+### Public API Kullanımı (`?lang=`)
+
+- Liste: `GET https://api.comptario.com/api/public/blog/posts?limit=15&offset=0&lang=en`
+- Detay: `GET https://api.comptario.com/api/public/blog/posts/:slug?lang=de`
+
+Notlar:
+- `lang` göndermezseniz varsayılan alanlar döner.
+- `lang` gönderip ilgili dil yoksa yine varsayılan alanlar döner.
+
+### Admin Upsert Payload (Translations ile)
+
+`translations` bir map’tir: anahtar dil kodu, değer o dile ait alan override’larıdır.
+
+Minimum örnek:
+
+```json
+{
+  "slug": "kobi-icin-fatura-ipuclari",
+  "title": "KOBİ’ler İçin Fatura Kesme İpuçları",
+  "contentMarkdown": "# Başlık\n\nTR içerik...",
+  "status": "published",
+  "translations": {
+    "en": {
+      "title": "Invoicing Tips for SMEs",
+      "contentMarkdown": "# Title\n\nEN content...",
+      "metaTitle": "Invoicing Tips for SMEs | Blog",
+      "metaDescription": "Key points to consider when issuing invoices."
+    },
+    "de": {
+      "title": "Rechnungstipps für KMU",
+      "contentMarkdown": "# Titel\n\nDE Inhalt..."
+    }
+  }
+}
+```
+
+Desteklenen alanlar (çeviri tarafında):
+- İçerik: `title`, `excerpt`, `contentMarkdown` veya `contentHtml`
+- SEO: `metaTitle`, `metaDescription`, `keywords`, `canonicalUrl`, `ogImageUrl`, `jsonLd`, `noIndex`
+
+Notlar:
+- `contentMarkdown` gönderirseniz backend ilgili dil için `contentHtml`’i üretip sanitize eder.
+- `contentHtml` gönderirseniz backend sanitize eder.
+
+### Çeviri Silme / Temizleme
+
+Bir dilin çevirisini silmek için ilgili dili `null` gönderebilirsiniz:
+
+```json
+{
+  "translations": {
+    "en": null
+  }
+}
+```
+
+Bu istek ilgili post’tan `en` çevirisini kaldırır.
+
 ## n8n Node Ayarı (HTTP Request)
 
 n8n’de bir **HTTP Request** node’u ekleyin:
