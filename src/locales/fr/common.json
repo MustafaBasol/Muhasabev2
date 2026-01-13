@@ -5,6 +5,17 @@
     "next": "Suivant",
     "range": "{{start}}-{{end}} / {{total}}"
   },
+  "blog": {
+    "readingMode": {
+      "on": "Mode lecture",
+      "off": "Vue normale"
+    },
+    "actions": {
+      "scrollTop": "Haut de page",
+      "share": "Partager",
+      "copyLink": "Copier le lien"
+    }
+  },
   "app": {
     "name": "comptario",
     "subtitle": "Système de Comptabilité"

@@ -61,6 +61,21 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
   const [error, setError] = useState<string>('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [readingMode, setReadingMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('blogReadingMode') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('blogReadingMode', readingMode ? '1' : '0');
+    } catch {
+      // ignore
+    }
+  }, [readingMode]);
 
   const totalPages = Math.max(1, Math.ceil((total || 0) / PAGE_SIZE));
 
@@ -127,6 +142,65 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
     window.location.hash = 'login';
   };
 
+  const showToast = (message: string, tone: 'success' | 'error') => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent('showToast', {
+          detail: { message, tone }
+        })
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  const scrollToTop = () => {
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const copyCurrentLink = async () => {
+    const url =
+      post?.canonicalUrl ||
+      (slug ? `${window.location.origin}/#blog/${encodeURIComponent(slug)}` : window.location.href);
+
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Clipboard API not available');
+      }
+      await navigator.clipboard.writeText(url);
+      showToast(t('common.copied'), 'success');
+    } catch {
+      showToast(t('common.copyFailed'), 'error');
+    }
+  };
+
+  const shareCurrentLink = async () => {
+    const url =
+      post?.canonicalUrl ||
+      (slug ? `${window.location.origin}/#blog/${encodeURIComponent(slug)}` : window.location.href);
+
+    try {
+      const navAny = navigator as any;
+      if (typeof navAny?.share !== 'function') {
+        await copyCurrentLink();
+        return;
+      }
+
+      await navAny.share({
+        title: post?.title || 'Blog',
+        text: post?.excerpt || undefined,
+        url
+      });
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return;
+      await copyCurrentLink();
+    }
+  };
+
   const goToPage = (nextPage: number) => {
     const clamped = Math.min(Math.max(1, nextPage), totalPages);
     setPage(clamped);
@@ -157,19 +231,23 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
   }, [page, totalPages]);
 
   return (
-    <div className="min-h-screen bg-white">
-      <LandingNavbar onTryForFree={onTryForFree} onSignIn={onSignIn} />
+    <div className={readingMode && slug ? 'min-h-screen bg-slate-50' : 'min-h-screen bg-white'}>
+      {!(readingMode && slug) && (
+        <LandingNavbar onTryForFree={onTryForFree} onSignIn={onSignIn} />
+      )}
 
-      <main className="pt-24">
-        <div className="bg-slate-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="flex items-center justify-between">
-              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">
-                Blog
-              </h1>
+      <main className={readingMode && slug ? 'pt-6' : 'pt-24'}>
+        {!(readingMode && slug) && (
+          <div className="bg-slate-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+              <div className="flex items-center justify-between">
+                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">
+                  Blog
+                </h1>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
@@ -180,29 +258,96 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
           {loading && <div className="text-sm text-gray-500">Yükleniyor…</div>}
 
           {!loading && slug && post && (
-            <div className="max-w-4xl mx-auto">
-              <div className="mb-6 flex items-center justify-between">
-                <a href="#blog" className="text-sm text-blue-700 hover:underline">← Tüm yazılar</a>
-              </div>
-
-              <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 mb-3">{post.title}</h2>
-              <div className="text-sm text-gray-500 mb-6">
-                {post.publishedAt ? formatAppDate(post.publishedAt) : ''}
-              </div>
-
-              {post.ogImageUrl ? (
-                <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 bg-white">
-                  <img
-                    src={post.ogImageUrl}
-                    alt={post.title}
-                    className="w-full h-[320px] object-cover"
-                    loading="lazy"
-                  />
+            <div className={readingMode ? 'max-w-3xl mx-auto' : 'max-w-4xl mx-auto'}>
+              <div
+                className={
+                  readingMode
+                    ? 'sticky top-0 z-40 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-6 bg-white/80 backdrop-blur border-b border-slate-200'
+                    : 'mb-6 flex items-center justify-between gap-3'
+                }
+              >
+                <div className={readingMode ? 'flex items-center justify-between gap-3' : 'flex items-center justify-between gap-3 w-full'}>
+                  <a href="#blog" className="text-sm text-blue-700 hover:underline">← Tüm yazılar</a>
+                  <div className="flex items-center gap-2">
+                    {readingMode && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={scrollToTop}
+                          className="px-3 py-2 rounded-lg border border-slate-300 text-sm text-slate-800 hover:bg-slate-50"
+                        >
+                          {t('blog.actions.scrollTop')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void shareCurrentLink()}
+                          className="px-3 py-2 rounded-lg border border-slate-300 text-sm text-slate-800 hover:bg-slate-50"
+                        >
+                          {t('blog.actions.share')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void copyCurrentLink()}
+                          className="px-3 py-2 rounded-lg border border-slate-300 text-sm text-slate-800 hover:bg-slate-50"
+                        >
+                          {t('blog.actions.copyLink')}
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      aria-pressed={readingMode}
+                      onClick={() => setReadingMode((v) => !v)}
+                      className={
+                        readingMode
+                          ? 'px-3 py-2 rounded-lg bg-gray-900 text-white text-sm'
+                          : 'px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800 hover:bg-gray-50'
+                      }
+                    >
+                      {readingMode ? t('blog.readingMode.off') : t('blog.readingMode.on')}
+                    </button>
+                  </div>
                 </div>
-              ) : null}
+              </div>
 
-              {post.excerpt ? <p className="text-gray-700 mb-6">{post.excerpt}</p> : null}
-              <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+              <div
+                className={
+                  readingMode
+                    ? 'bg-white rounded-2xl border border-slate-200 shadow-sm px-6 sm:px-10 py-8'
+                    : ''
+                }
+              >
+                <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 mb-3">{post.title}</h2>
+                <div className="text-sm text-gray-500 mb-6">
+                  {post.publishedAt ? formatAppDate(post.publishedAt) : ''}
+                </div>
+
+                {post.ogImageUrl ? (
+                  <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 bg-white">
+                    <img
+                      src={post.ogImageUrl}
+                      alt={post.title}
+                      className="w-full h-[320px] object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                ) : null}
+
+                {post.excerpt ? (
+                  <p className={readingMode ? 'text-gray-700 text-xl leading-8 mb-7' : 'text-gray-700 text-lg leading-7 mb-6'}>
+                    {post.excerpt}
+                  </p>
+                ) : null}
+
+                <div
+                  className={
+                    readingMode
+                      ? 'prose prose-slate prose-lg lg:prose-xl mx-auto prose-p:leading-8 prose-li:leading-7 prose-img:rounded-xl prose-img:shadow-sm prose-a:text-blue-700 prose-a:no-underline hover:prose-a:underline'
+                      : 'prose prose-slate lg:prose-lg mx-auto prose-img:rounded-xl prose-img:shadow-sm prose-a:text-blue-700 prose-a:no-underline hover:prose-a:underline'
+                  }
+                  dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+                />
+              </div>
             </div>
           )}
 
@@ -295,7 +440,7 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
         </div>
       </main>
 
-      <LandingFooter />
+      {!(readingMode && slug) && <LandingFooter />}
     </div>
   );
 };

@@ -5,6 +5,17 @@
     "next": "Weiter",
     "range": "{{start}}-{{end}} / {{total}}"
   },
+  "blog": {
+    "readingMode": {
+      "on": "Lesemodus",
+      "off": "Normale Ansicht"
+    },
+    "actions": {
+      "scrollTop": "Nach oben",
+      "share": "Teilen",
+      "copyLink": "Link kopieren"
+    }
+  },
   "admin": {
     "users": {
       "updateConfirm": "Sind Sie sicher, dass Sie diesen Benutzer aktualisieren möchten?",

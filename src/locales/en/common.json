@@ -2367,6 +2367,17 @@
     "next": "Next",
     "range": "{{start}}-{{end}} / {{total}}"
   },
+  "blog": {
+    "readingMode": {
+      "on": "Reading mode",
+      "off": "Normal view"
+    },
+    "actions": {
+      "scrollTop": "Back to top",
+      "share": "Share",
+      "copyLink": "Copy link"
+    }
+  },
   "fiscalPeriods": {
     "lockedPeriodFallbackName": "locked period",
     "title": "Fiscal Periods",

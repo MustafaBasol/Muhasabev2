@@ -351,6 +351,17 @@
     "next": "Sonraki",
     "range": "{{start}}-{{end}} / {{total}}"
   },
+  "blog": {
+    "readingMode": {
+      "on": "Okuma modu",
+      "off": "Normal görünüm"
+    },
+    "actions": {
+      "scrollTop": "Yukarı çık",
+      "share": "Paylaş",
+      "copyLink": "Linki kopyala"
+    }
+  },
   "fiscalPeriods": {
     "lockedPeriodFallbackName": "kilitli dönem",
     "title": "Mali Dönemler",
