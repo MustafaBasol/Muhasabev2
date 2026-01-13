@@ -357,6 +357,7 @@
       "off": "Normal görünüm"
     },
     "actions": {
+      "allPosts": "Tüm yazılar",
       "scrollTop": "Yukarı çık",
       "share": "Paylaş",
       "copyLink": "Linki kopyala"

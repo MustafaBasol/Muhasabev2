@@ -11,6 +11,7 @@
       "off": "Vue normale"
     },
     "actions": {
+      "allPosts": "Tous les articles",
       "scrollTop": "Haut de page",
       "share": "Partager",
       "copyLink": "Copier le lien"

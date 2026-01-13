@@ -2373,6 +2373,7 @@
       "off": "Normal view"
     },
     "actions": {
+      "allPosts": "All posts",
       "scrollTop": "Back to top",
       "share": "Share",
       "copyLink": "Copy link"

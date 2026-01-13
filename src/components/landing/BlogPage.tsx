@@ -258,7 +258,7 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
           {loading && <div className="text-sm text-gray-500">Yükleniyor…</div>}
 
           {!loading && slug && post && (
-            <div className={readingMode ? 'max-w-3xl mx-auto' : 'max-w-4xl mx-auto'}>
+            <div className={readingMode ? 'max-w-3xl mx-auto' : 'max-w-7xl mx-auto'}>
               <div
                 className={
                   readingMode
@@ -267,7 +267,7 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
                 }
               >
                 <div className={readingMode ? 'flex items-center justify-between gap-3' : 'flex items-center justify-between gap-3 w-full'}>
-                  <a href="#blog" className="text-sm text-blue-700 hover:underline">← Tüm yazılar</a>
+                  <a href="#blog" className="text-sm text-blue-700 hover:underline">← {t('blog.actions.allPosts')}</a>
                   <div className="flex items-center gap-2">
                     {readingMode && (
                       <>
@@ -343,7 +343,7 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
                   className={
                     readingMode
                       ? 'prose prose-slate prose-lg lg:prose-xl mx-auto prose-p:leading-8 prose-li:leading-7 prose-img:rounded-xl prose-img:shadow-sm prose-a:text-blue-700 prose-a:no-underline hover:prose-a:underline'
-                      : 'prose prose-slate lg:prose-lg mx-auto prose-img:rounded-xl prose-img:shadow-sm prose-a:text-blue-700 prose-a:no-underline hover:prose-a:underline'
+                      : 'prose prose-slate lg:prose-lg max-w-none prose-img:rounded-xl prose-img:shadow-sm prose-a:text-blue-700 prose-a:no-underline hover:prose-a:underline'
                   }
                   dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
                 />
