@@ -193,6 +193,39 @@ Not: Node adı sizde farklıysa, expression’ı node adınıza göre uyarlayın
 
 ## Önerilen Tek Endpoint (Upsert by Slug)
 
+### Neden hep 1 blog yazısı oluyor?
+
+Bu projede önerilen endpoint **upsert** mantığıyla çalışır:
+
+- Aynı `slug` ile tekrar istek atarsanız, **yeni kayıt açmak yerine mevcut yazının üstüne yazar** (update eder).
+- Bu yüzden n8n her çalıştırmada aynı `slug` üretiyor/gönderiyorsa sitede hep “tek yazı varmış” gibi görünür.
+
+Çözüm: Her yazı için `slug` değerinin **benzersiz** olduğundan emin olun.
+
+Pratik öneriler:
+- Kaynağınızda zaten bir benzersiz id varsa slug’a ekleyin (örn. `my-title-{{sourceId}}`).
+- Aynı başlık tekrar gelebiliyorsa tarih ekleyin (örn. `my-title-2026-01-13`).
+- En güvenlisi: `slug` alanını n8n’de tek bir node’da üretip her yerde onu kullanmak.
+
+Örnek (n8n Set/Edit Fields node’unda):
+
+- `slug`:
+
+```text
+{{
+  ($json.slug
+    ? $json.slug
+    : ($json.title || 'yazi')
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+  )
+}}
+```
+
+Not: Türkçe karakterleri (ç,ğ,ı,ö,ş,ü) ASCII’ye çevirmek isterseniz ayrı bir transliteration adımı eklemek gerekir.
+
 - **Method:** `PUT`
 - **URL:** `https://api.comptario.com/api/admin/blog-posts/by-slug/:slug`
   - `:slug` örn: `kobi-icin-fatura-ipuclari`
@@ -295,6 +328,94 @@ En az şu 3 alanı dolu tutmak genelde yeterlidir:
 Opsiyonel ama faydalı:
 - `ogImageUrl`
 - `jsonLd`
+
+## Görseli Comptario İçinde Barındırma (Önerilen)
+
+Bu projede blog görsellerini “Comptario içinde” barındırmanın en pratik yolu, frontend’in statik dosya alanını kullanmaktır.
+
+- Görselleri repoda şu klasöre koyun:
+  - `public/assets/blog/...`
+- Vite build sırasında `public/` altı otomatik olarak build çıktısına kopyalanır.
+- Prod’da URL formatı şöyle olur:
+  - `https://comptario.com/assets/blog/...`
+
+Örnek klasör yapısı:
+
+- `public/assets/blog/og/kobi-icin-fatura-ipuclari.png` (kapak/og)
+- `public/assets/blog/images/fatura-ekrani-1.png` (yazı içi)
+
+n8n request body örnekleri:
+
+- Kapak görseli için `ogImageUrl`:
+
+```json
+{
+  "ogImageUrl": "https://comptario.com/assets/blog/og/kobi-icin-fatura-ipuclari.png"
+}
+```
+
+- Markdown içerikte yazı içi görsel:
+
+```md
+![Fatura ekranı](https://comptario.com/assets/blog/images/fatura-ekrani-1.png)
+```
+
+Not: Bu yöntemde “upload API” yoktur; görsel eklemek için dosyayı repoya ekleyip deploy etmek (veya prod sunucuda statik klasöre koymak) gerekir.
+
+## n8n ile Görseli de Göndermek (Upload + URL)
+
+Eğer n8n’den blog yazısıyla birlikte görseli de **dosya olarak** göndermek istiyorsanız, backend tarafında bir upload endpoint’i eklendi.
+
+- **Endpoint:** `POST https://api.comptario.com/api/admin/blog-assets/upload`
+- **Auth:** `admin-token: <YOUR_ADMIN_TOKEN>`
+- **Body:** `multipart/form-data`
+  - `file` (zorunlu) → görsel dosyası
+- **Query (opsiyonel):**
+  - `folder=og` (kapak) veya `folder=images` (yazı içi)
+  - `name=<slug veya dosya adı>` (dosya adını daha anlamlı yapmak için)
+
+Response örneği:
+
+```json
+{
+  "ok": true,
+  "path": "/assets/blog/og/my-post-1736780000000.png",
+  "url": "https://api.comptario.com/assets/blog/og/my-post-1736780000000.png"
+}
+```
+
+Not: `url` değeri varsayılan olarak isteğin geldiği domain üzerinden **tam URL** döner.
+`url`'in `https://comptario.com/...` olarak dönmesini isterseniz backend’e şu env’i verin:
+
+- `PUBLIC_ASSETS_BASE_URL=https://comptario.com`
+
+Eğer frontend (comptario.com) ve backend (api.comptario.com) ayrı nginx/proxy arkasındaysa, `/assets/blog/...` path’ini comptario.com’da serve etmek için reverse proxy ayarı gerekebilir. Alternatif olarak `PUBLIC_ASSETS_BASE_URL=https://api.comptario.com` kullanıp görselleri api subdomain üzerinden servis edebilirsiniz.
+
+### n8n akışı (önerilen)
+
+1) (Opsiyonel) Görseli bir URL’den indir (HTTP Request → “Download” + “Binary Data”)
+2) Upload node’u (HTTP Request → `multipart/form-data`)
+3) Blog upsert’te `ogImageUrl` veya markdown içindeki image URL’lerini upload response’tan doldur
+
+Upload node ayarı (HTTP Request):
+
+- **Method:** `POST`
+- **URL:** `https://api.comptario.com/api/admin/blog-assets/upload?folder=og&name={{$json.slug}}`
+- **Headers:**
+  - `admin-token: {{$node["Admin Login"].json["adminToken"]}}`
+- **Send Body:** `multipart/form-data`
+- **Form-Data:**
+  - `file` → Binary property (ör. önceki download node’undan gelen `data`)
+
+Sonraki Blog Upsert’te:
+
+- `ogImageUrl`: `{{$node["Upload Image"].json["url"]}}`
+
+Yazı içi görsel için (Markdown):
+
+```md
+![Kapak]({{$node["Upload Image"].json["url"]}})
+```
 
 ## Yayın Kontrolü
 

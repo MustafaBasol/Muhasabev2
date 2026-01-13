@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DOMPurify from 'dompurify';
+import { useTranslation } from 'react-i18next';
 import { publicBlogApi, type PublicBlogPost, type PublicBlogPostSummary } from '../../api/blog-public';
 import { formatAppDate } from '../../utils/dateFormat';
 import LandingNavbar from './LandingNavbar';
@@ -53,6 +54,7 @@ const ensureJsonLd = (json: string | null) => {
 };
 
 const BlogPage: React.FC<Props> = ({ slug }) => {
+  const { t } = useTranslation();
   const [list, setList] = useState<PublicBlogPostSummary[]>([]);
   const [post, setPost] = useState<PublicBlogPost | null>(null);
   const [loading, setLoading] = useState(false);
@@ -125,10 +127,6 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
     window.location.hash = 'login';
   };
 
-  const goHome = () => {
-    window.location.hash = '';
-  };
-
   const goToPage = (nextPage: number) => {
     const clamped = Math.min(Math.max(1, nextPage), totalPages);
     setPage(clamped);
@@ -169,13 +167,6 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
               <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">
                 Blog
               </h1>
-              <button
-                type="button"
-                onClick={goHome}
-                className="text-sm text-gray-600 hover:text-gray-900"
-              >
-                Ana Sayfa
-              </button>
             </div>
           </div>
         </div>
@@ -264,7 +255,7 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
                       disabled={page <= 1}
                       className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800 hover:bg-gray-50 disabled:opacity-50"
                     >
-                      Önceki
+                      {t('pagination.previous')}
                     </button>
 
                     <div className="flex items-center gap-1">
@@ -294,7 +285,7 @@ const BlogPage: React.FC<Props> = ({ slug }) => {
                       disabled={page >= totalPages}
                       className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800 hover:bg-gray-50 disabled:opacity-50"
                     >
-                      Sonraki
+                      {t('pagination.next')}
                     </button>
                   </div>
                 </>

@@ -97,6 +97,9 @@ export class CSRFMiddleware implements NestMiddleware {
     if (normalizedPath.startsWith('/admin/blog-posts')) {
       return false;
     }
+    if (normalizedPath.startsWith('/admin/blog-assets')) {
+      return false;
+    }
     const protectedPaths = [
       '/admin',
       '/users/2fa',

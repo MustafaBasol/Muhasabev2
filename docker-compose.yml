@@ -33,6 +33,7 @@ services:
       BACKUP_DIR: /data/backups
     volumes:
       - ./volumes/backups:/data/backups
+      - ./volumes/blog-assets:/app/public/assets/blog
     depends_on:
       postgres:
         condition: service_healthy

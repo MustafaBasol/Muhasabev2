@@ -7,11 +7,12 @@ import { BlogService } from './blog.service';
 import { PublicBlogController } from './public-blog.controller';
 import { AdminBlogController } from './admin-blog.controller';
 import { BlogPagesController } from './blog-pages.controller';
+import { AdminBlogAssetsController } from './admin-blog-assets.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([BlogPost]), AdminModule, SiteSettingsModule],
   providers: [BlogService],
-  controllers: [PublicBlogController, AdminBlogController, BlogPagesController],
+  controllers: [PublicBlogController, AdminBlogController, BlogPagesController, AdminBlogAssetsController],
   exports: [BlogService, TypeOrmModule],
 })
 export class BlogModule {}

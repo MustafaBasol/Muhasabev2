@@ -22,7 +22,7 @@ import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import type { CompressionOptions } from 'compression';
 import { randomBytes } from 'crypto';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 
 type ResponseWithLocals = Response & { locals: Record<string, unknown> };
 type BodyParserError = Error & { type?: string };
