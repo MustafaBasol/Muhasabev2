@@ -50,6 +50,24 @@ function isAllowedImageMime(mime: string): boolean {
   );
 }
 
+function extFromMime(mime: string | undefined): string {
+  if (!mime) return '';
+  switch (mime) {
+    case 'image/png':
+      return '.png';
+    case 'image/jpeg':
+      return '.jpg';
+    case 'image/webp':
+      return '.webp';
+    case 'image/gif':
+      return '.gif';
+    case 'image/svg+xml':
+      return '.svg';
+    default:
+      return '';
+  }
+}
+
 @Controller('admin/blog-assets')
 export class AdminBlogAssetsController {
   constructor(private readonly adminService: AdminService) {}
@@ -103,7 +121,7 @@ export class AdminBlogAssetsController {
             ext === '.gif' ||
             ext === '.svg'
               ? ext
-              : '';
+              : extFromMime(file?.mimetype);
 
           const stamp = Date.now();
           const safeBase = safeFilenameBase(base) || 'image';

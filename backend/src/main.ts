@@ -240,6 +240,12 @@ async function bootstrap() {
       // API ve swagger gibi backend route'larını bozma
       if (path.startsWith('/api')) return next();
 
+      // Statik asset isteklerini bozma
+      if (path.startsWith('/assets')) return next();
+
+      // SEO blog sayfalarını bozma
+      if (path === '/blog' || path.startsWith('/blog/')) return next();
+
       // Statik dosya isteklerini (uzantılı) bozma
       if (path.includes('.')) return next();
 
