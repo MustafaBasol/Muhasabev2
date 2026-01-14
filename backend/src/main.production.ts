@@ -31,6 +31,7 @@ async function bootstrap() {
         includeSubDomains: true,
         preload: true,
       },
+      crossOriginResourcePolicy: { policy: 'same-site' },
     }),
   );
 

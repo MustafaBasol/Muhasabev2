@@ -151,6 +151,7 @@ async function bootstrap() {
       frameguard: { action: 'deny' },
       referrerPolicy: { policy: 'no-referrer' },
       crossOriginEmbedderPolicy: false, // API için gerekli
+      crossOriginResourcePolicy: { policy: 'same-site' },
     }),
   ); // Cookie parser for secure cookie handling
 
