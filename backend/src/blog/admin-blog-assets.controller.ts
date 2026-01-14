@@ -144,6 +144,7 @@ export class AdminBlogAssetsController {
     @UploadedFile() file: Express.Multer.File | undefined,
     @Headers() headers?: AdminHeaderMap,
     @Query('folder') folderQuery?: string,
+    @Query('dir') dirQuery?: string,
   ) {
     this.checkAdminAuth(headers);
 
@@ -151,7 +152,7 @@ export class AdminBlogAssetsController {
       throw new BadRequestException('file is required');
     }
 
-    const folder = sanitizePathSegment(folderQuery || 'images') || 'images';
+    const folder = sanitizePathSegment(folderQuery || dirQuery || 'images') || 'images';
 
     const path = `/assets/blog/${folder}/${encodeURIComponent(file.filename)}`;
 
