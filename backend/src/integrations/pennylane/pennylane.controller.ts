@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Query,
   Body,
   Req,
@@ -88,6 +89,24 @@ export class PennylaneController {
       return res.redirect('/settings/integrations?connected=pennylane');
     }
     return { ok: true, message: 'Pennylane bağlantısı kuruldu.' };
+  }
+
+  // ─── Status & Disconnect ──────────────────────────────────────────────────
+
+  @Get('status')
+  async getStatus(@Req() req: AuthenticatedRequest): Promise<object> {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) throw new UnauthorizedException('Tenant bulunamadı.');
+    return this.oauthService.getConnectionStatus(tenantId);
+  }
+
+  @Delete('disconnect')
+  @HttpCode(HttpStatus.OK)
+  async disconnect(@Req() req: AuthenticatedRequest): Promise<object> {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) throw new UnauthorizedException('Tenant bulunamadı.');
+    await this.oauthService.disconnect(tenantId);
+    return { ok: true, message: 'Pennylane bağlantısı kesildi.' };
   }
 
   // ─── Invoice Submit ────────────────────────────────────────────────────────

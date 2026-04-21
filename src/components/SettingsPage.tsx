@@ -55,6 +55,23 @@ import InfoModal from './InfoModal';
 import OrganizationMembersPage from './OrganizationMembersPage';
 import FiscalPeriodsPage from './FiscalPeriodsPage';
 import { AuditLogComponent } from './AuditLogComponent';
+import PennylaneIntegrationPanel from './integrations/PennylaneIntegrationPanel';
+
+/** Entegrasyonlar sekmesi — SettingsPage içinde kullanılır */
+function IntegrationsTab() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Entegrasyonlar</h2>
+        <p className="text-sm text-gray-500">
+          Bağlı PDP (Plateforme de Dématérialisation Partenaire) sağlayıcılarını yönetin.
+          Fransa 2026 e-fatura zorunluluğu için gereklidir.
+        </p>
+      </div>
+      <PennylaneIntegrationPanel />
+    </div>
+  );
+}
 
 type BasicUserProfile = {
   name: string;
@@ -1842,6 +1859,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       system: 'Sistem',
       security: 'Güvenlik',
       privacy: 'Gizlilik',
+      integrations: 'Entegrasyonlar',
     },
     profile: {
       title: 'Profil Bilgileri',
@@ -2065,6 +2083,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       system: 'System',
       security: 'Security',
       privacy: 'Privacy',
+      integrations: 'Integrations',
     },
     profile: {
       title: 'Profile Information',
@@ -2288,6 +2307,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       system: 'Système',
       security: 'Sécurité',
       privacy: 'Confidentialité',
+      integrations: 'Intégrations',
     },
     profile: {
       title: 'Informations du profil',
@@ -2511,6 +2531,7 @@ const settingsTranslations: Record<SettingsLanguage, SettingsTranslations> = {
       system: 'System',
       security: 'Sicherheit',
       privacy: 'Datenschutz',
+      integrations: 'Integrationen',
     },
     profile: {
       title: 'Profilinformationen',
@@ -3394,6 +3415,7 @@ export default function SettingsPage({
       { id: 'plan', label: text.tabs.plan || 'Plan', icon: CreditCard },
       { id: 'organization', label: text.tabs.organization || 'Organization', icon: Users },
       { id: 'fiscal-periods', label: text.tabs.fiscalPeriods || 'Fiscal Periods', icon: Calendar },
+      { id: 'integrations', label: text.tabs.integrations || 'Integrations', icon: Settings },
       { id: 'notifications', label: text.tabs.notifications, icon: Bell },
       { id: 'security', label: text.tabs.security, icon: Shield },
       { id: 'privacy', label: text.tabs.privacy, icon: Lock },
@@ -4841,6 +4863,7 @@ export default function SettingsPage({
           )}
           {activeTab === 'organization' && <OrganizationMembersPage />}
           {activeTab === 'fiscal-periods' && <FiscalPeriodsPage />}
+          {activeTab === 'integrations' && canManageSettings && <IntegrationsTab />}
           {activeTab === 'notifications' && renderNotificationsTab()}
           {/* System sekmesi kaldırıldı */}
           {activeTab === 'security' && renderSecurityTab()}

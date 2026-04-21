@@ -166,4 +166,26 @@ export class PennylaneOAuthService {
     this.logger.log(`Pennylane token yenilendi (tenant=${tenantId})`);
     return tokenData.access_token;
   }
+
+  // ─── Bağlantı durumu & bağlantı kesme ─────────────────────────────────────
+
+  async getConnectionStatus(tenantId: string): Promise<{
+    connected: boolean;
+    connectedAt?: string | null;
+  }> {
+    const account = await this.providerAccountService.findByTenantAndProvider(
+      tenantId,
+      PROVIDER_KEYS.PENNYLANE,
+    );
+    if (!account) return { connected: false };
+    return {
+      connected: account.connectionStatus === 'connected',
+      connectedAt: account.lastConnectedAt?.toISOString() ?? null,
+    };
+  }
+
+  async disconnect(tenantId: string): Promise<void> {
+    await this.providerAccountService.disconnect(tenantId, PROVIDER_KEYS.PENNYLANE);
+    this.logger.log(`Pennylane bağlantısı kesildi (tenant=${tenantId})`);
+  }
 }

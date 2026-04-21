@@ -1,10 +1,16 @@
-import { useMemo } from 'react';
-import { X, Download, Edit, Calendar, Mail, MapPin } from 'lucide-react';
+import { useMemo, useState, useCallback } from 'react';
+import { X, Download, Edit, Calendar, Mail, MapPin, Send, RefreshCw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
+import EInvoiceStatusBadge from './EInvoiceStatusBadge';
+import {
+  submitInvoiceToPennylane,
+  syncPennylaneInvoices,
+  downloadFacturX,
+} from '../api/integrations';
 
 interface InvoiceContact {
   id?: string;
@@ -46,6 +52,10 @@ interface Invoice {
   updatedByUser?: InvoiceContact | null;
   updatedBy?: string;
   updatedAt?: string;
+  // E-fatura alanları
+  eInvoiceStatus?: string | null;
+  providerInvoiceId?: string | null;
+  providerInvoiceNumber?: string | null;
 }
 
 interface InvoiceViewModalProps {
@@ -65,6 +75,52 @@ export default function InvoiceViewModal({
 }: InvoiceViewModalProps) {
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
+  const [submitting, setSubmitting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+
+  const handleSubmitEInvoice = useCallback(async () => {
+    if (!invoice) return;
+    setSubmitting(true);
+    setActionMsg(null);
+    try {
+      await submitInvoiceToPennylane(invoice.id);
+      setActionMsg('E-fatura Pennylane\'e gönderildi.');
+    } catch {
+      setActionMsg('Gönderim başarısız.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [invoice]);
+
+  const handleSyncStatus = useCallback(async () => {
+    if (!invoice) return;
+    setSyncing(true);
+    setActionMsg(null);
+    try {
+      await syncPennylaneInvoices();
+      setActionMsg('Durum güncellendi.');
+    } catch {
+      setActionMsg('Senkronizasyon başarısız.');
+    } finally {
+      setSyncing(false);
+    }
+  }, [invoice]);
+
+  const handleDownloadFacturX = useCallback(async () => {
+    if (!invoice) return;
+    try {
+      const blob = await downloadFacturX(invoice.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `factur-x-${invoice.invoiceNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setActionMsg('Factur-X indirme başarısız.');
+    }
+  }, [invoice]);
 
   const getActiveLang = () => {
     try {
@@ -173,8 +229,41 @@ export default function InvoiceViewModal({
               <p className="text-sm text-gray-500">{t('invoice.details')}</p>
             </div>
             {getStatusBadge(invoice.status)}
+            {invoice.eInvoiceStatus && (
+              <EInvoiceStatusBadge status={invoice.eInvoiceStatus} />
+            )}
           </div>
           <div className="flex items-center space-x-2">
+            {/* Factur-X İndir */}
+            <button
+              onClick={handleDownloadFacturX}
+              title="Factur-X PDF indir"
+              className="flex items-center space-x-1 px-3 py-2 border border-violet-200 text-violet-700 text-sm rounded-lg hover:bg-violet-50 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Factur-X</span>
+            </button>
+            {/* E-Fatura Gönder */}
+            <button
+              onClick={handleSubmitEInvoice}
+              disabled={submitting}
+              title="Pennylane'e e-fatura gönder"
+              className="flex items-center space-x-1 px-3 py-2 border border-blue-200 text-blue-700 text-sm rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors"
+            >
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">{submitting ? '…' : 'E-Fatura'}</span>
+            </button>
+            {/* Durum Senkronize */}
+            {invoice.providerInvoiceId && (
+              <button
+                onClick={handleSyncStatus}
+                disabled={syncing}
+                title="Durum güncelle"
+                className="flex items-center space-x-1 px-3 py-2 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              </button>
+            )}
             <button
               onClick={() => onDownload?.(invoice)}
               className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -202,6 +291,12 @@ export default function InvoiceViewModal({
         </div>
 
         <div className="p-6" id={`invoice-${invoice.id}`}>
+          {/* E-fatura aksiyon bildirimi */}
+          {actionMsg && (
+            <div className="mb-4 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 text-sm">
+              {actionMsg}
+            </div>
+          )}
           {/* Oluşturan / Güncelleyen Bilgisi - i18n */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-xs text-gray-600">
             <div>
