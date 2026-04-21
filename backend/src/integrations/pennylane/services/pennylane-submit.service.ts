@@ -187,6 +187,26 @@ export class PennylaneSubmitService implements IEInvoicingProvider {
     return { updated: true, eInvoiceStatus: newStatus };
   }
 
+  /**
+   * Pennylane'deki faturayı iptal eder (void akışında çağrılır).
+   *
+   * - Draft faturalar DELETE ile silinir.
+   * - Finalize edilmiş faturalar Pennylane tarafından reddedilir;
+   *   bu durumda hata loglanır ama yerel void işlemi engellenmez.
+   */
+  async cancelInvoice(tenantId: string, providerInvoiceId: string): Promise<void> {
+    try {
+      const token = await this.getToken(tenantId);
+      await this.apiClient.cancelInvoice(token, providerInvoiceId);
+      this.logger.log(`Pennylane faturası iptal edildi: ${providerInvoiceId}`);
+    } catch (err) {
+      // Finalize edilmiş fatura silinemez → kullanıcı Pennylane'de manuel avoir oluşturmalı
+      this.logger.warn(
+        `Pennylane faturası ${providerInvoiceId} iptal edilemedi (finalize sonrası credit note gerekebilir): ${(err as Error).message}`,
+      );
+    }
+  }
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   private async getToken(tenantId: string): Promise<string> {

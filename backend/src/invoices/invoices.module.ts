@@ -13,6 +13,7 @@ import { ProductCategory } from '../products/entities/product-category.entity';
 import { IntegrationsCommonModule } from '../integrations/common/integrations-common.module';
 import { EINVOICE_QUEUE } from '../integrations/common/queues/einvoice-queue.constants';
 import { FacturXModule } from './facturx/facturx.module';
+import { PennylaneModule } from '../integrations/pennylane/pennylane.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { FacturXModule } from './facturx/facturx.module';
     BullModule.registerQueue({ name: EINVOICE_QUEUE }),
     IntegrationsCommonModule,
     FacturXModule,
+    PennylaneModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService],

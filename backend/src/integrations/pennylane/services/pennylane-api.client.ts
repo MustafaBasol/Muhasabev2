@@ -225,6 +225,25 @@ export class PennylaneApiClient {
     }
   }
 
+  /**
+   * Taslak (draft) faturayı Pennylane'den siler.
+   * Finalize edilmiş faturalar DELETE ile silinemez — credit note gerekir.
+   * Hata durumunda exception fırlatır (caller log'lar ve devam eder).
+   */
+  async cancelInvoice(
+    token: string,
+    pennylaneInvoiceId: string | number,
+  ): Promise<void> {
+    try {
+      await this.http.delete(
+        `/customer_invoices/${pennylaneInvoiceId}`,
+        { headers: this.authHeaders(token) },
+      );
+    } catch (err) {
+      this.handleError('cancelInvoice', err);
+    }
+  }
+
   // ─── Changelog (Status Sync) ───────────────────────────────────────────────
 
   async getInvoiceChangelogs(

@@ -10,6 +10,7 @@ import {
   Res,
   UseGuards,
   Req,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -21,6 +22,7 @@ import { Audit } from '../audit/audit.interceptor';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { FacturXService } from './facturx/facturx.service';
 import { FacturXProfile } from './facturx/facturx-profile.enum';
+import { PennylaneSubmitService } from '../integrations/pennylane/services/pennylane-submit.service';
 import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 import type { CreateInvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
 
@@ -29,9 +31,12 @@ import type { CreateInvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class InvoicesController {
+  private readonly logger = new Logger(InvoicesController.name);
+
   constructor(
     private readonly invoicesService: InvoicesService,
     private readonly facturXService: FacturXService,
+    private readonly pennylaneSubmitService: PennylaneSubmitService,
   ) {}
 
   @Post()
@@ -111,17 +116,28 @@ export class InvoicesController {
 
   @Patch(':id/void')
   @Audit('Invoice', AuditAction.UPDATE)
-  voidInvoice(
+  async voidInvoice(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body('reason') reason?: string,
   ) {
-    return this.invoicesService.voidInvoice(
+    const invoice = await this.invoicesService.voidInvoice(
       req.user.tenantId,
       id,
       req.user.id,
       reason,
     );
+
+    // Fatura daha önce Pennylane'e gönderilmişse orada da iptal et (best-effort)
+    if (invoice.providerInvoiceId) {
+      void this.pennylaneSubmitService
+        .cancelInvoice(req.user.tenantId, invoice.providerInvoiceId)
+        .catch((err: Error) =>
+          this.logger.warn(`Pennylane cancel skipped: ${err.message}`),
+        );
+    }
+
+    return invoice;
   }
 
   @Patch(':id/restore')
