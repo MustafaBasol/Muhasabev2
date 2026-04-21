@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   getPennylaneAuthorizeUrl,
   getPennylaneStatus,
@@ -9,6 +10,7 @@ import {
 import { formatAppDateTime } from '../../utils/dateFormat';
 
 export default function PennylaneIntegrationPanel() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<{
     connected: boolean;
     connectedAt?: string | null;
@@ -36,13 +38,13 @@ export default function PennylaneIntegrationPanel() {
     // OAuth callback sonrası ?connected=pennylane parametresini kontrol et
     const params = new URLSearchParams(window.location.search);
     if (params.get('connected') === 'pennylane') {
-      setSyncMessage('Pennylane bağlantısı başarıyla kuruldu.');
+      setSyncMessage(t('integrations.pennylane.connected'));
       const url = new URL(window.location.href);
       url.searchParams.delete('connected');
       window.history.replaceState({}, '', url.toString());
     }
     if (params.get('error')) {
-      setSyncMessage(`Bağlantı hatası: ${params.get('error')}`);
+      setSyncMessage(`${t('integrations.pennylane.connectionError')} ${params.get('error')}`);
       const url = new URL(window.location.href);
       url.searchParams.delete('error');
       window.history.replaceState({}, '', url.toString());
@@ -54,14 +56,14 @@ export default function PennylaneIntegrationPanel() {
   };
 
   const handleDisconnect = async () => {
-    if (!confirm('Pennylane bağlantısını kesmek istediğinize emin misiniz?')) return;
+    if (!confirm(t('integrations.pennylane.disconnect') + '?')) return;
     setDisconnecting(true);
     try {
       await disconnectPennylane();
       await load();
-      setSyncMessage('Bağlantı kesildi.');
+      setSyncMessage(t('integrations.pennylane.disconnect'));
     } catch {
-      setSyncMessage('Bağlantı kesme başarısız.');
+      setSyncMessage(t('common.error', 'Bağlantı kesme başarısız.'));
     } finally {
       setDisconnecting(false);
     }
@@ -73,10 +75,10 @@ export default function PennylaneIntegrationPanel() {
     try {
       const result = await syncPennylaneInvoices();
       setSyncMessage(
-        `Senkronizasyon tamamlandı. ${result.updated ?? 0} fatura güncellendi.`,
+        `${t('integrations.pennylane.syncInvoices')}: ${result.updated ?? 0}`,
       );
     } catch {
-      setSyncMessage('Senkronizasyon sırasında hata oluştu.');
+      setSyncMessage(t('common.error', 'Senkronizasyon sırasında hata oluştu.'));
     } finally {
       setSyncing(false);
     }
@@ -89,11 +91,11 @@ export default function PennylaneIntegrationPanel() {
       const result = await verifyPennylaneConnection();
       setSyncMessage(
         result.ok
-          ? `Bağlantı doğrulandı ✓ (${result.email ?? ''})`
-          : 'Bağlantı doğrulanamadı.',
+          ? `${t('integrations.pennylane.verified')} (${result.email ?? ''})`
+          : t('integrations.pennylane.verifyFailed'),
       );
     } catch {
-      setSyncMessage('Doğrulama sırasında hata oluştu. Token süresi dolmuş olabilir.');
+      setSyncMessage(t('integrations.pennylane.verifyFailed'));
     } finally {
       setVerifying(false);
     }
@@ -135,14 +137,14 @@ export default function PennylaneIntegrationPanel() {
               status?.connected ? 'bg-green-500' : 'bg-gray-400'
             }`}
           />
-          {status?.connected ? 'Connecté' : 'Non connecté'}
+          {status?.connected ? t('integrations.pennylane.connectedLabel') : t('integrations.pennylane.notConnectedLabel')}
         </span>
       </div>
 
       {/* Bağlantı bilgisi */}
       {status?.connected && status.connectedAt && (
         <p className="text-xs text-gray-500 mb-4">
-          Bağlandı: {formatAppDateTime(status.connectedAt)}
+          {t('integrations.pennylane.connectedSince')} {formatAppDateTime(status.connectedAt)}
         </p>
       )}
 
@@ -160,7 +162,7 @@ export default function PennylaneIntegrationPanel() {
             onClick={handleConnect}
             className="px-4 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 transition-colors"
           >
-            Pennylane'e Bağlan
+            {t('integrations.pennylane.connect')}
           </button>
         ) : (
           <>
@@ -169,21 +171,21 @@ export default function PennylaneIntegrationPanel() {
               disabled={verifying}
               className="px-4 py-2 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
-              {verifying ? 'Doğrulanıyor…' : 'Bağlantıyı Test Et'}
+              {verifying ? t('integrations.pennylane.testing') : t('integrations.pennylane.testConnection')}
             </button>
             <button
               onClick={handleSync}
               disabled={syncing}
               className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              {syncing ? 'Senkronize ediliyor…' : 'Faturaları Senkronize Et'}
+              {syncing ? t('integrations.pennylane.syncing') : t('integrations.pennylane.syncInvoices')}
             </button>
             <button
               onClick={handleDisconnect}
               disabled={disconnecting}
               className="px-4 py-2 border border-red-200 text-red-600 text-sm rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
             >
-              {disconnecting ? 'Kesiliyor…' : 'Bağlantıyı Kes'}
+              {disconnecting ? t('integrations.pennylane.disconnecting') : t('integrations.pennylane.disconnect')}
             </button>
           </>
         )}

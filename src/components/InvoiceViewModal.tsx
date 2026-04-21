@@ -85,9 +85,9 @@ export default function InvoiceViewModal({
     setActionMsg(null);
     try {
       await submitInvoiceToPennylane(invoice.id);
-      setActionMsg('E-fatura Pennylane\'e gönderildi.');
+      setActionMsg(t('invoice.eInvoiceSent'));
     } catch {
-      setActionMsg('Gönderim başarısız.');
+      setActionMsg(t('invoice.sendToEInvoice') + ' ' + t('common.error', 'Gönderim başarısız.'));
     } finally {
       setSubmitting(false);
     }
@@ -99,9 +99,9 @@ export default function InvoiceViewModal({
     setActionMsg(null);
     try {
       await syncPennylaneInvoices();
-      setActionMsg('Durum güncellendi.');
+      setActionMsg(t('invoice.statusUpdated'));
     } catch {
-      setActionMsg('Senkronizasyon başarısız.');
+      setActionMsg(t('common.error', 'Senkronizasyon başarısız.'));
     } finally {
       setSyncing(false);
     }
@@ -118,7 +118,7 @@ export default function InvoiceViewModal({
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      setActionMsg('Factur-X indirme başarısız.');
+      setActionMsg(t('invoice.facturxDownloadFailed'));
     }
   }, [invoice]);
 
@@ -237,7 +237,7 @@ export default function InvoiceViewModal({
             {/* Factur-X İndir */}
             <button
               onClick={handleDownloadFacturX}
-              title="Factur-X PDF indir"
+              title={t('invoice.facturxTitle')}
               className="flex items-center space-x-1 px-3 py-2 border border-violet-200 text-violet-700 text-sm rounded-lg hover:bg-violet-50 transition-colors"
             >
               <Download className="w-4 h-4" />
@@ -247,11 +247,11 @@ export default function InvoiceViewModal({
             <button
               onClick={handleSubmitEInvoice}
               disabled={submitting}
-              title="Pennylane'e e-fatura gönder"
+              title={t('invoice.sendToEInvoiceTitle')}
               className="flex items-center space-x-1 px-3 py-2 border border-blue-200 text-blue-700 text-sm rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors"
             >
               <Send className="w-4 h-4" />
-              <span className="hidden sm:inline">{submitting ? '…' : 'E-Fatura'}</span>
+              <span className="hidden sm:inline">{submitting ? '…' : t('invoice.sendToEInvoice')}</span>
             </button>
             {/* Durum Senkronize */}
             {invoice.providerInvoiceId && (

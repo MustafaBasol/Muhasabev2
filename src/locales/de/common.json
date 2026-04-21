@@ -1249,7 +1249,34 @@
     "subtotal": "Zwischensumme",
     "vat": "MwSt",
     "grandTotal": "Gesamtsumme",
-    "notes": "Notizen"
+    "notes": "Notizen",
+    "sendToEInvoice": "E-Rechnung",
+    "sendToEInvoiceTitle": "E-Rechnung an Pennylane senden",
+    "eInvoiceSent": "E-Rechnung an Pennylane gesendet.",
+    "statusUpdated": "Status aktualisiert.",
+    "facturxTitle": "Factur-X PDF herunterladen",
+    "facturxDownloadFailed": "Factur-X Download fehlgeschlagen.",
+    "generalSale": "Allgemein"
+  },
+  "integrations": {
+    "pennylane": {
+      "connect": "Mit Pennylane verbinden",
+      "testConnection": "Verbindung testen",
+      "testing": "Wird verifiziert…",
+      "syncInvoices": "Rechnungen synchronisieren",
+      "syncing": "Wird synchronisiert…",
+      "disconnect": "Verbindung trennen",
+      "disconnecting": "Wird getrennt…",
+      "verified": "Verbindung bestätigt ✓",
+      "verifyFailed": "Verbindung konnte nicht bestätigt werden.",
+      "connected": "Pennylane erfolgreich verbunden.",
+      "connectionError": "Verbindungsfehler:",
+      "connectedLabel": "Verbunden",
+      "notConnectedLabel": "Nicht verbunden",
+      "connectedSince": "Verbunden seit:",
+      "title": "Integrationen",
+      "description": "Verwalten Sie Ihre Buchhaltungs- und E-Rechnungsintegrationen."
+    }
   },
   "expense.details": "Ausgabendetails",
   "expense.information": "Ausgabeninformationen",

@@ -880,7 +880,34 @@
     "subtotal": "Subtotal",
     "vat": "VAT",
     "grandTotal": "Grand Total",
-    "notes": "Notes"
+    "notes": "Notes",
+    "sendToEInvoice": "E-Invoice",
+    "sendToEInvoiceTitle": "Send e-invoice to Pennylane",
+    "eInvoiceSent": "E-invoice sent to Pennylane.",
+    "statusUpdated": "Status updated.",
+    "facturxTitle": "Download Factur-X PDF",
+    "facturxDownloadFailed": "Factur-X download failed.",
+    "generalSale": "General"
+  },
+  "integrations": {
+    "pennylane": {
+      "connect": "Connect to Pennylane",
+      "testConnection": "Test Connection",
+      "testing": "Verifying…",
+      "syncInvoices": "Sync Invoices",
+      "syncing": "Syncing…",
+      "disconnect": "Disconnect",
+      "disconnecting": "Disconnecting…",
+      "verified": "Connection verified ✓",
+      "verifyFailed": "Connection could not be verified.",
+      "connected": "Pennylane connected successfully.",
+      "connectionError": "Connection error:",
+      "connectedLabel": "Connected",
+      "notConnectedLabel": "Not Connected",
+      "connectedSince": "Connected:",
+      "title": "Integrations",
+      "description": "Manage your accounting and e-invoicing integrations."
+    }
   },
   "expense.details": "Expense Details",
   "expense.information": "Expense Information",

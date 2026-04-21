@@ -902,7 +902,34 @@
     "subtotal": "Ara Toplam",
     "vat": "KDV",
     "grandTotal": "Genel Toplam",
-    "notes": "Notlar"
+    "notes": "Notlar",
+    "sendToEInvoice": "E-Fatura",
+    "sendToEInvoiceTitle": "Pennylane'e e-fatura gönder",
+    "eInvoiceSent": "E-fatura Pennylane'e gönderildi.",
+    "statusUpdated": "Durum güncellendi.",
+    "facturxTitle": "Factur-X PDF indir",
+    "facturxDownloadFailed": "Factur-X indirme başarısız.",
+    "generalSale": "Genel"
+  },
+  "integrations": {
+    "pennylane": {
+      "connect": "Pennylane'e Bağlan",
+      "testConnection": "Bağlantıyı Test Et",
+      "testing": "Doğrulanıyor…",
+      "syncInvoices": "Faturaları Senkronize Et",
+      "syncing": "Senkronize ediliyor…",
+      "disconnect": "Bağlantıyı Kes",
+      "disconnecting": "Kesiliyor…",
+      "verified": "Bağlantı doğrulandı ✓",
+      "verifyFailed": "Bağlantı doğrulanamadı.",
+      "connected": "Pennylane bağlantısı başarıyla kuruldu.",
+      "connectionError": "Bağlantı hatası:",
+      "connectedLabel": "Bağlı",
+      "notConnectedLabel": "Bağlı Değil",
+      "connectedSince": "Bağlandı:",
+      "title": "Entegrasyonlar",
+      "description": "Muhasebe ve e-fatura entegrasyonlarını yönetin."
+    }
   },
   "expense.details": "Gider Detayları",
   "expense.information": "Gider Bilgileri",

@@ -1343,7 +1343,34 @@
     "subtotal": "Sous-total",
     "vat": "TVA",
     "grandTotal": "Total Général",
-    "notes": "Notes"
+    "notes": "Notes",
+    "sendToEInvoice": "Facture-E",
+    "sendToEInvoiceTitle": "Envoyer la facture électronique à Pennylane",
+    "eInvoiceSent": "Facture électronique envoyée à Pennylane.",
+    "statusUpdated": "Statut mis à jour.",
+    "facturxTitle": "Télécharger le PDF Factur-X",
+    "facturxDownloadFailed": "Échec du téléchargement Factur-X.",
+    "generalSale": "Général"
+  },
+  "integrations": {
+    "pennylane": {
+      "connect": "Connecter à Pennylane",
+      "testConnection": "Tester la connexion",
+      "testing": "Vérification…",
+      "syncInvoices": "Synchroniser les factures",
+      "syncing": "Synchronisation…",
+      "disconnect": "Déconnecter",
+      "disconnecting": "Déconnexion…",
+      "verified": "Connexion vérifiée ✓",
+      "verifyFailed": "La connexion n'a pas pu être vérifiée.",
+      "connected": "Pennylane connecté avec succès.",
+      "connectionError": "Erreur de connexion :",
+      "connectedLabel": "Connecté",
+      "notConnectedLabel": "Non connecté",
+      "connectedSince": "Connecté le :",
+      "title": "Intégrations",
+      "description": "Gérez vos intégrations comptables et de facturation électronique."
+    }
   },
   "expense.details": "Détails de la Dépense",
   "expense.information": "Informations de Dépense",
