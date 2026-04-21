@@ -5,12 +5,17 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
+import { InvoiceLine } from './invoice-line.entity';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Customer } from '../../customers/entities/customer.entity';
 import { User } from '../../users/entities/user.entity';
-import type { InvoiceLineItemInput } from '../dto/invoice.dto';
+import type {
+  InvoiceSellerSnapshot,
+  InvoiceBuyerSnapshot,
+} from '../dto/invoice.dto';
 
 export enum InvoiceStatus {
   DRAFT = 'draft',
@@ -18,6 +23,30 @@ export enum InvoiceStatus {
   PAID = 'paid',
   OVERDUE = 'overdue',
   CANCELLED = 'cancelled',
+}
+
+// E-fatura iletim/compliance durumu (ticari status'tan bağımsız)
+// Pennylane CustomerInvoicePDPStatus + ek durumlar ile hizalandı
+export enum EInvoiceStatus {
+  NOT_APPLICABLE = 'not_applicable', // e-fatura henüz aktif değil
+  PENDING = 'pending',               // gönderime hazır, henüz iletilmedi
+  SUBMITTED = 'submitted',           // provider'a gönderildi (PDP: submitted)
+  SENT = 'sent',                     // alıcıya iletildi (PDP: sent)
+  APPROVED = 'approved',             // PDP ağı tarafından onaylandı (PDP: approved)
+  ACCEPTED = 'accepted',             // alıcı tarafından kabul edildi (PDP: accepted)
+  REJECTED = 'rejected',             // PDP/teknik red (PDP: rejected)
+  REFUSED = 'refused',               // alıcı tarafından ticari red (PDP: refused)
+  IN_DISPUTE = 'in_dispute',         // itiraz sürecinde (PDP: in_dispute)
+  COLLECTED = 'collected',           // tahsilat tamamlandı (PDP: collected)
+  PARTIALLY_COLLECTED = 'partially_collected', // kısmi tahsilat (PDP: partially_collected)
+  CANCELLED = 'cancelled',           // iletim iptal edildi
+}
+
+// Fatura belge türü (Factur-X ve provider mapping için)
+export enum InvoiceDocumentType {
+  INVOICE = 'invoice',
+  CREDIT_NOTE = 'credit_note',
+  DEBIT_NOTE = 'debit_note',
 }
 
 const __isTestEnv =
@@ -87,8 +116,9 @@ export class Invoice {
   @JoinColumn({ name: 'refundedInvoiceId' })
   refundedInvoice: Invoice | null; // İade edilen orijinal fatura
 
-  @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
-  items: InvoiceLineItemInput[] | null;
+  // Normalize fatura satırları
+  @OneToMany(() => InvoiceLine, (line) => line.invoice, { cascade: true, eager: false })
+  lines: InvoiceLine[];
 
   // Soft delete columns
   @Column({ name: 'is_voided', type: 'boolean', default: false })
@@ -137,4 +167,66 @@ export class Invoice {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   updatedByName: string | null;
+
+  // ─── Phase 1: E-Fatura Compliance Alanları ───────────────────────────────
+
+  // E-fatura iletim durumu (ticari status'tan ayrı lifecycle)
+  @Column({
+    type: __isTestEnv ? 'text' : 'enum',
+    enum: __isTestEnv ? undefined : EInvoiceStatus,
+    default: EInvoiceStatus.NOT_APPLICABLE,
+    nullable: true,
+  })
+  eInvoiceStatus: EInvoiceStatus | null;
+
+  // Provider'dan gelen red/hata açıklaması
+  @Column({ type: 'text', nullable: true })
+  eInvoiceStatusReason: string | null;
+
+  // Belge türü: fatura / alacak dekontu / borç dekontu
+  @Column({
+    type: __isTestEnv ? 'text' : 'enum',
+    enum: __isTestEnv ? undefined : InvoiceDocumentType,
+    nullable: true,
+  })
+  documentType: InvoiceDocumentType | null;
+
+  // Fatura para birimi (tenant'ın default currency'sinden bağımsız tutulabilir)
+  @Column({ type: 'varchar', length: 3, nullable: true, comment: 'ISO 4217' })
+  invoiceCurrency: string | null;
+
+  // Fatura dili (FR zorunluluğu için)
+  @Column({ type: 'varchar', length: 8, nullable: true, comment: 'BCP 47 dil kodu, örn: fr, en' })
+  invoiceLanguage: string | null;
+
+  // Hizmet/teslimat dönemi
+  @Column({ type: 'date', nullable: true })
+  servicePeriodStart: Date | null;
+
+  @Column({ type: 'date', nullable: true })
+  servicePeriodEnd: Date | null;
+
+  // Provider entegrasyon alanları
+  @Column({ type: 'varchar', nullable: true, comment: 'External provider invoice ref ID (Pennylane integer id vb.)' })
+  providerInvoiceId: string | null;
+
+  @Column({ type: 'varchar', nullable: true, comment: 'Provider tarafından atanan insan-okunur fatura numarası (örn. FA-2024-0001)' })
+  providerInvoiceNumber: string | null;
+
+  @Column({
+    type: __isTestEnv ? 'datetime' : 'timestamp',
+    nullable: true,
+    comment: 'Son provider senkronizasyon zamanı',
+  })
+  lastProviderSyncAt: Date | null;
+
+  @Column({ type: 'text', nullable: true, comment: 'Provider hata mesajı' })
+  providerError: string | null;
+
+  // Yasal kimlik snapshot'ları (fatura kesildiğinde anlık olarak kaydedilir, immutable)
+  @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
+  sellerSnapshot: InvoiceSellerSnapshot | null;
+
+  @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
+  buyerSnapshot: InvoiceBuyerSnapshot | null;
 }

@@ -32,6 +32,8 @@ import { SubprocessorsModule } from './subprocessors/subprocessors.module';
 import { EmailModule } from './email/email.module';
 import { SiteSettingsModule } from './site-settings/site-settings.module';
 import { BlogModule } from './blog/blog.module';
+import { IntegrationsCommonModule } from './integrations/common/integrations-common.module';
+import { PennylaneModule } from './integrations/pennylane/pennylane.module';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
 import { MaintenanceInterceptor } from './common/interceptors/maintenance.interceptor';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -243,6 +245,8 @@ const parseDatabaseUrl = (value?: string): PgUrlParts | null => {
     BlogModule,
     WebhooksModule,
     BillingModule,
+    IntegrationsCommonModule,
+    PennylaneModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

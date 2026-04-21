@@ -1,0 +1,215 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Invoice } from '../../../invoices/entities/invoice.entity';
+import { InvoiceLine } from '../../../invoices/entities/invoice-line.entity';
+import { Customer } from '../../../customers/entities/customer.entity';
+import { EInvoiceStatus } from '../../../invoices/entities/invoice.entity';
+import {
+  IEInvoicingProvider,
+  UpsertCustomerResult,
+  SubmitInvoiceResult,
+  SyncStatusResult,
+} from '../../common/interfaces/provider.interface';
+import { IntegrationLogService } from '../../common/services/integration-log.service';
+import { PROVIDER_KEYS } from '../../common/types/integration.types';
+import { PennylaneApiClient } from './pennylane-api.client';
+import { PennylaneOAuthService } from './pennylane-oauth.service';
+import {
+  mapCustomerToCompanyPayload,
+  mapCustomerToIndividualPayload,
+  isCompanyCustomer,
+} from '../mappers/customer.mapper';
+import { mapInvoiceToPayload } from '../mappers/invoice.mapper';
+
+/**
+ * PennylaneSubmitService
+ *
+ * IEInvoicingProvider implementasyonu — Pennylane MVP.
+ *
+ * Akış:
+ *  upsertCustomer → müşteri Pennylane'de yoksa oluştur, varsa ID'yi al
+ *  submitInvoice  → upsertCustomer → invoice oluştur → finalize
+ *  syncStatus     → GET /customer_invoices/{id} → eInvoiceStatus güncelle
+ */
+@Injectable()
+export class PennylaneSubmitService implements IEInvoicingProvider {
+  private readonly logger = new Logger(PennylaneSubmitService.name);
+
+  constructor(
+    private readonly apiClient: PennylaneApiClient,
+    private readonly oauthService: PennylaneOAuthService,
+    private readonly logService: IntegrationLogService,
+    @InjectRepository(Invoice)
+    private readonly invoiceRepo: Repository<Invoice>,
+    @InjectRepository(InvoiceLine)
+    private readonly lineRepo: Repository<InvoiceLine>,
+    @InjectRepository(Customer)
+    private readonly customerRepo: Repository<Customer>,
+  ) {}
+
+  // ─── upsertCustomer ────────────────────────────────────────────────────────
+
+  async upsertCustomer(
+    tenantId: string,
+    customerId: string,
+  ): Promise<UpsertCustomerResult> {
+    const customer = await this.customerRepo.findOne({ where: { id: customerId } });
+    if (!customer) throw new Error(`Müşteri bulunamadı: ${customerId}`);
+
+    // Zaten Pennylane'de kayıtlıysa ID'yi döndür
+    if (customer.providerCustomerId) {
+      return { providerCustomerId: customer.providerCustomerId, created: false };
+    }
+
+    const token = await this.getToken(tenantId);
+
+    // external_reference ile mevcut müşteri arama
+    const existing = await this.apiClient.findCustomerByExternalRef(token, customerId);
+    if (existing) {
+      await this.customerRepo.update(customerId, {
+        providerCustomerId: String(existing.id),
+      });
+      return { providerCustomerId: String(existing.id), created: false };
+    }
+
+    // Yeni müşteri oluştur
+    let pennylaneCustomer: { id: number };
+    if (isCompanyCustomer(customer)) {
+      const payload = mapCustomerToCompanyPayload(customer);
+      pennylaneCustomer = await this.apiClient.createCompanyCustomer(token, payload);
+    } else {
+      const payload = mapCustomerToIndividualPayload(customer);
+      pennylaneCustomer = await this.apiClient.createIndividualCustomer(token, payload);
+    }
+
+    await this.customerRepo.update(customerId, {
+      providerCustomerId: String(pennylaneCustomer.id),
+    });
+
+    await this.logService.info({
+      tenantId,
+      providerKey: PROVIDER_KEYS.PENNYLANE,
+      action: 'upsertCustomer',
+      httpStatus: 201,
+    });
+
+    return { providerCustomerId: String(pennylaneCustomer.id), created: true };
+  }
+
+  // ─── submitInvoice ─────────────────────────────────────────────────────────
+
+  async submitInvoice(
+    tenantId: string,
+    invoiceId: string,
+  ): Promise<SubmitInvoiceResult> {
+    const invoice = await this.invoiceRepo.findOne({ where: { id: invoiceId } });
+    if (!invoice) throw new Error(`Fatura bulunamadı: ${invoiceId}`);
+
+    if (!invoice.customerId) {
+      throw new Error(`Fatura ${invoiceId} için müşteri tanımlanmamış.`);
+    }
+
+    const lines = await this.lineRepo.find({
+      where: { invoiceId },
+      order: { position: 'ASC' },
+    });
+
+    // 1. Müşteri upsert
+    const { providerCustomerId } = await this.upsertCustomer(tenantId, invoice.customerId);
+    const token = await this.getToken(tenantId);
+
+    // 2. Taslak fatura oluştur
+    const payload = mapInvoiceToPayload(invoice, lines, Number(providerCustomerId), true);
+
+    const created = await this.apiClient.createInvoice(token, payload);
+
+    // 3. Finalize et
+    const finalized = await this.apiClient.finalizeInvoice(token, created.id);
+
+    // 4. Yerel entity güncelle
+    const newStatus = this.mapPdpStatus(finalized.e_invoicing?.status);
+    await this.invoiceRepo.update(invoiceId, {
+      providerInvoiceId: String(finalized.id),
+      providerInvoiceNumber: finalized.invoice_number,
+      eInvoiceStatus: newStatus,
+      lastProviderSyncAt: new Date(),
+      providerError: null,
+    });
+
+    await this.logService.info({
+      tenantId,
+      providerKey: PROVIDER_KEYS.PENNYLANE,
+      action: 'submitInvoice',
+      invoiceId,
+      httpStatus: 200,
+    });
+
+    this.logger.log(
+      `Fatura gönderildi invoice=${invoiceId} pennylane_id=${finalized.id} pennylane_no=${finalized.invoice_number}`,
+    );
+
+    return {
+      providerInvoiceId: String(finalized.id),
+      providerInvoiceNumber: finalized.invoice_number,
+      eInvoiceStatus: newStatus,
+    };
+  }
+
+  // ─── syncInvoiceStatus ─────────────────────────────────────────────────────
+
+  async syncInvoiceStatus(
+    tenantId: string,
+    invoiceId: string,
+  ): Promise<SyncStatusResult> {
+    const invoice = await this.invoiceRepo.findOne({ where: { id: invoiceId } });
+    if (!invoice?.providerInvoiceId) {
+      return { updated: false };
+    }
+
+    const token = await this.getToken(tenantId);
+    const plInvoice = await this.apiClient.getInvoice(token, invoice.providerInvoiceId);
+
+    const newStatus = this.mapPdpStatus(plInvoice.e_invoicing?.status);
+
+    if (newStatus === invoice.eInvoiceStatus) {
+      await this.invoiceRepo.update(invoiceId, { lastProviderSyncAt: new Date() });
+      return { updated: false, eInvoiceStatus: newStatus };
+    }
+
+    await this.invoiceRepo.update(invoiceId, {
+      eInvoiceStatus: newStatus,
+      eInvoiceStatusReason: plInvoice.e_invoicing?.reason ?? null,
+      lastProviderSyncAt: new Date(),
+      providerError: null,
+    });
+
+    return { updated: true, eInvoiceStatus: newStatus };
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  private async getToken(tenantId: string): Promise<string> {
+    const clientId = process.env.PENNYLANE_CLIENT_ID ?? '';
+    const clientSecret = process.env.PENNYLANE_CLIENT_SECRET ?? '';
+    return this.oauthService.getValidAccessToken(tenantId, clientId, clientSecret);
+  }
+
+  /**
+   * Pennylane PDP status string → EInvoiceStatus enum
+   */
+  private mapPdpStatus(pdpStatus: string | null | undefined): EInvoiceStatus {
+    switch (pdpStatus) {
+      case 'submitted':         return EInvoiceStatus.SUBMITTED;
+      case 'sent':              return EInvoiceStatus.SENT;
+      case 'approved':          return EInvoiceStatus.APPROVED;
+      case 'accepted':          return EInvoiceStatus.ACCEPTED;
+      case 'rejected':          return EInvoiceStatus.REJECTED;
+      case 'refused':           return EInvoiceStatus.REFUSED;
+      case 'in_dispute':        return EInvoiceStatus.IN_DISPUTE;
+      case 'collected':         return EInvoiceStatus.COLLECTED;
+      case 'partially_collected': return EInvoiceStatus.PARTIALLY_COLLECTED;
+      default:                  return EInvoiceStatus.PENDING;
+    }
+  }
+}

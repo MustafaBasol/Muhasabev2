@@ -5,9 +5,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository, FindOptionsWhere } from 'typeorm';
+import { Between, Repository, FindOptionsWhere, DataSource } from 'typeorm';
 import type { DeepPartial } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
+import { InvoiceLine } from './entities/invoice-line.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 import { Sale, SaleStatus } from '../sales/entities/sale.entity';
@@ -27,6 +28,8 @@ export class InvoicesService {
   constructor(
     @InjectRepository(Invoice)
     private invoicesRepository: Repository<Invoice>,
+    @InjectRepository(InvoiceLine)
+    private linesRepository: Repository<InvoiceLine>,
     @InjectRepository(Tenant)
     private tenantRepository: Repository<Tenant>,
     @InjectRepository(Sale)
@@ -35,6 +38,7 @@ export class InvoicesService {
     private productsRepository: Repository<Product>,
     @InjectRepository(ProductCategory)
     private categoriesRepository: Repository<ProductCategory>,
+    private dataSource: DataSource,
   ) {}
 
   private normalizeTaxRate(value: unknown): number | null {
@@ -140,7 +144,7 @@ export class InvoicesService {
   }
 
   private buildProductQuantityMap(
-    items: InvoiceLineItemInput[] | null | undefined,
+    items: (InvoiceLineItemInput | InvoiceLine)[] | null | undefined,
   ): Map<string, number> {
     const map = new Map<string, number>();
     if (!Array.isArray(items)) {
@@ -288,12 +292,21 @@ export class InvoicesService {
     let subtotal = 0; // KDV HARİÇ toplam
     let taxAmount = 0; // KDV tutarı
 
+    const resolvedLines: Array<{
+      input: InvoiceLineItemInput;
+      effectiveRate: number;
+      lineNet: number;
+      lineTax: number;
+      lineGross: number;
+    }> = [];
+
     for (const item of items) {
-      const itemTotal =
-        (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0); // KDV HARİÇ
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unitPrice) || 0;
+      const discount = Number(item.discountAmount) || 0;
+      const itemNet = qty * price - discount; // KDV HARİÇ
       const effectiveRate = await this.resolveTaxRate(tenantId, item);
-      const itemTaxRate = Number(effectiveRate) / 100; // % => oran
-      const itemTax = itemTotal * itemTaxRate; // KDV tutarı
+      const itemTax = itemNet * (effectiveRate / 100);
 
       if (item) {
         item.taxRate = effectiveRate;
@@ -303,12 +316,20 @@ export class InvoicesService {
         product: item.productName || item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        itemTotal,
+        itemNet,
         taxRate: effectiveRate,
         itemTax,
       });
 
-      subtotal += itemTotal; // KDV HARİÇ toplam
+      resolvedLines.push({
+        input: item,
+        effectiveRate,
+        lineNet: itemNet,
+        lineTax: itemTax,
+        lineGross: itemNet + itemTax,
+      });
+
+      subtotal += itemNet; // KDV HARİÇ toplam
       taxAmount += itemTax; // KDV toplamı
     }
 
@@ -322,18 +343,44 @@ export class InvoicesService {
       total,
     });
 
-    const payload: DeepPartial<Invoice> = {
-      ...createInvoiceDto,
-      tenantId,
-      invoiceNumber,
-      items,
-      subtotal,
-      taxAmount,
-      discountAmount,
-      total,
-    };
-    const invoice = this.invoicesRepository.create(payload);
-    const saved: Invoice = await this.invoicesRepository.save(invoice);
+    // Invoice + lines tek transaction içinde kaydet
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const invoicePayload: DeepPartial<Invoice> = {
+        ...createInvoiceDto,
+        tenantId,
+        invoiceNumber,
+        subtotal,
+        taxAmount,
+        discountAmount,
+        total,
+      };
+      const invoice = manager.create(Invoice, invoicePayload);
+      const savedInvoice = await manager.save(Invoice, invoice);
+
+      // Satırları kaydet
+      for (let i = 0; i < resolvedLines.length; i++) {
+        const { input, effectiveRate, lineNet, lineTax, lineGross } = resolvedLines[i];
+        const line = manager.create(InvoiceLine, {
+          invoiceId: savedInvoice.id,
+          position: i,
+          productId: input.productId ?? null,
+          productName: input.productName ?? null,
+          description: input.description ?? null,
+          quantity: Number(input.quantity) || 0,
+          unitPrice: Number(input.unitPrice) || 0,
+          taxRate: effectiveRate,
+          discountAmount: Number(input.discountAmount) || 0,
+          lineNet,
+          lineTax,
+          lineGross,
+          unit: (input as Record<string, unknown>)['unit'] as string ?? null,
+        });
+        await manager.save(InvoiceLine, line);
+      }
+
+      return savedInvoice;
+    });
+
     const savedId = saved.id;
 
     // Load with customer relation
@@ -370,7 +417,7 @@ export class InvoicesService {
   async findAll(tenantId: string): Promise<Invoice[]> {
     return this.invoicesRepository.find({
       where: { tenantId, isVoided: false },
-      relations: ['customer', 'createdByUser', 'updatedByUser'],
+      relations: ['customer', 'lines', 'createdByUser', 'updatedByUser'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -387,7 +434,7 @@ export class InvoicesService {
 
     const invoice = await this.invoicesRepository.findOne({
       where: whereCondition,
-      relations: ['customer', 'voidedByUser', 'createdByUser', 'updatedByUser'],
+      relations: ['customer', 'lines', 'voidedByUser', 'createdByUser', 'updatedByUser'],
     });
 
     if (!invoice) {
@@ -406,8 +453,8 @@ export class InvoicesService {
     const wasRefund =
       String(invoice.type || '').toLowerCase() === 'refund' ||
       String(invoice.type || '').toLowerCase() === 'return';
-    const previousItems = Array.isArray(invoice.items) ? invoice.items : [];
-    const previousQuantityMap = this.buildProductQuantityMap(previousItems);
+    const previousLines = Array.isArray(invoice.lines) ? invoice.lines : [];
+    const previousQuantityMap = this.buildProductQuantityMap(previousLines);
     let stockAdjustments = new Map<string, number>();
 
     // Recalculate if items are updated
@@ -418,39 +465,87 @@ export class InvoicesService {
         ? rawItems
         : [];
 
-      // Her ürün için KDV hesapla (Fiyatlar KDV HARİÇ)
-      let subtotal = 0; // KDV HARİÇ toplam
-      let taxAmount = 0; // KDV tutarı
+      let subtotal = 0;
+      let taxAmount = 0;
+
+      const resolvedLines: Array<{
+        input: InvoiceLineItemInput;
+        effectiveRate: number;
+        lineNet: number;
+        lineTax: number;
+        lineGross: number;
+      }> = [];
 
       for (const item of items) {
-        const itemTotal =
-          (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0); // KDV HARİÇ
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unitPrice) || 0;
+        const discount = Number(item.discountAmount) || 0;
+        const lineNet = qty * price - discount;
         const effectiveRate = await this.resolveTaxRate(tenantId, item);
-        const itemTaxRate = Number(effectiveRate) / 100; // % => oran
-        const itemTax = itemTotal * itemTaxRate; // KDV tutarı
+        const lineTax = lineNet * (effectiveRate / 100);
 
         if (item) {
           item.taxRate = effectiveRate;
         }
 
-        subtotal += itemTotal; // KDV HARİÇ toplam
-        taxAmount += itemTax; // KDV toplamı
+        resolvedLines.push({
+          input: item,
+          effectiveRate,
+          lineNet,
+          lineTax,
+          lineGross: lineNet + lineTax,
+        });
+
+        subtotal += lineNet;
+        taxAmount += lineTax;
       }
 
       const discountAmount =
         Number(updateInvoiceDto.discountAmount ?? invoice.discountAmount) || 0;
-      const total = subtotal + taxAmount - discountAmount; // KDV DAHİL toplam
+      const total = subtotal + taxAmount - discountAmount;
 
-      updateInvoiceDto.items = items;
       updateInvoiceDto.subtotal = subtotal;
       updateInvoiceDto.taxAmount = taxAmount;
       updateInvoiceDto.total = total;
 
-      const nextQuantityMap = this.buildProductQuantityMap(items);
+      // Satırları transaction içinde yeniden yaz
+      await this.dataSource.transaction(async (manager) => {
+        // Eski satırları sil
+        await manager.delete(InvoiceLine, { invoiceId: id });
+
+        // Yeni satırları kaydet
+        for (let i = 0; i < resolvedLines.length; i++) {
+          const { input, effectiveRate, lineNet, lineTax, lineGross } = resolvedLines[i];
+          const line = manager.create(InvoiceLine, {
+            invoiceId: id,
+            position: i,
+            productId: input.productId ?? null,
+            productName: input.productName ?? null,
+            description: input.description ?? null,
+            quantity: Number(input.quantity) || 0,
+            unitPrice: Number(input.unitPrice) || 0,
+            taxRate: effectiveRate,
+            discountAmount: Number(input.discountAmount) || 0,
+            lineNet,
+            lineTax,
+            lineGross,
+            unit: (input as Record<string, unknown>)['unit'] as string ?? null,
+          });
+          await manager.save(InvoiceLine, line);
+        }
+      });
+
+      // Stok farkı hesapla (yeni lines üzerinden)
+      const nextLines = await this.linesRepository.find({ where: { invoiceId: id } });
+      const nextQuantityMap = this.buildProductQuantityMap(nextLines);
       stockAdjustments = this.diffProductQuantities(
         previousQuantityMap,
         nextQuantityMap,
       );
+
+      // DTO'dan items/lineItems kaldır — entity'de alan yok
+      delete updateInvoiceDto.items;
+      delete updateInvoiceDto.lineItems;
     }
 
     Object.assign(invoice, updateInvoiceDto);
@@ -463,20 +558,17 @@ export class InvoicesService {
     const isRefundTransition = !wasRefund && isNowRefund;
     if (!wasRefund && isNowRefund) {
       try {
-        // Stok geri ekle
-        const lineItems: InvoiceLineItemInput[] = Array.isArray(invoice.items)
-          ? invoice.items
-          : [];
-        for (const it of lineItems) {
-          const pid = it?.productId ? String(it.productId) : '';
-          const qty = Number(it?.quantity) || 0;
+        // Stok geri ekle (normalize lines üzerinden)
+        const currentLines = await this.linesRepository.find({ where: { invoiceId: id } });
+        for (const line of currentLines) {
+          const pid = line.productId;
+          const qty = Number(line.quantity) || 0;
           if (!pid) continue;
           try {
             const product = await this.productsRepository.findOne({
               where: { id: pid, tenantId },
             });
             if (!product) continue;
-            // İade faturasında miktar negatif olabilir; stoğu her durumda artırmalıyız
             const delta = qty < 0 ? Math.abs(qty) : qty;
             product.stock = Number(product.stock || 0) + delta;
             await this.productsRepository.save(product);
@@ -510,7 +602,7 @@ export class InvoicesService {
       await this.applyStockAdjustments(tenantId, stockAdjustments, 'update');
     }
 
-    // Reload with customer relation
+    // Reload with lines + customer relation
     return this.findOne(tenantId, id);
   }
 
@@ -540,13 +632,11 @@ export class InvoicesService {
 
     // Void işleminde: stok geri ekle/azalt (kalem miktarının işaretine göre) + satış iptal et
     try {
-      // Stok geri ekle
-      const lineItems: InvoiceLineItemInput[] = Array.isArray(invoice.items)
-        ? invoice.items
-        : [];
+      // Stok geri ekle (normalize lines üzerinden)
+      const lineItems = await this.linesRepository.find({ where: { invoiceId: id } });
       for (const it of lineItems) {
-        const pid = it?.productId ? String(it.productId) : '';
-        const qty = Number(it?.quantity) || 0;
+        const pid = it.productId;
+        const qty = Number(it.quantity) || 0;
         if (!pid) continue;
         try {
           const product = await this.productsRepository.findOne({
