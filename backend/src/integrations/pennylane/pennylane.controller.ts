@@ -75,7 +75,8 @@ export class PennylaneController {
   ): Promise<object | void> {
     if (error) {
       this.logger.warn(`OAuth hatası: ${error} (tenant=${tenantId})`);
-      if (res) return res.redirect(`/settings/integrations?error=${encodeURIComponent(error)}`);
+      const frontendUrl = process.env.FRONTEND_URL ?? '';
+      if (res) return res.redirect(`${frontendUrl}/settings/integrations?error=${encodeURIComponent(error)}`);
     }
 
     if (!code || !tenantId) {
@@ -88,8 +89,9 @@ export class PennylaneController {
 
     await this.oauthService.handleCallback({ code, tenantId, clientId, clientSecret, redirectUri });
 
+    const frontendUrl = process.env.FRONTEND_URL ?? '';
     if (res) {
-      return res.redirect('/settings/integrations?connected=pennylane');
+      return res.redirect(`${frontendUrl}/settings/integrations?connected=pennylane`);
     }
     return { ok: true, message: 'Pennylane bağlantısı kuruldu.' };
   }
