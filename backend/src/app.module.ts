@@ -34,6 +34,7 @@ import { SiteSettingsModule } from './site-settings/site-settings.module';
 import { BlogModule } from './blog/blog.module';
 import { IntegrationsCommonModule } from './integrations/common/integrations-common.module';
 import { PennylaneModule } from './integrations/pennylane/pennylane.module';
+import { ChorusProModule } from './integrations/chorus-pro/chorus-pro.module';
 import { EInvoiceQueueModule } from './integrations/common/queues/einvoice-queue.module';
 import { BullModule } from '@nestjs/bullmq';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
@@ -249,6 +250,7 @@ const parseDatabaseUrl = (value?: string): PgUrlParts | null => {
     BillingModule,
     IntegrationsCommonModule,
     PennylaneModule,
+    ChorusProModule,
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST ?? 'localhost',
