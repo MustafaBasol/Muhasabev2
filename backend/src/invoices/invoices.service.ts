@@ -3,9 +3,12 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository, FindOptionsWhere, DataSource } from 'typeorm';
+import { InjectQueue } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import type { DeepPartial } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { InvoiceLine } from './entities/invoice-line.entity';
@@ -23,6 +26,13 @@ import {
   InvoiceSellerSnapshot,
   InvoiceBuyerSnapshot,
 } from './dto/invoice.dto';
+
+import {
+  EINVOICE_QUEUE,
+  EINVOICE_JOB,
+} from '../integrations/common/queues/einvoice-queue.constants';
+import { ProviderAccountService } from '../integrations/common/services/provider-account.service';
+import { PROVIDER_KEYS, ProviderConnectionStatus } from '../integrations/common/types/integration.types';
 
 @Injectable()
 export class InvoicesService {
@@ -44,6 +54,10 @@ export class InvoicesService {
     @InjectRepository(Customer)
     private customersRepository: Repository<Customer>,
     private dataSource: DataSource,
+    @Optional() @InjectQueue(EINVOICE_QUEUE)
+    private readonly einvoiceQueue: Queue | null,
+    @Optional()
+    private readonly providerAccountService: ProviderAccountService | null,
   ) {}
 
   private normalizeTaxRate(value: unknown): number | null {
@@ -450,7 +464,36 @@ export class InvoicesService {
       this.logStockUpdateFailure('invoice.linkedSale', error);
     }
 
+    // Pennylane bağlantısı varsa e-fatura kuyruğuna ekle
+    void this.tryEnqueueSubmit(tenantId, result.id);
+
     return result;
+  }
+
+  private async tryEnqueueSubmit(tenantId: string, invoiceId: string): Promise<void> {
+    if (!this.einvoiceQueue || !this.providerAccountService) return;
+    try {
+      const account = await this.providerAccountService.findByTenantAndProvider(
+        tenantId,
+        PROVIDER_KEYS.PENNYLANE,
+      );
+      if (account?.connectionStatus !== ProviderConnectionStatus.CONNECTED) return;
+
+      await this.einvoiceQueue.add(
+        EINVOICE_JOB.SUBMIT,
+        { tenantId, invoiceId },
+        {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 60_000 },
+          removeOnComplete: { count: 100 },
+          removeOnFail: { count: 200 },
+        },
+      );
+      this.logger.log(`E-fatura kuyruğuna eklendi invoice=${invoiceId}`);
+    } catch (err) {
+      // Kuyruk hatası fatura oluşturmayı engellememeli
+      this.logger.error(`Kuyruk eklenemedi invoice=${invoiceId}`, err);
+    }
   }
 
   async findAll(tenantId: string): Promise<Invoice[]> {

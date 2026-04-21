@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
 import { Invoice } from './entities/invoice.entity';
@@ -9,10 +10,14 @@ import { Tenant } from '../tenants/entities/tenant.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { Product } from '../products/entities/product.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
+import { IntegrationsCommonModule } from '../integrations/common/integrations-common.module';
+import { EINVOICE_QUEUE } from '../integrations/common/queues/einvoice-queue.constants';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Invoice, InvoiceLine, Tenant, Sale, Customer, Product, ProductCategory]),
+    BullModule.registerQueue({ name: EINVOICE_QUEUE }),
+    IntegrationsCommonModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService],
