@@ -4,6 +4,7 @@ import {
   getPennylaneStatus,
   disconnectPennylane,
   syncPennylaneInvoices,
+  verifyPennylaneConnection,
 } from '../../api/integrations';
 import { formatAppDateTime } from '../../utils/dateFormat';
 
@@ -14,6 +15,7 @@ export default function PennylaneIntegrationPanel() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
@@ -77,6 +79,23 @@ export default function PennylaneIntegrationPanel() {
       setSyncMessage('Senkronizasyon sırasında hata oluştu.');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    setVerifying(true);
+    setSyncMessage(null);
+    try {
+      const result = await verifyPennylaneConnection();
+      setSyncMessage(
+        result.ok
+          ? `Bağlantı doğrulandı ✓ (${result.email ?? ''})`
+          : 'Bağlantı doğrulanamadı.',
+      );
+    } catch {
+      setSyncMessage('Doğrulama sırasında hata oluştu. Token süresi dolmuş olabilir.');
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -145,6 +164,13 @@ export default function PennylaneIntegrationPanel() {
           </button>
         ) : (
           <>
+            <button
+              onClick={handleVerify}
+              disabled={verifying}
+              className="px-4 py-2 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {verifying ? 'Doğrulanıyor…' : 'Bağlantıyı Test Et'}
+            </button>
             <button
               onClick={handleSync}
               disabled={syncing}

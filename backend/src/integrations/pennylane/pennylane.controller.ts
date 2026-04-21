@@ -12,11 +12,13 @@ import {
   Logger,
   BadRequestException,
   UnauthorizedException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { PennylaneOAuthService } from './services/pennylane-oauth.service';
 import { PennylaneSubmitService } from './services/pennylane-submit.service';
 import { PennylaneStatusSyncService } from './services/pennylane-status-sync.service';
+import { PennylaneApiClient } from './services/pennylane-api.client';
 
 interface AuthenticatedRequest extends Request {
   user?: { tenantId: string };
@@ -39,6 +41,7 @@ export class PennylaneController {
     private readonly oauthService: PennylaneOAuthService,
     private readonly submitService: PennylaneSubmitService,
     private readonly syncService: PennylaneStatusSyncService,
+    private readonly apiClient: PennylaneApiClient,
   ) {}
 
   // ─── OAuth: Step 1 — Yönlendirme ─────────────────────────────────────────
@@ -98,6 +101,31 @@ export class PennylaneController {
     const tenantId = req.user?.tenantId;
     if (!tenantId) throw new UnauthorizedException('Tenant bulunamadı.');
     return this.oauthService.getConnectionStatus(tenantId);
+  }
+
+  // ─── Bağlantı Doğrulama (/me) ────────────────────────────────────────────
+
+  /**
+   * Pennylane /me endpoint'ini çağırarak mevcut token'ın geçerli olduğunu doğrular.
+   * Docs: "call the /me endpoint to verify your setup is correct"
+   */
+  @Get('verify')
+  @HttpCode(HttpStatus.OK)
+  async verify(@Req() req: AuthenticatedRequest): Promise<object> {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) throw new UnauthorizedException('Tenant bulunamadı.');
+
+    const clientId = process.env.PENNYLANE_CLIENT_ID ?? '';
+    const clientSecret = process.env.PENNYLANE_CLIENT_SECRET ?? '';
+
+    try {
+      const token = await this.oauthService.getValidAccessToken(tenantId, clientId, clientSecret);
+      const me = await this.apiClient.verifyConnection(token);
+      return { ok: true, email: me.email, role: me.role };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Bilinmeyen hata';
+      throw new InternalServerErrorException(`Pennylane bağlantısı doğrulanamadı: ${message}`);
+    }
   }
 
   @Delete('disconnect')

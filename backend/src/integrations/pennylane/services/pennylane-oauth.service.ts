@@ -188,4 +188,21 @@ export class PennylaneOAuthService {
     await this.providerAccountService.disconnect(tenantId, PROVIDER_KEYS.PENNYLANE);
     this.logger.log(`Pennylane bağlantısı kesildi (tenant=${tenantId})`);
   }
+
+  /**
+   * Mevcut tokenın geçerliliğini Pennylane /me endpoint'i ile doğrular.
+   * Bağlantı testi için kullanılır.
+   */
+  async verifyToken(
+    tenantId: string,
+    clientId: string,
+    clientSecret: string,
+  ): Promise<{ valid: boolean; email?: string; role?: string }> {
+    try {
+      await this.getValidAccessToken(tenantId, clientId, clientSecret);
+      return { valid: true };
+    } catch {
+      return { valid: false };
+    }
+  }
 }

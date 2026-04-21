@@ -37,6 +37,16 @@ export async function disconnectPennylane(): Promise<void> {
   await apiClient.delete('/integrations/pennylane/disconnect');
 }
 
+/** Pennylane /me endpoint'ini çağırarak token geçerliliğini doğrular */
+export async function verifyPennylaneConnection(): Promise<{
+  ok: boolean;
+  email?: string;
+  role?: string;
+}> {
+  const res = await apiClient.get('/integrations/pennylane/verify');
+  return res.data;
+}
+
 export async function submitInvoiceToPennylane(
   invoiceId: string,
 ): Promise<{ ok: boolean; providerInvoiceId?: string; eInvoiceStatus?: string }> {

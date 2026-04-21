@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, Logger, UnprocessableEntityException, ServiceUnavailableException } from '@nestjs/common';
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import {
   PENNYLANE_API_BASE,
@@ -10,18 +10,27 @@ import {
   PennylaneChangelogResponse,
 } from '../types/pennylane.types';
 
+/** Pennylane /me endpoint yanıtı */
+export interface PennylaneMeResponse {
+  id: string;
+  email: string;
+  role: string;
+}
+
 /**
  * PennylaneApiClient
  *
  * Pennylane REST API v2 ile doğrudan konuşan düşük seviyeli HTTP istemci.
  * Her method, caller tarafından sağlanan geçerli bir accessToken alır.
  *
- * Retry / token-refresh mantığı üst katmandaki servis(ler)e aittir.
+ * Rate limiting: 429 yanıtında Retry-After başlığına göre bekleyip yeniden dener (max 3 kez).
  */
 @Injectable()
 export class PennylaneApiClient {
   private readonly logger = new Logger(PennylaneApiClient.name);
   private readonly http: AxiosInstance;
+
+  private static readonly MAX_RETRIES = 3;
 
   constructor() {
     this.http = axios.create({
@@ -32,6 +41,39 @@ export class PennylaneApiClient {
         Accept: 'application/json',
       },
     });
+
+    // ─── 429 Rate-Limit Retry Interceptor ──────────────────────────────────
+    this.http.interceptors.response.use(
+      (response) => response,
+      async (error: AxiosError) => {
+        const config = error.config as (typeof error.config) & { _retryCount?: number };
+        if (!config) return Promise.reject(error);
+
+        config._retryCount = config._retryCount ?? 0;
+
+        if (
+          error.response?.status === 429 &&
+          config._retryCount < PennylaneApiClient.MAX_RETRIES
+        ) {
+          config._retryCount += 1;
+
+          // Retry-After başlığı (saniye cinsinden) veya exponential backoff
+          const retryAfterHeader = error.response.headers['retry-after'];
+          const waitMs = retryAfterHeader
+            ? Number(retryAfterHeader) * 1000
+            : Math.pow(2, config._retryCount) * 1000; // 2s, 4s, 8s
+
+          this.logger.warn(
+            `Pennylane 429 rate limit — ${waitMs}ms sonra tekrar denenecek (deneme ${config._retryCount}/${PennylaneApiClient.MAX_RETRIES})`,
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          return this.http.request(config);
+        }
+
+        return Promise.reject(error);
+      },
+    );
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -46,11 +88,36 @@ export class PennylaneApiClient {
       const status = ae.response?.status;
       const body = ae.response?.data;
       this.logger.error(`${context} HTTP ${status}: ${JSON.stringify(body)}`);
+
+      if (status === 429) {
+        throw new ServiceUnavailableException(
+          `Pennylane API rate limit aşıldı [${context}]. Daha sonra tekrar deneyin.`,
+        );
+      }
+
       throw new UnprocessableEntityException(
         `Pennylane API hatası [${context}]: HTTP ${status} — ${JSON.stringify(body)}`,
       );
     }
     throw err;
+  }
+
+  // ─── /me — Bağlantı Doğrulama ──────────────────────────────────────────────
+
+  /**
+   * Verilen token'ın geçerli olup olmadığını Pennylane /me endpoint'i ile doğrular.
+   * Docs: "call the /me endpoint to verify your setup is correct"
+   */
+  async verifyConnection(token: string): Promise<PennylaneMeResponse> {
+    try {
+      const res = await this.http.get<PennylaneMeResponse>(
+        '/me',
+        { headers: this.authHeaders(token) },
+      );
+      return res.data;
+    } catch (err) {
+      this.handleError('verifyConnection', err);
+    }
   }
 
   // ─── Customer ──────────────────────────────────────────────────────────────
