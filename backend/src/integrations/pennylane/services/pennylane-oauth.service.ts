@@ -97,7 +97,7 @@ export class PennylaneOAuthService {
     clientId: string,
     clientSecret: string,
   ): Promise<string> {
-    const account = await this.providerAccountService.findByTenantAndProvider(
+    const account = await this.providerAccountService.findWithTokens(
       tenantId,
       PROVIDER_KEYS.PENNYLANE,
     );
@@ -128,7 +128,7 @@ export class PennylaneOAuthService {
   // ─── Internal: Refresh ─────────────────────────────────────────────────────
 
   private async refreshToken(
-    refreshToken: string,
+    currentRefreshToken: string,
     tenantId: string,
     clientId: string,
     clientSecret: string,
@@ -139,7 +139,7 @@ export class PennylaneOAuthService {
         PENNYLANE_TOKEN_URL,
         new URLSearchParams({
           grant_type: 'refresh_token',
-          refresh_token: refreshToken,
+          refresh_token: currentRefreshToken,
           client_id: clientId,
           client_secret: clientSecret,
         }),

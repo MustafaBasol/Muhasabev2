@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { ProviderAccount } from '../entities/provider-account.entity';
 import { ProviderConnectionStatus } from '../types/integration.types';
 
+const TOKEN_ALIAS = 'providerAccount';
+
 /**
  * Provider bağlantı hesapları CRUD servisi.
  * Token operations (store / rotate / invalidate) bu servis üzerinden yapılır.
@@ -20,6 +22,25 @@ export class ProviderAccountService {
     providerKey: string,
   ): Promise<ProviderAccount | null> {
     return this.accountRepository.findOne({ where: { tenantId, providerKey } });
+  }
+
+  /**
+   * `accessToken` ve `refreshToken` alanları `select: false` işaretli olduğundan
+   * normal `findOne` bunları getirmez. Token gerektiren işlemlerde bu metodu kullan.
+   */
+  async findWithTokens(
+    tenantId: string,
+    providerKey: string,
+  ): Promise<ProviderAccount | null> {
+    return this.accountRepository
+      .createQueryBuilder(TOKEN_ALIAS)
+      .addSelect([
+        `${TOKEN_ALIAS}.accessToken`,
+        `${TOKEN_ALIAS}.refreshToken`,
+      ])
+      .where(`${TOKEN_ALIAS}.tenantId = :tenantId`, { tenantId })
+      .andWhere(`${TOKEN_ALIAS}.providerKey = :providerKey`, { providerKey })
+      .getOne();
   }
 
   async upsert(
