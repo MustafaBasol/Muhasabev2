@@ -10,6 +10,7 @@ import type { DeepPartial } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { InvoiceLine } from './entities/invoice-line.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { Customer } from '../customers/entities/customer.entity';
 import { TenantPlanLimitService } from '../common/tenant-plan-limits.service';
 import { Sale, SaleStatus } from '../sales/entities/sale.entity';
 import { Product } from '../products/entities/product.entity';
@@ -19,6 +20,8 @@ import {
   UpdateInvoiceDto,
   InvoiceLineItemInput,
   InvoiceStatistics,
+  InvoiceSellerSnapshot,
+  InvoiceBuyerSnapshot,
 } from './dto/invoice.dto';
 
 @Injectable()
@@ -38,6 +41,8 @@ export class InvoicesService {
     private productsRepository: Repository<Product>,
     @InjectRepository(ProductCategory)
     private categoriesRepository: Repository<ProductCategory>,
+    @InjectRepository(Customer)
+    private customersRepository: Repository<Customer>,
     private dataSource: DataSource,
   ) {}
 
@@ -222,6 +227,38 @@ export class InvoicesService {
     if (!tenant) {
       throw new NotFoundException('Tenant not found');
     }
+
+    // Snapshot'ları oluştur — fatura anındaki satıcı/alıcı bilgilerini yakala
+    const sellerSnapshot: InvoiceSellerSnapshot = {
+      companyName: tenant.companyName ?? null,
+      address: tenant.address ?? null,
+      tvaNumber: tenant.tvaNumber ?? null,
+      siretNumber: tenant.siretNumber ?? null,
+      sirenNumber: tenant.sirenNumber ?? null,
+      rcsNumber: tenant.rcsNumber ?? null,
+      companyType: tenant.companyType ?? null,
+      capitalSocial: tenant.capitalSocial ?? null,
+    };
+
+    let buyerSnapshot: InvoiceBuyerSnapshot | null = null;
+    const customerId = createInvoiceDto.customerId ?? null;
+    if (customerId) {
+      const customer = await this.customersRepository.findOne({
+        where: { id: customerId },
+      });
+      if (customer) {
+        buyerSnapshot = {
+          name: customer.name ?? null,
+          company: customer.company ?? null,
+          address: customer.address ?? null,
+          tvaNumber: customer.tvaNumber ?? null,
+          siretNumber: customer.siretNumber ?? null,
+          sirenNumber: customer.sirenNumber ?? null,
+          customerType: customer.customerType ?? null,
+          billingAddress: customer.billingAddress ?? null,
+        };
+      }
+    }
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const currentMonthCount = await this.invoicesRepository.count({
@@ -353,6 +390,8 @@ export class InvoicesService {
         taxAmount,
         discountAmount,
         total,
+        sellerSnapshot,
+        buyerSnapshot,
       };
       const invoice = manager.create(Invoice, invoicePayload);
       const savedInvoice = await manager.save(Invoice, invoice);
