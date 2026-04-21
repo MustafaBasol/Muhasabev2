@@ -101,6 +101,11 @@ export interface PennylaneCreateInvoicePayload {
   pdf_invoice_free_text?: string | null;
   special_mention?: string | null;
   invoice_lines: PennylaneInvoiceLine[];
+  // EN 16931 ödeme & referans alanları
+  payment_method?: string | null;   // BT-81: bank_transfer | direct_debit | card | cheque | cash
+  payable_iban?: string | null;     // BT-84: tahsilat IBAN
+  buyer_reference?: string | null;  // BT-10: alıcı referansı
+  order_reference?: string | null;  // BT-13: sipariş numarası
 }
 
 /** Pennylane'den dönen fatura objesi (kısmi — Phase 3 MVP için yeterli alanlar) */

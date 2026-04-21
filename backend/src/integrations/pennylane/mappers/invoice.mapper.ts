@@ -27,9 +27,14 @@ export function mapInvoiceToPayload(
     currency: invoice.invoiceCurrency ?? 'EUR',
     language: invoice.invoiceLanguage ?? 'fr_FR',
     draft,
-    external_reference: invoice.invoiceNumber, // bizim fatura numaramız
+    external_reference: invoice.invoiceNumber,
     pdf_invoice_subject: `Facture ${invoice.invoiceNumber}`,
     invoice_lines: lines.map(mapLine),
+    // EN 16931 ödeme bilgileri (varsa)
+    ...(invoice.paymentMethodCode ? { payment_method: invoice.paymentMethodCode } : {}),
+    ...(invoice.paymentIban ? { payable_iban: invoice.paymentIban } : {}),
+    ...(invoice.buyerReference ? { buyer_reference: invoice.buyerReference } : {}),
+    ...(invoice.orderReference ? { order_reference: invoice.orderReference } : {}),
   };
 }
 

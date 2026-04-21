@@ -87,6 +87,13 @@ export interface BaseInvoiceDto extends InvoiceAuditMetadata {
   providerError?: string | null;
   sellerSnapshot?: InvoiceSellerSnapshot | null;
   buyerSnapshot?: InvoiceBuyerSnapshot | null;
+  // EN 16931 uyum alanları
+  buyerReference?: string | null;
+  orderReference?: string | null;
+  contractReference?: string | null;
+  paymentMethodCode?: string | null;
+  paymentIban?: string | null;
+  paymentBic?: string | null;
 }
 
 export interface CreateInvoiceDto extends BaseInvoiceDto {

@@ -229,4 +229,30 @@ export class Invoice {
 
   @Column({ type: __isTestEnv ? 'simple-json' : 'jsonb', nullable: true })
   buyerSnapshot: InvoiceBuyerSnapshot | null;
+
+  // ─── EN 16931 Uyum Alanları (BT = Business Term) ──────────────────────────
+
+  // BT-10 — Alıcı referansı (örn. servis kodu, departman numarası)
+  @Column({ type: 'varchar', length: 200, nullable: true, comment: 'EN 16931 BT-10: Alıcı fatura referansı' })
+  buyerReference: string | null;
+
+  // BT-13 — Sipariş numarası (buyer purchase order)
+  @Column({ type: 'varchar', length: 200, nullable: true, comment: 'EN 16931 BT-13: Sipariş numarası' })
+  orderReference: string | null;
+
+  // BT-12 — Sözleşme numarası
+  @Column({ type: 'varchar', length: 200, nullable: true, comment: 'EN 16931 BT-12: Sözleşme numarası' })
+  contractReference: string | null;
+
+  // BT-81 — Ödeme yöntemi kodu (bank_transfer | direct_debit | card | cheque | cash)
+  @Column({ type: 'varchar', length: 64, nullable: true, comment: 'EN 16931 BT-81: Ödeme yöntemi kodu' })
+  paymentMethodCode: string | null;
+
+  // BT-84 — Alacaklı IBAN (Pennylane: payable_iban)
+  @Column({ type: 'varchar', length: 34, nullable: true, comment: 'EN 16931 BT-84: Tahsilat IBAN — maksimum 34 karakter' })
+  paymentIban: string | null;
+
+  // BT-86 — Banka BIC/SWIFT kodu
+  @Column({ type: 'varchar', length: 11, nullable: true, comment: 'EN 16931 BT-86: Banka BIC/SWIFT kodu' })
+  paymentBic: string | null;
 }
