@@ -12,12 +12,14 @@ import { Product } from '../products/entities/product.entity';
 import { ProductCategory } from '../products/entities/product-category.entity';
 import { IntegrationsCommonModule } from '../integrations/common/integrations-common.module';
 import { EINVOICE_QUEUE } from '../integrations/common/queues/einvoice-queue.constants';
+import { FacturXModule } from './facturx/facturx.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Invoice, InvoiceLine, Tenant, Sale, Customer, Product, ProductCategory]),
     BullModule.registerQueue({ name: EINVOICE_QUEUE }),
     IntegrationsCommonModule,
+    FacturXModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService],
