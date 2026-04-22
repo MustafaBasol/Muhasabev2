@@ -897,6 +897,7 @@
     "success": "Succès",
     "warning": "Avertissement",
     "ok": "OK",
+    "select": "Sélectionner",
     "now": "Maintenant",
     "noSupplier": "Aucun fournisseur",
     "audit": {
@@ -1879,8 +1880,10 @@
     "taxNumber": "Numéro de TVA",
     "siretNumber": "SIRET",
     "siretNumberPlaceholder": "12345678901234",
+    "siretFormatError": "Le SIRET doit comporter 14 chiffres",
     "sirenNumber": "SIREN",
     "sirenNumberPlaceholder": "123456789",
+    "sirenFormatError": "Le SIREN doit comporter 9 chiffres",
     "tvaNumber": "Numéro TVA",
     "tvaNumberPlaceholder": "FR12345678901",
     "customerType": "Type de client",

@@ -867,6 +867,7 @@
     "success": "Erfolg",
     "warning": "Warnung",
     "ok": "OK",
+    "select": "Auswählen",
     "noSupplier": "Kein Lieferant",
     "audit": {
       "createdBy": "Erstellt von",
@@ -1785,8 +1786,10 @@
     "taxNumber": "Steuernummer",
     "siretNumber": "SIRET",
     "siretNumberPlaceholder": "12345678901234",
+    "siretFormatError": "SIRET muss 14 Stellen haben",
     "sirenNumber": "SIREN",
     "sirenNumberPlaceholder": "123456789",
+    "sirenFormatError": "SIREN muss 9 Stellen haben",
     "tvaNumber": "USt-IdNr. / TVA",
     "tvaNumberPlaceholder": "FR12345678901",
     "customerType": "Kundentyp",

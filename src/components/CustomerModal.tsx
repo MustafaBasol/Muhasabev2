@@ -67,13 +67,13 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer, compa
     // Format validation (warn, not block)
     let valid = true;
     if (customerData.siretNumber && !/^\d{14}$/.test(customerData.siretNumber.replace(/\s/g, ''))) {
-      setSiretError('SIRET 14 rakam olmalıdır');
+      setSiretError(t('customers.siretFormatError'));
       valid = false;
     } else {
       setSiretError('');
     }
     if (customerData.sirenNumber && !/^\d{9}$/.test(customerData.sirenNumber.replace(/\s/g, ''))) {
-      setSirenError('SIREN 9 rakam olmalıdır');
+      setSirenError(t('customers.sirenFormatError'));
       valid = false;
     } else {
       setSirenError('');

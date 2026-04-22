@@ -501,6 +501,7 @@
     "success": "Başarılı",
     "warning": "Uyarı",
     "ok": "Tamam",
+    "select": "Seçin",
     "noSupplier": "Tedarikçi Yok",
     "audit": {
       "createdBy": "Oluşturan",
@@ -1490,8 +1491,10 @@
     "taxNumber": "Vergi Numarası",
     "siretNumber": "SIRET",
     "siretNumberPlaceholder": "12345678901234",
+    "siretFormatError": "SIRET 14 rakam olmalıdır",
     "sirenNumber": "SIREN",
     "sirenNumberPlaceholder": "123456789",
+    "sirenFormatError": "SIREN 9 rakam olmalıdır",
     "tvaNumber": "TVA / KDV Numarası",
     "tvaNumberPlaceholder": "FR12345678901",
     "customerType": "Müşteri Tipi",
