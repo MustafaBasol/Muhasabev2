@@ -454,7 +454,8 @@ export default function InvoiceViewModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {Array.isArray(invoice.items) && invoice.items.map((item, index) => {
+                  {Array.isArray((invoice as any).items || (invoice as any).lines) && 
+                    ((invoice as any).items || (invoice as any).lines || []).map((item: any, index: number) => {
                     const qty = Number(item?.quantity) || 0;
                     const unit = Number(item?.unitPrice) || 0;
                     const lineTotal = qty * unit || Number(item?.total) || 0;

@@ -3218,6 +3218,7 @@ const AppContent: React.FC = () => {
       if (!record) return [];
       if (Array.isArray(record.items) && record.items.length) return record.items;
       if (Array.isArray(record.lineItems) && record.lineItems.length) return record.lineItems;
+      if (Array.isArray(record.lines) && record.lines.length) return record.lines;
       return [];
     };
 
@@ -3262,7 +3263,11 @@ const AppContent: React.FC = () => {
     };
 
     const ensureInvoiceWithItems = async (record?: any): Promise<any | null> => {
-      if (record && Array.isArray(record.items) && record.items.length) {
+      if (record && (
+        (Array.isArray(record.items) && record.items.length) ||
+        (Array.isArray(record.lineItems) && record.lineItems.length) ||
+        (Array.isArray(record.lines) && record.lines.length)
+      )) {
         return record;
       }
       if (!record?.id) {

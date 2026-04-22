@@ -11,9 +11,35 @@ export enum InvoiceStatus {
 export interface InvoiceLineItem {
   productId?: string;
   productName: string;
+  description?: string;
   quantity: number;
   unitPrice: number;
+  taxRate?: number;
   total: number;
+}
+
+/**
+ * Backend 'lines' (invoice_lines tablosu) → frontend 'items' normalize eder.
+ * Her iki field da her zaman dolu olur.
+ */
+function normalizeInvoice(raw: any): any {
+  if (!raw) return raw;
+  const backendLines: any[] = Array.isArray(raw.lines) ? raw.lines : [];
+  const items: InvoiceLineItem[] = backendLines.map((l: any) => ({
+    productId: l.productId ?? undefined,
+    productName: l.productName ?? l.description ?? '',
+    description: l.description ?? l.productName ?? '',
+    quantity: Number(l.quantity) || 0,
+    unitPrice: Number(l.unitPrice) || 0,
+    taxRate: Number(l.taxRate) || 0,
+    total: Number(l.lineGross) || Number(l.lineNet) || (Number(l.quantity) * Number(l.unitPrice)) || 0,
+  }));
+  return {
+    ...raw,
+    items: items.length ? items : (Array.isArray(raw.items) ? raw.items : []),
+    lineItems: items.length ? items : (Array.isArray(raw.lineItems) ? raw.lineItems : []),
+    lines: backendLines,
+  };
 }
 
 export interface Invoice {
@@ -72,7 +98,7 @@ export interface UpdateInvoiceDto {
  */
 export const getInvoices = async (): Promise<Invoice[]> => {
   const response = await apiClient.get<Invoice[]>('/invoices');
-  return response.data;
+  return (response.data as any[]).map(normalizeInvoice);
 };
 
 /**
@@ -80,7 +106,7 @@ export const getInvoices = async (): Promise<Invoice[]> => {
  */
 export const getInvoice = async (id: string): Promise<Invoice> => {
   const response = await apiClient.get<Invoice>(`/invoices/${id}`);
-  return response.data;
+  return normalizeInvoice(response.data);
 };
 
 /**
@@ -88,7 +114,7 @@ export const getInvoice = async (id: string): Promise<Invoice> => {
  */
 export const createInvoice = async (data: CreateInvoiceDto): Promise<Invoice> => {
   const response = await apiClient.post<Invoice>('/invoices', data);
-  return response.data;
+  return normalizeInvoice(response.data);
 };
 
 /**
@@ -99,7 +125,7 @@ export const updateInvoice = async (
   data: UpdateInvoiceDto
 ): Promise<Invoice> => {
   const response = await apiClient.patch<Invoice>(`/invoices/${id}`, data);
-  return response.data;
+  return normalizeInvoice(response.data);
 };
 
 /**
