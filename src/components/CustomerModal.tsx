@@ -248,7 +248,8 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer, compa
             {/* TVA / VAT */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('customers.tvaNumber')}
+                {t('customers.tvaNumber')} <span className="text-red-500">*</span>
+                <span className="ml-1 text-xs text-gray-400 font-normal">(e-fatura)</span>
               </label>
               <input
                 type="text"

@@ -2576,6 +2576,12 @@ const AppContent: React.FC = () => {
         address: customerData.address?.trim() || undefined,
         taxNumber: customerData.taxNumber?.trim() || undefined,
         company: customerData.company?.trim() || undefined,
+        // E-Fatura alanları
+        siretNumber: (customerData as any).siretNumber?.trim() || undefined,
+        sirenNumber: (customerData as any).sirenNumber?.trim() || undefined,
+        tvaNumber: (customerData as any).tvaNumber?.trim() || undefined,
+        customerType: (customerData as any).customerType || undefined,
+        billingAddress: (customerData as any).billingAddress || undefined,
       };
       
       if (customerData.id) {
