@@ -12,10 +12,11 @@ export const PENNYLANE_TOKEN_URL = 'https://app.pennylane.com/oauth/token';
 export const PENNYLANE_API_BASE = 'https://app.pennylane.com/api/external/v2';
 
 export const PENNYLANE_SCOPES = [
+  'categories:all',
+  'commercial_documents:all',
   'customer_invoices:all',
   'customers:all',
-  'e_invoices:all',
-  'supplier_invoices:read',
+  'products:all',
 ] as const;
 
 // ─── Customer ────────────────────────────────────────────────────────────────
