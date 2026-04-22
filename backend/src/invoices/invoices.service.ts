@@ -631,6 +631,10 @@ export class InvoicesService {
     }
 
     Object.assign(invoice, updateInvoiceDto);
+    // Lines are managed in the transaction above when lineItems/items are provided.
+    // Remove the loaded relation from the entity before save() to prevent
+    // TypeORM cascade from trying to update existing lines and nulling invoiceId.
+    delete (invoice as any).lines;
     await this.invoicesRepository.save(invoice);
 
     // İade faturası yapıldığında: stok geri ekle + satış iptal et
