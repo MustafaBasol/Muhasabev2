@@ -19,6 +19,7 @@ import { PennylaneOAuthService } from './services/pennylane-oauth.service';
 import { PennylaneSubmitService } from './services/pennylane-submit.service';
 import { PennylaneStatusSyncService } from './services/pennylane-status-sync.service';
 import { PennylaneApiClient } from './services/pennylane-api.client';
+import { PennylaneIncomingInvoiceService } from './services/pennylane-incoming-invoice.service';
 
 interface AuthenticatedRequest extends Request {
   user?: { tenantId: string };
@@ -42,6 +43,7 @@ export class PennylaneController {
     private readonly submitService: PennylaneSubmitService,
     private readonly syncService: PennylaneStatusSyncService,
     private readonly apiClient: PennylaneApiClient,
+    private readonly incomingService: PennylaneIncomingInvoiceService,
   ) {}
 
   // ─── OAuth: Step 1 — Yönlendirme ─────────────────────────────────────────
@@ -165,5 +167,28 @@ export class PennylaneController {
 
     const result = await this.syncService.syncForTenant(tenantId);
     return { ok: true, ...result };
+  }
+
+  // ─── Gelen E-Fatura (Incoming Sync) ─────────────────────────────────────────
+
+  /**
+   * POST /integrations/pennylane/incoming/sync
+   *
+   * Pennylane'deki tedarikçi faturalarını çeker ve
+   * Comptario'da gider kaydı olarak oluşturur.
+   */
+  @Post('incoming/sync')
+  @HttpCode(HttpStatus.OK)
+  async syncIncoming(@Req() req: AuthenticatedRequest): Promise<object> {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) throw new UnauthorizedException('Tenant bulunamadı.');
+
+    try {
+      const result = await this.incomingService.syncIncomingInvoices(tenantId);
+      return { ok: true, ...result };
+    } catch (err) {
+      this.logger.error(`Gelen e-fatura sync hatası: ${(err as Error).message}`);
+      throw new InternalServerErrorException('Gelen fatura senkronizasyonu başarısız.');
+    }
   }
 }

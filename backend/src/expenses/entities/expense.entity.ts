@@ -134,4 +134,25 @@ export class Expense {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   updatedByName: string | null;
+
+  // ─── Gelen E-Fatura (Pennylane Supplier Invoice) ─────────────────────────
+  /** Pennylane'deki tedarikçi faturası ID'si — tekrar import önleme */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  providerExpenseId: string | null;
+
+  /** Hangi PDP/entegrasyon kaynağından geldi (örn. 'pennylane') */
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  eInvoiceSource: string | null;
+
+  /** Pennylane'deki fatura numarası (FA-XXXX) */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  providerInvoiceNumber: string | null;
+
+  /** Faturayı kesen firma adı (Pennylane supplier name) */
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  senderName: string | null;
+
+  /** Faturayı kesen firmanın VKN/SIRET'i */
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  senderVatNumber: string | null;
 }

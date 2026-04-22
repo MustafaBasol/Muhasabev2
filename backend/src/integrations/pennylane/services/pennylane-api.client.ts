@@ -8,6 +8,8 @@ import {
   PennylaneCustomerResponse,
   PennylaneInvoiceResponse,
   PennylaneChangelogResponse,
+  PennylaneSupplierInvoiceListResponse,
+  PennylaneSupplierInvoiceResponse,
 } from '../types/pennylane.types';
 
 /** Pennylane /me endpoint yanıtı */
@@ -241,6 +243,53 @@ export class PennylaneApiClient {
       );
     } catch (err) {
       this.handleError('cancelInvoice', err);
+    }
+  }
+
+  // ─── Supplier Invoices (Gelen E-Fatura) ───────────────────────────────────
+
+  /**
+   * Tedarikçi faturalarını listeler (gelen e-faturalar).
+   * Pennylane API: GET /supplier_invoices
+   *
+   * @param page 1-tabanlı sayfa numarası
+   * @param updatedSince ISO datetime — bu tarihten sonra güncellenenler
+   */
+  async listSupplierInvoices(
+    token: string,
+    opts: { page?: number; updatedSince?: string } = {},
+  ): Promise<PennylaneSupplierInvoiceListResponse> {
+    try {
+      const params: Record<string, string | number> = { per_page: 50 };
+      if (opts.page) params['page'] = opts.page;
+      if (opts.updatedSince) params['updated_since'] = opts.updatedSince;
+
+      const res = await this.http.get<PennylaneSupplierInvoiceListResponse>(
+        '/supplier_invoices',
+        { headers: this.authHeaders(token), params },
+      );
+      return res.data;
+    } catch (err) {
+      this.handleError('listSupplierInvoices', err);
+    }
+  }
+
+  /**
+   * Tek bir tedarikçi faturasını getirir.
+   * Pennylane API: GET /supplier_invoices/{id}
+   */
+  async getSupplierInvoice(
+    token: string,
+    supplierInvoiceId: string | number,
+  ): Promise<PennylaneSupplierInvoiceResponse> {
+    try {
+      const res = await this.http.get<{ supplier_invoice: PennylaneSupplierInvoiceResponse }>(
+        `/supplier_invoices/${supplierInvoiceId}`,
+        { headers: this.authHeaders(token) },
+      );
+      return res.data.supplier_invoice;
+    } catch (err) {
+      this.handleError('getSupplierInvoice', err);
     }
   }
 

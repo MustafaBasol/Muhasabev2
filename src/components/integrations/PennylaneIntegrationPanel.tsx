@@ -6,6 +6,7 @@ import {
   disconnectPennylane,
   syncPennylaneInvoices,
   verifyPennylaneConnection,
+  syncIncomingInvoices,
 } from '../../api/integrations';
 import { formatAppDateTime } from '../../utils/dateFormat';
 
@@ -17,6 +18,7 @@ export default function PennylaneIntegrationPanel() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncingIncoming, setSyncingIncoming] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -81,6 +83,21 @@ export default function PennylaneIntegrationPanel() {
       setSyncMessage(t('common.error', 'Senkronizasyon sırasında hata oluştu.'));
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleSyncIncoming = async () => {
+    setSyncingIncoming(true);
+    setSyncMessage(null);
+    try {
+      const result = await syncIncomingInvoices();
+      setSyncMessage(
+        `${t('integrations.pennylane.incomingSyncDone')}: +${result.created}`,
+      );
+    } catch {
+      setSyncMessage(t('integrations.pennylane.incomingSyncError'));
+    } finally {
+      setSyncingIncoming(false);
     }
   };
 
@@ -179,6 +196,13 @@ export default function PennylaneIntegrationPanel() {
               className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {syncing ? t('integrations.pennylane.syncing') : t('integrations.pennylane.syncInvoices')}
+            </button>
+            <button
+              onClick={handleSyncIncoming}
+              disabled={syncingIncoming}
+              className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+            >
+              {syncingIncoming ? t('integrations.pennylane.incomingSyncing') : t('integrations.pennylane.syncIncoming')}
             </button>
             <button
               onClick={handleDisconnect}

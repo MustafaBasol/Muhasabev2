@@ -15,6 +15,7 @@ export const PENNYLANE_SCOPES = [
   'customer_invoices:all',
   'customers:all',
   'e_invoices:all',
+  'supplier_invoices:read',
 ] as const;
 
 // ─── Customer ────────────────────────────────────────────────────────────────
@@ -151,4 +152,47 @@ export interface PennylaneTokenResponse {
   expires_in: number;          // saniye cinsinden
   scope: string;
   created_at: number;          // Unix timestamp
+}
+
+// ─── Supplier Invoice (Gelen E-Fatura) ───────────────────────────────────────
+
+/** Pennylane'deki tedarikçi / gelen fatura satırı */
+export interface PennylaneSupplierInvoiceLine {
+  id: number;
+  label: string | null;
+  quantity: number;
+  raw_currency_unit_price: string;
+  vat_rate: string | null;
+  currency_amount: string;
+}
+
+/** Pennylane'deki tedarikçi / gelen fatura (supplier_invoices API) */
+export interface PennylaneSupplierInvoiceResponse {
+  id: number;
+  invoice_number: string | null;    // tedarikçinin fatura numarası
+  status: string;                   // 'draft' | 'posted' | 'cancelled'
+  date: string;                     // ISO 8601
+  deadline: string | null;
+  currency: string;
+  amount: string;                   // brut toplam
+  tax_amount: string;               // KDV tutarı
+  supplier: {
+    id: number;
+    name: string;
+    vat_number?: string | null;
+    siren?: string | null;
+  } | null;
+  e_invoicing?: {
+    status: string | null;
+    received_at: string | null;
+  } | null;
+  line_items: PennylaneSupplierInvoiceLine[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PennylaneSupplierInvoiceListResponse {
+  supplier_invoices: PennylaneSupplierInvoiceResponse[];
+  total_pages: number;
+  total_entries: number;
 }

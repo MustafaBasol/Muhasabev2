@@ -64,6 +64,17 @@ export async function syncPennylaneInvoices(): Promise<{
   return res.data;
 }
 
+/** Pennylane'deki gelen tedarikçi faturalarını Gider olarak import eder */
+export async function syncIncomingInvoices(): Promise<{
+  ok: boolean;
+  created: number;
+  skipped: number;
+  errors: number;
+}> {
+  const res = await apiClient.post('/integrations/pennylane/incoming/sync', {});
+  return res.data;
+}
+
 // ── Chorus Pro ─────────────────────────────────────────────────────────────
 
 export async function getChorusProStatus(): Promise<{
