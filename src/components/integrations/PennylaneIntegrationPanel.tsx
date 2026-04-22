@@ -53,8 +53,13 @@ export default function PennylaneIntegrationPanel() {
     }
   }, [load]);
 
-  const handleConnect = () => {
-    window.location.href = getPennylaneAuthorizeUrl();
+  const handleConnect = async () => {
+    try {
+      const url = await getPennylaneAuthorizeUrl();
+      window.location.href = url;
+    } catch {
+      setSyncMessage(t('integrations.pennylane.connectionError'));
+    }
   };
 
   const handleDisconnect = async () => {

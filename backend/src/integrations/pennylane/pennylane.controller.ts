@@ -46,7 +46,7 @@ export class PennylaneController {
     private readonly incomingService: PennylaneIncomingInvoiceService,
   ) {}
 
-  // ─── OAuth: Step 1 — Yönlendirme ─────────────────────────────────────────
+  // ─── OAuth: Step 1 — URL döndür (frontend yönlendirir) ──────────────────
 
   @Get('oauth/authorize')
   authorize(
@@ -64,6 +64,25 @@ export class PennylaneController {
 
     const url = this.oauthService.getAuthorizationUrl(clientId, redirectUri, tenantId);
     res.redirect(url);
+  }
+
+  /**
+   * Tarayıcı navigasyonu JWT göndermediği için bu endpoint URL'yi JSON olarak döner.
+   * Frontend authenticated çağrıyla URL'yi alır, sonra window.location.href ile yönlendirir.
+   */
+  @Get('oauth/authorize-url')
+  getAuthorizeUrl(@Req() req: AuthenticatedRequest): object {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) throw new UnauthorizedException('Tenant bulunamadı.');
+
+    const clientId = process.env.PENNYLANE_CLIENT_ID;
+    const redirectUri = process.env.PENNYLANE_REDIRECT_URI;
+    if (!clientId || !redirectUri) {
+      throw new BadRequestException('Pennylane OAuth yapılandırması eksik.');
+    }
+
+    const url = this.oauthService.getAuthorizationUrl(clientId, redirectUri, tenantId);
+    return { url };
   }
 
   // ─── OAuth: Step 2 — Callback ─────────────────────────────────────────────

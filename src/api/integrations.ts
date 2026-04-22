@@ -18,11 +18,12 @@ export enum EInvoiceStatus {
 // ── Pennylane ──────────────────────────────────────────────────────────────
 
 /**
- * Pennylane OAuth bağlantı URL'ine yönlendir.
- * (Doğrudan tarayıcıyı backend endpoint'ine gönderir — window.location kullan)
+ * Pennylane OAuth authorize URL'ini backend'den authenticated çağrıyla alır.
+ * (window.location.href ile direkt backend'e gitmek JWT header göndermediğinden 401 verir.)
  */
-export function getPennylaneAuthorizeUrl(): string {
-  return '/api/integrations/pennylane/oauth/authorize';
+export async function getPennylaneAuthorizeUrl(): Promise<string> {
+  const res = await apiClient.get<{ url: string }>('/integrations/pennylane/oauth/authorize-url');
+  return res.data.url;
 }
 
 export async function getPennylaneStatus(): Promise<{
