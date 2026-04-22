@@ -165,15 +165,28 @@ export class PennylaneApiClient {
     externalRef: string,
   ): Promise<PennylaneCustomerResponse | null> {
     try {
+      // Pennylane API v2 filtreleri JSON array formatında istiyor
+      const filterParam = JSON.stringify([
+        { field: 'external_reference', operator: 'eq', value: externalRef },
+      ]);
       const res = await this.http.get<{ customers: PennylaneCustomerResponse[] }>(
         '/customers',
         {
           headers: this.authHeaders(token),
-          params: { filter: `{"field":"external_reference","operator":"eq","value":"${externalRef}"}` },
+          params: { filter: filterParam },
         },
       );
       return res.data.customers?.[0] ?? null;
     } catch (err) {
+      // Filtre desteklenmiyorsa (400) ya da başka hata varsa null dön —
+      // çağıran kod yeni müşteri oluşturmaya devam eder.
+      if (axios.isAxiosError(err)) {
+        const status = (err as AxiosError).response?.status;
+        this.logger.warn(
+          `findCustomerByExternalRef failed (HTTP ${status}), will create new customer`,
+        );
+        return null;
+      }
       this.handleError('findCustomerByExternalRef', err);
     }
   }
