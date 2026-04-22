@@ -131,7 +131,7 @@ export class PennylaneApiClient {
     try {
       const res = await this.http.post<{ company_customer: PennylaneCustomerResponse }>(
         '/company_customers',
-        payload,
+        { company_customer: payload },
         { headers: this.authHeaders(token) },
       );
       return res.data.company_customer;
@@ -147,7 +147,7 @@ export class PennylaneApiClient {
     try {
       const res = await this.http.post<{ individual_customer: PennylaneCustomerResponse }>(
         '/individual_customers',
-        payload,
+        { individual_customer: payload },
         { headers: this.authHeaders(token) },
       );
       return res.data.individual_customer;
@@ -185,9 +185,18 @@ export class PennylaneApiClient {
     payload: PennylaneCreateInvoicePayload,
   ): Promise<PennylaneInvoiceResponse> {
     try {
+      // Pennylane API v2: payload must be wrapped in { customer_invoice: ... }
+      // and invoice lines use 'invoice_lines_attributes' key
+      const { invoice_lines, ...rest } = payload as any;
+      const wrappedPayload = {
+        customer_invoice: {
+          ...rest,
+          invoice_lines_attributes: invoice_lines,
+        },
+      };
       const res = await this.http.post<{ invoice: PennylaneInvoiceResponse }>(
         '/customer_invoices',
-        payload,
+        wrappedPayload,
         { headers: this.authHeaders(token) },
       );
       return res.data.invoice;

@@ -139,8 +139,9 @@ export default function InvoiceViewModal({
       }
       await submitInvoiceToPennylane(invoice.id);
       setActionMsg(t('invoice.eInvoiceSent'));
-    } catch {
-      setActionMsg(t('invoice.sendToEInvoice') + ' ' + t('common.error', 'Gönderim başarısız.'));
+    } catch (err: any) {
+      const detail = err?.response?.data?.message || err?.message || '';
+      setActionMsg(t('invoice.sendToEInvoice') + ' başarısız: ' + detail);
     } finally {
       setSubmitting(false);
     }
