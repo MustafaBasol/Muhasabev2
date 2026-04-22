@@ -755,25 +755,41 @@ export default function ProductList({
   };
 
   const downloadTemplate = () => {
-    // Ürün içe aktarma için kapsamlı CSV şablonu
-    const csvContent = [
-      'Name,SKU,UnitPrice,CostPrice,TaxRate,StockQuantity,ReorderLevel,Unit,Category,Description',
-      'Sample Product A,SKU-001,199.90,120.00,18,50,10,,,"Sample description for product A"',
-      'Sample Product B,SKU-002,49.99,25.00,10,200,20,,,"Sample description for product B"'
-    ].join('\n');
+    // TaxRate: Pennylane destekli Fransız KDV oranları → 0, 2.1, 5.5, 8.5, 10, 20
+    // Unit: piece | hour | day | month | kg | liter | km
+    // CategoryTaxRateOverride: boş bırakılabilir — kategorinin KDV'sini ürün bazlı ezer
+    const headers = [
+      'Name',
+      'SKU',
+      'UnitPrice',
+      'CostPrice',
+      'TaxRate',
+      'StockQuantity',
+      'ReorderLevel',
+      'Unit',
+      'Category',
+      'Description',
+      'CategoryTaxRateOverride',
+    ];
 
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'product_import_template.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }
+    // buildCsv → RFC 4180: virgüllü açıklamalar otomatik tırnak alır
+    const rows: (string | number | null)[][] = [
+      // Hizmet — %20 KDV (FR standart)
+      ['Salesforce Entegrasyon Hizmeti', 'SVC-001', 1200.00, 800.00, 20, null, null, 'hour', 'Hizmet', 'Salesforce CRM entegrasyon, danışmanlık ve destek', null],
+      // Stoklu ürün — %20 KDV
+      ['Dizüstü Bilgisayar Dell XPS', 'SKU-DELL-001', 1499.00, 950.00, 20, 25, 5, 'piece', 'Elektronik', 'Dell XPS 15 Dizüstü Bilgisayar', null],
+      // Gıda — %5.5 KDV (indirimli FR oranı)
+      ['Organik Kahve 250g', 'SKU-KHV-001', 12.50, 7.00, 5.5, 200, 30, 'kg', 'Gıda', 'Organik kavrulmuş kahve, tek köken', 5.5],
+      // İnşaat/restorasyon — %10 KDV
+      ['Restorasyon Hizmeti', 'SVC-REST-001', 350.00, 200.00, 10, null, null, 'day', 'İnşaat', 'Restore ve bakım hizmeti', null],
+      // KDV muaf — yurt dışı / ihracat
+      ['İhracat Ürünü', 'SKU-EXP-001', 500.00, 300.00, 0, 10, 2, 'piece', 'İhracat', 'KDV muaf ihracat kalemi', null],
+      // TR %18 → Pennylane FR_200 (%20) otomatik map
+      ['Yazılım Lisansı', 'LIC-001', 299.00, 100.00, 18, null, null, 'piece', 'Yazılım', 'Yıllık yazılım lisansı (TR KDV %18 → FR %20 map)', null],
+    ];
+
+    const csv = buildCsv(headers, rows);
+    downloadCsvFile('product_import_template.csv', csv);
   };
 
   const exportCsv = () => {
@@ -786,9 +802,11 @@ export default function ProductList({
         'UnitPrice',
         'CostPrice',
         'TaxRate',
+        'CategoryTaxRateOverride',
         'StockQuantity',
         'ReorderLevel',
         'Status',
+        'Description',
         'CreatedAt',
       ];
       const rows = filteredProducts.map((product) => [
@@ -799,9 +817,11 @@ export default function ProductList({
         product?.unitPrice ?? product?.price ?? '',
         product?.costPrice ?? '',
         product?.taxRate ?? '',
+        (product as any)?.categoryTaxRateOverride ?? '',
         product?.stockQuantity ?? product?.stock ?? '',
         product?.reorderLevel ?? '',
         product?.status ?? '',
+        (product as any)?.description ?? '',
         product?.createdAt ?? '',
       ]);
       const csv = buildCsv(headers, rows);

@@ -171,27 +171,37 @@ export default function CustomerList({
       return;
     }
     try {
-      const csvContent = [
-        'Name,Email,Phone,Address,Company,TaxNumber',
-        'John Doe,john.doe@email.com,+1-555-123-4567,123 Main Street New York NY USA,Tech Solutions Inc,123456789',
-        'Jane Smith,jane.smith@company.com,+1-555-987-6543,456 Oak Avenue Los Angeles CA USA,Marketing Pro LLC,987654321',
-        'Michael Johnson,m.johnson@business.org,+1-555-456-7890,789 Pine Road Chicago IL USA,Johnson & Associates,456789123'
-      ].join('\n');
+      const headers = [
+        'Name',
+        'Email',
+        'Phone',
+        'Company',
+        'CustomerType',
+        'TvaNumber',
+        'SirenNumber',
+        'SiretNumber',
+        'Address',
+        'BillingAddress_Street',
+        'BillingAddress_City',
+        'BillingAddress_PostalCode',
+        'BillingAddress_Country',
+        'TaxNumber',
+      ];
 
-      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      if (link.download === undefined) {
-        logger.warn('CustomerList: download attribute unsupported');
-        return;
-      }
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'customer_import_template.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // buildCsv → RFC 4180: virgül içeren değerler otomatik tırnak alır
+      const rows: (string | null)[][] = [
+        // B2B şirket — Fransa
+        ['Dupont SAS', 'contact@dupont.fr', '+33 1 23 45 67 89', 'Dupont SAS', 'b2b', 'FR12345678901', '123456789', '12345678900019', '10 Rue de la Paix, 75001 Paris', '10 Rue de la Paix', 'Paris', '75001', 'FR', null],
+        // B2C bireysel — Fransa
+        ['Jean Martin', 'jean.martin@email.fr', '+33 6 12 34 56 78', null, 'b2c', null, null, null, '25 Avenue Victor Hugo, 69002 Lyon', '25 Avenue Victor Hugo', 'Lyon', '69002', 'FR', null],
+        // B2B şirket — Türkiye
+        ['Yılmaz Teknoloji Ltd. Şti.', 'ahmet@yilmaztek.com', '+90 532 123 4567', 'Yılmaz Teknoloji', 'b2b', null, null, null, 'Bağcılar Mah. No:5, 34200 İstanbul', 'Bağcılar Mah. No:5', 'İstanbul', '34200', 'TR', '1234567890'],
+        // Serbest meslek / bireysel
+        ['Marie Dubois', 'marie@freelance.fr', '+33 7 89 01 23 45', null, 'individual', null, null, null, '5 Rue Voltaire, 33000 Bordeaux', '5 Rue Voltaire', 'Bordeaux', '33000', 'FR', null],
+      ];
+
+      const csv = buildCsv(headers, rows);
+      downloadCsvFile('customer_import_template.csv', csv);
     } catch (error) {
       logger.error('CustomerList: template download failed', error);
     }
@@ -199,16 +209,43 @@ export default function CustomerList({
 
   const exportCsv = () => {
     try {
-      const headers = ['Name', 'Email', 'Phone', 'Address', 'Company', 'TaxNumber', 'CreatedAt'];
-      const rows = filteredCustomers.map((customer) => [
-        customer?.name ?? '',
-        customer?.email ?? '',
-        customer?.phone ?? '',
-        customer?.address ?? '',
-        customer?.company ?? '',
-        (customer as any)?.taxNumber ?? '',
-        customer?.createdAt ?? '',
-      ]);
+      const headers = [
+        'Name',
+        'Email',
+        'Phone',
+        'Company',
+        'CustomerType',
+        'TvaNumber',
+        'SirenNumber',
+        'SiretNumber',
+        'Address',
+        'BillingAddress_Street',
+        'BillingAddress_City',
+        'BillingAddress_PostalCode',
+        'BillingAddress_Country',
+        'TaxNumber',
+        'CreatedAt',
+      ];
+      const rows = filteredCustomers.map((c) => {
+        const ba = (c as any)?.billingAddress ?? {};
+        return [
+          c?.name ?? '',
+          c?.email ?? '',
+          c?.phone ?? '',
+          (c as any)?.company ?? '',
+          (c as any)?.customerType ?? '',
+          (c as any)?.tvaNumber ?? '',
+          (c as any)?.sirenNumber ?? '',
+          (c as any)?.siretNumber ?? '',
+          c?.address ?? '',
+          ba?.street ?? ba?.address ?? '',
+          ba?.city ?? '',
+          ba?.postalCode ?? ba?.postal_code ?? '',
+          ba?.country ?? ba?.country_alpha2 ?? '',
+          (c as any)?.taxNumber ?? '',
+          c?.createdAt ?? '',
+        ];
+      });
       const csv = buildCsv(headers, rows);
       downloadCsvFile('customers.csv', csv);
     } catch (error) {

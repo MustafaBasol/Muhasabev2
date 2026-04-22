@@ -31,6 +31,7 @@ import { isEmailVerificationRequired } from "./utils/emailVerification";
 import { logger } from "./utils/logger";
 import { DEFAULT_TAX_RATE, resolveProductTaxRate as resolveProductTaxRateUtil } from "./utils/tax";
 import { formatAppDateTime } from "./utils/dateFormat";
+import { parseCsvText } from "./utils/csv";
 
 // API imports
 import * as customersApi from "./api/customers";
@@ -368,6 +369,17 @@ interface ImportedCustomer {
   taxNumber?: string;
   company?: string;
   createdAt?: string;
+  // E-fatura alanları
+  customerType?: 'b2b' | 'b2c' | 'individual';
+  tvaNumber?: string;
+  sirenNumber?: string;
+  siretNumber?: string;
+  billingAddress?: {
+    street?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  };
 }
  
 type BackendInvoiceLineItem = {
@@ -2694,25 +2706,15 @@ const AppContent: React.FC = () => {
       if (file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')) {
         logger.debug('app.import.customers.csvDetected');
         const text = new TextDecoder('utf-8').decode(data);
-        const lines = text.split('\n').filter(line => line.trim());
-        
-        if (lines.length < 2) {
-          logger.warn('app.import.customers.csvInsufficientData', { lineCount: lines.length });
+        // RFC 4180 uyumlu parser — virgüllü adresler, tırnaklı değerler desteklenir
+        const parsed = parseCsvText(text);
+        if (parsed.length === 0) {
+          logger.warn('app.import.customers.csvInsufficientData');
           setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
           return;
         }
-        
-        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        logger.debug('app.import.customers.csvHeaders', { headers });
-        
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-          const rowData: Record<string, unknown> = {};
-          headers.forEach((header, index) => {
-            rowData[header] = values[index] || '';
-          });
-          rows.push(rowData);
-        }
+        rows.push(...parsed);
+        logger.debug('app.import.customers.csvHeaders', { headers: Object.keys(parsed[0] ?? {}) });
       } else {
         // Handle Excel files
         logger.debug('app.import.customers.excelDetected');
@@ -2804,6 +2806,29 @@ const AppContent: React.FC = () => {
           const createdAtRaw = getValue("createdat", "kayittarihi", "olusturmatarihi", "tarih");
           const idValue = getValue("id", "musteriid");
 
+          // E-fatura alanları
+          const rawCustomerType = String(getValue("customertype", "musteritip", "tip", "type") ?? "").trim().toLowerCase();
+          const customerType: ImportedCustomer["customerType"] =
+            rawCustomerType === "b2b" ? "b2b"
+            : rawCustomerType === "b2c" ? "b2c"
+            : rawCustomerType === "individual" || rawCustomerType === "sahis" ? "individual"
+            : undefined;
+
+          const tvaNumber = String(getValue("tvanumber", "tva", "tvaNumero", "tvano", "kdn") ?? "").trim() || undefined;
+          const sirenNumber = String(getValue("sirennumber", "siren") ?? "").trim() || undefined;
+          const siretNumber = String(getValue("siretnumber", "siret") ?? "").trim() || undefined;
+
+          // Adres: hem yapılandırılmış (BillingAddress_Street vb.) hem düz sütunlar desteklenir
+          const baStreet = String(getValue("billingaddressstreet", "billingstreet", "faturaadresisokak", "sokak") ?? "").trim() || undefined;
+          const baCity = String(getValue("billingaddresscity", "billingcity", "faturaadresisehir", "sehir", "city") ?? "").trim() || undefined;
+          const baPostalCode = String(getValue("billingaddresspostalcode", "billingpostalcode", "billingzip", "postaKodu", "posta") ?? "").trim() || undefined;
+          const baCountry = String(getValue("billingaddresscountry", "billingcountry", "ulke", "country") ?? "").trim() || undefined;
+
+          const billingAddress =
+            baStreet || baCity || baPostalCode || baCountry
+              ? { street: baStreet, city: baCity, postalCode: baPostalCode, country: baCountry }
+              : undefined;
+
           return {
             id: idValue ? String(idValue) : undefined,
             name,
@@ -2813,6 +2838,11 @@ const AppContent: React.FC = () => {
             taxNumber: taxNumber ? String(taxNumber).trim() : "",
             company: company ? String(company).trim() : "",
             createdAt: normalizeDate(createdAtRaw),
+            customerType,
+            tvaNumber,
+            sirenNumber,
+            siretNumber,
+            billingAddress,
           };
         })
         .filter((item): item is ImportedCustomer => Boolean(item));
@@ -2838,6 +2868,11 @@ const AppContent: React.FC = () => {
               address: c.address || undefined,
               taxNumber: c.taxNumber || undefined,
               company: c.company || undefined,
+              customerType: c.customerType,
+              tvaNumber: c.tvaNumber,
+              sirenNumber: c.sirenNumber,
+              siretNumber: c.siretNumber,
+              billingAddress: c.billingAddress,
             }).then(res => {
               logger.debug('app.import.customers.persist.success', { index: idx, customerId: res?.id });
               return res;
@@ -2912,22 +2947,13 @@ const AppContent: React.FC = () => {
       if (file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')) {
         logger.debug('app.import.products.csvDetected');
         const text = new TextDecoder('utf-8').decode(data);
-        const lines = text.split('\n').filter(line => line.trim());
-
-        if (lines.length < 2) {
+        // RFC 4180 uyumlu parser — tırnaklı hücreler, virgüllü açıklamalar desteklenir
+        const parsed = parseCsvText(text);
+        if (parsed.length === 0) {
           setInfoModal({ title: t('common.warning'), message: t('customers.import.noDataFound') });
           return;
         }
-
-        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-          const rowData: Record<string, unknown> = {};
-          headers.forEach((header, index) => {
-            rowData[header] = values[index] ?? '';
-          });
-          rows.push(rowData);
-        }
+        rows.push(...parsed);
       } else {
         // Excel işleme
         logger.debug('app.import.products.excelDetected');
@@ -2982,6 +3008,7 @@ const AppContent: React.FC = () => {
         unitPrice?: number;
         costPrice?: number;
         taxRate?: number;
+        categoryTaxRateOverride?: number | null;
         stockQuantity?: number;
         reorderLevel?: number;
         unit?: string;
@@ -3010,16 +3037,21 @@ const AppContent: React.FC = () => {
           const sku = String(getValue('sku', 'code', 'kod', 'barkod') ?? '').trim() || undefined;
           const unitPrice = toNumber(getValue('unitprice', 'price', 'satisfiyati', 'fiyat'));
           const costPrice = toNumber(getValue('costprice', 'cost', 'maliyet'));
-          let taxRate = toNumber(getValue('taxrate', 'kdv', 'vergi'));
+          let taxRate = toNumber(getValue('taxrate', 'kdv', 'vergi', 'tva'));
           if (taxRate != null) {
             // 0-100 aralığına sıkıştır
             taxRate = Math.max(0, Math.min(100, taxRate));
           }
+          // Ürüne özel KDV override — kategorinin KDV oranını ezer
+          let categoryTaxRateOverride = toNumber(getValue('categorytaxrateoverride', 'taxrateoverride', 'kdvoverride', 'kdvoncelik'));
+          if (categoryTaxRateOverride != null) {
+            categoryTaxRateOverride = Math.max(0, Math.min(100, categoryTaxRateOverride));
+          }
           const stockQuantity = toNumber(getValue('stockquantity', 'stock', 'stok', 'adet'));
-          const reorderLevel = toNumber(getValue('reorderlevel', 'minstock', 'kritikstok'));
+          const reorderLevel = toNumber(getValue('reorderlevel', 'minstock', 'kritikstok', 'minimumstok'));
           const unit = String(getValue('unit', 'birim') ?? '').trim() || undefined;
           const category = String(getValue('category', 'kategori') ?? '').trim() || 'Genel';
-          const description = String(getValue('description', 'aciklama') ?? '').trim() || undefined;
+          const description = String(getValue('description', 'aciklama', 'acıklama') ?? '').trim() || undefined;
 
           return {
             name,
@@ -3027,6 +3059,7 @@ const AppContent: React.FC = () => {
             unitPrice,
             costPrice,
             taxRate,
+            categoryTaxRateOverride: categoryTaxRateOverride ?? null,
             stockQuantity,
             reorderLevel,
             unit,
@@ -3060,6 +3093,7 @@ const AppContent: React.FC = () => {
               category: p.category || 'Genel',
               description: p.description,
               taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
+              categoryTaxRateOverride: p.categoryTaxRateOverride != null ? Number(p.categoryTaxRateOverride) : undefined,
             } as const;
             logger.debug('app.import.products.persist.request', { index, name: p.name });
             return productsApi.createProduct(dto)
