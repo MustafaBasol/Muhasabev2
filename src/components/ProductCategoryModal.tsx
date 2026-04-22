@@ -3,6 +3,16 @@ import { X, Tag, PlusCircle, Percent, Layers } from 'lucide-react';
 import type { ProductCategory } from '../types';
 import { useTranslation } from 'react-i18next';
 
+// Fransa'da geçerli KDV oranları (Pennylane uyumlu)
+const FR_VAT_RATES = [
+  { label: '0%', value: '0' },
+  { label: '2.1%', value: '2.1' },
+  { label: '5.5%', value: '5.5' },
+  { label: '8.5%', value: '8.5' },
+  { label: '10%', value: '10' },
+  { label: '20%', value: '20' },
+];
+
 // Ana kategori isimlerini çeviren yardımcı fonksiyon
 const translateCategoryName = (categoryName: string, t: (key: string) => string): string => {
   const normalizedName = categoryName.trim();
@@ -203,12 +213,8 @@ export default function ProductCategoryModal({
             <Percent className="h-4 w-4 text-gray-400" />
             {t('products.categoryModal.taxLabel')}
           </label>
-          <input
+          <select
             id="category-tax-rate"
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
             value={taxRate}
             onChange={event => {
               setTaxRate(event.target.value);
@@ -217,8 +223,11 @@ export default function ProductCategoryModal({
               }
             }}
             className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder={t('products.categoryModal.taxPlaceholder')}
-          />
+          >
+            {FR_VAT_RATES.map(r => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
           <p className="mt-1 text-xs text-gray-500">
             {!isEditMode && parentCategories.length > 0 
               ? t('products.categoryModal.taxHelperChildOverrides')
