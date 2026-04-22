@@ -6,11 +6,13 @@ import { normalizeStatusKey, resolveStatusLabel } from '../utils/status';
 import { safeLocalStorage } from '../utils/localStorageSafe';
 import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 import EInvoiceStatusBadge from './EInvoiceStatusBadge';
+import EInvoiceValidationModal, { type EInvoiceMissingField } from './EInvoiceValidationModal';
 import {
   submitInvoiceToPennylane,
   syncPennylaneInvoices,
   downloadFacturX,
 } from '../api/integrations';
+import { getCustomer, type Customer } from '../api/customers';
 
 interface InvoiceContact {
   id?: string;
@@ -64,6 +66,7 @@ interface InvoiceViewModalProps {
   invoice: Invoice | null;
   onEdit: (invoice: Invoice) => void;
   onDownload?: (invoice: Invoice) => void;
+  onEditCustomer?: (customerId: string) => void;
 }
 
 export default function InvoiceViewModal({
@@ -72,18 +75,68 @@ export default function InvoiceViewModal({
   invoice,
   onEdit,
   onDownload,
+  onEditCustomer,
 }: InvoiceViewModalProps) {
   const { formatCurrency } = useCurrency();
   const { t, i18n } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [validationModal, setValidationModal] = useState<{
+    open: boolean;
+    missingFields: EInvoiceMissingField[];
+    customerId?: string;
+    customerName?: string;
+  }>({ open: false, missingFields: [] });
+
+  const validateCustomerForEInvoice = useCallback(
+    (c: Customer): EInvoiceMissingField[] => {
+      const missing: EInvoiceMissingField[] = [];
+      if (!c.siretNumber && !c.sirenNumber) {
+        missing.push({ key: 'siret', label: t('eInvoiceValidation.missingFields.siret') });
+      }
+      if (!c.tvaNumber) {
+        missing.push({ key: 'tva', label: t('eInvoiceValidation.missingFields.tva') });
+      }
+      if (!c.billingAddress?.city || !c.billingAddress?.postalCode || !c.billingAddress?.country) {
+        missing.push({ key: 'billingAddress', label: t('eInvoiceValidation.missingFields.billingAddress') });
+      }
+      if (!c.customerType) {
+        missing.push({ key: 'customerType', label: t('eInvoiceValidation.missingFields.customerType') });
+      }
+      return missing;
+    },
+    [t]
+  );
 
   const handleSubmitEInvoice = useCallback(async () => {
     if (!invoice) return;
     setSubmitting(true);
     setActionMsg(null);
     try {
+      // Pre-flight: fetch full customer and validate e-invoice required fields
+      const customerId = invoice.customer?.id;
+      if (customerId) {
+        let fullCustomer: Customer | null = null;
+        try {
+          fullCustomer = await getCustomer(customerId);
+        } catch {
+          // fallback: skip validation if customer fetch fails
+        }
+        if (fullCustomer) {
+          const missing = validateCustomerForEInvoice(fullCustomer);
+          if (missing.length > 0) {
+            setValidationModal({
+              open: true,
+              missingFields: missing,
+              customerId,
+              customerName: fullCustomer.name,
+            });
+            setSubmitting(false);
+            return;
+          }
+        }
+      }
       await submitInvoiceToPennylane(invoice.id);
       setActionMsg(t('invoice.eInvoiceSent'));
     } catch {
@@ -91,7 +144,7 @@ export default function InvoiceViewModal({
     } finally {
       setSubmitting(false);
     }
-  }, [invoice]);
+  }, [invoice, validateCustomerForEInvoice, t]);
 
   const handleSyncStatus = useCallback(async () => {
     if (!invoice) return;
@@ -449,6 +502,19 @@ export default function InvoiceViewModal({
           )}
         </div>
       </div>
+
+      {/* E-Invoice Validation Modal */}
+      <EInvoiceValidationModal
+        isOpen={validationModal.open}
+        onClose={() => setValidationModal(v => ({ ...v, open: false }))}
+        missingFields={validationModal.missingFields}
+        customerName={validationModal.customerName}
+        onEditCustomer={
+          validationModal.customerId && onEditCustomer
+            ? () => onEditCustomer(validationModal.customerId!)
+            : undefined
+        }
+      />
     </div>
   );
 }

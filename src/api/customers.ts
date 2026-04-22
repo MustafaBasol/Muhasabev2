@@ -1,5 +1,19 @@
 import apiClient from './client';
 
+export enum CustomerType {
+  B2B = 'b2b',
+  B2C = 'b2c',
+  INDIVIDUAL = 'individual',
+}
+
+export interface CustomerBillingAddress {
+  street?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string; // ISO 3166-1 alpha-2
+  state?: string;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -8,6 +22,10 @@ export interface Customer {
   address?: string;
   taxNumber?: string;
   siretNumber?: string;
+  sirenNumber?: string;
+  tvaNumber?: string;
+  customerType?: CustomerType;
+  billingAddress?: CustomerBillingAddress | null;
   company?: string;
   balance: number;
   createdAt: string;
@@ -21,6 +39,10 @@ export interface CreateCustomerDto {
   address?: string;
   taxNumber?: string;
   siretNumber?: string;
+  sirenNumber?: string;
+  tvaNumber?: string;
+  customerType?: CustomerType;
+  billingAddress?: CustomerBillingAddress;
   company?: string;
 }
 
@@ -31,6 +53,10 @@ export interface UpdateCustomerDto {
   address?: string;
   taxNumber?: string;
   siretNumber?: string;
+  sirenNumber?: string;
+  tvaNumber?: string;
+  customerType?: CustomerType;
+  billingAddress?: CustomerBillingAddress;
   company?: string;
 }
 
