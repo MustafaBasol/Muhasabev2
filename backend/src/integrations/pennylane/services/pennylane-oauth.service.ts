@@ -63,11 +63,18 @@ export class PennylaneOAuthService {
         new URLSearchParams({
           grant_type: 'authorization_code',
           code,
-          client_id: clientId,
-          client_secret: clientSecret,
           redirect_uri: redirectUri,
         }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            // Pennylane token endpoint'i RFC 6749 §2.3.1 uyumlu:
+            // client_id + client_secret HTTP Basic auth header olarak gönderilmeli
+            Authorization:
+              'Basic ' +
+              Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+          },
+        },
       );
       tokenData = res.data;
     } catch (err) {
@@ -140,10 +147,15 @@ export class PennylaneOAuthService {
         new URLSearchParams({
           grant_type: 'refresh_token',
           refresh_token: currentRefreshToken,
-          client_id: clientId,
-          client_secret: clientSecret,
         }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization:
+              'Basic ' +
+              Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+          },
+        },
       );
       tokenData = res.data;
     } catch (err) {
