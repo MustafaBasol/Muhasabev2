@@ -129,12 +129,14 @@ export class PennylaneApiClient {
     payload: PennylaneCreateCompanyCustomerPayload,
   ): Promise<PennylaneCustomerResponse> {
     try {
-      const res = await this.http.post<{ company_customer: PennylaneCustomerResponse }>(
+      // Pennylane API v2: /company_customers payload'ı doğrudan alır, wrapper yok
+      const res = await this.http.post<PennylaneCustomerResponse | { company_customer: PennylaneCustomerResponse }>(
         '/company_customers',
-        { company_customer: payload },
+        payload,
         { headers: this.authHeaders(token) },
       );
-      return res.data.company_customer;
+      // Response wrapped veya direkt olabilir
+      return (res.data as any).company_customer ?? res.data as PennylaneCustomerResponse;
     } catch (err) {
       this.handleError('createCompanyCustomer', err);
     }
@@ -145,12 +147,13 @@ export class PennylaneApiClient {
     payload: PennylaneCreateIndividualCustomerPayload,
   ): Promise<PennylaneCustomerResponse> {
     try {
-      const res = await this.http.post<{ individual_customer: PennylaneCustomerResponse }>(
+      // Pennylane API v2: /individual_customers payload'ı doğrudan alır, wrapper yok
+      const res = await this.http.post<PennylaneCustomerResponse | { individual_customer: PennylaneCustomerResponse }>(
         '/individual_customers',
-        { individual_customer: payload },
+        payload,
         { headers: this.authHeaders(token) },
       );
-      return res.data.individual_customer;
+      return (res.data as any).individual_customer ?? res.data as PennylaneCustomerResponse;
     } catch (err) {
       this.handleError('createIndividualCustomer', err);
     }
