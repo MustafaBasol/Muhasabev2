@@ -52,7 +52,7 @@ function mapLine(line: InvoiceLine): PennylaneInvoiceLine {
     unit: normalizeUnit(line.unit),
     vat_rate: vatCode,
     quantity: Math.max(Number(line.quantity ?? 1), 0.0001),
-    description: line.description ?? undefined,
+    // description: Pennylane v2 invoice line şemasında bu alan yok — gönderilmemeli
   };
 
   // Satır indirimi — Pennylane absolute discount

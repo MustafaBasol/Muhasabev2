@@ -40,10 +40,10 @@ export const FR_VAT_RATE_MAP: Record<string, string> = {
   '2.10': 'FR_21',
   '0.021': 'FR_21',
 
-  // Sıfır / muaf
-  '0': 'exempt',
-  '0.0': 'exempt',
-  '0.00': 'exempt',
+  // Sıfır / muaf — Pennylane v2: 'FR_0' (exempt değil)
+  '0': 'FR_0',
+  '0.0': 'FR_0',
+  '0.00': 'FR_0',
 
   // DOM-TOM
   '0.8': 'FR_09',
@@ -70,7 +70,7 @@ export const FR_VAT_RATE_MAP: Record<string, string> = {
  * Geçerli FR KDV oranları ve kodları (yuvarlama için)
  */
 const FR_VALID_RATES: Array<{ rate: number; code: string }> = [
-  { rate: 0,    code: 'exempt'  },
+  { rate: 0,    code: 'FR_0'  },
   { rate: 2.1,  code: 'FR_21'  },
   { rate: 5.5,  code: 'FR_55'  },
   { rate: 8.5,  code: 'FR_85'  },
