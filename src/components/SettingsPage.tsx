@@ -59,13 +59,13 @@ import PennylaneIntegrationPanel from './integrations/PennylaneIntegrationPanel'
 
 /** Entegrasyonlar sekmesi — SettingsPage içinde kullanılır */
 function IntegrationsTab() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Entegrasyonlar</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">{t('integrations.pennylane.title')}</h2>
         <p className="text-sm text-gray-500">
-          Bağlı PDP (Plateforme de Dématérialisation Partenaire) sağlayıcılarını yönetin.
-          Fransa 2026 e-fatura zorunluluğu için gereklidir.
+          {t('integrations.pennylane.description')}
         </p>
       </div>
       <PennylaneIntegrationPanel />

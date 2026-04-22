@@ -1275,7 +1275,7 @@
       "notConnectedLabel": "Nicht verbunden",
       "connectedSince": "Verbunden seit:",
       "title": "Integrationen",
-      "description": "Verwalten Sie Ihre Buchhaltungs- und E-Rechnungsintegrationen."
+      "description": "Verwalten Sie verbundene PDP-Anbieter (Plateforme de Dématérialisation Partenaire). Erforderlich für die E-Rechnungspflicht in Frankreich ab 2026."
     }
   },
   "expense.details": "Ausgabendetails",

@@ -906,7 +906,7 @@
       "notConnectedLabel": "Not Connected",
       "connectedSince": "Connected:",
       "title": "Integrations",
-      "description": "Manage your accounting and e-invoicing integrations."
+      "description": "Manage connected PDP (Plateforme de Dématérialisation Partenaire) providers. Required for France 2026 e-invoicing compliance."
     }
   },
   "expense.details": "Expense Details",

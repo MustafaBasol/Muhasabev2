@@ -928,7 +928,7 @@
       "notConnectedLabel": "Bağlı Değil",
       "connectedSince": "Bağlandı:",
       "title": "Entegrasyonlar",
-      "description": "Muhasebe ve e-fatura entegrasyonlarını yönetin."
+      "description": "Bağlı PDP (Plateforme de Dématérialisation Partenaire) sağlayıcılarını yönetin. Fransa 2026 e-fatura zorunluluğu için gereklidir."
     }
   },
   "expense.details": "Gider Detayları",

@@ -1369,7 +1369,7 @@
       "notConnectedLabel": "Non connecté",
       "connectedSince": "Connecté le :",
       "title": "Intégrations",
-      "description": "Gérez vos intégrations comptables et de facturation électronique."
+      "description": "Gérez vos prestataires PDP (Plateforme de Dématérialisation Partenaire). Requis pour la facturation électronique obligatoire en France dès 2026."
     }
   },
   "expense.details": "Détails de la Dépense",
