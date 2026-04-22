@@ -111,8 +111,8 @@ export class PennylaneSubmitService implements IEInvoicingProvider {
       throw new Error(`E-fatura gönderilemedi: Fatura için müşteri seçilmemiş.`);
     }
 
-    // Zaten gönderilmiş/işlenmiş faturayı tekrar gönderme
-    if (invoice.providerInvoiceId) {
+    // Zaten gönderilmiş/finalize edilmiş faturayı tekrar gönderme
+    if (invoice.providerInvoiceId && invoice.eInvoiceStatus !== EInvoiceStatus.REJECTED && invoice.eInvoiceStatus !== EInvoiceStatus.PENDING) {
       throw new Error(
         `Fatura ${invoice.invoiceNumber} zaten Pennylane'e gönderilmiş (ID: ${invoice.providerInvoiceId}). Tekrar göndermek için önce mevcut kaydı iptal edin.`,
       );
@@ -130,35 +130,54 @@ export class PennylaneSubmitService implements IEInvoicingProvider {
     const { providerCustomerId } = await this.upsertCustomer(tenantId, invoice.customerId);
     const token = await this.getToken(tenantId);
 
-    // 2. Taslak fatura oluştur (draft=true) sonra finalize et
-    const payload = mapInvoiceToPayload(invoice, lines, Number(providerCustomerId), true);
-
+    // 2. Taslak fatura oluştur — eğer önceki denemede taslak oluşturulmuşsa (providerInvoiceId var) yeni taslak açma
     let created: PennylaneInvoiceResponse;
-    try {
-      created = await this.apiClient.createInvoice(token, payload);
-    } catch (err: any) {
-      // 422 "already taken" → Pennylane'de taslak zaten oluşturulmuş.
-      // Mevcut taslağı external_reference olmadan bulamayız — sadece finalize'ı
-      // tekrar deneyemeyiz. Kullanıcıya anlamlı hata ver, Pennylane'den sil ve tekrar gönder.
-      if (err?.isPennylaneAlreadyExists) {
+
+    if (invoice.providerInvoiceId) {
+      // Önceki denemede taslak oluşturulmuş ama finalize başarısız olmuş → mevcut taslağı kullan
+      this.logger.log(`Mevcut Pennylane taslağı kullanılıyor: ${invoice.providerInvoiceId}`);
+      created = await this.apiClient.getInvoice(token, invoice.providerInvoiceId);
+    } else {
+      const payload = mapInvoiceToPayload(invoice, lines, Number(providerCustomerId), true);
+      try {
+        created = await this.apiClient.createInvoice(token, payload);
+      } catch (err: any) {
+        // 422 "already taken" → Pennylane'de taslak zaten oluşturulmuş.
+        if (err?.isPennylaneAlreadyExists) {
+          await this.invoiceRepo.update(invoiceId, {
+            eInvoiceStatus: EInvoiceStatus.REJECTED,
+            providerError: 'Pennylane\'da bu fatura için taslak zaten mevcut. Pennylane\'dan taslağı silin ve tekrar gönderin.',
+          });
+          throw new Error(
+            'Bu fatura daha önce Pennylane\'e kısmen gönderilmiş. Lütfen Pennylane\'deki taslak faturayı silin ve tekrar deneyin.',
+          );
+        }
         await this.invoiceRepo.update(invoiceId, {
           eInvoiceStatus: EInvoiceStatus.REJECTED,
-          providerError: 'Pennylane\'da bu fatura için taslak zaten mevcut. Pennylane\'dan taslağı silin ve tekrar gönderin.',
+          providerError: (err as Error).message,
         });
-        throw new Error(
-          'Bu fatura daha önce Pennylane\'e kısmen gönderilmiş. Lütfen Pennylane\'deki taslak faturayı silin ve tekrar deneyin.',
-        );
+        throw err;
       }
-      // Diğer hatalar → providerError kaydet
+
+      // Taslak oluşturuldu — ID'yi hemen kaydet (finalize başarısız olursa orphan kalmaz)
       await this.invoiceRepo.update(invoiceId, {
-        eInvoiceStatus: EInvoiceStatus.REJECTED,
-        providerError: (err as Error).message,
+        providerInvoiceId: String(created.id),
+        eInvoiceStatus: EInvoiceStatus.PENDING,
       });
-      throw err;
     }
 
     // 3. Finalize et
-    const finalized = await this.apiClient.finalizeInvoice(token, created.id);
+    let finalized: PennylaneInvoiceResponse;
+    try {
+      finalized = await this.apiClient.finalizeInvoice(token, created.id);
+    } catch (err: any) {
+      const errMsg = (err as Error).message ?? String(err);
+      await this.invoiceRepo.update(invoiceId, {
+        eInvoiceStatus: EInvoiceStatus.REJECTED,
+        providerError: errMsg,
+      });
+      throw err;
+    }
 
     // 4. Yerel entity güncelle
     const newStatus = this.mapPdpStatus(finalized.e_invoicing?.status);
