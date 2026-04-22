@@ -202,11 +202,11 @@ export class PennylaneApiClient {
   ): Promise<PennylaneInvoiceResponse> {
     try {
       // Pennylane API v2: payload düz gönderilir, wrapper yok.
-      // invoice_lines → invoice_lines_attributes olarak rename edilir.
+      // Key adı: invoice_lines (_attributes suffix YOK — debug testinde doğrulandı)
       const { invoice_lines, ...rest } = payload as any;
       const body = {
         ...rest,
-        invoice_lines_attributes: invoice_lines,
+        invoice_lines,
       };
       const res = await this.http.post<any>(
         '/customer_invoices',

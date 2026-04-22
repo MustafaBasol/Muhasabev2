@@ -244,55 +244,55 @@ export class PennylaneController {
 
     const tests = [
       {
-        label: '1-minimal (no unit, no draft, FR_200)',
+        label: '1-invoice_lines (no draft)',
         payload: {
           date: new Date().toISOString().slice(0,10),
           deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
           customer_id: cid,
-          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', vat_rate: 'FR_200', quantity: 1 }],
+          invoice_lines: [{ label: 'Test', raw_currency_unit_price: '10.00', vat_rate: 'FR_200', quantity: 1 }],
         },
       },
       {
-        label: '2-with draft:true, FR_200',
-        payload: {
-          date: new Date().toISOString().slice(0,10),
-          deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
-          customer_id: cid,
-          draft: true,
-          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', vat_rate: 'FR_200', quantity: 1 }],
-        },
-      },
-      {
-        label: '3-with unit:piece, FR_200',
+        label: '2-invoice_lines + draft:true',
         payload: {
           date: new Date().toISOString().slice(0,10),
           deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
           customer_id: cid,
           draft: true,
-          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', unit: 'piece', vat_rate: 'FR_200', quantity: 1 }],
+          invoice_lines: [{ label: 'Test', raw_currency_unit_price: '10.00', vat_rate: 'FR_200', quantity: 1 }],
         },
       },
       {
-        label: '4-with external_reference, FR_200',
+        label: '3-invoice_lines + draft + unit:piece',
         payload: {
           date: new Date().toISOString().slice(0,10),
           deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
           customer_id: cid,
           draft: true,
-          external_reference: 'DEBUG-TEST-001',
-          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', vat_rate: 'FR_200', quantity: 1 }],
+          invoice_lines: [{ label: 'Test', raw_currency_unit_price: '10.00', unit: 'piece', vat_rate: 'FR_200', quantity: 1 }],
         },
       },
       {
-        label: '5-vat_rate:exempt (our current)',
+        label: '4-invoice_lines + draft + currency + external_reference',
         payload: {
           date: new Date().toISOString().slice(0,10),
           deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
           customer_id: cid,
           currency: 'EUR',
           draft: true,
-          external_reference: 'DEBUG-TEST-002',
-          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', unit: 'piece', vat_rate: 'exempt', quantity: 1 }],
+          external_reference: 'DEBUG-TEST-001',
+          invoice_lines: [{ label: 'Test', raw_currency_unit_price: '10.00', vat_rate: 'FR_200', quantity: 1 }],
+        },
+      },
+      {
+        label: '5-invoice_lines + draft + vat_rate:exempt',
+        payload: {
+          date: new Date().toISOString().slice(0,10),
+          deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
+          customer_id: cid,
+          currency: 'EUR',
+          draft: true,
+          invoice_lines: [{ label: 'Test', raw_currency_unit_price: '10.00', unit: 'piece', vat_rate: 'exempt', quantity: 1 }],
         },
       },
     ];
