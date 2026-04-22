@@ -13,7 +13,14 @@ const LegalHeader: React.FC = () => {
   };
 
   const handleBackToHome = () => {
-    window.location.href = '/';
+    // SPA hash-based routing: hashchange event'i tetikle
+    // Unauthenticated kullanıcılar empty hash ile landing page'e yönlendirilir
+    if (window.location.hash) {
+      window.location.hash = '';
+    } else {
+      // Zaten hash yok, force reload ile landing'e git
+      window.location.replace('/');
+    }
   };
 
   return (

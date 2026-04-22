@@ -13,8 +13,10 @@ import {
   BadRequestException,
   UnauthorizedException,
   InternalServerErrorException,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PennylaneOAuthService } from './services/pennylane-oauth.service';
 import { PennylaneSubmitService } from './services/pennylane-submit.service';
 import { PennylaneStatusSyncService } from './services/pennylane-status-sync.service';
@@ -49,6 +51,7 @@ export class PennylaneController {
   // ─── OAuth: Step 1 — URL döndür (frontend yönlendirir) ──────────────────
 
   @Get('oauth/authorize')
+  @UseGuards(JwtAuthGuard)
   authorize(
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
@@ -71,6 +74,7 @@ export class PennylaneController {
    * Frontend authenticated çağrıyla URL'yi alır, sonra window.location.href ile yönlendirir.
    */
   @Get('oauth/authorize-url')
+  @UseGuards(JwtAuthGuard)
   getAuthorizeUrl(@Req() req: AuthenticatedRequest): object {
     const tenantId = req.user?.tenantId;
     if (!tenantId) throw new UnauthorizedException('Tenant bulunamadı.');
@@ -120,6 +124,7 @@ export class PennylaneController {
   // ─── Status & Disconnect ──────────────────────────────────────────────────
 
   @Get('status')
+  @UseGuards(JwtAuthGuard)
   async getStatus(@Req() req: AuthenticatedRequest): Promise<object> {
     const tenantId = req.user?.tenantId;
     if (!tenantId) throw new UnauthorizedException('Tenant bulunamadı.');
@@ -133,6 +138,7 @@ export class PennylaneController {
    * Docs: "call the /me endpoint to verify your setup is correct"
    */
   @Get('verify')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async verify(@Req() req: AuthenticatedRequest): Promise<object> {
     const tenantId = req.user?.tenantId;
@@ -152,6 +158,7 @@ export class PennylaneController {
   }
 
   @Delete('disconnect')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async disconnect(@Req() req: AuthenticatedRequest): Promise<object> {
     const tenantId = req.user?.tenantId;
@@ -163,6 +170,7 @@ export class PennylaneController {
   // ─── Invoice Submit ────────────────────────────────────────────────────────
 
   @Post('invoices/submit')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async submitInvoice(
     @Req() req: AuthenticatedRequest,
@@ -179,6 +187,7 @@ export class PennylaneController {
   // ─── Status Sync ──────────────────────────────────────────────────────────
 
   @Post('sync')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async sync(@Req() req: AuthenticatedRequest): Promise<object> {
     const tenantId = req.user?.tenantId;
@@ -197,6 +206,7 @@ export class PennylaneController {
    * Comptario'da gider kaydı olarak oluşturur.
    */
   @Post('incoming/sync')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async syncIncoming(@Req() req: AuthenticatedRequest): Promise<object> {
     const tenantId = req.user?.tenantId;
