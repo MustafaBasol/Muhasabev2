@@ -8,7 +8,7 @@
 // ─── OAuth ───────────────────────────────────────────────────────────────────
 
 export const PENNYLANE_AUTH_URL = 'https://app.pennylane.com/oauth/authorize';
-export const PENNYLANE_TOKEN_URL = 'https://app.pennylane.com/oauth/oauth/token';
+export const PENNYLANE_TOKEN_URL = 'https://app.pennylane.com/oauth/token';
 export const PENNYLANE_API_BASE = 'https://app.pennylane.com/api/external/v2';
 
 export const PENNYLANE_SCOPES = [

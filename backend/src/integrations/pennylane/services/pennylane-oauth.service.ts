@@ -78,7 +78,8 @@ export class PennylaneOAuthService {
       );
       tokenData = res.data;
     } catch (err) {
-      this.logger.error('Token exchange hatası', err);
+      const detail = (err as any)?.response?.data ?? (err as any)?.message ?? err;
+      this.logger.error('Token exchange hatası', JSON.stringify(detail));
       throw new UnauthorizedException('Pennylane token alınamadı.');
     }
 
