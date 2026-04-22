@@ -26,16 +26,15 @@ export function mapInvoiceToPayload(
     );
   }
 
-  // Pennylane v2 yalnızca şemada tanımlı alanları kabul eder (NotAnyOf hatası verir).
-  // language, pdf_invoice_subject, payable_iban, payment_method vb.
-  // v2 şemasında YOK — gönderilmemeli.
+  // Pennylane v2: sadece şemada tanımlı alanlar kabul edilir.
+  // external_reference → NotAnyOf hatasına neden olur (debug testinde doğrulandı)
+  // language, pdf_invoice_subject, payment_method vb. → YOK, gönderilmemeli.
   return {
     date: formatDate(invoice.issueDate),
     deadline: formatDate(invoice.dueDate ?? invoice.issueDate),
     customer_id: pennylaneCustomerId,
     currency: invoice.invoiceCurrency ?? 'EUR',
     draft,
-    external_reference: invoice.invoiceNumber,
     invoice_lines: lines.map(mapLine),
   };
 }

@@ -86,7 +86,7 @@ export class PennylaneApiClient {
 
   private handleError(context: string, err: unknown): never {
     if (axios.isAxiosError(err)) {
-      const ae = err as AxiosError<{ message?: string; errors?: unknown }>;
+      const ae = err as AxiosError<{ message?: string; error?: string; errors?: unknown }>;
       const status = ae.response?.status;
       const body = ae.response?.data;
       this.logger.error(`${context} HTTP ${status}: ${JSON.stringify(body)}`);
@@ -95,6 +95,14 @@ export class PennylaneApiClient {
         throw new ServiceUnavailableException(
           `Pennylane API rate limit aşıldı [${context}]. Daha sonra tekrar deneyin.`,
         );
+      }
+
+      // 422 "already taken" — özel hata tipi ile fırlatılır, submit service yakalar
+      const bodyStr = JSON.stringify(body ?? '');
+      if (status === 422 && bodyStr.includes('already been taken')) {
+        const e = new Error(`PENNYLANE_ALREADY_EXISTS: ${bodyStr}`) as any;
+        e.isPennylaneAlreadyExists = true;
+        throw e;
       }
 
       throw new UnprocessableEntityException(

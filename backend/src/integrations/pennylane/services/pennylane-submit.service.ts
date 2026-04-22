@@ -136,8 +136,20 @@ export class PennylaneSubmitService implements IEInvoicingProvider {
     let created: PennylaneInvoiceResponse;
     try {
       created = await this.apiClient.createInvoice(token, payload);
-    } catch (err) {
-      // Fatura oluşturma başarısız → providerError kaydet
+    } catch (err: any) {
+      // 422 "already taken" → Pennylane'de taslak zaten oluşturulmuş.
+      // Mevcut taslağı external_reference olmadan bulamayız — sadece finalize'ı
+      // tekrar deneyemeyiz. Kullanıcıya anlamlı hata ver, Pennylane'den sil ve tekrar gönder.
+      if (err?.isPennylaneAlreadyExists) {
+        await this.invoiceRepo.update(invoiceId, {
+          eInvoiceStatus: EInvoiceStatus.REJECTED,
+          providerError: 'Pennylane\'da bu fatura için taslak zaten mevcut. Pennylane\'dan taslağı silin ve tekrar gönderin.',
+        });
+        throw new Error(
+          'Bu fatura daha önce Pennylane\'e kısmen gönderilmiş. Lütfen Pennylane\'deki taslak faturayı silin ve tekrar deneyin.',
+        );
+      }
+      // Diğer hatalar → providerError kaydet
       await this.invoiceRepo.update(invoiceId, {
         eInvoiceStatus: EInvoiceStatus.REJECTED,
         providerError: (err as Error).message,
