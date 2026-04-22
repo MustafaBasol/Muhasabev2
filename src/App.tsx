@@ -39,6 +39,7 @@ import * as invoicesApi from "./api/invoices";
 import * as salesApi from "./api/sales";
 import * as expensesApi from "./api/expenses";
 import * as suppliersApi from "./api/suppliers";
+import { syncIncomingInvoices } from "./api/integrations";
 
 // components
 import Header, { HeaderNotification } from "./components/Header";
@@ -5594,7 +5595,7 @@ const AppContent: React.FC = () => {
                     : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                 }`}
               >
-                Giderler
+                {t('expenses.tabs.regular')}
               </button>
               <button
                 onClick={() => setExpenseTab('incoming')}
@@ -5604,7 +5605,7 @@ const AppContent: React.FC = () => {
                     : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                 }`}
               >
-                Gelen Faturalar
+                {t('expenses.tabs.incoming')}
                 {incomingCount > 0 && (
                   <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 text-xs rounded-full px-2 py-0.5">
                     {incomingCount}
@@ -5634,6 +5635,18 @@ const AppContent: React.FC = () => {
                 onViewExpense={expense => {
                   setSelectedExpense(expense as any);
                   setShowExpenseViewModal(true);
+                }}
+                onSync={async () => {
+                  await syncIncomingInvoices();
+                  // Listeyi tazele
+                  const fresh = await expensesApi.getExpenses();
+                  const arr = Array.isArray(fresh) ? fresh : [];
+                  setExpenses(arr.map((e: any) => ({
+                    ...e,
+                    expenseDate: typeof e.expenseDate === 'string'
+                      ? e.expenseDate
+                      : new Date(e.expenseDate).toISOString().split('T')[0],
+                  })));
                 }}
               />
             )}
