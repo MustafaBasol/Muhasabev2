@@ -685,14 +685,24 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
   let invCustomerCompany = '' as string;
   let invCustomerTaxNumber = '' as string;
   let invCustomerSiretNumber = '' as string;
+  let invCustomerSirenNumber = '' as string;
+  let invCustomerTvaNumber = '' as string;
   try {
     const fromInvoiceCustomer = (invoice as any)?.customer;
     if (fromInvoiceCustomer && typeof fromInvoiceCustomer === 'object') {
       invCustomerSiretNumber = String((fromInvoiceCustomer as any).siretNumber || '').trim();
+      invCustomerSirenNumber = String((fromInvoiceCustomer as any).sirenNumber || '').trim();
+      invCustomerTvaNumber = String((fromInvoiceCustomer as any).tvaNumber || '').trim();
       invCustomerTaxNumber = String((fromInvoiceCustomer as any).taxNumber || invCustomerTaxNumber || '').trim();
       if (!invCustomerEmail) invCustomerEmail = String((fromInvoiceCustomer as any).email || '').trim();
       invCustomerPhone = String((fromInvoiceCustomer as any).phone || invCustomerPhone || '').trim();
       if (!invCustomerCompany) invCustomerCompany = String((fromInvoiceCustomer as any).company || '').trim();
+      // billingAddress varsa adres olarak kullan
+      const ba = (fromInvoiceCustomer as any).billingAddress;
+      if (!invCustomerAddress && ba && typeof ba === 'object') {
+        const parts = [ba.street, ba.city, ba.postalCode, ba.country].filter(Boolean);
+        if (parts.length) invCustomerAddress = formatMultilineAddress(parts.join(', '));
+      }
       if (!invCustomerAddress) {
         invCustomerAddress = formatMultilineAddress(String((fromInvoiceCustomer as any).address || '').trim());
       }
@@ -728,6 +738,14 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
       invCustomerCompany = found.company || '';
       if (!invCustomerTaxNumber) invCustomerTaxNumber = found.taxNumber || '';
       if (!invCustomerSiretNumber) invCustomerSiretNumber = found.siretNumber || '';
+      if (!invCustomerSirenNumber) invCustomerSirenNumber = found.sirenNumber || '';
+      if (!invCustomerTvaNumber) invCustomerTvaNumber = found.tvaNumber || '';
+      // billingAddress varsa adres olarak kullan
+      if (!invCustomerAddress && found.billingAddress && typeof found.billingAddress === 'object') {
+        const ba = found.billingAddress;
+        const parts = [ba.street, ba.city, ba.postalCode, ba.country].filter(Boolean);
+        if (parts.length) invCustomerAddress = formatMultilineAddress(parts.join(', '));
+      }
     }
   } catch (error) {
     pdfWarn('Failed to hydrate invoice customer metadata from cache.', error);
@@ -745,10 +763,10 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
 
   // Çok dilli alan etiketleri
   const invoiceFieldLabels = {
-    tr: { company: 'Şirket', email: 'E-posta', phone: 'Tel', address: 'Adres', tax: 'Vergi No', siret: 'SIRET' },
-    en: { company: 'Company', email: 'Email', phone: 'Phone', address: 'Address', tax: 'Tax Number', siret: 'SIRET' },
-    fr: { company: 'Société', email: 'Email', phone: 'Téléphone', address: 'Adresse', tax: 'Numéro TVA', siret: 'SIRET' },
-    de: { company: 'Firma', email: 'Email', phone: 'Telefon', address: 'Adresse', tax: 'Steuernummer', siret: 'SIRET' },
+    tr: { company: 'Şirket', email: 'E-posta', phone: 'Tel', address: 'Adres', tax: 'Vergi No', siret: 'SIRET', siren: 'SIREN', tva: 'TVA/KDV No' },
+    en: { company: 'Company', email: 'Email', phone: 'Phone', address: 'Address', tax: 'Tax Number', siret: 'SIRET', siren: 'SIREN', tva: 'VAT No' },
+    fr: { company: 'Société', email: 'Email', phone: 'Téléphone', address: 'Adresse', tax: 'N° Fiscal', siret: 'SIRET', siren: 'SIREN', tva: 'N° TVA' },
+    de: { company: 'Firma', email: 'Email', phone: 'Telefon', address: 'Adresse', tax: 'Steuernummer', siret: 'SIRET', siren: 'SIREN', tva: 'USt-IdNr' },
   }[activeLang];
 
   const paymentTermsHtml = (() => {
@@ -773,7 +791,9 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
     invCustomerPhone ? { key: 'phone', value: invCustomerPhone } : null,
     invCustomerAddress ? { key: 'address', value: invCustomerAddressHtml } : null,
     country === 'FR' && invCustomerSiretNumber ? { key: 'siret', value: invCustomerSiretNumber } : null,
-    invCustomerTaxNumber ? { key: 'tax', value: invCustomerTaxNumber } : null,
+    country === 'FR' && invCustomerSirenNumber ? { key: 'siren', value: invCustomerSirenNumber } : null,
+    invCustomerTvaNumber ? { key: 'tva', value: invCustomerTvaNumber } : null,
+    !invCustomerTvaNumber && invCustomerTaxNumber ? { key: 'tax', value: invCustomerTaxNumber } : null,
   ].filter(Boolean) as any;
 
   const customerBlock = `

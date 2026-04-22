@@ -206,20 +206,6 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer, compa
             </div>
           </div>
 
-          {/* Tax Number */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('customers.taxNumber')}
-            </label>
-            <input
-              type="text"
-              value={customerData.taxNumber}
-              onChange={(e) => setCustomerData({...customerData, taxNumber: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="1234567890"
-            />
-          </div>
-
           {/* Address */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
