@@ -225,4 +225,95 @@ export class PennylaneController {
       throw new InternalServerErrorException('Gelen fatura senkronizasyonu başarısız.');
     }
   }
+
+  // ─── DEBUG: Invoice Payload Test (GEÇİCİ) ────────────────────────────────
+  // Production'da neyin çalışıp neyin çalışmadığını anlamak için kullanılır.
+  // Güvenli: JWT corumalı, sadece mevcut tenant'ın token'ını kullanır.
+  @Post('debug/invoice-test')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async debugInvoiceTest(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { customerId: number },
+  ): Promise<object> {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) throw new UnauthorizedException('Tenant bulunamadı.');
+
+    const token = await this.submitService['getToken'](tenantId);
+    const cid = body.customerId;
+
+    const tests = [
+      {
+        label: '1-minimal (no unit, no draft, FR_200)',
+        payload: {
+          date: new Date().toISOString().slice(0,10),
+          deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
+          customer_id: cid,
+          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', vat_rate: 'FR_200', quantity: 1 }],
+        },
+      },
+      {
+        label: '2-with draft:true, FR_200',
+        payload: {
+          date: new Date().toISOString().slice(0,10),
+          deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
+          customer_id: cid,
+          draft: true,
+          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', vat_rate: 'FR_200', quantity: 1 }],
+        },
+      },
+      {
+        label: '3-with unit:piece, FR_200',
+        payload: {
+          date: new Date().toISOString().slice(0,10),
+          deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
+          customer_id: cid,
+          draft: true,
+          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', unit: 'piece', vat_rate: 'FR_200', quantity: 1 }],
+        },
+      },
+      {
+        label: '4-with external_reference, FR_200',
+        payload: {
+          date: new Date().toISOString().slice(0,10),
+          deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
+          customer_id: cid,
+          draft: true,
+          external_reference: 'DEBUG-TEST-001',
+          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', vat_rate: 'FR_200', quantity: 1 }],
+        },
+      },
+      {
+        label: '5-vat_rate:exempt (our current)',
+        payload: {
+          date: new Date().toISOString().slice(0,10),
+          deadline: new Date(Date.now() + 30*86400000).toISOString().slice(0,10),
+          customer_id: cid,
+          currency: 'EUR',
+          draft: true,
+          external_reference: 'DEBUG-TEST-002',
+          invoice_lines_attributes: [{ label: 'Test', raw_currency_unit_price: '10.00', unit: 'piece', vat_rate: 'exempt', quantity: 1 }],
+        },
+      },
+    ];
+
+    const axios = await import('axios');
+    const results: Array<{ label: string; status: number | string; response: unknown }> = [];
+
+    for (const t of tests) {
+      try {
+        const res = await axios.default.post(
+          'https://app.pennylane.com/api/external/v2/customer_invoices',
+          t.payload,
+          { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, validateStatus: () => true },
+        );
+        results.push({ label: t.label, status: res.status, response: res.data });
+      } catch (err: any) {
+        results.push({ label: t.label, status: 'error', response: err.message });
+      }
+      // Oluşturduysak (201) geri sil
+    }
+
+    return { results };
+  }
 }
