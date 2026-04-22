@@ -86,6 +86,11 @@ export class PennylaneController {
     }
 
     const url = this.oauthService.getAuthorizationUrl(clientId, redirectUri, tenantId);
+    // Debug: client_id'nin ilk/son 4 karakterini logla (güvenli)
+    const maskedClient = clientId.length > 8
+      ? `${clientId.slice(0, 4)}...${clientId.slice(-4)}`
+      : '(short)';
+    this.logger.log(`authorize-url → client_id=${maskedClient} redirect_uri=${redirectUri}`);
     return { url };
   }
 
