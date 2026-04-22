@@ -15,6 +15,7 @@ import { IntegrationLogService } from '../../common/services/integration-log.ser
 import { PROVIDER_KEYS } from '../../common/types/integration.types';
 import { PennylaneApiClient } from './pennylane-api.client';
 import { PennylaneOAuthService } from './pennylane-oauth.service';
+import { PennylaneInvoiceResponse } from '../types/pennylane.types';
 import {
   mapCustomerToCompanyPayload,
   mapCustomerToIndividualPayload,
@@ -107,7 +108,14 @@ export class PennylaneSubmitService implements IEInvoicingProvider {
     if (!invoice) throw new Error(`Fatura bulunamadı: ${invoiceId}`);
 
     if (!invoice.customerId) {
-      throw new Error(`Fatura ${invoiceId} için müşteri tanımlanmamış.`);
+      throw new Error(`E-fatura gönderilemedi: Fatura için müşteri seçilmemiş.`);
+    }
+
+    // Zaten gönderilmiş/işlenmiş faturayı tekrar gönderme
+    if (invoice.providerInvoiceId) {
+      throw new Error(
+        `Fatura ${invoice.invoiceNumber} zaten Pennylane'e gönderilmiş (ID: ${invoice.providerInvoiceId}). Tekrar göndermek için önce mevcut kaydı iptal edin.`,
+      );
     }
 
     const lines = await this.lineRepo.find({
@@ -115,14 +123,27 @@ export class PennylaneSubmitService implements IEInvoicingProvider {
       order: { position: 'ASC' },
     });
 
-    // 1. Müşteri upsert
+    // E-fatura zorunlu alan doğrulaması
+    this.validateInvoiceForEInvoicing(invoice, lines);
+
+    // 1. Müşteri upsert — önceden kaydedilmiş providerCustomerId yoksa Pennylane'de ara/oluştur
     const { providerCustomerId } = await this.upsertCustomer(tenantId, invoice.customerId);
     const token = await this.getToken(tenantId);
 
-    // 2. Taslak fatura oluştur
+    // 2. Taslak fatura oluştur (draft=true) sonra finalize et
     const payload = mapInvoiceToPayload(invoice, lines, Number(providerCustomerId), true);
 
-    const created = await this.apiClient.createInvoice(token, payload);
+    let created: PennylaneInvoiceResponse;
+    try {
+      created = await this.apiClient.createInvoice(token, payload);
+    } catch (err) {
+      // Fatura oluşturma başarısız → providerError kaydet
+      await this.invoiceRepo.update(invoiceId, {
+        eInvoiceStatus: EInvoiceStatus.REJECTED,
+        providerError: (err as Error).message,
+      });
+      throw err;
+    }
 
     // 3. Finalize et
     const finalized = await this.apiClient.finalizeInvoice(token, created.id);
@@ -154,6 +175,29 @@ export class PennylaneSubmitService implements IEInvoicingProvider {
       providerInvoiceNumber: finalized.invoice_number,
       eInvoiceStatus: newStatus,
     };
+  }
+
+  /**
+   * E-fatura göndermeden önce zorunlu alan kontrolü.
+   * Pennylane'e gitmeden hızlı validate ederek anlamlı hata mesajı verir.
+   */
+  private validateInvoiceForEInvoicing(
+    invoice: Invoice,
+    lines: InvoiceLine[],
+  ): void {
+    const errors: string[] = [];
+
+    if (!lines || lines.length === 0) {
+      errors.push('Faturada ürün/hizmet satırı yok. En az 1 satır gereklidir.');
+    }
+
+    if (!invoice.issueDate) {
+      errors.push('Düzenleme tarihi eksik.');
+    }
+
+    if (errors.length > 0) {
+      throw new Error(`E-fatura doğrulama hatası:\n• ${errors.join('\n• ')}`);
+    }
   }
 
   // ─── syncInvoiceStatus ─────────────────────────────────────────────────────

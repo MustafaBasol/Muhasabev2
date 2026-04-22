@@ -201,8 +201,7 @@ export class PennylaneApiClient {
     payload: PennylaneCreateInvoicePayload,
   ): Promise<PennylaneInvoiceResponse> {
     try {
-      // Pennylane API v2: payload must be wrapped in { customer_invoice: ... }
-      // and invoice lines use 'invoice_lines_attributes' key
+      // Pennylane API v2: payload { customer_invoice: { ...fields, invoice_lines_attributes } }
       const { invoice_lines, ...rest } = payload as any;
       const wrappedPayload = {
         customer_invoice: {
@@ -210,12 +209,13 @@ export class PennylaneApiClient {
           invoice_lines_attributes: invoice_lines,
         },
       };
-      const res = await this.http.post<{ invoice: PennylaneInvoiceResponse }>(
+      const res = await this.http.post<any>(
         '/customer_invoices',
         wrappedPayload,
         { headers: this.authHeaders(token) },
       );
-      return res.data.invoice;
+      // Pennylane v2 response: { customer_invoice: {...} } veya { invoice: {...} }
+      return res.data.customer_invoice ?? res.data.invoice ?? res.data;
     } catch (err) {
       this.handleError('createInvoice', err);
     }
@@ -226,11 +226,11 @@ export class PennylaneApiClient {
     pennylaneInvoiceId: string | number,
   ): Promise<PennylaneInvoiceResponse> {
     try {
-      const res = await this.http.get<{ invoice: PennylaneInvoiceResponse }>(
+      const res = await this.http.get<any>(
         `/customer_invoices/${pennylaneInvoiceId}`,
         { headers: this.authHeaders(token) },
       );
-      return res.data.invoice;
+      return res.data.customer_invoice ?? res.data.invoice ?? res.data;
     } catch (err) {
       this.handleError('getInvoice', err);
     }
@@ -241,12 +241,12 @@ export class PennylaneApiClient {
     pennylaneInvoiceId: string | number,
   ): Promise<PennylaneInvoiceResponse> {
     try {
-      const res = await this.http.put<{ invoice: PennylaneInvoiceResponse }>(
+      const res = await this.http.put<any>(
         `/customer_invoices/${pennylaneInvoiceId}/finalize`,
         {},
         { headers: this.authHeaders(token) },
       );
-      return res.data.invoice;
+      return res.data.customer_invoice ?? res.data.invoice ?? res.data;
     } catch (err) {
       this.handleError('finalizeInvoice', err);
     }
