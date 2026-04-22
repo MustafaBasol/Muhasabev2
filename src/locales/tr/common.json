@@ -914,6 +914,7 @@
   "integrations": {
     "pennylane": {
       "connect": "Pennylane'e Bağlan",
+      "subtitle": "PDP — B2B Elektronik Faturalandırma",
       "testConnection": "Bağlantıyı Test Et",
       "testing": "Doğrulanıyor…",
       "syncInvoices": "Faturaları Senkronize Et",

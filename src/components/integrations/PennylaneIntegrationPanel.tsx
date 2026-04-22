@@ -119,7 +119,7 @@ export default function PennylaneIntegrationPanel() {
           <div>
             <h3 className="font-semibold text-gray-900">Pennylane</h3>
             <p className="text-xs text-gray-500">
-              PDP — Facturation électronique B2B
+              {t('integrations.pennylane.subtitle')}
             </p>
           </div>
         </div>

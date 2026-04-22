@@ -892,6 +892,7 @@
   "integrations": {
     "pennylane": {
       "connect": "Connect to Pennylane",
+      "subtitle": "PDP — B2B Electronic Invoicing",
       "testConnection": "Test Connection",
       "testing": "Verifying…",
       "syncInvoices": "Sync Invoices",

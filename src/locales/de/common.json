@@ -1261,6 +1261,7 @@
   "integrations": {
     "pennylane": {
       "connect": "Mit Pennylane verbinden",
+      "subtitle": "PDP — B2B-E-Rechnungsstellung",
       "testConnection": "Verbindung testen",
       "testing": "Wird verifiziert…",
       "syncInvoices": "Rechnungen synchronisieren",

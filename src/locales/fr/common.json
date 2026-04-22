@@ -1355,6 +1355,7 @@
   "integrations": {
     "pennylane": {
       "connect": "Connecter à Pennylane",
+      "subtitle": "PDP — Facturation électronique B2B",
       "testConnection": "Tester la connexion",
       "testing": "Vérification…",
       "syncInvoices": "Synchroniser les factures",
