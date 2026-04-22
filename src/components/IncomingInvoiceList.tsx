@@ -1,0 +1,142 @@
+import { useState } from 'react';
+import { Search, Eye, Building2, FileText, Hash } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { formatAppDate } from '../utils/dateFormat';
+import { normalizeText } from '../utils/sortAndSearch';
+import type { Expense } from '../api/expenses';
+
+type IncomingExpense = Expense & {
+  amount: number | string;
+  expenseDate: string;
+};
+
+interface IncomingInvoiceListProps {
+  expenses: IncomingExpense[];
+  onViewExpense: (expense: IncomingExpense) => void;
+}
+
+export default function IncomingInvoiceList({ expenses, onViewExpense }: IncomingInvoiceListProps) {
+  const { formatCurrency } = useCurrency();
+  const [search, setSearch] = useState('');
+
+  const filtered = expenses.filter(e => {
+    const q = normalizeText(search);
+    if (!q) return true;
+    const haystack = [
+      e.providerInvoiceNumber,
+      e.senderName,
+      e.senderVatNumber,
+      e.description,
+      String(e.amount),
+    ].map(v => normalizeText(v ?? '')).join(' ');
+    return haystack.includes(q);
+  });
+
+  return (
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      {/* Başlık ve arama */}
+      <div className="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center gap-4">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Tedarikçi, fatura no..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 pr-4 py-2 text-sm w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {filtered.length} fatura
+        </span>
+      </div>
+
+      {/* Tablo */}
+      <div className="flex-1 overflow-auto px-6 py-4">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <FileText className="w-12 h-12 mb-3 opacity-40" />
+            <p className="text-sm">
+              {expenses.length === 0
+                ? 'Henüz gelen e-fatura yok. Pennylane bağlantısı üzerinden otomatik çekilir ya da manuel senkronizasyon yapabilirsiniz.'
+                : 'Arama kriterinize uygun fatura bulunamadı.'}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">Fatura No</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">Gönderen</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">VKN / SIREN</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-300">Tutar</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">Tarih</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">Kaynak</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {filtered.map(expense => (
+                  <tr
+                    key={expense.id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                  >
+                    {/* Fatura No */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Hash className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span className="font-mono text-xs text-gray-700 dark:text-gray-200">
+                          {expense.providerInvoiceNumber ?? expense.expenseNumber ?? '-'}
+                        </span>
+                      </div>
+                    </td>
+                    {/* Gönderen */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span className="text-gray-800 dark:text-gray-100">
+                          {expense.senderName ?? expense.description ?? '-'}
+                        </span>
+                      </div>
+                    </td>
+                    {/* VKN */}
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs">
+                      {expense.senderVatNumber ?? '-'}
+                    </td>
+                    {/* Tutar */}
+                    <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-100">
+                      {formatCurrency(Number(expense.amount ?? 0))}
+                    </td>
+                    {/* Tarih */}
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                      {expense.expenseDate ? formatAppDate(expense.expenseDate) : '-'}
+                    </td>
+                    {/* Kaynak */}
+                    <td className="px-4 py-3">
+                      {expense.eInvoiceSource === 'pennylane' && (
+                        <span className="inline-flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 rounded-full px-2 py-0.5">
+                          Pennylane
+                        </span>
+                      )}
+                    </td>
+                    {/* Görüntüle */}
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => onViewExpense(expense)}
+                        className="p-1.5 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                        title="Detayları görüntüle"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

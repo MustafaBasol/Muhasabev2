@@ -91,6 +91,7 @@ import ProductList, { type ProductBulkAction } from "./components/ProductList";
 import SupplierList from "./components/SupplierList";
 import InvoiceList from "./components/InvoiceList";
 import ExpenseList from "./components/ExpenseList";
+import IncomingInvoiceList from "./components/IncomingInvoiceList";
 import BankList from "./components/BankList";
 import ReportsPage from "./components/ReportsPage";
 import ChartOfAccountsPage from "./components/ChartOfAccountsPage";
@@ -874,6 +875,7 @@ const AppContent: React.FC = () => {
   const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [expenseTab, setExpenseTab] = useState<'regular' | 'incoming'>('regular');
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productCategories, setProductCategories] = useState<string[]>(() => initialProductCategories);
@@ -5576,23 +5578,68 @@ const AppContent: React.FC = () => {
             onRestoreInvoice={restoreInvoice}
           />
         );
-      case "expenses":
+      case "expenses": {
+        const regularExpenses = (expenses as any[]).filter(e => !e.eInvoiceSource);
+        const incomingExpenses = (expenses as any[]).filter(e => e.eInvoiceSource);
+        const incomingCount = incomingExpenses.length;
         return (
-          <ExpenseList
-            expenses={expenses as any}
-            onAddExpense={() => openExpenseModal()}
-            onEditExpense={expense => openExpenseModal(expense)}
-            onDeleteExpense={expenseId => deleteExpense(expenseId)}
-            onViewExpense={expense => {
-              setSelectedExpense(expense as any);
-              setShowExpenseViewModal(true);
-            }}
-            onUpdateExpense={updateExpenseStatusInline}
-            onDownloadExpense={handleDownloadExpense}
-            onVoidExpense={voidExpense}
-            onRestoreExpense={restoreExpense}
-          />
+          <div className="flex flex-col h-full">
+            {/* Sekme başlıkları */}
+            <div className="flex border-b border-gray-200 dark:border-gray-700 px-6 pt-4 bg-white dark:bg-gray-900">
+              <button
+                onClick={() => setExpenseTab('regular')}
+                className={`mr-6 pb-3 text-sm font-medium border-b-2 transition-colors ${
+                  expenseTab === 'regular'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                }`}
+              >
+                Giderler
+              </button>
+              <button
+                onClick={() => setExpenseTab('incoming')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                  expenseTab === 'incoming'
+                    ? 'border-emerald-600 text-emerald-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                }`}
+              >
+                Gelen Faturalar
+                {incomingCount > 0 && (
+                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 text-xs rounded-full px-2 py-0.5">
+                    {incomingCount}
+                  </span>
+                )}
+              </button>
+            </div>
+            {/* Sekme içerikleri */}
+            {expenseTab === 'regular' ? (
+              <ExpenseList
+                expenses={regularExpenses}
+                onAddExpense={() => openExpenseModal()}
+                onEditExpense={expense => openExpenseModal(expense)}
+                onDeleteExpense={expenseId => deleteExpense(expenseId)}
+                onViewExpense={expense => {
+                  setSelectedExpense(expense as any);
+                  setShowExpenseViewModal(true);
+                }}
+                onUpdateExpense={updateExpenseStatusInline}
+                onDownloadExpense={handleDownloadExpense}
+                onVoidExpense={voidExpense}
+                onRestoreExpense={restoreExpense}
+              />
+            ) : (
+              <IncomingInvoiceList
+                expenses={incomingExpenses}
+                onViewExpense={expense => {
+                  setSelectedExpense(expense as any);
+                  setShowExpenseViewModal(true);
+                }}
+              />
+            )}
+          </div>
         );
+      }
       case "banks":
         return (
           <BankList

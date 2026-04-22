@@ -31,6 +31,12 @@ export interface Expense {
   voidedBy?: string;
   createdAt: string;
   updatedAt: string;
+  // Gelen e-fatura alanları (Pennylane supplier invoice)
+  eInvoiceSource?: string | null;
+  providerExpenseId?: string | null;
+  providerInvoiceNumber?: string | null;
+  senderName?: string | null;
+  senderVatNumber?: string | null;
 }
 
 export interface CreateExpenseDto {

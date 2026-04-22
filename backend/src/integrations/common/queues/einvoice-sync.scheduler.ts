@@ -12,6 +12,7 @@ import {
 } from './einvoice-queue.constants';
 import { ProviderAccountService } from '../services/provider-account.service';
 import { PROVIDER_KEYS, ProviderConnectionStatus } from '../types/integration.types';
+import { PennylaneIncomingInvoiceService } from '../../pennylane/services/pennylane-incoming-invoice.service';
 
 /**
  * EInvoiceSyncScheduler
@@ -31,6 +32,7 @@ export class EInvoiceSyncScheduler {
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
     private readonly providerAccountService: ProviderAccountService,
+    private readonly incomingInvoiceService: PennylaneIncomingInvoiceService,
   ) {}
 
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -65,5 +67,47 @@ export class EInvoiceSyncScheduler {
     }
 
     this.logger.log(`Periyodik sync: ${queued}/${activeTenants.length} tenant kuyruğa eklendi.`);
+  }
+
+  /**
+   * Her saat başı Pennylane bağlı tenant'lar için gelen (supplier) faturaları çek.
+   * Yük: tenant başına ~1 API çağrısı, ihmal edilebilir.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async syncIncomingInvoicesForAllTenants(): Promise<void> {
+    this.logger.log('Saatlik gelen fatura sync başlıyor...');
+
+    const activeTenants = await this.tenantRepository.find({
+      where: { status: TenantStatus.ACTIVE },
+      select: ['id'],
+    });
+
+    let synced = 0;
+    for (const tenant of activeTenants) {
+      const account = await this.providerAccountService.findByTenantAndProvider(
+        tenant.id,
+        PROVIDER_KEYS.PENNYLANE,
+      );
+
+      if (account?.connectionStatus !== ProviderConnectionStatus.CONNECTED) {
+        continue;
+      }
+
+      try {
+        const result = await this.incomingInvoiceService.syncIncomingInvoices(tenant.id);
+        if (result.created > 0) {
+          this.logger.log(
+            `Tenant ${tenant.id}: ${result.created} yeni gelen fatura import edildi.`,
+          );
+        }
+        synced++;
+      } catch (err) {
+        this.logger.error(
+          `Tenant ${tenant.id} gelen fatura sync hatası: ${(err as Error).message}`,
+        );
+      }
+    }
+
+    this.logger.log(`Saatlik gelen fatura sync tamamlandı: ${synced}/${activeTenants.length} tenant.`);
   }
 }
