@@ -7,7 +7,7 @@ import {
   PennylaneTokenResponse,
 } from '../types/pennylane.types';
 import { ProviderAccountService } from '../../common/services/provider-account.service';
-import { PROVIDER_KEYS } from '../../common/types/integration.types';
+import { PROVIDER_KEYS, ProviderConnectionStatus } from '../../common/types/integration.types';
 
 /**
  * PennylaneOAuthService
@@ -92,6 +92,8 @@ export class PennylaneOAuthService {
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token,
       tokenExpiresAt: expiresAt,
+      connectionStatus: ProviderConnectionStatus.CONNECTED,
+      lastConnectedAt: new Date(),
       metadata: { token_type: tokenData.token_type, scope: tokenData.scope },
     });
 
