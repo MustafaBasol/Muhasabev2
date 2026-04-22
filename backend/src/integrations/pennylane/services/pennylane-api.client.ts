@@ -201,20 +201,19 @@ export class PennylaneApiClient {
     payload: PennylaneCreateInvoicePayload,
   ): Promise<PennylaneInvoiceResponse> {
     try {
-      // Pennylane API v2: payload { customer_invoice: { ...fields, invoice_lines_attributes } }
+      // Pennylane API v2: payload düz gönderilir, wrapper yok.
+      // invoice_lines → invoice_lines_attributes olarak rename edilir.
       const { invoice_lines, ...rest } = payload as any;
-      const wrappedPayload = {
-        customer_invoice: {
-          ...rest,
-          invoice_lines_attributes: invoice_lines,
-        },
+      const body = {
+        ...rest,
+        invoice_lines_attributes: invoice_lines,
       };
       const res = await this.http.post<any>(
         '/customer_invoices',
-        wrappedPayload,
+        body,
         { headers: this.authHeaders(token) },
       );
-      // Pennylane v2 response: { customer_invoice: {...} } veya { invoice: {...} }
+      // Response: { customer_invoice: {...} } veya { invoice: {...} } veya direkt obje
       return res.data.customer_invoice ?? res.data.invoice ?? res.data;
     } catch (err) {
       this.handleError('createInvoice', err);
