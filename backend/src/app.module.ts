@@ -93,6 +93,7 @@ const parseDatabaseUrl = (value?: string): PgUrlParts | null => {
     ServeStaticModule.forRoot({
       serveRoot: '/assets',
       rootPath: join(process.cwd(), 'public', 'assets'),
+      serveStaticOptions: { index: false, fallthrough: false },
     }),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public', 'dist'), // FIX: Artık exclude kuralı yok, middleware bu işi halledecek.
