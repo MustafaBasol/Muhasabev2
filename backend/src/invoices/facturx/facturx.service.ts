@@ -95,6 +95,18 @@ export class FacturXService {
     const font     = await doc.embedFont(StandardFonts.Helvetica);
     const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
+    /**
+     * WinAnsi (Windows-1252) kodlaması Türkçe özgün karakterleri desteklemez.
+     * pdf-lib StandardFonts bu kodlamayı kullanır → encode sırasında hata fırlatır.
+     * Transliterasyon ile güvenli ASCII/Latin-1 karşılıklarına dönüştür.
+     */
+    const toWinAnsi = (s: string): string =>
+      s
+        .replace(/ı/g, 'i').replace(/İ/g, 'I')
+        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+        .replace(/ş/g, 's').replace(/Ş/g, 'S')
+        .replace(/[\x00-\x08\x0B-\x1F\x7F]/g, ''); // control chars
+
     let y = pageH - 40;
 
     /** Metin çiz */
@@ -107,7 +119,7 @@ export class FacturXService {
       color = rgb(0, 0, 0),
     ) => {
       if (!t) return;
-      page.drawText(String(t).replace(/[\x00-\x08\x0B-\x1F\x7F]/g, ''), {
+      page.drawText(toWinAnsi(String(t)), {
         x,
         y: yPos,
         size,
@@ -125,8 +137,9 @@ export class FacturXService {
       bold = false,
       color = rgb(0, 0, 0),
     ) => {
-      const w = (bold ? fontBold : font).widthOfTextAtSize(String(t), size);
-      draw(t, rightEdge - w, yPos, size, bold, color);
+      const safe = toWinAnsi(String(t));
+      const w = (bold ? fontBold : font).widthOfTextAtSize(safe, size);
+      draw(safe, rightEdge - w, yPos, size, bold, color);
     };
 
     /** Yatay çizgi */
