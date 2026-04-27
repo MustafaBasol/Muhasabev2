@@ -237,15 +237,16 @@ export class FacturXService {
 
     // ── KALEMLER TABLOSU ────────────────────────────────────────────────────
     // Sütun tanımları: x başlangıcı + genişlik
+    // Toplam içerik genişliği: pageW - 2*margin = 515
     const C = {
-      num:   { x: margin,        w: 18  },
-      desc:  { x: margin + 18,   w: 178 },
-      qty:   { x: margin + 196,  w: 35  },
-      unit:  { x: margin + 231,  w: 28  },
-      pu:    { x: margin + 259,  w: 65  },
-      rate:  { x: margin + 324,  w: 35  },
-      tax:   { x: margin + 359,  w: 62  },
-      total: { x: margin + 421,  w: 64  },
+      num:   { x: margin,        w: 18,  align: 'left'  },
+      desc:  { x: margin + 18,   w: 185, align: 'left'  },
+      qty:   { x: margin + 203,  w: 42,  align: 'right' },
+      unit:  { x: margin + 245,  w: 28,  align: 'left'  },
+      pu:    { x: margin + 273,  w: 66,  align: 'right' },
+      rate:  { x: margin + 339,  w: 38,  align: 'right' },
+      tax:   { x: margin + 377,  w: 65,  align: 'right' },
+      total: { x: margin + 442,  w: 73,  align: 'right' },
     };
     const rowH = 16;
 
@@ -266,7 +267,14 @@ export class FacturXService {
       ['Total HT', 'total'],
     ];
     for (const [label, key] of headers) {
-      draw(label, C[key].x + 2, y - 11, 7.5, true, rgb(1, 1, 1));
+      const col = C[key];
+      if (col.align === 'right') {
+        // Sayısal başlıklar: sağa hizalı — veri ile aynı hizaya gelir
+        const w = fontBold.widthOfTextAtSize(toWinAnsi(label), 7.5);
+        draw(label, col.x + col.w - w - 2, y - 11, 7.5, true, rgb(1, 1, 1));
+      } else {
+        draw(label, col.x + 2, y - 11, 7.5, true, rgb(1, 1, 1));
+      }
     }
     y -= rowH;
 
@@ -286,16 +294,16 @@ export class FacturXService {
       const taxRate = Number(ln.taxRate);
       const lNet    = Number(ln.lineNet) || qty * uPrice;
       const lTax    = Number(ln.lineTax) || (lNet * taxRate) / 100;
-      const name    = (ln.productName || ln.description || '').slice(0, 32);
+      const name    = (ln.productName || ln.description || '').slice(0, 34);
 
-      draw(String(i + 1),    C.num.x  + 2, y - 11, 8);
-      draw(name,             C.desc.x + 2, y - 11, 7.5);
-      rDraw(fmt(qty),        C.qty.x  + C.qty.w  - 2, y - 11, 8);
-      draw(ln.unit || 'u.',  C.unit.x + 2, y - 11, 8);
-      rDraw(fmt(uPrice),     C.pu.x   + C.pu.w   - 2, y - 11, 8);
-      draw(`${fmt(taxRate)}%`, C.rate.x + 2, y - 11, 8);
-      rDraw(fmt(lTax),       C.tax.x  + C.tax.w  - 2, y - 11, 8);
-      rDraw(fmt(lNet),       C.total.x + C.total.w - 2, y - 11, 8);
+      draw(String(i + 1),      C.num.x  + 2,              y - 11, 8);
+      draw(name,               C.desc.x + 2,              y - 11, 7.5);
+      rDraw(fmt(qty),          C.qty.x  + C.qty.w  - 2,   y - 11, 8);
+      draw(ln.unit || 'u.',    C.unit.x + 2,              y - 11, 8);
+      rDraw(fmt(uPrice),       C.pu.x   + C.pu.w   - 2,  y - 11, 8);
+      rDraw(`${fmt(taxRate)}%`, C.rate.x + C.rate.w - 2,  y - 11, 8);
+      rDraw(fmt(lTax),         C.tax.x  + C.tax.w  - 2,  y - 11, 8);
+      rDraw(fmt(lNet),         C.total.x + C.total.w - 2, y - 11, 8);
       y -= rowH;
     }
     hLine(y);
