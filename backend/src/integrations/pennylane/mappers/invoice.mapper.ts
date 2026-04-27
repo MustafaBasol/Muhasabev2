@@ -35,6 +35,8 @@ export function mapInvoiceToPayload(
     customer_id: pennylaneCustomerId,
     currency: invoice.invoiceCurrency ?? 'EUR',
     draft,
+    // label: Pennylane fatura listesinde Comptario numarasını göster
+    label: invoice.invoiceNumber,
     invoice_lines: lines.map(mapLine),
   };
 }
