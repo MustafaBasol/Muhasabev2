@@ -13,6 +13,7 @@ import { safeLocalStorage } from '../utils/localStorageSafe';
 import { logger } from '../utils/logger';
 import { buildCsv, downloadCsvFile } from '../utils/csv';
 import { formatAppDate } from '../utils/dateFormat';
+import { hasInvoiceBeenSentToEInvoice } from '../utils/eInvoiceUi';
 // preset etiketleri i18n'den alınır
 
 // Archive threshold: invoices older than this many days will only appear in archive
@@ -36,6 +37,8 @@ interface Invoice {
   voidReason?: string;
   voidedAt?: string;
   voidedBy?: string;
+  eInvoiceStatus?: string | null;
+  providerInvoiceId?: string | null;
 }
 
 interface InvoiceListProps {
@@ -323,6 +326,19 @@ export default function InvoiceList({
     return formatCurrency(amount);
   };
 
+  const getEInvoiceDeliveryBadge = (invoice: Invoice) => {
+    const isSent = hasInvoiceBeenSentToEInvoice(invoice);
+    return (
+      <span
+        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+          isSent ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+        }`}
+      >
+        {isSent ? t('invoices.eInvoiceDeliverySent') : t('invoices.eInvoiceDeliveryNotSent')}
+      </span>
+    );
+  };
+
   const handleInlineEdit = (invoiceId: string, field: string, currentValue: string) => {
     setEditingInvoice(invoiceId);
     setEditingField(field);
@@ -607,6 +623,9 @@ export default function InvoiceList({
                   <th onClick={() => toggleSort('status')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-40">
                     {t('invoices.status')}<SortIndicator active={sort.by==='status'} />
                   </th>
+                  <th className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
+                    {t('invoices.eInvoiceDelivery')}
+                  </th>
                   <th onClick={() => toggleSort('issueDate')} className="hidden lg:table-cell px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none w-32">
                     {t('invoices.date')}<SortIndicator active={sort.by==='issueDate'} />
                   </th>
@@ -647,6 +666,10 @@ export default function InvoiceList({
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-gray-500 font-medium">{t('invoices.status')}:</span>
                           {getStatusBadge(invoice.status, invoice.isVoided)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-gray-500 font-medium">{t('invoices.eInvoiceDelivery')}:</span>
+                          {getEInvoiceDeliveryBadge(invoice)}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-gray-500 font-medium">{t('invoices.amount')}:</span>
@@ -794,6 +817,9 @@ export default function InvoiceList({
                           {getStatusBadge(invoice.status, invoice.isVoided)}
                         </div>
                       )}
+                    </td>
+                    <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap">
+                      {getEInvoiceDeliveryBadge(invoice)}
                     </td>
                     <td className="hidden lg:table-cell px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {editingInvoice === invoice.id && editingField === 'issueDate' ? (

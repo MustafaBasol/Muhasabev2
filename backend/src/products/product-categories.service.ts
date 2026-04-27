@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { ProductCategory } from './entities/product-category.entity';
 import { CreateProductCategoryDto } from './dto/create-product-category.dto';
 import { UpdateProductCategoryDto } from './dto/update-product-category.dto';
@@ -137,11 +137,36 @@ export class ProductCategoriesService {
       }
     }
 
+    const nextName = updateCategoryDto.name?.trim() || category.name;
+    const hasTaxRateUpdate = Object.prototype.hasOwnProperty.call(
+      updateCategoryDto,
+      'taxRate',
+    );
+
     try {
-      await this.categoriesRepository.update(
-        { id, tenantId },
-        updateCategoryDto,
-      );
+      await this.categoriesRepository.update({ id, tenantId }, updateCategoryDto);
+
+      if (hasTaxRateUpdate && typeof updateCategoryDto.taxRate === 'number') {
+        await this.productsRepository.update(
+          {
+            tenantId,
+            category: category.name,
+            categoryTaxRateOverride: IsNull(),
+          },
+          { taxRate: updateCategoryDto.taxRate },
+        );
+
+        if (nextName !== category.name) {
+          await this.productsRepository.update(
+            {
+              tenantId,
+              category: nextName,
+              categoryTaxRateOverride: IsNull(),
+            },
+            { taxRate: updateCategoryDto.taxRate },
+          );
+        }
+      }
     } catch (error) {
       if (this.isUniqueConstraint(error)) {
         throw new ConflictException(

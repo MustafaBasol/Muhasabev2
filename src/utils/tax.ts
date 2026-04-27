@@ -146,10 +146,6 @@ export const resolveProductTaxRate = (
   if (override !== null) {
     return override;
   }
-  const productSpecific = normalizeTaxRateInput(product?.taxRate);
-  if (productSpecific !== null) {
-    return productSpecific;
-  }
   const categoryRate = resolveCategoryTaxRate(product?.category ?? categoryHint, categories);
   if (categoryRate !== null) {
     return categoryRate;
@@ -157,6 +153,10 @@ export const resolveProductTaxRate = (
   const hintRate = resolveCategoryTaxRate(categoryHint ?? null, categories);
   if (hintRate !== null) {
     return hintRate;
+  }
+  const productSpecific = normalizeTaxRateInput(product?.taxRate);
+  if (productSpecific !== null) {
+    return productSpecific;
   }
   return defaultRate;
 };

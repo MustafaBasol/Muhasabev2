@@ -40,7 +40,8 @@ import * as invoicesApi from "./api/invoices";
 import * as salesApi from "./api/sales";
 import * as expensesApi from "./api/expenses";
 import * as suppliersApi from "./api/suppliers";
-import { syncIncomingInvoices } from "./api/integrations";
+import { submitInvoiceToPennylane, syncIncomingInvoices } from "./api/integrations";
+import { getEInvoiceSubmissionErrorContent } from "./utils/eInvoiceUi";
 
 // components
 import Header, { HeaderNotification } from "./components/Header";
@@ -900,6 +901,7 @@ const AppContent: React.FC = () => {
   const [_isLoadingData, setIsLoadingData] = useState(true);
   const [infoModal, setInfoModal] = useState<{ title: string; message: string; tone?: 'success' | 'error' | 'info'; confirmLabel?: string; onConfirm?: () => void; cancelLabel?: string; onCancel?: () => void; extraLabel?: string; onExtra?: () => void } | null>(null);
   const [publicQuoteId, setPublicQuoteId] = useState<string | null>(null);
+  const [postCreateEInvoicePrompt, setPostCreateEInvoicePrompt] = useState<{ id: string; invoiceNumber: string } | null>(null);
 
   const refreshProductsFromServer = React.useCallback(async () => {
     try {
@@ -915,6 +917,30 @@ const AppContent: React.FC = () => {
       reportSilentError('app.products.refresh.failed', error);
     }
   }, [tenantScopedId]);
+
+  const handleSendInvoiceToEInvoice = async (invoice: { id: string; invoiceNumber?: string }) => {
+    try {
+      const submitted = await submitInvoiceToPennylane(invoice.id);
+      setInvoices(prev => prev.map(item => (
+        String(item.id) === String(invoice.id)
+          ? {
+              ...item,
+              providerInvoiceId: submitted.providerInvoiceId ?? item.providerInvoiceId ?? null,
+              eInvoiceStatus: submitted.eInvoiceStatus ?? item.eInvoiceStatus ?? null,
+            }
+          : item
+      )));
+      showToast(t('invoice.eInvoiceSent'), 'success');
+    } catch (error) {
+      const content = getEInvoiceSubmissionErrorContent(t, error);
+      setInfoModal({
+        title: content.title,
+        message: content.message,
+        tone: 'error',
+        confirmLabel: t('common.ok'),
+      });
+    }
+  };
 
   const authUserSnapshot = React.useMemo(() => ({
     id: authUser?.id ?? null,
@@ -4933,6 +4959,11 @@ const AppContent: React.FC = () => {
 
       showToast(t('toasts.invoices.createSuccess'), 'success');
 
+      setPostCreateEInvoicePrompt({
+        id: String(created.id),
+        invoiceNumber: String(created.invoiceNumber || invoiceData.invoiceNumber || ''),
+      });
+
       setShowInvoiceFromSaleModal(false);
       setSelectedSaleForInvoice(null);
 
@@ -6044,7 +6075,14 @@ const AppContent: React.FC = () => {
         <InvoiceModal
           onClose={closeInvoiceModal}
           onSave={async (invoice) => {
-            await upsertInvoice(invoice);
+            const shouldAskForEInvoice = !selectedInvoice?.id;
+            const savedInvoice = await upsertInvoice(invoice);
+            if (shouldAskForEInvoice && savedInvoice?.id) {
+              setPostCreateEInvoicePrompt({
+                id: String(savedInvoice.id),
+                invoiceNumber: String(savedInvoice.invoiceNumber || invoice.invoiceNumber || ''),
+              });
+            }
             closeInvoiceModal();
           }}
           invoice={selectedInvoice as any}
@@ -6396,6 +6434,22 @@ const AppContent: React.FC = () => {
             await handleDeleteSale(id, { skipConfirm: true });
           }}
           onCancel={() => setSaleToDelete(null)}
+        />
+      )}
+
+      {postCreateEInvoicePrompt && (
+        <ConfirmModal
+          isOpen={true}
+          title={t('invoices.askSendEInvoiceTitle')}
+          message={t('invoices.askSendEInvoiceMessage', { invoiceNumber: postCreateEInvoicePrompt.invoiceNumber })}
+          confirmText={t('common.yes')}
+          cancelText={t('common.no')}
+          onConfirm={async () => {
+            const invoiceToSend = postCreateEInvoicePrompt;
+            setPostCreateEInvoicePrompt(null);
+            await handleSendInvoiceToEInvoice(invoiceToSend);
+          }}
+          onCancel={() => setPostCreateEInvoicePrompt(null)}
         />
       )}
     </>

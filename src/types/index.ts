@@ -80,6 +80,9 @@ export interface Invoice {
   type?: 'product' | 'service';
   // Satış-fatura bağlantısı için opsiyonel alan
   saleId?: string;
+  eInvoiceStatus?: string | null;
+  providerInvoiceId?: string | null;
+  providerInvoiceNumber?: string | null;
 }
 
 export interface InvoiceItem {

@@ -7,6 +7,7 @@ import { safeLocalStorage } from '../utils/localStorageSafe';
 import { formatAppDate, formatAppDateTime } from '../utils/dateFormat';
 import EInvoiceStatusBadge from './EInvoiceStatusBadge';
 import EInvoiceValidationModal, { type EInvoiceMissingField } from './EInvoiceValidationModal';
+import InfoModal from './InfoModal';
 import {
   submitInvoiceToPennylane,
   syncPennylaneInvoices,
@@ -14,6 +15,7 @@ import {
 } from '../api/integrations';
 import { buildInvoicePdfBlob } from '../utils/pdfGenerator';
 import { getCustomer, type Customer } from '../api/customers';
+import { getEInvoiceSubmissionErrorContent } from '../utils/eInvoiceUi';
 
 interface InvoiceContact {
   id?: string;
@@ -83,6 +85,7 @@ export default function InvoiceViewModal({
   const [submitting, setSubmitting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [submitErrorModal, setSubmitErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [validationModal, setValidationModal] = useState<{
     open: boolean;
     missingFields: EInvoiceMissingField[];
@@ -141,8 +144,7 @@ export default function InvoiceViewModal({
       await submitInvoiceToPennylane(invoice.id);
       setActionMsg(t('invoice.eInvoiceSent'));
     } catch (err: any) {
-      const detail = err?.response?.data?.message || err?.message || '';
-      setActionMsg(t('invoice.sendToEInvoice') + ' başarısız: ' + detail);
+      setSubmitErrorModal(getEInvoiceSubmissionErrorContent(t, err));
     } finally {
       setSubmitting(false);
     }
@@ -359,6 +361,17 @@ export default function InvoiceViewModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-xs text-gray-600">
             <div>
               <div>
+
+          {submitErrorModal && (
+            <InfoModal
+              isOpen={true}
+              title={submitErrorModal.title}
+              message={submitErrorModal.message}
+              tone="error"
+              confirmLabel={t('common.ok')}
+              onClose={() => setSubmitErrorModal(null)}
+            />
+          )}
                 <span className="text-gray-500">{L.createdBy}:</span>{' '}
                 <span className="font-medium">{
                   resolveUserLabel(
