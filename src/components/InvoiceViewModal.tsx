@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { X, Download, Edit, Calendar, Mail, MapPin, Send, RefreshCw } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,7 @@ import {
 } from '../api/integrations';
 import { buildInvoicePdfBlob } from '../utils/pdfGenerator';
 import { getCustomer, type Customer } from '../api/customers';
-import { getEInvoiceSubmissionErrorContent } from '../utils/eInvoiceUi';
+import { getEInvoiceSubmissionErrorContent, hasInvoiceBeenSentToEInvoice } from '../utils/eInvoiceUi';
 
 interface InvoiceContact {
   id?: string;
@@ -86,6 +86,13 @@ export default function InvoiceViewModal({
   const [syncing, setSyncing] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [submitErrorModal, setSubmitErrorModal] = useState<{ title: string; message: string } | null>(null);
+  const [localEInvoiceState, setLocalEInvoiceState] = useState<{
+    eInvoiceStatus?: string | null;
+    providerInvoiceId?: string | null;
+  }>({
+    eInvoiceStatus: invoice?.eInvoiceStatus ?? null,
+    providerInvoiceId: invoice?.providerInvoiceId ?? null,
+  });
   const [validationModal, setValidationModal] = useState<{
     open: boolean;
     missingFields: EInvoiceMissingField[];
@@ -113,8 +120,24 @@ export default function InvoiceViewModal({
     [t]
   );
 
+  useEffect(() => {
+    setLocalEInvoiceState({
+      eInvoiceStatus: invoice?.eInvoiceStatus ?? null,
+      providerInvoiceId: invoice?.providerInvoiceId ?? null,
+    });
+  }, [invoice?.id, invoice?.eInvoiceStatus, invoice?.providerInvoiceId]);
+
   const handleSubmitEInvoice = useCallback(async () => {
     if (!invoice) return;
+
+    if (hasInvoiceBeenSentToEInvoice(localEInvoiceState)) {
+      setSubmitErrorModal({
+        title: t('invoice.eInvoiceAlreadySentTitle'),
+        message: t('invoice.eInvoiceAlreadySentMessage'),
+      });
+      return;
+    }
+
     setSubmitting(true);
     setActionMsg(null);
     try {
@@ -141,14 +164,18 @@ export default function InvoiceViewModal({
           }
         }
       }
-      await submitInvoiceToPennylane(invoice.id);
+      const submissionResult = await submitInvoiceToPennylane(invoice.id);
+      setLocalEInvoiceState(prev => ({
+        providerInvoiceId: submissionResult.providerInvoiceId ?? prev.providerInvoiceId ?? null,
+        eInvoiceStatus: submissionResult.eInvoiceStatus ?? prev.eInvoiceStatus ?? 'submitted',
+      }));
       setActionMsg(t('invoice.eInvoiceSent'));
     } catch (err: any) {
       setSubmitErrorModal(getEInvoiceSubmissionErrorContent(t, err));
     } finally {
       setSubmitting(false);
     }
-  }, [invoice, validateCustomerForEInvoice, t]);
+  }, [invoice, localEInvoiceState, validateCustomerForEInvoice, t]);
 
   const handleSyncStatus = useCallback(async () => {
     if (!invoice) return;
@@ -289,8 +316,8 @@ export default function InvoiceViewModal({
               <p className="text-sm text-gray-500">{t('invoice.details')}</p>
             </div>
             {getStatusBadge(invoice.status)}
-            {invoice.eInvoiceStatus && (
-              <EInvoiceStatusBadge status={invoice.eInvoiceStatus} />
+            {localEInvoiceState.eInvoiceStatus && (
+              <EInvoiceStatusBadge status={localEInvoiceState.eInvoiceStatus} />
             )}
           </div>
           <div className="flex items-center space-x-2">
@@ -307,14 +334,14 @@ export default function InvoiceViewModal({
             <button
               onClick={handleSubmitEInvoice}
               disabled={submitting}
-              title={t('invoice.sendToEInvoiceTitle')}
+              title={hasInvoiceBeenSentToEInvoice(localEInvoiceState) ? t('invoice.eInvoiceAlreadySentTitle') : t('invoice.sendToEInvoiceTitle')}
               className="flex items-center space-x-1 px-3 py-2 border border-blue-200 text-blue-700 text-sm rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors"
             >
               <Send className="w-4 h-4" />
               <span className="hidden sm:inline">{submitting ? '…' : t('invoice.sendToEInvoice')}</span>
             </button>
             {/* Durum Senkronize */}
-            {invoice.providerInvoiceId && (
+            {localEInvoiceState.providerInvoiceId && (
               <button
                 onClick={handleSyncStatus}
                 disabled={syncing}
