@@ -298,7 +298,8 @@ export function Audit(entity: string, action: AuditAction) {
   return function (
     target: object,
     propertyKey?: string | symbol,
-    descriptor?: TypedPropertyDescriptor<unknown>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    descriptor?: TypedPropertyDescriptor<any>,
   ) {
     const auditConfig = { entity, action };
 
