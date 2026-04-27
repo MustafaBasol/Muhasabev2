@@ -321,6 +321,33 @@ const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
   const pdfW = pdf.internal.pageSize.getWidth();     // 210mm
   const pdfH = pdf.internal.pageSize.getHeight();    // 297mm
 
+  const insertSpacerBefore = (target: HTMLElement, heightPx: number) => {
+    if (heightPx <= 0) return;
+
+    if (target instanceof HTMLTableRowElement) {
+      const spacerRow = document.createElement('tr');
+      const spacerCell = document.createElement('td');
+      const cellCount = Math.max(target.cells.length, 1);
+      spacerCell.colSpan = cellCount;
+      spacerCell.style.border = '0';
+      spacerCell.style.padding = '0';
+      spacerCell.style.height = `${heightPx}px`;
+      spacerCell.style.lineHeight = '0';
+      spacerCell.style.fontSize = '0';
+      spacerCell.innerHTML = '&nbsp;';
+      spacerRow.setAttribute('aria-hidden', 'true');
+      spacerRow.appendChild(spacerCell);
+      target.parentElement?.insertBefore(spacerRow, target);
+      return;
+    }
+
+    const spacer = document.createElement('div');
+    spacer.style.height = `${heightPx}px`;
+    spacer.style.width = '100%';
+    spacer.style.display = 'block';
+    target.parentElement?.insertBefore(spacer, target);
+  };
+
   // Marjinler (mm)
   const topMarginOtherMm = 6;  // 2.+ sayfalar üst boşluk (ilk ürün sayfasını bozmaz)
   const bottomMarginFirstMm = 12; // ilk sayfa alt boşluk (footer güvenliği)
@@ -360,11 +387,7 @@ const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
           const posInPage = top % pageCssHeightPx;
           const spacerH = Math.ceil(pageCssHeightPx - posInPage);
           if (spacerH > 0 && spacerH < pageCssHeightPx) {
-            const spacer = document.createElement('div');
-            spacer.style.height = `${spacerH}px`;
-            spacer.style.width = '100%';
-            spacer.style.display = 'block';
-            el.parentElement?.insertBefore(spacer, el);
+            insertSpacerBefore(el, spacerH);
           }
         } catch (error) {
           pdfWarn('Failed to insert forced page break spacer.', error);
@@ -381,11 +404,7 @@ const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
           const marginBottomReserve = 48;
           const posInPage = top % pageCssHeightPx;
           if (posInPage + blockH > (pageCssHeightPx - marginBottomReserve)) {
-            const spacer = document.createElement('div');
-            spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
-            spacer.style.width = '100%';
-            spacer.style.display = 'block';
-            el.parentElement?.insertBefore(spacer, el);
+            insertSpacerBefore(el, Math.ceil(pageCssHeightPx - posInPage));
           }
         } catch (error) {
           pdfWarn('Failed to insert avoid-split spacer.', error);
@@ -402,11 +421,7 @@ const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
           const reserve = 48;
           const posInPage = top % pageCssHeightPx;
           if (posInPage + rowH > (pageCssHeightPx - reserve)) {
-            const spacer = document.createElement('div');
-            spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
-            spacer.style.width = '100%';
-            spacer.style.display = 'block';
-            rowEl.parentElement?.insertBefore(spacer, rowEl);
+            insertSpacerBefore(rowEl, Math.ceil(pageCssHeightPx - posInPage));
           }
         } catch (error) {
           pdfWarn('Failed to insert table-row spacer for pagination.', error);
@@ -423,11 +438,7 @@ const htmlSegmentsToPdfBlob = async (segments: string[]): Promise<Blob> => {
           const reserveScope = 96; // daha cömert alt boşluk
           const posInPage = top % pageCssHeightPx;
           if (posInPage + blockH > (pageCssHeightPx - reserveScope)) {
-            const spacer = document.createElement('div');
-            spacer.style.height = `${Math.ceil(pageCssHeightPx - posInPage)}px`;
-            spacer.style.width = '100%';
-            spacer.style.display = 'block';
-            el.parentElement?.insertBefore(spacer, el);
+            insertSpacerBefore(el, Math.ceil(pageCssHeightPx - posInPage));
           }
         } catch (error) {
           pdfWarn('Failed to reserve scope block space.', error);
