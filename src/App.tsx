@@ -4659,6 +4659,10 @@ const AppContent: React.FC = () => {
         total: Number(li?.total) || ((Number(li?.quantity) || 1) * (Number(li?.unitPrice) || 0)),
         productId: li?.productId,
         unit: li?.unit,
+        discountAmount: Number(li?.discountAmount) || 0,
+        lineNet: Number(li?.lineNet) || 0,
+        lineTax: Number(li?.lineTax) || 0,
+        lineGross: Number(li?.lineGross) || 0,
         taxRate: Number(li?.taxRate ?? DEFAULT_TAX_RATE),
       }));
     }

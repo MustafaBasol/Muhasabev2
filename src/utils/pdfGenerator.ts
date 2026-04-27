@@ -881,10 +881,19 @@ const buildInvoiceHtml = (invoice: Invoice, c: Partial<CompanyProfile> = {}, lan
           ${items.map((item: InvoiceItem) => {
             const qty = toNum(item.quantity);
             const unitPriceHt = toNum(item.unitPrice);
-            const lineHt = toNum(item.total) || (unitPriceHt * qty);
             const rate = toNum((item as any).taxRate);
-            const vat = lineHt * ((Number.isFinite(rate) ? rate : 0) / 100);
-            const ttc = lineHt + vat;
+            const computedLineHt = unitPriceHt * qty;
+            const explicitLineHt = toNum((item as any).lineNet);
+            const explicitLineTtc = toNum((item as any).lineGross) || toNum(item.total);
+            const lineHt = explicitLineHt
+              || (Number.isFinite(computedLineHt) && computedLineHt > 0 ? computedLineHt : 0)
+              || explicitLineTtc;
+            const vatFromRate = lineHt * ((Number.isFinite(rate) ? rate : 0) / 100);
+            const explicitVat = toNum((item as any).lineTax);
+            const vat = explicitVat
+              || vatFromRate
+              || Math.max(0, explicitLineTtc - lineHt);
+            const ttc = explicitLineTtc || (lineHt + vat);
 
             const unit = (() => {
               const direct = String((item as any).unit || (item as any).productUnit || '').trim();

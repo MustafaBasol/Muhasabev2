@@ -15,6 +15,11 @@ export interface InvoiceLineItem {
   quantity: number;
   unitPrice: number;
   taxRate?: number;
+  discountAmount?: number;
+  lineNet?: number;
+  lineTax?: number;
+  lineGross?: number;
+  unit?: string;
   total: number;
 }
 
@@ -32,6 +37,11 @@ function normalizeInvoice(raw: any): any {
     quantity: Number(l.quantity) || 0,
     unitPrice: Number(l.unitPrice) || 0,
     taxRate: Number(l.taxRate) || 0,
+    discountAmount: Number(l.discountAmount) || 0,
+    lineNet: Number(l.lineNet) || 0,
+    lineTax: Number(l.lineTax) || 0,
+    lineGross: Number(l.lineGross) || 0,
+    unit: l.unit ?? undefined,
     total: Number(l.lineGross) || Number(l.lineNet) || (Number(l.quantity) * Number(l.unitPrice)) || 0,
   }));
   return {
