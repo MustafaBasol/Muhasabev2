@@ -80,7 +80,7 @@ export default function ProductCategoryModal({
     }
     if (editingCategory) {
       setName(editingCategory.name);
-      setTaxRate(editingCategory.taxRate.toString());
+      setTaxRate(String(parseFloat(String(editingCategory.taxRate)) || 0));
       setParentId('');
     } else {
       setName('');

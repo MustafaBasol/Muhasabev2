@@ -17,7 +17,17 @@ export class ProductCategory {
   @Column()
   name: string;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string | number) =>
+        typeof value === 'string' ? parseFloat(value) : (value ?? 0),
+    },
+  })
   taxRate: number; // KDV oranı (%). Bilinmiyorsa 0.
 
   @Column({ default: true })
