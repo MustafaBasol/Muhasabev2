@@ -12,6 +12,7 @@ import {
   syncPennylaneInvoices,
   downloadFacturX,
 } from '../api/integrations';
+import { buildInvoicePdfBlob } from '../utils/pdfGenerator';
 import { getCustomer, type Customer } from '../api/customers';
 
 interface InvoiceContact {
@@ -164,7 +165,10 @@ export default function InvoiceViewModal({
   const handleDownloadFacturX = useCallback(async () => {
     if (!invoice) return;
     try {
-      const blob = await downloadFacturX(invoice.id);
+      // 1. Mevcut görsel PDF'i üret (kendi şablonumuz)
+      const sourcePdf = await buildInvoicePdfBlob(invoice);
+      // 2. Backend'e gönder → CII XML gömülü Factur-X PDF al
+      const blob = await downloadFacturX(invoice.id, sourcePdf);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

@@ -11,7 +11,10 @@ import {
   UseGuards,
   Req,
   Logger,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -71,6 +74,36 @@ export class InvoicesController {
       id,
       req.user.tenantId,
       undefined,
+      profile,
+    );
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': String(pdf.length),
+    });
+    res.end(pdf);
+  }
+
+  /**
+   * POST /invoices/:id/facturx
+   * Frontend'den gelen görsel PDF'e Factur-X CII XML'i gömer.
+   * multipart/form-data: { pdf: File, profile?: string }
+   */
+  @Post(':id/facturx')
+  @ApiQuery({ name: 'profile', enum: FacturXProfile, required: false })
+  @UseInterceptors(FileInterceptor('pdf', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  async embedFacturX(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Query('profile') profile: FacturXProfile = FacturXProfile.EN_16931,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
+    const sourcePdf = file?.buffer; // undefined ise fallback olarak boş PDF üretilir
+    const { pdf, filename } = await this.facturXService.generate(
+      id,
+      req.user.tenantId,
+      sourcePdf,
       profile,
     );
     res.set({

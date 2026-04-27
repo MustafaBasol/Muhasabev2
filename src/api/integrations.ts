@@ -120,12 +120,26 @@ export async function syncChorusProInvoice(
 
 /**
  * Fatura için Factur-X PDF indir.
+ * sourcePdf verilirse üzerine CII XML gömer, verilmezse backend boş PDF üretir.
  * Blob olarak döner — <a download> ile kaydetmek için kullan.
  */
 export async function downloadFacturX(
   invoiceId: string,
+  sourcePdf?: Blob,
   profile: 'MINIMUM' | 'BASIC WL' | 'EN 16931' | 'EXTENDED' = 'EN 16931',
 ): Promise<Blob> {
+  if (sourcePdf) {
+    // Mevcut görsel PDF'i backend'e gönder → CII XML gömülüp geri döner
+    const formData = new FormData();
+    formData.append('pdf', sourcePdf, 'invoice.pdf');
+    const res = await apiClient.post(`/invoices/${invoiceId}/facturx`, formData, {
+      params: { profile },
+      responseType: 'blob',
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data as Blob;
+  }
+  // Fallback: backend kendi PDF'ini üretir
   const res = await apiClient.get(`/invoices/${invoiceId}/facturx`, {
     params: { profile },
     responseType: 'blob',

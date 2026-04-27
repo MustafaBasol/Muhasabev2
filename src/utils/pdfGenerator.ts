@@ -1114,6 +1114,37 @@ export const generateInvoicePDF = async (invoice: Invoice, opts: OpenOpts = {}) 
   openPdfInWindow(blob, `${opts.filename ?? invoice.invoiceNumber ?? 'Invoice'}.pdf`, opts.targetWindow);
 };
 
+/**
+ * Mevcut fatura PDF'ini Blob olarak döndürür (pencereye açmaz).
+ * Factur-X akışında backend'e sourcePdf olarak göndermek için kullanılır.
+ */
+export const buildInvoicePdfBlob = async (
+  invoice: Invoice,
+  company?: Partial<CompanyProfile>,
+  lang?: string,
+  currency?: Currency,
+): Promise<Blob> => {
+  let resolvedCompany = company;
+  if (!resolvedCompany) {
+    try {
+      const tid = (readLegacyTenantId() || '').toString();
+      const secureKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+      resolvedCompany = await secureStorage.getJSON<CompanyProfile>(secureKey) ?? undefined;
+      if (!resolvedCompany) {
+        const baseKey = tid ? `companyProfile_${tid}` : 'companyProfile';
+        const raw = safeLocalStorage.getItem(baseKey)
+          || safeLocalStorage.getItem(`${baseKey}_plain`)
+          || safeLocalStorage.getItem('company');
+        if (raw) resolvedCompany = JSON.parse(raw);
+      }
+    } catch {
+      // Şirket bilgisi yoksa devam et
+    }
+  }
+  const html = buildInvoiceHtml(invoice, resolvedCompany ?? {}, lang, currency as Currency | undefined);
+  return htmlToPdfBlob(html);
+};
+
 export const generateExpensePDF = async (expense: Expense, opts: OpenOpts = {}) => {
   const html = buildExpenseHtml(expense, opts.lang, opts.currency);
   const blob = await htmlToPdfBlob(html);
