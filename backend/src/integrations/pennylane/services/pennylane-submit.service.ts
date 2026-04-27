@@ -282,6 +282,37 @@ export class PennylaneSubmitService implements IEInvoicingProvider {
     }
   }
 
+  /**
+   * Comptario'da fatura "Ödendi" işaretlenince Pennylane'de de ödendi kaydı oluşturur.
+   *
+   * Pennylane API: POST /customer_invoices/{id}/matched_transactions
+   * Banka hesabı bağlantısı olmadan manuel ödeme girişi yapar.
+   *
+   * Best-effort: Pennylane API hatası durumunda exception fırlatır (caller yakalar ve loglar).
+   */
+  async syncPayment(tenantId: string, invoiceId: string): Promise<void> {
+    const invoice = await this.invoiceRepo.findOne({ where: { id: invoiceId } });
+    if (!invoice?.providerInvoiceId) return; // Pennylane'e hiç gönderilmemiş
+
+    const token = await this.getToken(tenantId);
+    const date = new Date().toISOString().split('T')[0];
+    const amount = Number(invoice.total);
+    const currency = invoice.invoiceCurrency || 'EUR';
+    const label = `Paiement ${invoice.invoiceNumber}`;
+
+    await this.apiClient.markInvoiceAsPaid(token, invoice.providerInvoiceId, amount, date, currency, label);
+
+    // Ödeme başarılı → eInvoiceStatus COLLECTED olarak güncelle
+    await this.invoiceRepo.update(invoiceId, {
+      eInvoiceStatus: EInvoiceStatus.COLLECTED,
+      lastProviderSyncAt: new Date(),
+    });
+
+    this.logger.log(
+      `Pennylane ödeme senkronize edildi: invoice=${invoiceId} pennylane_id=${invoice.providerInvoiceId} tutar=${amount} ${currency}`,
+    );
+  }
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   private async getToken(tenantId: string): Promise<string> {

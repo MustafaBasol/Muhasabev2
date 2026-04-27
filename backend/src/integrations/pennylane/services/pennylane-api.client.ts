@@ -260,6 +260,41 @@ export class PennylaneApiClient {
   }
 
   /**
+   * Faturayı Pennylane'de manuel ödendi olarak işaretler.
+   *
+   * Pennylane API v2: POST /customer_invoices/{id}/matched_transactions
+   * Banka entegrasyonu olmadan manuel ödeme kaydı oluşturur.
+   *
+   * @param amount  — Ödeme tutarı (TTC)
+   * @param date    — Ödeme tarihi (YYYY-MM-DD)
+   * @param currency — Para birimi kodu (EUR, USD, vb.)
+   * @param label   — Ödeme açıklaması
+   */
+  async markInvoiceAsPaid(
+    token: string,
+    pennylaneInvoiceId: string | number,
+    amount: number,
+    date: string,
+    currency: string,
+    label?: string,
+  ): Promise<void> {
+    try {
+      await this.http.post(
+        `/customer_invoices/${pennylaneInvoiceId}/matched_transactions`,
+        {
+          date,
+          amount: amount.toFixed(2),
+          currency,
+          label: label || 'Paiement reçu',
+        },
+        { headers: this.authHeaders(token) },
+      );
+    } catch (err) {
+      this.handleError('markInvoiceAsPaid', err);
+    }
+  }
+
+  /**
    * Taslak (draft) faturayı Pennylane'den siler.
    * Finalize edilmiş faturalar DELETE ile silinemez — credit note gerekir.
    * Hata durumunda exception fırlatır (caller log'lar ve devam eder).

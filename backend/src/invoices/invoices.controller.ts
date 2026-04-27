@@ -99,12 +99,23 @@ export class InvoicesController {
 
   @Patch(':id/status')
   @Audit('Invoice', AuditAction.UPDATE)
-  updateStatus(
+  async updateStatus(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body('status') status: InvoiceStatus,
   ) {
-    return this.invoicesService.updateStatus(req.user.tenantId, id, status);
+    const invoice = await this.invoicesService.updateStatus(req.user.tenantId, id, status);
+
+    // Pennylane ödeme senkronizasyonu — "Ödendi" işaretlenince Pennylane'e bildir (best-effort)
+    if (status === InvoiceStatus.PAID && invoice.providerInvoiceId) {
+      void this.pennylaneSubmitService
+        .syncPayment(req.user.tenantId, id)
+        .catch((err: Error) =>
+          this.logger.warn(`Pennylane ödeme sync atlandı: ${err.message}`),
+        );
+    }
+
+    return invoice;
   }
 
   @Delete(':id')
