@@ -3500,6 +3500,7 @@ const AppContent: React.FC = () => {
         }
 
         const created = await invoicesApi.createInvoice(cleanData);
+        const createdDetailed = await ensureInvoiceWithItems(created);
         logger.info('app.invoices.create.success', {
           id: created.id,
           invoiceNumber: created.invoiceNumber,
@@ -3622,7 +3623,7 @@ const AppContent: React.FC = () => {
           void refreshProductsFromServer();
         }
         
-        const newInvoices = [...invoices, created];
+        const newInvoices = [...invoices, createdDetailed ?? created];
         setInvoices(newInvoices);
         try {
           const tenantScopedId = resolveTenantScopedId(tenant, authUser?.tenantId);

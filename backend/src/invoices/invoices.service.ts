@@ -439,7 +439,7 @@ export class InvoicesService {
     // Load with customer relation
     const result = await this.invoicesRepository.findOne({
       where: { id: savedId },
-      relations: ['customer'],
+      relations: ['customer', 'lines'],
     });
 
     if (!result) {
