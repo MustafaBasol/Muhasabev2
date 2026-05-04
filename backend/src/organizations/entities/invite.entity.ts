@@ -27,8 +27,9 @@ export class Invite {
   email: string;
 
   @Column({
-    type: 'simple-enum',
-    enum: Role,
+    type: __isTestEnv ? 'text' : 'enum',
+    enum: __isTestEnv ? undefined : Role,
+    enumName: __isTestEnv ? undefined : 'role_enum',
     default: Role.MEMBER,
   })
   role: Role;

@@ -1,7 +1,14 @@
+export enum EInvoicingProvider {
+  PENNYLANE = 'pennylane',
+  CHORUS_PRO = 'chorus_pro',
+  IOPOLE = 'iopole',
+}
+
 /** Provider'ın yazılabileceği tüm tanımlayıcılar */
 export const PROVIDER_KEYS = {
-  PENNYLANE: 'pennylane',
-  CHORUS_PRO: 'chorus_pro',
+  PENNYLANE: EInvoicingProvider.PENNYLANE,
+  CHORUS_PRO: EInvoicingProvider.CHORUS_PRO,
+  IOPOLE: EInvoicingProvider.IOPOLE,
 } as const;
 
 export type ProviderKey = (typeof PROVIDER_KEYS)[keyof typeof PROVIDER_KEYS];

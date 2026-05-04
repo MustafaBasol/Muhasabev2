@@ -183,6 +183,45 @@ export class Invoice {
   @Column({ type: 'text', nullable: true })
   eInvoiceStatusReason: string | null;
 
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  eInvoiceProvider: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  eInvoiceExternalId: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  eInvoiceStatusCode: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  eInvoiceLifecycleStatus: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  eInvoicePaymentStatus: string | null;
+
+  @Column({
+    type: __isTestEnv ? 'datetime' : 'timestamp',
+    nullable: true,
+  })
+  eInvoiceLastEventAt: Date | null;
+
+  @Column({
+    type: __isTestEnv ? 'datetime' : 'timestamp',
+    nullable: true,
+  })
+  eInvoiceRejectedAt: Date | null;
+
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  eInvoiceRejectionReasonCode: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  eInvoiceRejectionReasonLabel: string | null;
+
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  eInvoiceErrorCode: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  eInvoiceErrorMessage: string | null;
+
   // Belge türü: fatura / alacak dekontu / borç dekontu
   @Column({
     type: __isTestEnv ? 'text' : 'enum',

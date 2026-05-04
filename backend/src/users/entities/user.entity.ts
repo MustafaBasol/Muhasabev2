@@ -140,13 +140,13 @@ export class User {
   @Column({ type: timestamptzColumnType, nullable: true })
   removedFromTenantAt?: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   removedFromTenantBy?: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   removedFromTenantReason?: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   removedFromTenantId?: string | null;
 
   @CreateDateColumn()

@@ -1,0 +1,39 @@
+ id |   timestamp   |                          name                          
+----+---------------+--------------------------------------------------------
+ 16 | 1698854400000 | AddMultiTenantSupport1698854400000
+ 11 | 1729369200000 | AddIndexes1729369200000
+ 12 | 1729545000000 | AddProductCategoriesAndTaxRateOverride1729545000000
+ 13 | 1730282000000 | CreateAuditLogTable1730282000000
+ 15 | 1730282400000 | AddFiscalPeriodsAndSoftDelete1730282400000
+ 17 | 1730475000000 | AddLegalComplianceFieldsToTenant1730475000000
+ 37 | 1731715200001 | AddUserLoginTimezone1731715200001
+ 14 | 1761775949182 | AddGdprFieldsToUsers1761775949182
+ 18 | 1762000000000 | AddEmailVerificationAndReset1762000000000
+ 19 | 1762015200000 | UniqueNormalizedCustomerEmailPerTenant1762015200000
+ 20 | 1762100000000 | CreateSalesTable1762100000000
+ 21 | 1762100000001 | AddUniqueIndexOnSalesSourceQuote1762100000001
+ 22 | 1762100000002 | AddSaleNumberToSales1762100000002
+ 23 | 1762115200000 | UniqueProductCodePerTenant1762115200000
+ 24 | 1762115300000 | UniqueSaleNumberPerTenant1762115300000
+ 35 | 1762115300001 | FixUniqueSaleNumberIndex1762115300001
+ 36 | 1762118000000 | ActiveOnlyUniqueIndexOnCategories1762118000000
+ 25 | 1762200000000 | CreateQuotesTable1762200000000
+ 26 | 1762200000001 | QuotesUniquePerTenant1762200000001
+ 27 | 1762300000000 | AddNotificationPreferencesToUsers1762300000000
+ 28 | 1762400000000 | CreateAuthTokenTables1762400000000
+ 31 | 1762500000000 | AddCancelAtPeriodEndToTenants1762500000000
+ 30 | 1762500000000 | CreateEmailOutbox1762500000000
+ 29 | 1762500000000 | CreateEmailSuppressionTable1762500000000
+ 32 | 1762759200000 | AddStripeColumnsToTenants1762759200000
+ 33 | 1762800000000 | CreateBankAccountsTable1762800000000
+ 34 | 1762800000001 | SeedBankAccountsIfMissing1762800000001
+ 38 | 1762805000000 | AddAttributionFields1762805000000
+ 39 | 1762810000000 | AddTokenVersionToUsers1762810000000
+ 40 | 1762810000001 | EnsureTokenVersionOnUsers1762810000001
+ 41 | 1762826000000 | CreateSiteSettingsTable1762826000000
+ 42 | 1762827000000 | CreateAdminConfigTable1762827000000
+ 44 | 1762920000000 | AddAnnouncementsMaintenanceToSiteSettings1762920000000
+ 43 | 1768951530000 | AddTokenVersionToUsers1768951530000
+ 45 | 1769000000000 | AddPlanDowngradeFieldsToTenants1769000000000
+(35 rows)
+
