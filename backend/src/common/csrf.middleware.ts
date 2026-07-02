@@ -13,10 +13,21 @@ export class CSRFMiddleware implements NestMiddleware {
   private readonly SECRET = (() => {
     const fromEnv = process.env.CSRF_SECRET;
     if (fromEnv && fromEnv.length >= 16) return fromEnv;
-    if (process.env.NODE_ENV === 'production') {
-      CSRFMiddleware.logger.error(
-        'CSRF_SECRET is not set (or too short) in production. CSRF tokens will not validate across instances/restarts. Set a strong CSRF_SECRET.',
-      );
+    // Fail-closed: in any environment where CSRF is actually enforced
+    // (production/staging, or CSRF_ENFORCE=true), refuse to start without a
+    // strong shared secret. A per-process random secret would silently break
+    // token validation across instances/restarts — worse than a hard failure.
+    const flag = (process.env.CSRF_ENFORCE || '').trim().toLowerCase();
+    const enforceOff = flag === 'false' || flag === '0' || flag === 'off';
+    const enforceOn = flag === 'true' || flag === '1' || flag === 'on';
+    const env = process.env.NODE_ENV;
+    const enforced =
+      !enforceOff && (enforceOn || (env !== 'development' && env !== 'test'));
+    if (enforced) {
+      const msg =
+        'CSRF_SECRET must be set to a strong value (>=16 chars) when CSRF protection is enforced (production/staging). Refusing to start.';
+      CSRFMiddleware.logger.error(msg);
+      throw new Error(msg);
     }
     return crypto.randomBytes(32).toString('hex');
   })();

@@ -218,7 +218,11 @@ const parseDatabaseUrl = (value?: string): PgUrlParts | null => {
           // production (data-loss risk). Use migrations instead. Non-prod may
           // opt into synchronize via DB_SYNCHRONIZE=true for local convenience.
           synchronize: !isProd && process.env.DB_SYNCHRONIZE === 'true',
-          migrationsRun: isProd || process.env.DB_MIGRATIONS_RUN === 'true',
+          // Do NOT auto-run migrations on boot (even in prod). Preferred flow:
+          // run `npm run migration:run` as an explicit, gated deploy step so a
+          // bad migration cannot take down the app on restart. Opt in per env
+          // with DB_MIGRATIONS_RUN=true only if you really want boot-time runs.
+          migrationsRun: process.env.DB_MIGRATIONS_RUN === 'true',
           dropSchema: false,
           logging: process.env.NODE_ENV === 'development',
           ssl: false,
