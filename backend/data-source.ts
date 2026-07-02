@@ -13,12 +13,19 @@ import { Expense } from 'src/expenses/entities/expense.entity';
 import { AuditLog } from 'src/audit/entities/audit-log.entity';
 import { FiscalPeriod } from 'src/fiscal-periods/entities/fiscal-period.entity';
 
+const isProd = process.env.NODE_ENV === 'production';
+if (isProd && !process.env.DATABASE_PASSWORD) {
+  throw new Error(
+    'DATABASE_PASSWORD environment variable is required in production',
+  );
+}
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DATABASE_HOST || 'localhost',
   port: parseInt(process.env.DATABASE_PORT || '5433'),
   username: process.env.DATABASE_USER || 'moneyflow',
-  password: process.env.DATABASE_PASSWORD || 'moneyflow123',
+  password: process.env.DATABASE_PASSWORD || (isProd ? '' : 'moneyflow123'),
   database: process.env.DATABASE_NAME || 'moneyflow_dev',
   entities: [
     Tenant,

@@ -1,5 +1,26 @@
 import { useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { siteSettingsApi } from '../api/site-settings';
+
+/**
+ * Tracking ID'leri script gövdelerine template literal ile gömülüyor. Sadece
+ * güvenli karakterlere izin ver; aksi halde `');alert(1)//` gibi bir değer
+ * script bağlamından kaçıp XSS'e dönüşür. Tüm gerçek GA/GTM/Pixel ID'leri bu
+ * kümeye uyar.
+ */
+const isSafeTrackingId = (id: string): boolean => /^[A-Za-z0-9_-]+$/.test(id);
+
+/**
+ * Admin tarafından girilen serbest HTML alanlarını (custom head/body) DOM'a
+ * enjekte etmeden önce temizle. Script ve olay işleyicileri (onerror vb.)
+ * kaldırılır; böylece zehirlenmiş bir site-setting tüm sayfaları ele geçiremez.
+ */
+const sanitizeCustomHtml = (html: string): string =>
+  DOMPurify.sanitize(html, {
+    ADD_TAGS: ['meta', 'link'],
+    ADD_ATTR: ['property', 'content', 'name', 'rel', 'href', 'charset', 'sizes', 'type'],
+    FORBID_TAGS: ['script', 'style'],
+  });
 
 /**
  * SeoInjector component - fetches site settings and injects SEO/analytics
@@ -129,7 +150,7 @@ export function SeoInjector() {
         // Custom head HTML
         if (settings.customHeadHtml) {
           const container = document.createElement('div');
-          container.innerHTML = settings.customHeadHtml;
+          container.innerHTML = sanitizeCustomHtml(settings.customHeadHtml);
           Array.from(container.children).forEach(child => {
             document.head.appendChild(child.cloneNode(true));
           });
@@ -138,7 +159,7 @@ export function SeoInjector() {
         // Custom body start HTML
         if (settings.customBodyStartHtml) {
           const container = document.createElement('div');
-          container.innerHTML = settings.customBodyStartHtml;
+          container.innerHTML = sanitizeCustomHtml(settings.customBodyStartHtml);
           Array.from(container.children).forEach(child => {
             document.body.insertBefore(child.cloneNode(true), document.body.firstChild);
           });
@@ -147,7 +168,7 @@ export function SeoInjector() {
         // Custom body end HTML
         if (settings.customBodyEndHtml) {
           const container = document.createElement('div');
-          container.innerHTML = settings.customBodyEndHtml;
+          container.innerHTML = sanitizeCustomHtml(settings.customBodyEndHtml);
           Array.from(container.children).forEach(child => {
             document.body.appendChild(child.cloneNode(true));
           });
@@ -171,6 +192,7 @@ export function SeoInjector() {
 // === Helper functions for injecting tracking scripts ===
 
 function injectGA4(measurementId: string) {
+  if (!isSafeTrackingId(measurementId)) return;
   // Check if already injected
   if (document.querySelector(`script[src*="googletagmanager.com/gtag/js?id=${measurementId}"]`)) {
     return;
@@ -194,6 +216,7 @@ function injectGA4(measurementId: string) {
 }
 
 function injectGTM(gtmId: string) {
+  if (!isSafeTrackingId(gtmId)) return;
   // Check if already injected
   if (document.querySelector(`script[src*="googletagmanager.com/gtm.js?id=${gtmId}"]`)) {
     return;
@@ -217,6 +240,7 @@ function injectGTM(gtmId: string) {
 }
 
 function injectPinterestTag(tagId: string) {
+  if (!isSafeTrackingId(tagId)) return;
   // Check if already injected
   if (document.querySelector(`script[src*="pintrk"]`)) {
     return;
@@ -237,6 +261,7 @@ function injectPinterestTag(tagId: string) {
 }
 
 function injectMetaPixel(pixelId: string) {
+  if (!isSafeTrackingId(pixelId)) return;
   // Check if already injected
   if (document.querySelector(`script[src*="connect.facebook.net"]`)) {
     return;
@@ -264,6 +289,7 @@ function injectMetaPixel(pixelId: string) {
 }
 
 function injectLinkedInTag(partnerId: string) {
+  if (!isSafeTrackingId(partnerId)) return;
   // Check if already injected
   if (document.querySelector(`script[src*="snap.licdn.com"]`)) {
     return;

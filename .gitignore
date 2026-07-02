@@ -32,6 +32,11 @@ backend/.env
 backend/.env.local
 backend/.env.production
 
+# Docker / compose runtime env files (contain real secrets — never commit)
+.env.docker
+backend/.env.docker
+**/.env.docker
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

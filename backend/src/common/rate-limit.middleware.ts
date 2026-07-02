@@ -24,6 +24,10 @@ export class RateLimitMiddleware implements NestMiddleware {
     // Add more allowed IPs from environment
     ...(process.env.ADMIN_ALLOWED_IPS?.split(',') || []),
   ];
+  // Sadece uygulama güvenilen bir reverse-proxy (nginx/Cloudflare) arkasındaysa
+  // forwarding başlıklarına güven. Doğrudan internete açıksa false kalmalı.
+  private readonly trustProxy =
+    (process.env.TRUST_PROXY || '').trim().toLowerCase() === 'true';
 
   use(req: Request, res: Response, next: NextFunction) {
     const clientIP = this.getClientIP(req);
@@ -119,21 +123,33 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   /**
-   * Client IP adresini güvenli şekilde al
+   * Client IP adresini güvenli şekilde al.
+   *
+   * Sahte forwarding başlıkları (X-Forwarded-For / X-Real-IP / CF-Connecting-IP)
+   * herkes tarafından gönderilebilir. Bu başlıklara SADECE uygulama açıkça
+   * güvenilen bir reverse-proxy arkasındaysa güvenilir (TRUST_PROXY=true).
+   * Aksi halde her zaman gerçek TCP peer adresi (socket) kullanılır; böylece
+   * saldırgan `X-Real-IP: 127.0.0.1` ile admin IP kısıtını / rate-limit'i
+   * atlatamaz.
    */
   private getClientIP(req: Request): string {
-    const forwarded = req.headers['x-forwarded-for'] as string;
-    const realIP = req.headers['x-real-ip'] as string;
-    const cfConnectingIP = req.headers['cf-connecting-ip'] as string;
+    const socketIP =
+      req.socket?.remoteAddress || req.connection?.remoteAddress || 'unknown';
 
-    // Cloudflare, proxy headers'dan IP al
-    if (cfConnectingIP) return cfConnectingIP;
-    if (realIP) return realIP;
+    if (!this.trustProxy) {
+      return socketIP;
+    }
+
+    // Güvenilen proxy arkasında: proxy'nin eklediği başlıkları kullan.
+    const cfConnectingIP = req.headers['cf-connecting-ip'] as string;
+    const realIP = req.headers['x-real-ip'] as string;
+    const forwarded = req.headers['x-forwarded-for'] as string;
+
+    if (cfConnectingIP) return cfConnectingIP.trim();
+    if (realIP) return realIP.trim();
     if (forwarded) return forwarded.split(',')[0].trim();
 
-    return (
-      req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown'
-    );
+    return socketIP;
   }
 
   /**

@@ -24,11 +24,11 @@ export class SiteSettingsController {
 
   private checkAdminAuth(headers?: AdminHeaderMap) {
     const { adminToken } = resolveAdminHeaders(headers);
-    const correctToken = process.env.ADMIN_TOKEN || 'admin123';
+    const correctToken = process.env.ADMIN_TOKEN;
     const ok =
       !!adminToken &&
       (this.adminService.isValidAdminToken(adminToken) ||
-        adminToken === correctToken);
+        (!!correctToken && adminToken === correctToken));
     if (!ok) throw new UnauthorizedException('Admin authentication required');
   }
 

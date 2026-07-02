@@ -212,8 +212,13 @@ const parseDatabaseUrl = (value?: string): PgUrlParts | null => {
           username,
           password,
           database,
-          entities, // migrations,
-          synchronize: true,
+          entities,
+          migrations,
+          // Fail-safe schema management: never auto-sync the schema in
+          // production (data-loss risk). Use migrations instead. Non-prod may
+          // opt into synchronize via DB_SYNCHRONIZE=true for local convenience.
+          synchronize: !isProd && process.env.DB_SYNCHRONIZE === 'true',
+          migrationsRun: isProd || process.env.DB_MIGRATIONS_RUN === 'true',
           dropSchema: false,
           logging: process.env.NODE_ENV === 'development',
           ssl: false,
