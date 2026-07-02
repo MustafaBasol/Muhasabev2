@@ -33,7 +33,7 @@ export default new DataSource({
   username: username,
   password: password,
   database: database,
-  entities: [isProd ? 'dist/src/**/*.entity.js' : 'src/**/*.entity{.ts,.js}'],
+  entities: isProd ? [] : ['src/**/*.entity{.ts,.js}'],
   migrations: [isProd ? 'dist/src/migrations/*.js' : 'src/migrations/*{.ts,.js}'],
   synchronize: false,
   logging: !isProd,
