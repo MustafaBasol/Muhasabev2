@@ -5,9 +5,11 @@ services:
     image: postgres:16-alpine
     container_name: mfv2-postgres
     environment:
-      POSTGRES_USER: moneyflow
-      POSTGRES_PASSWORD: moneyflow123
-      POSTGRES_DB: moneyflow_dev
+      # No hardcoded secrets. Provide these via a compose .env file or the
+      # shell environment. DATABASE_PASSWORD is required (fail-closed).
+      POSTGRES_USER: ${DATABASE_USER:-moneyflow}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      POSTGRES_DB: ${DATABASE_NAME:-moneyflow_dev}
     ports:
       - "5543:5432"
     volumes:
@@ -16,7 +18,7 @@ services:
       - ./backend/db-init/02-patch.sql:/docker-entrypoint-initdb.d/02-patch.sql:ro
       - ./backend/db-init/03-organization-tables.sql:/docker-entrypoint-initdb.d/03-organization-tables.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moneyflow -d moneyflow_dev"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-moneyflow} -d ${DATABASE_NAME:-moneyflow_dev}"]
       interval: 5s
       timeout: 3s
       retries: 20

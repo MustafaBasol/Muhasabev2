@@ -61,7 +61,16 @@ lerna-debug.log*
 .data/
 backend/.data/
 *.sql
+*.db
+*.sqlite
+*.sqlite3
 !backend/backups/.gitkeep
+
+# Exported / sample data artifacts (may contain PII — never commit)
+*.zip
+user_data.json
+profile.csv
+test_customers.csv
 
 # Backup files (except structure)
 backend/backups/*

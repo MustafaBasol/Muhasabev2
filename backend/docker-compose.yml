@@ -3,11 +3,13 @@ services:
     image: postgres:15-alpine
     container_name: moneyflow-db
     environment:
-      POSTGRES_DB: moneyflow_dev
-      POSTGRES_USER: moneyflow
-      POSTGRES_PASSWORD: moneyflow123
+      # Provide secrets via a compose .env file / shell env — no hardcoded pw.
+      POSTGRES_DB: ${DATABASE_NAME:-moneyflow_dev}
+      POSTGRES_USER: ${DATABASE_USER:-moneyflow}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
     ports:
-      - "5433:5432"
+      # Bind to loopback only: do not expose Postgres to the whole network.
+      - "127.0.0.1:5433:5432"
     volumes:
       - backend_postgres_data:/var/lib/postgresql/data
     networks:
@@ -16,8 +18,10 @@ services:
   redis:
     image: redis:7-alpine
     container_name: moneyflow-redis
+    # Require a password and bind to loopback only.
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - backend_redis_data:/data
     networks:
@@ -27,10 +31,10 @@ services:
     image: dpage/pgadmin4
     container_name: moneyflow-pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@moneyflow.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@moneyflow.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?PGADMIN_PASSWORD is required}
     ports:
-      - "5051:80"
+      - "127.0.0.1:5051:80"
     depends_on:
       - postgres
     networks:
