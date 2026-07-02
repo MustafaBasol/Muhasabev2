@@ -11,6 +11,9 @@ services:
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
       POSTGRES_DB: ${DATABASE_NAME:-moneyflow_dev}
     ports:
+      # SECURITY: do not expose Postgres to the public internet. In production
+      # bind to loopback, e.g. "127.0.0.1:5543:5432" (or drop the mapping
+      # entirely and reach it only over the internal compose network).
       - "5543:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -40,6 +43,10 @@ services:
       postgres:
         condition: service_healthy
     ports:
+      # SECURITY: when TRUST_PROXY=true the backend trusts X-Forwarded-For /
+      # X-Real-IP / CF-Connecting-IP, so it MUST sit behind a reverse proxy and
+      # NOT be reachable directly from the internet. In production bind to
+      # loopback and let nginx proxy to it, e.g. "127.0.0.1:3000:3000".
       - "3000:3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
