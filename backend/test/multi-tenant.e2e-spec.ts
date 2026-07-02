@@ -1,10 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { User } from '../src/users/entities/user.entity';
 
 describe('Multi-Tenant Isolation (e2e)', () => {
   let app: INestApplication;
+  let dataSource: DataSource;
 
   // Tenant 1
   let tenant1Token: string;
@@ -14,10 +17,37 @@ describe('Multi-Tenant Isolation (e2e)', () => {
   // Tenant 2
   let tenant2Token: string;
 
+  async function registerVerifiedAndLogin(input: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    companyName: string;
+  }): Promise<string> {
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send(input)
+      .expect(201);
+
+    const userRepo = dataSource.getRepository(User);
+    const user = await userRepo.findOneOrFail({ where: { email: input.email } });
+    await userRepo.update(user.id, { isEmailVerified: true });
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: input.email, password: input.password })
+      .expect(200);
+
+    expect(loginResponse.body.token).toBeDefined();
+    return loginResponse.body.token;
+  }
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
+
+    dataSource = moduleFixture.get(DataSource);
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
@@ -30,28 +60,22 @@ describe('Multi-Tenant Isolation (e2e)', () => {
     await app.init();
 
     // Register Tenant 1
-    const tenant1Response = await request(app.getHttpServer())
-      .post('/auth/register')
-      .send({
-        email: `tenant1-${Date.now()}@example.com`,
-        password: 'Test123456',
-        firstName: 'Tenant',
-        lastName: 'One',
-        companyName: `Company One ${Date.now()}`,
-      });
-    tenant1Token = tenant1Response.body.token;
+    tenant1Token = await registerVerifiedAndLogin({
+      email: `tenant1-${Date.now()}@example.com`,
+      password: 'Test123456',
+      firstName: 'Tenant',
+      lastName: 'One',
+      companyName: `Company One ${Date.now()}`,
+    });
 
     // Register Tenant 2
-    const tenant2Response = await request(app.getHttpServer())
-      .post('/auth/register')
-      .send({
-        email: `tenant2-${Date.now()}@example.com`,
-        password: 'Test123456',
-        firstName: 'Tenant',
-        lastName: 'Two',
-        companyName: `Company Two ${Date.now()}`,
-      });
-    tenant2Token = tenant2Response.body.token;
+    tenant2Token = await registerVerifiedAndLogin({
+      email: `tenant2-${Date.now()}@example.com`,
+      password: 'Test123456',
+      firstName: 'Tenant',
+      lastName: 'Two',
+      companyName: `Company Two ${Date.now()}`,
+    });
   });
 
   afterAll(async () => {

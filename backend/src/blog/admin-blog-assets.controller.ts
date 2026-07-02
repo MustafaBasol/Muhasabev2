@@ -41,12 +41,13 @@ function safeFilenameBase(value: string): string {
 }
 
 function isAllowedImageMime(mime: string): boolean {
+  // SVG is intentionally excluded: it can embed <script> and would execute
+  // as same-origin when served from /assets (stored XSS). Only raster formats.
   return (
     mime === 'image/png' ||
     mime === 'image/jpeg' ||
     mime === 'image/webp' ||
-    mime === 'image/gif' ||
-    mime === 'image/svg+xml'
+    mime === 'image/gif'
   );
 }
 
@@ -61,8 +62,6 @@ function extFromMime(mime: string | undefined): string {
       return '.webp';
     case 'image/gif':
       return '.gif';
-    case 'image/svg+xml':
-      return '.svg';
     default:
       return '';
   }
@@ -118,8 +117,7 @@ export class AdminBlogAssetsController {
             ext === '.jpg' ||
             ext === '.jpeg' ||
             ext === '.webp' ||
-            ext === '.gif' ||
-            ext === '.svg'
+            ext === '.gif'
               ? ext
               : extFromMime(file?.mimetype);
 

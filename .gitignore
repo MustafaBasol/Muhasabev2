@@ -32,6 +32,11 @@ backend/.env
 backend/.env.local
 backend/.env.production
 
+# Docker / compose runtime env files (contain real secrets — never commit)
+.env.docker
+backend/.env.docker
+**/.env.docker
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -56,7 +61,16 @@ lerna-debug.log*
 .data/
 backend/.data/
 *.sql
+*.db
+*.sqlite
+*.sqlite3
 !backend/backups/.gitkeep
+
+# Exported / sample data artifacts (may contain PII — never commit)
+*.zip
+user_data.json
+profile.csv
+test_customers.csv
 
 # Backup files (except structure)
 backend/backups/*

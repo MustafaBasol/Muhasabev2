@@ -43,18 +43,18 @@ export class CreateAdminConfigTable1762827000000 implements MigrationInterface {
       }),
     );
 
-    // Seed default using environment variables if provided
+    // Seed default admin ONLY when an explicit password hash is provided.
+    // Fail-closed: no default 'admin123' hash. If ADMIN_PASSWORD_HASH is unset,
+    // the row is not seeded here and the app initializes it from
+    // ADMIN_PASSWORD_HASH / ADMIN_PASSWORD at runtime (see AdminSecurityService).
     const username = process.env.ADMIN_USERNAME || 'admin';
-    // In migrations we can't run bcrypt easily; defer to app init to hash if missing
-    await queryRunner.query(
-      `INSERT INTO admin_config ("id", "username", "passwordHash", "twoFactorEnabled") VALUES (1, $1, $2, false) ON CONFLICT ("id") DO NOTHING`,
-      [
-        username,
-        // Precomputed bcrypt(12) hash for 'admin123' if ADMIN_PASSWORD_HASH not provided
-        process.env.ADMIN_PASSWORD_HASH ||
-          '$2b$12$ZSFsVBWUKfc8pkr6W35EsuoNCM/rdFX9ojkWeHEf/g9JInCdj4/6.',
-      ],
-    );
+    const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+    if (adminPasswordHash) {
+      await queryRunner.query(
+        `INSERT INTO admin_config ("id", "username", "passwordHash", "twoFactorEnabled") VALUES (1, $1, $2, false) ON CONFLICT ("id") DO NOTHING`,
+        [username, adminPasswordHash],
+      );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

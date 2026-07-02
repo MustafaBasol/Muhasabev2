@@ -7,7 +7,10 @@ services:
       POSTGRES_USER: moneyflow_prod
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     ports:
-      - "5432:5432"
+      # SECURITY: bind to loopback only — never expose the production DB to the
+      # public internet. Containers on moneyflow-network reach it via host
+      # "postgres"; this mapping is for host-local admin/backup access only.
+      - "127.0.0.1:5432:5432"
     volumes:
       # PRODUCTION: Host makinede kalıcı klasör
       - /var/lib/postgresql/data:/var/lib/postgresql/data
@@ -20,7 +23,10 @@ services:
     image: redis:7-alpine
     container_name: moneyflow-prod-redis
     ports:
-      - "6379:6379"
+      # SECURITY: bind to loopback only. Redis has no password here and must
+      # never be reachable from the public internet. Containers reach it via
+      # host "redis" on the internal network.
+      - "127.0.0.1:6379:6379"
     volumes:
       # PRODUCTION: Host makinede kalıcı klasör
       - /var/lib/redis:/data

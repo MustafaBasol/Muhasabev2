@@ -22,11 +22,18 @@ export class AdminSecurityService {
     let cfg = await this.configRepo.findOne({ where: { id: 1 } });
     if (!cfg) {
       const username = process.env.ADMIN_USERNAME || 'admin';
-      const hash = process.env.ADMIN_PASSWORD_HASH
-        ? process.env.ADMIN_PASSWORD_HASH
-        : this.security.hashPasswordSync(
-            process.env.ADMIN_PASSWORD || 'admin123',
-          );
+      // Fail-closed: never seed with a default password. Require an explicit
+      // ADMIN_PASSWORD_HASH (preferred) or ADMIN_PASSWORD.
+      let hash: string;
+      if (process.env.ADMIN_PASSWORD_HASH) {
+        hash = process.env.ADMIN_PASSWORD_HASH;
+      } else if (process.env.ADMIN_PASSWORD) {
+        hash = this.security.hashPasswordSync(process.env.ADMIN_PASSWORD);
+      } else {
+        throw new UnauthorizedException(
+          'Admin credentials not configured: set ADMIN_PASSWORD_HASH or ADMIN_PASSWORD',
+        );
+      }
       const seed: Partial<AdminConfig> = {
         id: 1,
         username,

@@ -7,6 +7,7 @@ import {
   Link as LinkIcon, Image as ImageIcon, Undo2, Redo2, Eraser, Minus,
   Heading1, Heading2, Heading3, Heading4, Heading5, Heading6
 } from 'lucide-react';
+import { sanitizeRteHtml } from '../utils/security';
 
 interface RichTextEditorProps {
   value?: string;
@@ -34,7 +35,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     const el = ref.current;
     if (!el) return;
     if (typeof value === 'string' && value !== el.innerHTML) {
-      el.innerHTML = value || '';
+      // Sanitize on load too: stored content may contain injected markup that
+      // would otherwise execute inside the editor / on re-render.
+      el.innerHTML = value ? sanitizeRteHtml(value) : '';
     }
   }, [value]);
 
