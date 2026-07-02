@@ -55,6 +55,7 @@
     "@types/speakeasy": "^2.0.10",
     "archiver": "^7.0.1",
     "argon2": "^0.44.0",
+    "axios": "^1.15.2",
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.4.1",
     "bullmq": "^5.75.2",
