@@ -49,18 +49,10 @@ export const escapeHtml = (unsafe: string): string => {
     .replace(/'/g, '&#039;');
 };
 
-/**
- * SQL injection'a karşı temel koruma (client-side)
- */
-export const validateInput = (input: string): boolean => {
-  const sqlPatterns = [
-    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
-    /(;|--|\||\/\*|\*\/)/g,
-    /('|(\\')|(\\")|(\\\\))/g,
-  ];
-  
-  return !sqlPatterns.some(pattern => pattern.test(input));
-};
+// NOTE: A client-side SQL-keyword blacklist ("validateInput") was removed here.
+// It provided a false sense of security (trivially bypassed, blocks legitimate
+// input) and was unused. SQL injection must be prevented server-side via
+// parameterized queries / the ORM — never by filtering strings in the browser.
 
 /**
  * Email formatı doğrulama

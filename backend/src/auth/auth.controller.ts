@@ -37,8 +37,11 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({ summary: 'Register new user and create tenant' })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
+    // Fail-closed: legacy /auth/register must NOT auto-login by returning a JWT
+    // before email verification. Align with /auth/signup so the user must
+    // verify their email before obtaining a session token.
+    return this.authService.signupWithToken(registerDto, req);
   }
 
   // New spec-compliant alias endpoint: /auth/signup

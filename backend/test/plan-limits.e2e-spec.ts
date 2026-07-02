@@ -1,13 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { User } from '../src/users/entities/user.entity';
 
 // Helper to build auth header
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 describe('Plan Limits (e2e)', () => {
   let app: INestApplication;
+  let dataSource: DataSource;
   let token: string;
   let customerId: string;
 
@@ -15,6 +18,8 @@ describe('Plan Limits (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
+
+    dataSource = moduleFixture.get(DataSource);
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
@@ -28,18 +33,29 @@ describe('Plan Limits (e2e)', () => {
 
     // Register a FREE plan tenant (default)
     const email = `limits-${Date.now()}@example.com`;
-    const res = await request(app.getHttpServer())
+    const password = 'Test123456';
+
+    await request(app.getHttpServer())
       .post('/auth/register')
       .send({
         email,
-        password: 'Test123456',
+        password,
         firstName: 'Plan',
         lastName: 'Limits',
         companyName: `Company Limits ${Date.now()}`,
       })
       .expect(201);
 
-    token = res.body.token;
+    const userRepo = dataSource.getRepository(User);
+    const user = await userRepo.findOneOrFail({ where: { email } });
+    await userRepo.update(user.id, { isEmailVerified: true });
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    token = loginResponse.body.token;
     expect(token).toBeDefined();
   });
 

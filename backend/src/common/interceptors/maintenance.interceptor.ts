@@ -60,11 +60,11 @@ export class MaintenanceInterceptor implements NestInterceptor {
     }
 
     // Maintenance ON: allow only admin and site-settings with admin token
-    const envToken = process.env.ADMIN_TOKEN || 'admin123';
+    const envToken = process.env.ADMIN_TOKEN;
     const isAdmin =
       !!adminToken &&
       (this.adminService.isValidAdminToken(adminToken) ||
-        adminToken === envToken);
+        (!!envToken && adminToken === envToken));
     if (isAdmin) {
       return next.handle();
     }

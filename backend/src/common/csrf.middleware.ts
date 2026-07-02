@@ -1,20 +1,36 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import * as crypto from 'crypto';
 
-interface CSRFTokenStore {
-  [sessionId: string]: {
-    token: string;
-    expires: number;
-  };
-}
-
 @Injectable()
 export class CSRFMiddleware implements NestMiddleware {
-  private readonly tokenStore: CSRFTokenStore = {};
+  private static readonly logger = new Logger('CSRFMiddleware');
   private readonly TOKEN_EXPIRY = 60 * 60 * 1000; // 1 hour
-  private readonly SECRET =
-    process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex');
+  // Stateless CSRF: the token is an HMAC-signed payload, so verification needs
+  // no server-side store and works across multiple instances / restarts —
+  // provided CSRF_SECRET is shared. A per-process random fallback only works
+  // for single-instance dev; warn loudly if it is missing in production.
+  private readonly SECRET = (() => {
+    const fromEnv = process.env.CSRF_SECRET;
+    if (fromEnv && fromEnv.length >= 16) return fromEnv;
+    // Fail-closed: in any environment where CSRF is actually enforced
+    // (production/staging, or CSRF_ENFORCE=true), refuse to start without a
+    // strong shared secret. A per-process random secret would silently break
+    // token validation across instances/restarts — worse than a hard failure.
+    const flag = (process.env.CSRF_ENFORCE || '').trim().toLowerCase();
+    const enforceOff = flag === 'false' || flag === '0' || flag === 'off';
+    const enforceOn = flag === 'true' || flag === '1' || flag === 'on';
+    const env = process.env.NODE_ENV;
+    const enforced =
+      !enforceOff && (enforceOn || (env !== 'development' && env !== 'test'));
+    if (enforced) {
+      const msg =
+        'CSRF_SECRET must be set to a strong value (>=16 chars) when CSRF protection is enforced (production/staging). Refusing to start.';
+      CSRFMiddleware.logger.error(msg);
+      throw new Error(msg);
+    }
+    return crypto.randomBytes(32).toString('hex');
+  })();
 
   use(req: Request, res: Response, next: NextFunction) {
     const isProtectedMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(
@@ -25,16 +41,8 @@ export class CSRFMiddleware implements NestMiddleware {
     // Her istek için (GET dahil) korunan rotalarda geçerli bir token üret ve döndür
     if (isCSRFProtectedRoute) {
       const sessionId = this.getOrCreateSessionId(req, res);
-      const existing = this.tokenStore[sessionId];
-      if (!existing || existing.expires < Date.now()) {
-        const csrfToken = this.generateCSRFToken(sessionId);
-        this.tokenStore[sessionId] = {
-          token: csrfToken,
-          expires: Date.now() + this.TOKEN_EXPIRY,
-        };
-      }
-      // Header olarak her zaman güncel token'ı gönder
-      res.setHeader('X-CSRF-Token', this.tokenStore[sessionId].token);
+      // Stateless: her yanıtta taze imzalı token üret (sunucu tarafı depo yok)
+      res.setHeader('X-CSRF-Token', this.generateCSRFToken(sessionId));
     }
 
     // Protected method'larda token doğrula
@@ -50,39 +58,30 @@ export class CSRFMiddleware implements NestMiddleware {
         });
       }
 
-      const storedTokenData = this.tokenStore[sessionId];
-
-      if (!storedTokenData || storedTokenData.expires < Date.now()) {
+      const result = this.validateCSRFToken(providedToken, sessionId);
+      if (result !== 'ok') {
         return res.status(403).json({
           error: 'Forbidden',
-          message: 'CSRF token expired',
+          message:
+            result === 'expired' ? 'CSRF token expired' : 'Invalid CSRF token',
           statusCode: 403,
         });
       }
-
-      if (!this.verifyCSRFToken(providedToken, storedTokenData.token)) {
-        return res.status(403).json({
-          error: 'Forbidden',
-          message: 'Invalid CSRF token',
-          statusCode: 403,
-        });
-      }
-    }
-
-    // Expired token'ları temizle (periodic cleanup)
-    if (Math.random() < 0.1) {
-      // 10% chance per request
-      this.cleanupExpiredTokens();
     }
 
     next();
   }
 
   /**
-   * Yalnızca production ortamında CSRF doğrulamasını zorunlu kıl
+   * CSRF doğrulamasını development/test dışındaki tüm ortamlarda (staging dahil)
+   * zorunlu kıl. Acil durumda CSRF_ENFORCE=false ile kapatılabilir.
    */
   private shouldEnforceCSRF(): boolean {
-    return process.env.NODE_ENV === 'production';
+    const flag = (process.env.CSRF_ENFORCE || '').trim().toLowerCase();
+    if (flag === 'false' || flag === '0' || flag === 'off') return false;
+    if (flag === 'true' || flag === '1' || flag === 'on') return true;
+    const env = process.env.NODE_ENV;
+    return env !== 'development' && env !== 'test';
   }
 
   /**
@@ -144,46 +143,66 @@ export class CSRFMiddleware implements NestMiddleware {
   }
 
   /**
-   * CSRF token oluştur
+   * CSRF token oluştur (stateless, HMAC imzalı)
    */
   private generateCSRFToken(sessionId: string): string {
     const timestamp = Date.now().toString();
     const randomValue = crypto.randomBytes(16).toString('hex');
     const payload = `${sessionId}:${timestamp}:${randomValue}`;
-
-    const hmac = crypto.createHmac('sha256', this.SECRET);
-    hmac.update(payload);
-    const signature = hmac.digest('hex');
-
+    const signature = this.sign(payload);
     return Buffer.from(`${payload}:${signature}`).toString('base64');
   }
 
   /**
-   * CSRF token doğrula
+   * CSRF token doğrula (stateless): imza + oturum bağı + süre kontrolü.
+   * Sunucu tarafı depo gerektirmez; paylaşılan CSRF_SECRET ile çok-instance
+   * ortamda çalışır.
    */
-  private verifyCSRFToken(
+  private validateCSRFToken(
     providedToken: string,
-    expectedToken: string,
-  ): boolean {
+    sessionId: string,
+  ): 'ok' | 'expired' | 'invalid' {
+    let decoded: string;
     try {
-      return crypto.timingSafeEqual(
-        Buffer.from(providedToken),
-        Buffer.from(expectedToken),
-      );
+      decoded = Buffer.from(providedToken, 'base64').toString('utf8');
     } catch {
-      return false;
+      return 'invalid';
     }
+    // payload = sessionId:timestamp:random ; sonra imza
+    const lastSep = decoded.lastIndexOf(':');
+    if (lastSep < 0) return 'invalid';
+    const payload = decoded.slice(0, lastSep);
+    const signature = decoded.slice(lastSep + 1);
+
+    const expectedSig = this.sign(payload);
+    if (!this.timingSafeEqualStr(signature, expectedSig)) return 'invalid';
+
+    const parts = payload.split(':');
+    if (parts.length !== 3) return 'invalid';
+    const [tokenSessionId, timestampStr] = parts;
+
+    // Token, isteği yapan oturuma (cookie) bağlı olmalı
+    if (!this.timingSafeEqualStr(tokenSessionId, sessionId)) return 'invalid';
+
+    const timestamp = Number(timestampStr);
+    if (!Number.isFinite(timestamp)) return 'invalid';
+    if (Date.now() - timestamp > this.TOKEN_EXPIRY) return 'expired';
+
+    return 'ok';
   }
 
-  /**
-   * Expired token'ları temizle
-   */
-  private cleanupExpiredTokens(): void {
-    const now = Date.now();
-    for (const [sessionId, tokenData] of Object.entries(this.tokenStore)) {
-      if (tokenData.expires < now) {
-        delete this.tokenStore[sessionId];
-      }
+  private sign(payload: string): string {
+    return crypto.createHmac('sha256', this.SECRET).update(payload).digest('hex');
+  }
+
+  private timingSafeEqualStr(a: string, b: string): boolean {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) return false;
+    try {
+      return crypto.timingSafeEqual(bufA, bufB);
+    } catch {
+      return false;
     }
   }
 

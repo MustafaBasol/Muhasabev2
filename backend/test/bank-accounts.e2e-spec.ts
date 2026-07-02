@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { User } from '../src/users/entities/user.entity';
 
 /**
  * Free plan: 1 banka hesabı limiti e2e testi
@@ -9,12 +11,15 @@ import { AppModule } from '../src/app.module';
 
 describe('Bank Accounts (e2e)', () => {
   let app: INestApplication;
+  let dataSource: DataSource;
   let authToken: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
+
+    dataSource = moduleFixture.get(DataSource);
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
@@ -26,20 +31,33 @@ describe('Bank Accounts (e2e)', () => {
     );
     await app.init();
 
+    const email = `banktest-${Date.now()}@example.com`;
+    const password = 'Test123456';
+
     const registerDto = {
-      email: `banktest-${Date.now()}@example.com`,
-      password: 'Test123456',
+      email,
+      password,
       firstName: 'Bank',
       lastName: 'Tester',
       companyName: `Bank Test Co ${Date.now()}`,
     };
 
-    const response = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/auth/register')
       .send(registerDto)
       .expect(201);
 
-    authToken = response.body.token;
+    const userRepo = dataSource.getRepository(User);
+    const user = await userRepo.findOneOrFail({ where: { email } });
+    await userRepo.update(user.id, { isEmailVerified: true });
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    authToken = loginResponse.body.token;
+    expect(authToken).toBeDefined();
   });
 
   afterAll(async () => {

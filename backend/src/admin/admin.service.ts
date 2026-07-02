@@ -265,14 +265,9 @@ export class AdminService {
         }
         console.warn('⚠️ Using ADMIN_PASSWORD (dev only).');
       } else {
-        const defaultDevPassword = 'admin123';
-        isPasswordValid = password === defaultDevPassword;
-        if (!isPasswordValid) {
-          throw new UnauthorizedException('Admin credentials not configured');
-        }
-        console.warn(
-          '⚠️ Falling back to default dev credentials (admin/admin123).',
-        );
+        // Fail-closed: no default credentials. Admin must be configured via
+        // AdminConfig (DB) or ADMIN_PASSWORD_HASH / ADMIN_PASSWORD env vars.
+        throw new UnauthorizedException('Admin credentials not configured');
       }
     }
 

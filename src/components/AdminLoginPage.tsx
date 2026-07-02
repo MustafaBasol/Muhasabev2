@@ -11,8 +11,8 @@ interface AdminLoginPageProps {
 }
 
 export default function AdminLoginPage({ onBack }: AdminLoginPageProps) {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

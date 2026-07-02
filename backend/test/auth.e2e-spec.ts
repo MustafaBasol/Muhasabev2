@@ -1,14 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { User } from '../src/users/entities/user.entity';
 
 describe('Authentication (e2e)', () => {
   let app: INestApplication;
+  let dataSource: DataSource;
   let authToken: string;
   let tenantId: string;
 
-  // Login testlerinde tekrar kullanmak için
   let registeredUserEmail: string;
   const registeredUserPassword = 'Test123456';
 
@@ -16,6 +18,8 @@ describe('Authentication (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
+
+    dataSource = moduleFixture.get(DataSource);
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
@@ -32,8 +36,31 @@ describe('Authentication (e2e)', () => {
     await app.close();
   });
 
+  async function markEmailVerified(email: string): Promise<User> {
+    const userRepo = dataSource.getRepository(User);
+    const user = await userRepo.findOne({ where: { email } });
+
+    expect(user).toBeTruthy();
+
+    await userRepo.update(user!.id, { isEmailVerified: true });
+
+    return userRepo.findOneOrFail({ where: { id: user!.id } });
+  }
+
+  async function loginAndGetToken(email: string, password: string) {
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    expect(response.body).toHaveProperty('token');
+    expect(response.body).toHaveProperty('user');
+
+    return response.body;
+  }
+
   describe('POST /auth/register', () => {
-    it('should register a new user and tenant', async () => {
+    it('should register a new user and tenant without returning a JWT before email verification', async () => {
       const registerDto = {
         email: `test-${Date.now()}@example.com`,
         password: registeredUserPassword,
@@ -47,34 +74,28 @@ describe('Authentication (e2e)', () => {
         .send(registerDto)
         .expect(201);
 
-      expect(response.body).toHaveProperty('token');
-      expect(response.body).toHaveProperty('user');
-      expect(response.body).toHaveProperty('tenant');
-      expect(response.body.user.email).toBe(registerDto.email);
-      expect(response.body.user.role).toBe('tenant_admin');
-      expect(response.body.tenant.name).toBe(registerDto.companyName);
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).not.toHaveProperty('token');
+      expect(response.body).not.toHaveProperty('user');
+      expect(response.body).not.toHaveProperty('tenant');
 
-      authToken = response.body.token;
-      tenantId = response.body.user.tenantId;
       registeredUserEmail = registerDto.email;
     });
 
     it('should fail with duplicate email', async () => {
       const registerDto = {
-        email: 'duplicate@example.com',
+        email: `duplicate-${Date.now()}@example.com`,
         password: 'Test123456',
         firstName: 'Test',
         lastName: 'User',
         companyName: 'Duplicate Company',
       };
 
-      // First registration
       await request(app.getHttpServer())
         .post('/auth/register')
         .send(registerDto)
         .expect(201);
 
-      // Second registration with same email
       await request(app.getHttpServer())
         .post('/auth/register')
         .send(registerDto)
@@ -99,7 +120,6 @@ describe('Authentication (e2e)', () => {
     it('should fail with missing fields', async () => {
       const registerDto: any = {
         email: 'test@example.com',
-        // Missing password and other required fields
       };
 
       await request(app.getHttpServer())
@@ -119,7 +139,6 @@ describe('Authentication (e2e)', () => {
         })
         .expect(401);
 
-      // Gerçek davranışı assert edelim
       expect(response.body).toHaveProperty('message', 'EMAIL_NOT_VERIFIED');
       expect(response.body).toHaveProperty('statusCode', 401);
     });
@@ -147,6 +166,16 @@ describe('Authentication (e2e)', () => {
 
   describe('GET /auth/me', () => {
     it('should return current user with valid token', async () => {
+      await markEmailVerified(registeredUserEmail);
+
+      const loginBody = await loginAndGetToken(
+        registeredUserEmail,
+        registeredUserPassword,
+      );
+
+      authToken = loginBody.token;
+      tenantId = loginBody.user.tenantId;
+
       const response = await request(app.getHttpServer())
         .get('/auth/me')
         .set('Authorization', `Bearer ${authToken}`)

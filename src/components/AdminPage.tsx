@@ -63,7 +63,7 @@ const AdminPage: React.FC = () => {
   const { t } = useTranslation('common');
   const { tenant: authTenant } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: 'admin', password: '', totp: '' });
+  const [loginForm, setLoginForm] = useState({ username: '', password: '', totp: '' });
   const [users, setUsers] = useState<User[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [tableData, setTableData] = useState<TableData>({
