@@ -167,38 +167,48 @@ async function bootstrap() {
       threshold: 1024, // 1KB ve üzerini sıkıştır
     }),
   );
-  app.use(compressionMiddleware); // Migrations: production ve development ortamlarında otomatik çalıştır
-  // Test ortamında (in-memory) migration gerekmiyor
+  app.use(compressionMiddleware);
 
-  if (!isProd) {
-    console.log('⚙️  Migration kontrolü (development)...');
+  // Migrations are intentionally opt-in at boot.
+  // Production deploys should run migrations explicitly before restart.
+  if (process.env.DB_MIGRATIONS_RUN === 'true') {
+    if (!isProd) {
+      console.log('⚙️  Migration kontrolü (development)...');
+    } else {
+      console.log('⚙️  Migration kontrolü (production)...');
+    }
+
+    try {
+      const dataSource: DataSource = app.get(DataSource);
+      if (!dataSource.isInitialized) {
+        await dataSource.initialize();
+      }
+
+      const pendingMigrations = await dataSource.showMigrations();
+      if (pendingMigrations) {
+        console.log('🚀 Pending migration(lar) bulundu. Çalıştırılıyor...');
+        await dataSource.runMigrations();
+        console.log('✅ Migration(lar) başarıyla uygulandı.');
+      } else {
+        console.log('✅ Uygulanacak migration yok.');
+      }
+    } catch (err: unknown) {
+      const safeError = toSafeError(err);
+      console.error('❌ Migration çalıştırma hatası:', safeError);
+
+      if (isProd) {
+        throw safeError;
+      } else {
+        console.warn(
+          '⚠️ Development ortamında migration hatası yutuldu. Devam ediliyor.',
+        );
+      }
+    }
   } else {
-    console.log('⚙️  Migration kontrolü (production)...');
+    console.log('ℹ️  Boot-time migrations disabled. Set DB_MIGRATIONS_RUN=true to enable.');
   }
-  try {
-    const dataSource: DataSource = app.get(DataSource);
-    if (!dataSource.isInitialized) {
-      await dataSource.initialize();
-    }
-    const pendingMigrations = await dataSource.showMigrations(); // TypeORM'in showMigrations() sadece boolean döndürüyor (true -> pending var)
-    if (pendingMigrations) {
-      console.log('🚀 Pending migration(lar) bulundu. Çalıştırılıyor...');
-      await dataSource.runMigrations();
-      console.log('✅ Migration(lar) başarıyla uygulandı.');
-    } else {
-      console.log('✅ Uygulanacak migration yok.');
-    }
-  } catch (err: unknown) {
-    const safeError = toSafeError(err);
-    console.error('❌ Migration çalıştırma hatası:', safeError); // Üretimde migration hatası kritik; uygulamayı başlatmayı durdur.
-    if (isProd) {
-      throw safeError;
-    } else {
-      console.warn(
-        '⚠️ Development ortamında migration hatası yutuldu. Devam ediliyor.',
-      );
-    }
-  } // Seed database if empty (migrationlardan sonra)
+
+  // Seed database if empty (migrationlardan sonra)
 
   const seedService = app.get(SeedService);
   await seedService.seed(); // Serve static files from public

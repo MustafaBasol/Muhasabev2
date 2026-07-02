@@ -74,25 +74,32 @@ async function bootstrap() {
     exclude: [{ path: 'health/(.*)', method: RequestMethod.ALL }], // Health check without prefix for all subpaths
   });
 
-  // Run pending migrations in production too (critical for schema consistency)
-  try {
-    const dataSource: DataSource = app.get(DataSource);
-    if (!dataSource.isInitialized) {
-      await dataSource.initialize();
+  // Migrations are intentionally opt-in at boot.
+  // Production deploys should run migrations explicitly before restart.
+  if (process.env.DB_MIGRATIONS_RUN === 'true') {
+    try {
+      const dataSource: DataSource = app.get(DataSource);
+      if (!dataSource.isInitialized) {
+        await dataSource.initialize();
+      }
+
+      const pendingMigrations = await dataSource.showMigrations();
+      if (pendingMigrations) {
+        console.log('🚀 Pending migration(lar) bulundu. Çalıştırılıyor...');
+        await dataSource.runMigrations();
+        console.log('✅ Migration(lar) başarıyla uygulandı.');
+      } else {
+        console.log('✅ Uygulanacak migration yok.');
+      }
+    } catch (error) {
+      console.error('❌ Migration çalıştırma hatası:', error);
+
+      if (process.env.NODE_ENV === 'production') {
+        throw error;
+      }
     }
-    const pendingMigrations = await dataSource.showMigrations();
-    if (pendingMigrations) {
-      console.log('🚀 Pending migration(lar) bulundu. Çalıştırılıyor...');
-      await dataSource.runMigrations();
-      console.log('✅ Migration(lar) başarıyla uygulandı.');
-    } else {
-      console.log('✅ Uygulanacak migration yok.');
-    }
-  } catch (error) {
-    console.error('❌ Migration çalıştırma hatası:', error);
-    if (process.env.NODE_ENV === 'production') {
-      throw error;
-    }
+  } else {
+    console.log('ℹ️  Boot-time migrations disabled. Set DB_MIGRATIONS_RUN=true to enable.');
   }
 
   // Swagger documentation (only in development)
