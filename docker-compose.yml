@@ -11,10 +11,11 @@ services:
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
       POSTGRES_DB: ${DATABASE_NAME:-moneyflow_dev}
     ports:
-      # SECURITY: do not expose Postgres to the public internet. In production
-      # bind to loopback, e.g. "127.0.0.1:5543:5432" (or drop the mapping
-      # entirely and reach it only over the internal compose network).
-      - "5543:5432"
+      # SECURITY: never expose Postgres to the public internet. Bound to
+      # loopback only — host tools can reach it at 127.0.0.1:5543, but it is
+      # unreachable from other hosts. The backend reaches it over the internal
+      # compose network (host "postgres"), so this mapping is host-admin only.
+      - "127.0.0.1:5543:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./backend/backups/moneyflow_backup_20251030_211719.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -45,9 +46,12 @@ services:
     ports:
       # SECURITY: when TRUST_PROXY=true the backend trusts X-Forwarded-For /
       # X-Real-IP / CF-Connecting-IP, so it MUST sit behind a reverse proxy and
-      # NOT be reachable directly from the internet. In production bind to
-      # loopback and let nginx proxy to it, e.g. "127.0.0.1:3000:3000".
-      - "3000:3000"
+      # NOT be reachable directly from the internet. Bound to loopback: only a
+      # reverse proxy running on the host (or the internal compose network) can
+      # reach it. If your reverse proxy runs as another compose service on
+      # "moneyflow-network", drop this mapping entirely and proxy to
+      # http://backend:3000 over the internal network.
+      - "127.0.0.1:3000:3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 5s
